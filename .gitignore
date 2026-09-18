@@ -1,0 +1,8 @@
+.DS_Store
+Thumbs.db
+*.log
+uploads/
+firmware/
+.thumbnail
+probe.html
+wave-current-scene

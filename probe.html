@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>body{margin:0;background:#111}canvas{width:100vw;height:100vh;display:block}#s{position:fixed;left:8px;top:8px;color:#fff;font:12px monospace;z-index:9}</style></head>
+<body><div id="s">…</div><canvas id="c" width="900" height="520"></canvas>
+<script src="vj-engine.js"></script>
+<script>
+const S=document.getElementById('s'),cv=document.getElementById('c');
+const gl=cv.getContext('webgl2');
+const E=window.VJE;
+function mk(t,src){const s=gl.createShader(t);gl.shaderSource(s,src);gl.compileShader(s);
+  if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(s));return s;}
+try{
+  const t0=performance.now();
+  const p=gl.createProgram();
+  gl.attachShader(p,mk(gl.VERTEX_SHADER,E.VERT));
+  gl.attachShader(p,mk(gl.FRAGMENT_SHADER,E.FRAG_FOR(6)));
+  gl.linkProgram(p);
+  if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(p));
+  const ms=Math.round(performance.now()-t0);
+  gl.useProgram(p);
+  const b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+  const loc=gl.getAttribLocation(p,'pos');gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+  const U=n=>gl.getUniformLocation(p,n);
+  const set={uRes:[900,520],uTime:[3],uMode:[6],uHue:[0.2],uMorph:[0.55],uDetail:[0.6],uZoom:[0.62],
+    uReact:[0.8],uSpeed:[0.6],uIter:[0.5],uCA:[0.5],uCB:[0.5],uCC:[0.2],uSat:[1],uGam:[1],uSpan:[1],
+    uWarm:[0],uSmooth:[0.55],uPaper:[0.85],uSpin:[1],uCamAuto:[1],uStrobe:[1],uZBase:[2.1],uZRat:[3],uTravel:[0]};
+  for(const k in set){const l=U(k);if(l)set[k].length===1?gl.uniform1f(l,set[k][0]):gl.uniform2f(l,set[k][0],set[k][1]);}
+  const pl=U('uPalSel');if(pl)gl.uniform1i(pl,14);
+  const md=U('uMode');if(md)gl.uniform1i(md,6);
+  gl.viewport(0,0,900,520);gl.drawArrays(gl.TRIANGLES,0,3);
+  S.textContent='linked '+ms+'ms · drawn';
+}catch(e){S.textContent='ERR '+e.message;console.error(e);}
+</script></body></html>
