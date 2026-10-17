@@ -11,15 +11,195 @@ uniform float uTime,uFx,uLoud,uBeat,uBass;
 // Defocus strength. Set by the host and only ever non-zero on the 2D families,
 // so the 3D scenes — which already carry real depth — are untouched.
 uniform float uBokeh;
+// 1 when the scene texture's alpha carries a real circle-of-confusion per pixel
+// (the 3D families write it during the march), 0 when there is no depth to read
+// and focus has to be guessed from the frame centre.
+uniform float uDofDepth;
+// Depth for the flat families, read off the finished frame: brightness is
+// height. uDepth is the amount (0 = off), uDMode picks how it is shown
+// (0 relief, 1 parallax bands, 2 terrain flyover), uDTilt is the gyro plane
+// tilt so the pad steers the light, the layers and the flight.
+uniform float uDepth,uDMode;
+// Terrain flight distance, integrated on the host so it holds still with Auto
+// off and never jumps when the speed changes.
+uniform float uTerrZ;
+// Distance blur on the terrain, 0..1 (driven by the DOF trim).
+uniform float uTerrFog;
+uniform vec2 uDTilt;
+// Post denoise, 0..1, from the top half of the Smth trim. Clamps each pixel to
+// the range of its 8 neighbours (kills single-pixel speckle and crawling
+// sparkle) and then blends toward a luminance-weighted 3x3 average.
+uniform float uDenoise;
 float h2(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float Lm(vec2 p){ return dot(texture(uScene,p).rgb, vec3(0.2126,0.7152,0.0722)); }
+vec2 MR(vec2 p){ return 1.0-abs(1.0-mod(p,2.0)); }
+// Terrain height: two-ring nine-tap blur (inner cross, wider diagonal ring) so
+// filigree reads as rolling ground, not spikes or a plus-shaped stipple.
+// Read from a coarse mip level (the host mipmaps the frame while terrain is
+// on), so each tap is already the average of a 16x16 patch: band edges in the
+// fractal become ramps instead of cliffs, for fewer taps than a wide blur.
+float Lt(vec2 p){ return dot(textureLod(uScene,p,3.0).rgb, vec3(0.2126,0.7152,0.0722)); }
+float Lf(vec2 p){ return dot(textureLod(uScene,p,1.5).rgb, vec3(0.2126,0.7152,0.0722)); }
+float Lb(vec2 p){ return dot(textureLod(uScene,p,5.0).rgb, vec3(0.2126,0.7152,0.0722)); }
+// Terrain height: a broad mip-5 base (rolling hills) carrying a little mip-3
+// detail, soft-kneed so plateaus round over. Fractal filigree never reaches
+// the ground as spikes.
+float TH(vec2 xz){
+  vec2 c=xz*0.9+0.5; const float r=0.03;
+  float base=(Lb(MR(c))*2.0+Lb(MR(c+vec2(r,r)))+Lb(MR(c-vec2(r,r)))+Lb(MR(c+vec2(r,-r)))+Lb(MR(c+vec2(-r,r))))/6.0;
+  // Detail follows complexity: where the fine and coarse reads disagree the
+  // frame is busy (filaments, spirals), so finer levels are let through there
+  // and those regions grow real ridges; flat regions stay rolling.
+  float mid=Lt(MR(c)), fine=Lf(MR(c));
+  float busy=smoothstep(0.02,0.14,abs(mid-base));
+  float a=base+(mid-base)*mix(0.22,0.55,busy)+(fine-mid)*0.32*busy;
+  a=clamp(a,0.0,1.0);
+  return a*a*(3.0-2.0*a);
+}
+// Parallax height: continuous, from a mip-2/3 blend of the frame.
+float PH(vec2 p){ vec2 m=MR(p); float a=mix(dot(textureLod(uScene,m,2.0).rgb,vec3(0.2126,0.7152,0.0722)),dot(textureLod(uScene,m,3.5).rgb,vec3(0.2126,0.7152,0.0722)),0.5); return a*a*(3.0-2.0*a); }
 void main(){
   vec2 uv=gl_FragCoord.xy/uRes;
   vec2 cc=uv-0.5;
   float ab=uFx*(0.004+uBeat*0.005)*length(cc)*2.0;
+  float dA=clamp(uDepth,0.0,1.0);
+  bool dOn=dA>0.004;
+  vec2 suv=uv; float shade=1.0; bool terr=false; vec3 tcol=vec3(0.0);
+  bool plx=false; vec3 pcol=vec3(0.0);
+  if(dOn && uDMode>0.5 && uDMode<1.5){
+    // Parallax occlusion over a continuous height: view ray stepped down
+    // through the height volume, refined between the last two steps, so the
+    // surface slides without bands or tears. Driven by tilt plus a slow sway.
+    vec2 dir=(uDTilt*1.2+vec2(sin(uTime*0.21),cos(uTime*0.16))*0.55)*0.14*dA;
+    const int NS=24; float stp=1.0/float(NS);
+    float lay=1.0, hPrev=0.0, hCur=PH(uv), lPrev=1.0; vec2 p=uv;
+    for(int i=0;i<NS;i++){ if(hCur>=lay) break; lPrev=lay; hPrev=hCur; lay-=stp; p=uv-dir*(1.0-lay); hCur=PH(p); }
+    float aft=hCur-lay, bef=hPrev-lPrev, w=aft/(aft-bef+1e-5);
+    p=mix(p, uv-dir*(1.0-lPrev), clamp(w,0.0,1.0));
+    float h=PH(p);
+    // Soft self-shadow toward a light that leans with the tilt.
+    vec2 ldir=normalize(dir+vec2(0.6,0.8)*0.02)*0.05*dA; float sh=1.0;
+    for(int k=1;k<=6;k++){ float fk=float(k)/6.0; sh=min(sh,1.0-clamp((PH(p+ldir*fk)-h-fk*0.12)*6.0,0.0,1.0)*(1.0-fk*0.5)); }
+    // Multiplane: a deep plane, zoomed back and drifting slower, shows through
+    // the lowest ground; low ground also goes darker and softer.
+    vec2 fp=0.5+(p-0.5)*0.82+dir*0.35;
+    vec3 back=textureLod(uScene,MR(fp),3.0).rgb*0.55;
+    vec3 near=textureLod(uScene,MR(p),(1.0-h)*2.5*dA).rgb;
+    float deep=smoothstep(0.32,0.05,h);
+    pcol=mix(near,back,deep*0.75*dA);
+    pcol*=mix(1.0,(0.45+0.75*h)*(0.55+0.45*sh),dA);
+    plx=true;
+  }
+  if(dOn && uDMode>1.5){
+    // Terrain: the frame laid flat as a height field (mirror-tiled so it never
+    // ends) and flown over. The scene keeps animating underneath.
+    float ar=uRes.x/uRes.y; vec2 q=(uv-0.5)*vec2(ar,1.0);
+    float pit=0.42+uDTilt.x*0.35, yaw=uDTilt.y*0.7;
+    // Bank into the turn.
+    float bk=-uDTilt.y*0.28; q=mat2(cos(bk),-sin(bk),sin(bk),cos(bk))*q;
+    vec3 rd=normalize(vec3(q.x,q.y-pit,1.15));
+    float cy=cos(yaw), sy=sin(yaw); rd.xz=mat2(cy,-sy,sy,cy)*rd.xz;
+    float Hh=0.035+0.13*dA;
+    // Altitude follows the ground ahead (same for every pixel, so it moves the
+    // camera, not the picture).
+    vec2 fw=vec2(sy,cy);
+    float gA=max(max(TH(vec2(0.0,uTerrZ)),TH(vec2(0.0,uTerrZ)+fw*0.25)),TH(vec2(0.0,uTerrZ)+fw*0.5));
+    vec3 ro=vec3(0.0,0.24+gA*Hh*1.1,uTerrZ);
+    // Scene tint for sky, haze and the height ramp.
+    vec3 avg=textureLod(uScene,vec2(0.5),9.0).rgb;
+    vec3 tint=avg/max(max(avg.r,max(avg.g,avg.b)),0.02);
+    float wl=Hh*0.16;
+    float t=0.02, tp=t; bool hit=false; bool wat=false;
+    float tw=rd.y<-1e-4 ? (ro.y-wl)/(-rd.y) : 1e4;
+    for(int i=0;i<128;i++){
+      vec3 p=ro+rd*t;
+      float h=max(TH(p.xz)*Hh,wl);
+      if(p.y<h){ hit=true; break; }
+      tp=t; t+=max(0.0025+t*0.0015,(p.y-h)*0.42); if(t>9.0) break;
+    }
+    float dofk=clamp(uTerrFog,0.0,1.0);
+    vec3 voidc=vec3(0.004,0.005,0.008);
+    // Horizon glow in the scene's own colour, fading up into the void.
+    float hz=clamp(rd.y+0.08,0.0,1.0);
+    vec3 sky=mix(tint*(0.18+0.25*uLoud)+avg*0.6, voidc, smoothstep(0.0,0.35,hz));
+    vec3 ld=normalize(vec3(0.55,0.42,0.35));
+    if(hit){
+      for(int k=0;k<6;k++){ float tm=0.5*(tp+t); vec3 p=ro+rd*tm; if(p.y<max(TH(p.xz)*Hh,wl)) t=tm; else tp=tm; }
+      wat = t>=tw-0.002;
+      vec3 p=ro+rd*t;
+      vec3 c;
+      if(wat){
+        // Water: rippled normal (bass-driven), reflected ray marched for the ridges.
+        vec2 rq=p.xz*14.0; float rt=uTime*1.4;
+        vec3 n=normalize(vec3(sin(rq.x+rt)*0.5+sin(rq.y*1.3-rt*0.8)*0.5, 9.0-uBass*5.0, cos(rq.y+rt*1.1)*0.5));
+        vec3 rr=reflect(rd,n); float t2=0.01; vec3 rc=sky; 
+        for(int j=0;j<32;j++){ vec3 q2=p+rr*t2; float h2=TH(q2.xz)*Hh; if(q2.y<h2){ rc=textureLod(uScene,MR(q2.xz*0.9+0.5),3.0).rgb*0.8; break; } t2+=max(0.01,(q2.y-h2)*0.6); if(t2>3.0) break; }
+        float fr=0.25+0.75*pow(1.0-max(-rd.y,0.0),4.0);
+        c=mix(avg*0.12+tint*0.02, rc, fr*0.85);
+        c+=pow(max(dot(reflect(-ld,n),-rd),0.0),60.0)*(0.25+uBeat*0.5)*tint;
+      } else {
+        vec2 tc=MR(p.xz*0.9+0.5);
+        // Normal step shrinks up close so the finer ridges are lit, not smeared.
+        float ex=mix(0.008,0.03,clamp(t/3.0,0.0,1.0)), h0=TH(p.xz);
+        float hx=(TH(p.xz+vec2(ex,0.0))-TH(p.xz-vec2(ex,0.0)))*Hh;
+        float hz2=(TH(p.xz+vec2(0.0,ex))-TH(p.xz-vec2(0.0,ex)))*Hh;
+        vec3 n=normalize(vec3(-hx,2.0*ex,-hz2));
+        float lod=clamp((t-0.5)*dofk*2.4,0.0,7.0);
+        vec3 alb=textureLod(uScene,tc,lod).rgb;
+        // Height ramp: wet dark valleys, lit ridges, scene texture on top.
+        float hN=clamp(h0,0.0,1.0);
+        alb*=mix(vec3(0.35)+tint*0.15, vec3(1.15)+tint*0.1, smoothstep(0.15,0.8,hN));
+        // Soft shadow from a low sun.
+        float sh=1.0, st=0.02;
+        for(int k=0;k<12;k++){ vec3 sp=p+n*0.002+ld*st; float d=sp.y-TH(sp.xz)*Hh; sh=min(sh,clamp(10.0*d/st,0.0,1.0)); if(sh<0.02) break; st+=max(0.015,d); if(st>1.2) break; }
+        // Crease darkening: ground below its surroundings.
+        float rim=(TH(p.xz+vec2(0.08,0.0))+TH(p.xz-vec2(0.08,0.0))+TH(p.xz+vec2(0.0,0.08))+TH(p.xz-vec2(0.0,0.08)))*0.25;
+        float ao=clamp(1.0-(rim-h0)*3.0,0.35,1.0);
+        float df=max(dot(n,ld),0.0);
+        c=alb*(0.18*ao+1.0*df*(0.25+0.75*sh))+avg*0.15*ao*(0.5+0.5*n.y);
+        c+=pow(max(dot(reflect(-ld,n),-rd),0.0),12.0)*(0.06+uBeat*0.16)*sh;
+      }
+      float hN2=wat?0.0:clamp(TH(p.xz),0.0,1.0);
+      float te=max(t-1.2,0.0)*(1.0+(1.0-hN2)*0.9);
+      float fogH=1.0-exp(-pow(te/5.5,1.6));
+      tcol=mix(c,sky,fogH);
+    } else tcol=sky;
+    terr=true;
+  }
   vec3 col;
-  col.r=texture(uScene,uv+cc*ab).r;
-  col.g=texture(uScene,uv).g;
-  col.b=texture(uScene,uv-cc*ab).b;
+  col.r=texture(uScene,suv+cc*ab).r;
+  col.g=texture(uScene,suv).g;
+  col.b=texture(uScene,suv-cc*ab).b;
+  if(uDenoise>0.001){
+    vec2 px=1.0/uRes; vec3 mn=vec3(1e9), mx=vec3(-1e9), acc=vec3(0.0); float wsum=0.0;
+    float lc=dot(col,vec3(0.2126,0.7152,0.0722));
+    for(int j=-1;j<=1;j++) for(int i=-1;i<=1;i++){
+      if(i==0 && j==0) continue;
+      vec3 s=texture(uScene,suv+vec2(i,j)*px*(1.0+uDenoise)).rgb;
+      mn=min(mn,s); mx=max(mx,s);
+      float w=exp(-abs(dot(s,vec3(0.2126,0.7152,0.0722))-lc)*mix(14.0,4.0,uDenoise));
+      acc+=s*w; wsum+=w;
+    }
+    vec3 cl=clamp(col,mn,mx);
+    col=mix(col,cl,clamp(uDenoise*3.0,0.0,1.0));
+    col=mix(col,(col+acc)/(1.0+wsum),uDenoise*0.75);
+  }
+  col*=shade;
+  if(dOn && uDMode<0.5){
+    // Relief: the brightness field read as a surface and lit by a light that
+    // circles the frame, pushed round by the bass and steered by the tilt.
+    vec2 px=1.5/uRes, px3=px*3.0;
+    float hx=Lm(uv+vec2(px.x,0.0))-Lm(uv-vec2(px.x,0.0))+0.5*(Lm(uv+vec2(px3.x,0.0))-Lm(uv-vec2(px3.x,0.0)));
+    float hy=Lm(uv+vec2(0.0,px.y))-Lm(uv-vec2(0.0,px.y))+0.5*(Lm(uv+vec2(0.0,px3.y))-Lm(uv-vec2(0.0,px3.y)));
+    vec3 n=normalize(vec3(-hx,-hy,0.12/(0.15+dA*1.6)));
+    float la=uTime*0.35+uBass*1.5;
+    vec3 ld=normalize(vec3(cos(la)*0.8+uDTilt.y,sin(la)*0.8+uDTilt.x,0.6));
+    float df=max(dot(n,ld),0.0);
+    float sp=pow(max(dot(n,normalize(ld+vec3(0.0,0.0,1.0))),0.0),40.0);
+    col=mix(col,col*(0.25+1.05*df)+sp*(0.3+uBeat*0.6),dA);
+  }
+  if(terr) col=mix(col,tcol,smoothstep(0.0,0.12,dA));
+  if(plx) col=mix(col,pcol,smoothstep(0.0,0.12,dA));
   // Shallow focal plane. A macro lens on something this small holds only a
   // narrow band sharp, and that limit is most of why a fractal photograph reads
   // as an object in space rather than a plot. There is no depth buffer here, so
@@ -29,17 +209,42 @@ void main(){
   // reads as blur. Weighting the taps by their own brightness is what makes the
   // highlights bloom into discs instead of averaging away, which is the part
   // the eye reads as bokeh.
-  if(uBokeh>0.004){
-    float coc=uBokeh*smoothstep(0.12,0.62,length(cc))*(1.0+uBass*0.5);
+  if(uBokeh>0.004 && !terr){
+    // Two ways in. With real depth the circle of confusion arrives per pixel in
+    // the alpha channel, so focus sits on the surface the camera is actually
+    // orbiting and the background goes as soft as a macro lens makes it. Without
+    // depth it falls off from frame centre, which is where the 2D scenes keep
+    // their subject anyway.
+    float coc = uDofDepth>0.5
+      ? texture(uScene,uv).a*uBokeh
+      : uBokeh*smoothstep(0.12,0.62,length(cc))*(1.0+uBass*0.5);
     if(coc>0.001){
+      // Tap count and radius both follow the depth path, because that is the one
+      // asked to produce real bokeh rather than a general softening. 18 taps on
+      // the golden-angle spiral fill a disc evenly enough that a bright point
+      // spreads into a round highlight instead of a ring or a streak, and the
+      // brightness weighting is what keeps it a DISC: weighting each tap by its
+      // own luma means a small highlight dominates the average over its whole
+      // circle of confusion rather than being diluted into grey. That single
+      // term is most of what the eye reads as a photographic defocus.
+      int N = uDofDepth>0.5 ? 18 : 6;
+      float rmax = uDofDepth>0.5 ? 0.075 : 0.035;
       vec3 acc=col; float wsum=1.0;
-      for(int i=0;i<6;i++){
+      for(int i=0;i<18;i++){
+        if(i>=N) break;
         float fi2=float(i)+0.5;
         float ang=fi2*2.39996323;
-        float rad=sqrt(fi2/6.0)*coc*0.035;
-        vec3 s=texture(uScene,uv+vec2(cos(ang),sin(ang))*rad*vec2(1.0,uRes.x/uRes.y)).rgb;
-        float w=1.0+dot(s,vec3(0.2126,0.7152,0.0722))*2.2;
-        acc+=s*w; wsum+=w;
+        float rad=sqrt(fi2/float(N))*coc*rmax;
+        vec2 suv=uv+vec2(cos(ang),sin(ang))*rad*vec2(1.0,uRes.x/uRes.y);
+        vec4 s=texture(uScene,suv);
+        // A sample only bleeds onto this pixel if it is at least as defocused as
+        // the pixel is — otherwise a sharp foreground smears over the blurred
+        // field behind it, which is the classic gather artefact and reads as a
+        // halo around every in-focus edge.
+        float ok = uDofDepth>0.5 ? smoothstep(-0.25,0.10,s.a*uBokeh-coc*0.55) : 1.0;
+        float lum=dot(s.rgb,vec3(0.2126,0.7152,0.0722));
+        float w=(1.0+lum*lum*7.0)*ok;
+        acc+=s.rgb*w; wsum+=w;
       }
       col=mix(col,acc/wsum,clamp(coc,0.0,1.0));
     }
@@ -59,7 +264,7 @@ void main(){
   o=vec4(col,1.0);
 }`;
 
-const PAL_NAMES = ['Triad','Ember','Infra','Mono','Riso','Neon','Ramp','Bloom','Payne','Verdigris','Nocturne','Sienna','Kanagawa','Valley','Meadow'];
+const PAL_NAMES = ['Triad','Ember','Infra','Mono','Riso','Neon','Ramp','Bloom','Payne','Verdigris','Nocturne','Sienna','Kanagawa','Valley','Meadow','Plume'];
 
 const FRAG = `#version 300 es
 precision highp float;
@@ -74,7 +279,7 @@ uniform vec2 uCtr3;
 uniform int uMode;
 uniform sampler2D uTex;
 uniform sampler2D uPrev;
-uniform float uVidMix,uHasTex,uVidFlip,uFeed,uDrift,uCamYaw,uCamPitch,uCamAuto,uCamRoll;
+uniform float uVidMix,uHasTex,uVidFlip,uVidFlipV,uFeed,uDrift,uCamYaw,uCamPitch,uCamAuto,uCamRoll;
 // Ambient rotation multiplier: -1 counter-clockwise, 0 frozen, +1 clockwise.
 // Every self-driven spin in the file routes through it so one control stops them all.
 uniform float uSpin;
@@ -82,10 +287,46 @@ uniform float uSpin;
 // raymarch hit test; 0 = the old razor-thin, fizzy behaviour.
 uniform float uSmooth;
 uniform vec2 uPan;
+// Gyro plane tilt for the flat families (x = pitch, y = roll, radians). The
+// 2D field is laid on a plane and seen through a pinhole, so tipping the pad
+// tips the plane in perspective rather than just sliding the picture.
+uniform vec2 uPlane;
 // Endless-zoom master. 1 = the zoom slider is the phase of the scale-matched
 // layer loop rather than an absolute depth (V on the host). 0 = the old
 // absolute slider.
 uniform float uZLoop;
+// Crossfade endless zoom for 2D scenes with no exact self-similar anchor:
+// x on, y loop phase (0..1), z octaves per loop. Two copies of the scene a
+// loop apart are drawn and weighted sin^2 / cos^2 of the phase, so each copy
+// wraps while its weight is zero and the zoom never stops or cuts.
+uniform vec3 uZX;
+// Deep zoom (Mandelbrot, host deep-zoom.js): perturbation against a reference
+// orbit in uOrb, offsets in float32, centre held in BigInt on the host.
+uniform float uDeep,uDeepPix,uDeepBase,uDeepShade;
+uniform int uDeepMax,uRefLen;
+uniform vec2 uDeepOff;
+uniform sampler2D uOrb;
+// Camera views on the 3D families (host cam-fly.js). uCamMode 0 orbit, 1 fly,
+// 2 surface; the eye and basis come from the host. uRep repeats space with that
+// period (0 off). uCamProbe draws the steering probe instead of the frame.
+uniform float uCamMode,uCamScale,uRep,uCamProbe;
+// Repeat variation: x = smallest copy (fraction of full size), y = turn amount,
+// z = per-copy parameter spread, w = off-centre drift of the smaller copies.
+uniform vec4 uRepV;
+// 3D look: x = fog depth (1 = as designed), y = glow amount (1 = as designed).
+uniform vec2 uLook;
+uniform vec3 uCamPos,uCamF,uCamR,uCamU,uCamTap;
+// Tap target highlight (host cam-fly.js applyTgt). uTgt.w 0 = off.
+uniform vec4 uTgt; uniform vec3 uTgtK,uTgtC;
+// 1 on the fractal copy that holds the target point (same cell maths as map()).
+// Without repeats it is the form within the picked radius around the point.
+float tgtSel(bool hit,vec3 p,float Rg){ if(!hit) return 0.0; if(uRep<=0.0) return 1.0-smoothstep(Rg*0.85,Rg,length(p-uTgt.xyz));
+  vec3 a=floor(p/uRep+0.5), b=floor(uTgt.xyz/uRep+0.5); return all(equal(a,b))?1.0:0.0; }
+// Fog / reach length for the inside views (host-smoothed open space).
+uniform float uCamFog;
+vec4 gProbe=vec4(0.0);
+// Probe pixel 25: the target colour, so the host's marker ring matches it.
+vec4 gProbeC=vec4(0.0);
 // The endless-zoom triple, solved on the HOST and passed in rather than derived
 // per family in here. Every family that loops needs the same three numbers — a
 // point the set is linearly self-similar about, the log2 of the multiplier
@@ -127,7 +368,20 @@ uniform float uZIter;
 // into bytes, so the host can read back the point the viewer is looking AT and
 // orbit that instead of the world origin.
 uniform float uDepthOut;
+// 1 only while drawing a 3D scene INTO the offscreen target that the post pass
+// will read. The circle of confusion is written to alpha, and alpha is not a
+// free channel on the direct-to-backbuffer path: the context has an alpha
+// channel and the compositor honours it, so a frame that ends up on screen with
+// alpha 0 is an invisible frame. Flagged by the host for exactly the one draw
+// that consumes it, the same way uDepthOut flags the probe pass.
+uniform float uCoCOut;
 vec3 gPiv=vec3(0.0); float gHit=0.0;
+// Background key for the Void video mode: 1 where the ray found no surface,
+// soft across the silhouette coverage band. -1 = no geometry info (2D, canvas).
+float gVoidK=-1.0;
+// Circle of confusion for this pixel, 0..1, published by render3 and written to
+// the frame's alpha so the post pass can gather a real defocus.
+float gCoC=0.0;
 uniform float uTravel;
 // Strobe gain, 0..1, ramped host-side. The frame pulse rides on it so the beat
 // zoom is part of the strobe rather than a permanent property of the scene.
@@ -142,6 +396,16 @@ uniform float uSat,uGam,uSpan,uWarm;
 // count to colour it, so it plots as one dead shape; this is the amount of
 // pattern laid into it instead.
 uniform float uFill;
+// Exterior structure on the escape-time families. 0 off, 1 field grid (external
+// rays + flowing equipotential shells), 2 orbit traces, 3 both.
+uniform float uField;
+// Line view on the 2D escape-time sets: 0 off, else the outline is drawn as one
+// glowing line this many render pixels out from the set (distance estimate
+// iso-contour). Small = hugs every filament, large = one smooth single line.
+uniform float uLine;
+float gPx=1e-3;   // world size of one render pixel, set by each escape path
+// Aperture, 0..1. Zero is the pinhole camera every scene used to be.
+uniform float uDOF;
 // Scene text. The message is baked to a signed distance field on the CPU (R =
 // distance, G = letter index) so the shader can treat it as real geometry
 // instead of a sprite: extruded in 3D it unions into the raymarch and occludes
@@ -166,18 +430,20 @@ uniform vec2 uTonal;
 // Iteration budget. Iter is the coarse control; Detail is a second multiplier
 // on top, so the Detail slider changes actual fractal depth everywhere rather
 // than only shading sharpness. Both feed every DE loop and escape loop.
-float fi(){return mix(0.30,1.8,uIter)*mix(0.45,2.0,uDetail);}
+float fi(){return mix(0.10,2.1,uIter)*mix(0.45,2.0,uDetail);}
 vec2 cmul(vec2 a,vec2 b){return vec2(a.x*b.x-a.y*b.y,a.x*b.y+a.y*b.x);}
 vec2 cdiv(vec2 a,vec2 b){float d=dot(b,b);return vec2(a.x*b.x+a.y*b.y,a.y*b.x-a.x*b.y)/max(d,1e-12);}
 vec2 cpow_d(vec2 z,float e){float r=pow(max(length(z),1e-9),e),a=atan(z.y,z.x)*e;return r*vec2(cos(a),sin(a));}
 uniform int uVidMode;
+// 1 = draw no scene, only the video effect over black (vector-only views).
+uniform float uSceneOff;
 uniform sampler2D uSpec;
 float specAt(float x){ return texture(uSpec, vec2(clamp(x,0.0,1.0),0.25)).r; }
 // The video block is appended after the geometry blocks, but surface projection
 // has to sample the frame from inside the raymarch shading — hence prototypes.
 vec3 sampleVid(vec2 t);
 vec3 surfVid(vec3 p, vec3 n);
-bool vidSurfOn(){ return uHasTex>0.5 && uVidMix>0.001 && uVidMode>=11; }
+bool vidSurfOn(){ return uHasTex>0.5 && uVidMix>0.001 && (uVidMode==11 || uVidMode==12); }
 vec2 wvLR(float x){ return texture(uSpec, vec2(clamp(x,0.0,1.0),0.75)).rg*2.0-1.0; }
 float wvL(float x){ return wvLR(x).x; }
 
@@ -236,6 +502,10 @@ vec3 pal(float t){
                                        vec3(0.969,0.910,0.745), vec3(0.769,0.376,0.227), vec3(0.216,0.110,0.278)); }
   else if(uPalSel==14){ base=ramp(tt, vec3(0.945,0.960,0.855), vec3(0.720,0.855,0.545), vec3(0.435,0.635,0.345),
                                        vec3(0.360,0.455,0.780), vec3(0.910,0.450,0.300), vec3(0.820,0.880,0.960)); }
+  // Plume: pastel feathers over a deep teal lattice — cream, peach, rose, sky,
+  // mint, then the dark teal that carries the filaments between the fronds.
+  else if(uPalSel==15){ base=ramp(tt, vec3(0.99,0.95,0.86), vec3(0.98,0.76,0.62), vec3(0.95,0.64,0.72),
+                                       vec3(0.62,0.80,0.92), vec3(0.62,0.88,0.80), vec3(0.10,0.40,0.43)); }
   else { base=0.5+0.5*cos(6.28318*(vec3(0.0,0.33,0.67)+tt)); }
   vec3 duo=0.5+0.5*cos(6.28318*(vec3(0.0,0.12,0.24)+tt*0.7));
   vec3 c=mix(base,duo,clamp(uCC,0.0,1.0)*(uPalSel==0?1.0:0.0));
@@ -272,7 +542,7 @@ void trapCfg(out vec3 w, out float r0){
   w=vec3(0.0,0.0,0.0); r0=1.0;
   if(uMode==7)       { w.x=1.0; }                       // Julia: unit shell
   else if(uMode==8)  { w.z=1.0; }                       // Sine Lambda: rulings
-  else if(uMode==17) { w.x=1.0; w.y=1.0; r0=0.35; }     // Multibrot: tight ring + rail
+  else if(uMode==17) { w.x=1.0; w.y=1.0; r0=0.35; }     // Magnet: tight ring + rail
   else if(uMode==18) { w.y=1.0; }                       // Phoenix: vertical rails
   else if(uMode==20) { w.x=1.0; w.z=1.0; r0=0.5; }      // Ship: waterline + ring
   else if(uMode==21) { w.x=1.0; r0=0.8; }               // Celtic: wide ring
@@ -301,6 +571,10 @@ float orbitKeep(){
   return 1.0;
 }
 
+// One-pixel antialiased line on a periodic scalar, fading out once the spacing
+// drops below a few pixels so dense regions go quiet instead of moire.
+float fLine(float x,float w){float f=fract(x);float d=min(f,1.0-f);return (1.0-smoothstep(0.0,1.0,d/max(w,1e-5)))*clamp(1.0-w*2.5,0.0,1.0);}
+float fSeg(vec2 p,vec2 a,vec2 b){vec2 pa=p-a,ba=b-a;float h=clamp(dot(pa,ba)/max(dot(ba,ba),1e-12),0.0,1.0);return length(pa-ba*h);}
 // Shared shading for the 2D escape-time families. Beyond smooth iteration
 // count this uses the orbit derivative (analytic distance estimate + a fake
 // surface normal for relief lighting), a stripe-average term, and an orbit
@@ -311,6 +585,14 @@ vec3 esc_shade(float i,float maxi,float m,vec2 z,vec2 dz,float st,float sn,float
   float tt=sm/maxi;
   float lz=sqrt(max(m,1.0001));
   float de=lz*log(lz)/max(length(dz),1e-8);
+  if(uLine>0.5){
+    float dp=de/max(gPx,1e-12)-uLine;
+    float core=exp(-dp*dp*0.45);
+    float glow=exp(-abs(dp)/(2.5+uLine*0.25))*0.30;
+    float ea=atan(z.y,z.x)/6.2831853;
+    vec3 lc=pal(0.5+ea*0.35+uHigh*0.15);
+    return lc*(core*1.5+glow)*(1.0+uBeat*0.35);
+  }
 
   // Relief. The analytic normal (cdiv(z,dz)) only describes the boundary's own
   // slope; treating the smooth iteration count as a height field and taking its
@@ -471,12 +753,28 @@ vec3 esc_shade(float i,float maxi,float m,vec2 z,vec2 dz,float st,float sn,float
   // chroma goes up keeps the band inside the knee, so a hot band turns redder
   // instead of turning white.
   col=mix(col,clamp(lm*0.90,0.0,1.0)+(col-lm)*1.26,fillw);
+  // Field grid. The escaped orbit's final angle is the external argument, so
+  // slicing it draws the field lines that fan out from every bulb; slicing the
+  // smooth count draws equipotential shells that echo the outline outward. The
+  // shells flow away from the set, pushed by the bass. Both are faded in only
+  // where the frame is resolved, so they live in the open field and leave the
+  // filament alone.
+  if(uField>0.5 && (uField<1.5 || uField>2.5)){
+    float ea=atan(z.y,z.x)/6.2831853+0.5;
+    float aw=min(fwidth(ea),fwidth(fract(ea+0.5)));
+    float rays=fLine(ea*16.0,aw*16.0);
+    float sh=sm*0.5-uTime*0.30*uSpeed-uBass*uReact*0.35;
+    float shl=fLine(sh,fwidth(sm)*0.5);
+    float gm=smoothstep(0.8,2.6,ldp)*mix(1.0,0.45,fillw)*fadeHF;
+    col+=(pal(0.55+uHigh*0.2)*rays*0.42+pal(0.82+uMid*0.2)*shl*0.40*(1.0+uBass*uReact*0.6))*gm;
+  }
   col+=uBeat*0.12;
   return col*(1.0+col*0.22)/(1.0+col*0.62);
 }
 
 // Interior points get trap structure instead of flat black.
 vec3 esc_in(float tr,float st,float sn,vec2 dz,float maxi){
+  if(uLine>0.5) return vec3(0.0);
   float stripe = sn>0.5 ? st/sn : 0.0;
   if(uMode==8){
     // Rulings, not a void. Stripe (Cst C) sweeps from a smooth wash at 0 to hard
@@ -641,25 +939,39 @@ float sdBox(vec3 p,vec3 b){vec3 d=abs(p)-b;return min(max(d.x,max(d.y,d.z)),0.0)
 
 float bulb(vec3 p,float power,out float trap){
   vec3 z=p;float dr=1.0,r=0.0;trap=1.0;
-  int iters=int(clamp((9.0+uZoom*9.0)*fi(),6.0,46.0));
+  // Cst B walks the Mandelbulb onto a JULIABULB. The only difference between the
+  // two is what gets added back each iteration — the sample point, or a fixed
+  // constant — so blending between them is the honest continuum, and it is a
+  // shape change nothing else on the strip can make: the solid opens out of its
+  // single mass into the symmetric bulb form. At 0.5 the blend is zero and this
+  // is exactly the Mandelbulb it always was, so no preset shifts.
+  float jm=clamp((uCB-0.5)*2.0,0.0,1.0);
+  vec3 jc=vec3(0.36,0.06,-0.22);
+  vec3 addc=mix(p,jc,jm);
+  int iters=int(clamp((9.0+uZoom*9.0)*fi(),4.0,46.0));
   for(int i=0;i<48;i++){
     if(i>=iters) break;
     r=length(z); if(r>2.2) break;
     float th=acos(clamp(z.z/max(r,1e-6),-1.0,1.0)), ph=atan(z.y,z.x);
     dr=pow(r,power-1.0)*power*dr+1.0;
     float zr=pow(r,power); th*=power; ph*=power;
-    z=zr*vec3(sin(th)*cos(ph),sin(th)*sin(ph),cos(th))+p;
+    z=zr*vec3(sin(th)*cos(ph),sin(th)*sin(ph),cos(th))+addc;
     trap=min(trap,r);
   }
   return 0.5*log(max(r,1e-6))*r/dr;
 }
 float menger(vec3 p){
   float d=sdBox(p,vec3(1.0)); float s=1.0;
-  int mi=int(clamp((4.0+uZoom*3.0)*fi(),3.0,12.0));
+  // Cst B is the cross-section: how wide the square hole cut at each level is
+  // relative to the cell. It is the sponge's one defining constant — 3 is
+  // Menger's own, below it the struts thicken until the holes close, above it
+  // they thin to a cage. Centred so 0.5 is the classical sponge.
+  float xw=3.0+(uCB-0.5)*0.9;
+  int mi=int(clamp((4.0+uZoom*3.0)*fi(),2.0,12.0));
   for(int m=0;m<12;m++){
     if(m>=mi) break;
     vec3 a=mod(p*s,2.0)-1.0; s*=3.0;
-    vec3 r=abs(1.0-3.0*abs(a));
+    vec3 r=abs(1.0-xw*abs(a));
     float da=max(r.x,r.y),db=max(r.y,r.z),dc=max(r.z,r.x);
     d=max(d,(min(da,min(db,dc))-1.0)/s);
   }
@@ -667,7 +979,7 @@ float menger(vec3 p){
 }
 float ifs(vec3 z,float ang,float scale){
   vec3 off=vec3(1.0,0.92,1.08); mat2 R=rot(ang);
-  int ii=int(clamp((10.0+uZoom*5.0)*fi(),7.0,24.0));
+  int ii=int(clamp((10.0+uZoom*5.0)*fi(),3.0,24.0));
   float sum=0.0;
   for(int i=0;i<24;i++){
     if(i>=ii) break;
@@ -684,11 +996,16 @@ float ifs(vec3 z,float ang,float scale){
 }
 float apollonian(vec3 p,out float trap){
   float scale=1.0;
-  float kk=1.05+uMorph*0.5;
-  int N=int(clamp(fi()*5.0,3.0,12.0));
+  // Cst A is the inversion radius — the size of the sphere every point is
+  // reflected through, which sets how tightly the packing nests. Cst B is the
+  // lattice period the fold wraps into, so it changes how many spheres a cell
+  // holds rather than their scale. Both centred on the classical values.
+  float kk=1.05+uMorph*0.5+(uCA-0.5)*0.42;
+  float per=0.5+(uCB-0.5)*0.14;
+  int N=int(clamp(fi()*5.0,2.0,12.0));
   for(int i=0;i<12;i++){
     if(i>=N) break;
-    p=-1.0+2.0*fract(0.5*p+0.5);
+    p=-1.0+2.0*fract(per*p+0.5);
     float r2=dot(p,p);
     float k=kk/max(r2,0.0001);
     p*=k; scale*=k;
@@ -698,11 +1015,18 @@ float apollonian(vec3 p,out float trap){
 }
 float qjulia(vec3 pos,out float trap){
   vec4 z=vec4(pos,0.0);
+  // The quaternion Julia constant, all four components. Two were animated off
+  // Morph and the clock; the other two sat at fixed literals, which is why the
+  // scene had one shape however hard you pushed it. Cst A and Cst B now own
+  // them — c is the whole of what a Julia set IS, so this is the parameter that
+  // makes the family explorable instead of decorative. Centred on the values
+  // that were hard-coded.
   vec4 c=vec4(-0.65+uMorph*0.4+sin(uTime*0.13*uSpeed)*0.18,
-              0.55+cos(uTime*0.11*uSpeed)*0.16, 0.2, 0.12);
+              0.55+cos(uTime*0.11*uSpeed)*0.16,
+              0.2+(uCA-0.5)*0.85, 0.12+(uCB-0.5)*0.62);
   float md2=1.0, mz2=dot(z,z);
   trap=1.0;
-  int N=int(clamp(fi()*8.0,4.0,16.0));
+  int N=int(clamp(fi()*8.0,3.0,16.0));
   for(int i=0;i<16;i++){
     if(i>=N) break;
     md2*=4.0*mz2;
@@ -715,8 +1039,12 @@ float qjulia(vec3 pos,out float trap){
 }
 float sierp(vec3 z,float ang){
   vec3 a1=vec3(1.0,1.0,1.0),a2=vec3(-1.0,-1.0,1.0),a3=vec3(1.0,-1.0,-1.0),a4=vec3(-1.0,1.0,-1.0);
-  float scale=2.0;
-  int mi=int(clamp(12.0*fi(),8.0,26.0));
+  // Cst B is the contraction ratio. 2 is the classical tetrahedron, where the
+  // four children exactly touch; under it they separate into loose debris and
+  // over it they overlap and the solid fills in — so the useful window is
+  // narrow and this stays inside it.
+  float scale=2.0+(uCB-0.5)*0.42;
+  int mi=int(clamp(12.0*fi(),4.0,26.0));
   float sum=0.0;
   for(int i=0;i<26;i++){
     if(i>=mi) break;
@@ -736,7 +1064,7 @@ float mandelbox(vec3 p,out float trap){
   vec3 off=p, z=p; float dr=1.0; trap=1.0;
   float mr=0.25+uCB*0.35;
   float fold=0.85+uCC*0.5;
-  int mi=int(clamp(16.0*fi(),8.0,28.0));
+  int mi=int(clamp(16.0*fi(),3.0,28.0));
   for(int i=0;i<30;i++){
     if(i>=mi) break;
     z=clamp(z,-fold,fold)*2.0-z;
@@ -751,7 +1079,7 @@ float mandelbox(vec3 p,out float trap){
 float kleinian(vec3 p,out float trap){
   vec3 cs=vec3(0.9+(uCA-0.5)*0.3, 0.9+(uCB-0.5)*0.3, 1.15+(uCC-0.5)*0.4);
   float scale=1.0; trap=1.0;
-  int mi=int(clamp(9.0*fi(),6.0,22.0));
+  int mi=int(clamp(9.0*fi(),2.0,22.0));
   for(int i=0;i<22;i++){
     if(i>=mi) break;
     p=2.0*clamp(p,-cs,cs)-p;
@@ -767,7 +1095,7 @@ float juliabulb(vec3 p,out float trap){
   vec3 z=p; float dr=1.0,r=0.0; trap=1.0;
   float power=8.0+uMid*uReact*2.0;
   vec3 c=vec3((uCA-0.5)*1.4,(uCB-0.5)*1.4,(uCC-0.5)*1.0);
-  int iters=int(clamp((9.0+uZoom*7.0)*fi(),6.0,38.0));
+  int iters=int(clamp((9.0+uZoom*7.0)*fi(),3.0,38.0));
   for(int i=0;i<40;i++){
     if(i>=iters) break;
     r=length(z); if(r>2.2) break;
@@ -783,7 +1111,7 @@ float octa(vec3 z,float ang){
   float scale=1.9+(uCA-0.5)*0.5;
   vec3 off=vec3(1.0,0.0,0.0);
   mat2 R=rot(ang+uCB*2.0+(uCC-0.5)*1.6);
-  int mi=int(clamp(11.0*fi(),7.0,24.0));
+  int mi=int(clamp(11.0*fi(),2.0,24.0));
   float sum=0.0;
   for(int i=0;i<24;i++){
     if(i>=mi) break;
@@ -801,7 +1129,7 @@ float hybrid(vec3 p,out float trap){
   float s=-1.7-(uCA-0.5)*0.9;
   vec3 z=p; float dr=1.0; trap=1.0;
   float mr=0.35+uCB*0.5;
-  int mi=int(clamp(11.0*fi(),6.0,22.0));
+  int mi=int(clamp(11.0*fi(),2.0,22.0));
   for(int i=0;i<22;i++){
     if(i>=mi) break;
     z.xz*=rot(0.35);
@@ -893,6 +1221,71 @@ float tessFrac(vec3 p,out float trap){
   return d;
 }
 
+// DNA (43). Low-poly double helix. The space is untwisted about Y (rotate xz by
+// -k*y) so both backbones become straight polygonal rods and each base pair a
+// flat plate between them; the twist stretches distances by sqrt(1+(kR)^2), so
+// the result is divided by that to stay a safe bound. Facet count on the rods
+// gives the low-poly look; flat faces shade as facets on their own.
+//   tw  pitch (loose ladder -> tight coil)    ca  groove (strand phase offset)
+//   cb  unzip from the top                     cc  ball-and-stick atoms
+//   uIter pairs per turn   uDetail facets 3..8   bass: rod thickness
+//   high: rung flicker     beat: twist ripple down the strand
+float dnaHash(float n){ return fract(sin(n*12.9898)*43758.5453); }
+float dnaPoly(vec2 q, float r, float nf){
+  float seg=6.2831853/nf, a=atan(q.y,q.x);
+  a=mod(a+seg*0.5,seg)-seg*0.5;
+  return length(q)*cos(a)-r;
+}
+float dnaOct(vec3 q, float r){ q=abs(q); return (q.x+q.y+q.z-r)*0.57735; }
+float dna(vec3 p, out float trap, float tw, float ca, float cb, float cc){
+  p.xz*=rot(uTime*0.18*uSpeed*uSpin);
+  float H=1.55;
+  float pitch=mix(2.6,0.95,tw);
+  float k=6.2831853/pitch;
+  float R=0.52;
+  float ripple=uBeat*uReact*0.55*sin(p.y*3.0-uTime*7.0);
+  vec3 q=p; q.xz*=rot(-k*p.y-ripple);
+  float stretch=sqrt(1.0+k*k*R*R);
+  float nf=3.0+floor(clamp(uDetail,0.0,1.0)*5.99);
+  // Unzip: above the zip line the strands part and the rungs break.
+  float zl=H-cb*2.0*H*1.05;
+  float sep=smoothstep(zl-0.15,zl+0.35,p.y)*step(0.02,cb);
+  float Rs=R*(1.0+sep*0.85);
+  float ph2=3.14159265-(ca-0.5)*1.7;
+  vec2 c1=vec2(Rs,0.0), c2=Rs*vec2(cos(ph2),sin(ph2));
+  float rb=(0.085+uBass*uReact*0.04)*(1.0-cc*0.35);
+  float d1=dnaPoly(q.xz-c1,rb,nf), d2=dnaPoly(q.xz-c2,rb,nf);
+  float d=min(d1,d2); trap=0.12;
+  // Base pairs.
+  float npp=6.0+floor(clamp(uIter,0.0,1.0)*8.0);
+  float sp=pitch/npp;
+  float slot=floor(p.y/sp+0.5), y0=slot*sp;
+  vec2 ax=c2-c1; float L=length(ax); vec2 dir=ax/max(L,1e-4);
+  vec2 rel=q.xz-(c1+c2)*0.5;
+  vec2 lc=vec2(dot(rel,dir), dot(rel,vec2(-dir.y,dir.x)));
+  float hl=L*0.5-rb*0.6;
+  float gap=sep*hl*0.9;
+  float lx=abs(lc.x)-gap; lx=gap>0.001?abs(lx-(hl-gap)*0.5)-(hl-gap)*0.5:abs(lc.x)-hl;
+  float fl=1.0-uHigh*uReact*0.6*step(0.5,dnaHash(slot+floor(uTime*8.0)));
+  vec3 bx=vec3(lx, abs(p.y-y0)-0.032*fl, abs(lc.y)-0.085);
+  float dr=min(max(bx.x,max(bx.y,bx.z)),0.0)+length(max(bx,0.0));
+  float pair=dnaHash(slot*1.7+0.3);
+  if(dr<d){ d=dr; trap=pair<0.5?0.55:0.85; if(lc.x<0.0) trap+=0.06; }
+  // Atoms: low-poly octahedra on the backbone joints and the rung ends.
+  if(cc>0.02){
+    float ar=cc*0.15;
+    vec3 a1=vec3(q.x-c1.x, p.y-y0, q.z-c1.y), a2=vec3(q.x-c2.x, p.y-y0, q.z-c2.y);
+    float da=min(dnaOct(a1,ar*1.15),dnaOct(a2,ar*1.15));
+    vec3 a3=vec3(lc.x*0.5, p.y-y0, lc.y); a3.x=abs(lc.x)-hl*0.5;
+    da=min(da, dnaOct(a3, ar*0.8));
+    if(da<d){ d=da; trap=0.34; }
+  }
+  d/=stretch;
+  // Finite length, flat cut ends.
+  d=max(d, abs(p.y)-H);
+  return d;
+}
+
 // CubeKochMosely (42). A Menger cube lattice coloured by the march itself. At
 // every subdivision the cell the point falls in is recorded, and the trap is
 // that CELL CENTRE projected onto a sweep axis — not the hit point. So every
@@ -900,29 +1293,63 @@ float tessFrac(vec3 p,out float trap){
 // the lattice a cube at a time, in steps, instead of smearing continuously
 // across each surface. Animating a phase against it then wipes the gradient
 // through the whole structure, cube by cube.
+// Hexagonal version: a hex prism subdivided by 3, with a hex tube bored down
+// each cell and three slots cut across it along the hex edge directions.
+float sdHex2(vec2 p,float r){
+  const vec3 k=vec3(-0.8660254,0.5,0.5773503);
+  p=abs(p.yx);
+  p-=2.0*min(dot(k.xy,p),0.0)*k.xy;
+  p-=vec2(clamp(p.x,-k.z*r,k.z*r),r);
+  return length(p)*sign(p.y);
+}
 float cubeKM(vec3 p,out float trap){
-  float d=sdBox(p,vec3(1.0));
-  float s=1.0;
+  // Outer solid reads as a hexagon from every side: the vertical hex prism is
+  // intersected with three horizontal hex prisms (one per pair of opposite
+  // faces), so the side profile is a pointed hexagon rather than a rectangle.
+  // Scaled by 0.86 so the points (y=±1.33) stay inside the standard 3D box.
+  p/=0.86;
+  const vec2 v1=vec2(0.0,1.0), v2=vec2(0.8660254,0.5), v3=vec2(-0.8660254,0.5);
+  float d=sdHex2(p.xz,1.0);
+  d=max(d,sdHex2(vec2(dot(p.xz,v1),p.y),1.1547));
+  d=max(d,sdHex2(vec2(dot(p.xz,v2),p.y),1.1547));
+  d=max(d,sdHex2(vec2(dot(p.xz,v3),p.y),1.1547));
   vec3 cen=vec3(0.0);
-  // Cross thickness. Held at or above the canonical 1.0: a thinner cross
-  // subtracts less than the estimate assumes and the march starts stepping
-  // through faces, which on this lattice reads as holes punched in the cubes.
-  float hole=clamp(1.0+uMorph*1.0+(uCA-0.5)*0.6,1.0,2.2);
-  int lvl=int(clamp(3.0*fi()+clamp(uZoom,0.0,1.0)*1.8,2.0,6.0));
+  float hole=clamp(1.0+uMorph*0.6+(uCA-0.5)*0.4,1.0,1.6);
+  int lvl=int(clamp(3.0*fi()+clamp(uZoom,0.0,1.0)*1.8,1.0,6.0));
+  const vec2 R=vec2(1.0,1.7320508), H=vec2(0.5,0.8660254);
+  const vec2 n1=vec2(0.0,1.0), n2=vec2(0.8660254,0.5), n3=vec2(-0.8660254,0.5);
+  float s=0.5;
   for(int i=0;i<6;i++){
     if(i>=lvl) break;
-    vec3 a=mod(p*s,2.0)-1.0;
-    cen=(floor(p*s*0.5)+0.5)*2.0/s;
+    vec2 q=p.xz*s;
+    vec2 ga=mod(q,R)-H, gb=mod(q-H,R)-H;
+    vec2 g=dot(ga,ga)<dot(gb,gb)?ga:gb;
+    float yc=floor(p.y*s+0.5), ly=p.y*s-yc;
+    vec2 cxz=(q-g)/s;
+    cen=vec3(cxz.x,yc/s,cxz.y);
+    float hr=0.5/3.0*hole;
+    float tube=sdHex2(g,hr);
+    // Cross slots are hex tubes too: each one's cross-section, in the plane of
+    // the slot's normal and the vertical, is a hexagon. They were square slabs
+    // (|n·g| and |y| bounded separately), which cut square windows into every
+    // side face.
+    float sl=min(min(sdHex2(vec2(dot(g,n1),ly),hr),sdHex2(vec2(dot(g,n2),ly),hr)),sdHex2(vec2(dot(g,n3),ly),hr));
+    d=max(d,-min(tube,sl)/s);
     s*=3.0;
-    vec3 r=abs(1.0-3.0*abs(a));
-    float da=max(r.x,r.y), db=max(r.y,r.z), dc=max(r.z,r.x);
-    d=max(d,(min(da,min(db,dc))-hole)/s);
   }
   vec3 ax=normalize(vec3(cos(uCC*6.28318),0.55,sin(uCC*6.28318)));
   trap=clamp(0.5+0.5*dot(cen,ax),0.0,1.0);
-  return d;
+  return d*0.86;
 }
 
+// World size of one pixel at the current march distance, set by render3 just
+// before each map() call (0 = no limit). Scenes use it to stop iterating once
+// the next level of detail would be smaller than a pixel.
+float gLod=0.0;
+// Uncapped distance from the last map() call. With Repeat on, map() caps the
+// step at each cell wall; glow measured on the capped value lit every wall and
+// drew the cell grid into the fog.
+float gDR=1e9;
 float map(vec3 p,out float trap){
   trap=0.0;
   if(uMode==0){
@@ -946,7 +1373,7 @@ float map(vec3 p,out float trap){
     p.xz*=rot(uTime*0.04*uSpeed*uSpin);
     vec3 cs=vec3(0.92,0.92,1.1)+(uCA-0.5)*vec3(0.12,0.12,0.24);
     float kk=0.24+(uCB-0.5)*0.2, df=1.0, r2=1.0;
-    int N=int(clamp(7.0*fi(),5.0,16.0));
+    int N=int(clamp(7.0*fi(),2.0,16.0));
     for(int i=0;i<16;i++){
       if(i>=N) break;
       p=2.0*clamp(p,-cs,cs)-p;
@@ -988,7 +1415,7 @@ float map(vec3 p,out float trap){
     float phi=acos(sph);
     vec3 q=vec3(th*kk, (phi-1.5707963)*kk, rr-R0);
     float dr=1.0;
-    int N=int(clamp(9.0*fi(),6.0,22.0));
+    int N=int(clamp(9.0*fi(),2.0,22.0));
     for(int i=0;i<22;i++){
       if(i>=N) break;
       q.xy=2.0*clamp(q.xy,-fo,fo)-q.xy;          // plane fold on xy only
@@ -1005,7 +1432,7 @@ float map(vec3 p,out float trap){
     float sc=1.85+(uCA-0.5)*0.35;
     float a=uTime*0.05*uSpeed+(uCB-0.5)*3.0+uMid*uReact*0.8;
     float r=1.0; int it=0;
-    int N=int(clamp(10.0*fi(),7.0,24.0));
+    int N=int(clamp(10.0*fi(),2.0,24.0));
     for(int i=0;i<24;i++){
       if(i>=N) break;
       p.xz*=rot(a*0.12);
@@ -1022,7 +1449,7 @@ float map(vec3 p,out float trap){
     float sz=(1.25+(uCC-0.5)*0.3)*(1.0+clamp(uZoom,0.0,1.0)*1.6);   // outer cube grows with zoom, so its face is never the frame edge
     float d=max(abs(p.x),max(abs(p.y),abs(p.z)))-sz;
     float s=1.0, sc=3.0+(uCA-0.5)*0.5;
-    int N=int(clamp(4.5*fi(),3.0,10.0));
+    int N=int(clamp(4.5*fi(),1.0,10.0));
     for(int i=0;i<10;i++){
       if(i>=N) break;
       p.xz*=rot(a*0.17); p.xy*=rot(a*0.11);
@@ -1056,12 +1483,19 @@ float map(vec3 p,out float trap){
     p.xz*=rot(uTime*0.045*uSpeed*uSpin);
     float sc=2.0+uMorph*0.7+(uCA-0.5)*0.5;
     float dr=1.0; trap=1.0;
-    int N=int(clamp(8.0*fi(),5.0,18.0));
+    // Spudsville: base iteration count lowered (8 -> 6), and detail stops at the
+    // pixel: once a fold's features (about 1/dr) fall below one pixel the loop
+    // ends, so distant structure renders smooth instead of as speckle.
+    // Scene parameters are global (not per preset), so the calm look is set
+    // here: mid Iter gives 3 folds (was 11), top of the slider 7 and mid Cst B gives the softer
+    // inversion that used to sit at a quarter.
+    int N=int(clamp(2.6*fi(),2.0,18.0));
     for(int i=0;i<18;i++){
       if(i>=N) break;
+      if(gLod>0.0 && i>1 && dr*gLod>0.45) break;
       p=clamp(p,-1.0,1.0)*2.0-p;
       float r2=max(dot(p,p),1e-6);
-      float k=clamp((1.1+(uCB-0.5)*0.4)/r2, 0.55, 1.7);
+      float k=clamp((1.1+(uCB*0.5-0.5)*0.4)/r2, 0.55, 1.7);
       p*=k; dr*=k;
       p=p*sc+vec3(0.6,0.35,0.4)*(uCC-0.3);
       dr=dr*abs(sc)+1.0;
@@ -1071,8 +1505,17 @@ float map(vec3 p,out float trap){
   } else if(uMode==36){
     p.xy*=rot(uTime*0.05*uSpeed*uSpin);
     vec4 z=vec4(0.0), qc=vec4(p,(uCA-0.5)*0.7);
+    // The 4D slice. p fills three components and the fourth is the constant that
+    // chooses WHICH 3D slice of the quaternion Mandelbrot you are looking at —
+    // Cst A moved it, and Cst B had nothing at all on this scene. Giving w a
+    // second term is the honest place for it: the pair together sweep the slice
+    // through the 4D body, and small changes in w reshape the solid in a way no
+    // amount of pre-transform mimics. Centred so 0.5 is the old single-term value.
+    qc.w += (uCB-0.5)*0.5;
+    // z starts at the origin for a Mandelbrot; leaving that alone keeps the
+    // family what it is.
     float dr=1.0, r=0.0; trap=1.0;
-    int N=int(clamp((10.0+uZoom*6.0)*fi(),7.0,34.0));
+    int N=int(clamp((10.0+uZoom*6.0)*fi(),3.0,34.0));
     for(int i=0;i<36;i++){
       if(i>=N) break;
       r=length(z); if(r>3.2) break;
@@ -1088,7 +1531,7 @@ float map(vec3 p,out float trap){
     return menger(p/sc)*sc;
   } else if(uMode==2){
     trap=clamp(length(p)*0.5,0.0,1.0);
-    return ifs(p+vec3(1.0,0.92,1.08), 0.2+sin(uTime*0.09*uSpeed*uSpin)*0.18+(uCA-0.5)*0.3, 1.6+uMorph*0.45+(uCC-0.5)*0.3);
+    return ifs(p+vec3(1.0,0.92,1.08)*(1.0+(uCB-0.5)*0.55), 0.2+sin(uTime*0.09*uSpeed*uSpin)*0.18+(uCA-0.5)*0.3, 1.6+uMorph*0.45+(uCC-0.5)*0.3);
   } else if(uMode==3){
     p.xz*=rot(uTime*0.05*uSpeed*uSpin);
     return apollonian(p,trap);
@@ -1101,6 +1544,8 @@ float map(vec3 p,out float trap){
     p.xz*=rot(uTime*0.03*uSpeed*uSpin);
     p.yz*=rot(uTime*0.02*uSpeed*uSpin);
     return tessFrac(p,trap);
+  } else if(uMode==43){
+    return dna(p,trap,uMorph,uCA,uCB,uCC);
   } else if(uMode==42){
     p.xz*=rot(uTime*0.035*uSpeed*uSpin);
     p.yz*=rot(uTime*0.022*uSpeed*uSpin);
@@ -1110,19 +1555,41 @@ float map(vec3 p,out float trap){
     return sierp(p, uTime*uSpeed+uMid*uReact*3.0+(uCA-0.5)*8.0);
   }
 }
-vec3 nrm(vec3 p){float t;vec2 e=vec2(max(0.0012*exp2(-clamp(uZoom,0.0,1.0)*6.0), 2.5e-5),0.0);
-  return normalize(vec3(map(p+e.xyy,t)-map(p-e.xyy,t),map(p+e.yxy,t)-map(p-e.yxy,t),map(p+e.yyx,t)-map(p-e.yyx,t)));}
+// Normals as a loop the compiler cannot unroll (NZERO is 0 at run time but not
+// provably so), so map() is inlined ONCE here instead of six times. On Windows'
+// D3D11 compiler every inlined copy of the estimator multiplied link time.
+vec3 nrm(vec3 p){float t;float h=max(0.0012*exp2(-clamp(uZoom,0.0,1.0)*6.0), 2.5e-5);
+#define NZERO min(0,int(abs(uTime)))
+  vec3 n=vec3(0.0);
+  for(int i=NZERO;i<4;i++){
+    vec3 e=0.5773*(2.0*vec3(float(((i+3)>>1)&1),float((i>>1)&1),float(i&1))-1.0);
+    n+=e*map(p+e*h,t);
+  }
+  return normalize(n);}
 
 // Studio environment for the glass material: a dark room with two soft light
 // bars and a floor bounce, sampled by reflected and refracted rays. Nothing
 // reads as mirror without something to mirror, and a lattice reflecting only
 // itself goes black — so the room is what the surfaces actually show.
+// Palette values that depend only on uniforms, evaluated ONCE per pixel in a
+// single loop. pal() is a 16-way branch with ramps, and every call site is a
+// full inlined copy of it: the glass/IOR path alone had 21 of them through
+// envCol(), which was most of a 3D program's compile time. Same values, one copy.
+vec3 gP[13];
+void palPre(){
+  // One pal() call site in a loop (one inlined copy); the per-slot argument is
+  // picked by a select chain instead of an array, which some drivers reject.
+  for(int k=min(0,int(abs(uTime)));k<13;k++){
+    // gP[13] terms: 0=0.10+uHigh*0.18 1=0.62+uBass*0.12 2=0.48 3=0.42 4=uTxtHue 5=uTxtHue+0.12 6=0.30+uHigh*0.3 7=0.55+uHigh*0.25 8=0.4+uHigh*0.4 9=0.55+uHigh*0.2 10=0.62+uBass*0.1 11=0.15+uBass*0.3 12=0.6
+    gP[k]=pal(k==0?(0.10+uHigh*0.18):k==1?(0.62+uBass*0.12):k==2?(0.48):k==3?(0.42):k==4?(uTxtHue):k==5?(uTxtHue+0.12):k==6?(0.30+uHigh*0.3):k==7?(0.55+uHigh*0.25):k==8?(0.4+uHigh*0.4):k==9?(0.55+uHigh*0.2):k==10?(0.62+uBass*0.1):k==11?(0.15+uBass*0.3):0.6);
+  }
+}
 vec3 envCol(vec3 d){
   float up=clamp(d.y*0.5+0.5,0.0,1.0);
   vec3 c=mix(vec3(0.014,0.017,0.028), vec3(0.062,0.080,0.120), up);
-  c+=pal(0.10+uHigh*0.18)*pow(clamp(dot(d,normalize(vec3(0.6,0.75,-0.5))),0.0,1.0),22.0)*2.4;
-  c+=pal(0.62+uBass*0.12)*pow(clamp(dot(d,normalize(vec3(-0.7,0.35,0.6))),0.0,1.0),11.0)*1.2;
-  c+=pal(0.48)*pow(clamp(-d.y,0.0,1.0),6.0)*0.22;
+  c+=gP[0]*pow(clamp(dot(d,normalize(vec3(0.6,0.75,-0.5))),0.0,1.0),22.0)*2.4;
+  c+=gP[1]*pow(clamp(dot(d,normalize(vec3(-0.7,0.35,0.6))),0.0,1.0),11.0)*1.2;
+  c+=gP[2]*pow(clamp(-d.y,0.0,1.0),6.0)*0.22;
   return c;
 }
 // Secondary ray for the glass pass. Same estimator, short budget, fixed eps:
@@ -1130,7 +1597,7 @@ vec3 envCol(vec3 d){
 // hit on the same lattice, which is what gives the depth a fake cannot.
 vec3 rayCol(vec3 ro,vec3 rd,float far,int budget){
   float d=0.02, tr=0.0; bool h=false; vec3 p=ro;
-  for(int i=0;i<30;i++){
+  for(int i=NZERO;i<30;i++){
     if(i>=budget) break;
     p=ro+rd*d;
     float hh=map(p,tr);
@@ -1149,10 +1616,43 @@ vec3 rayCol(vec3 ro,vec3 rd,float far,int budget){
   float df=clamp(dot(n2,l),0.0,1.0);
   float fr2=pow(1.0-clamp(dot(n2,-rd),0.0,1.0),3.0);
   vec3 b2=pal(tr*2.6+d*0.14+uHigh*0.2);
-  return (b2*(0.10+0.85*df)+fr2*pal(0.42)*0.8)*exp(-d*0.28);
+  return (b2*(0.10+0.85*df)+fr2*gP[3]*0.8)*exp(-d*0.28);
 }
 
+// Tap target colour, taken from the scene's own palette (the slot its glow
+// uses) at full brightness, so the highlight reads as part of the scene.
+vec3 tgtCol(){ vec3 c=pal(0.15); c=c/max(max(c.r,c.g),max(c.b,0.05)); return mix(c,vec3(1.0),0.15); }
 vec3 render3(vec2 uv){
+  if(uCamProbe>0.5){
+    if(int(gl_FragCoord.x)==25){ gProbeC=vec4(tgtCol(),1.0); return vec3(0.0); }
+    // One map() call site for both probe kinds: every call site is a full
+    // inlined copy of the estimator, and compile time scales with the count.
+    int px=int(gl_FragCoord.x); float tq=0.0, v=0.0;
+    vec3 po=uCamPos, dv=uCamF; bool pt=px<7;
+    if(pt){
+      vec3 o=px==0?vec3(0.0):px==1?vec3(1,0,0):px==2?vec3(-1,0,0):px==3?vec3(0,1,0):px==4?vec3(0,-1,0):px==5?vec3(0,0,1):vec3(0,0,-1);
+      po=uCamPos+o*uCamScale*0.15;
+    } else {
+      int k=px-7;
+      // pixel 24: the tapped ray, for travel-to-point. length(uCamTap)-1 is
+      // where this round starts along it; the host chains rounds.
+      if(k==17) dv=normalize(uCamTap);
+      else if(k>0){ int j=k-1; float ang=j<8?0.45:0.95; float a=float(j<8?j:j-8)*0.7853982;
+        vec3 ax=normalize(-sin(a)*uCamR+cos(a)*uCamU); dv=uCamF*cos(ang)+cross(ax,uCamF)*sin(ang); }
+    }
+    // Same 40-step loop as before for every pixel: a longer constant bound is
+    // unrolled by some Windows drivers and multiplied the compile time.
+    bool tp=px==24; float maxL=uCamScale*(tp?400.0:40.0), t=tp?max(length(uCamTap)-1.0,0.0):0.0; bool cv=false;
+    for(int s=NZERO;s<40;s++){ float h=map(po+dv*t,tq); if(pt){ t=h; cv=true; break; } if(h<(tp?max(t,uCamScale)*0.0015:maxL*0.003)){ cv=true; break; } t+=h*(tp?0.9:0.8); if(t>maxL){t=maxL;cv=true;break;} }
+    v=(tp&&!cv)?-max(t,1e-9):t;
+    gProbe=vec4(v,0.0,0.0,0.0); return vec3(0.0);
+  }
+  palPre();
+  bool fc=uCamMode>0.5;
+  // Blend weight into the flying views, 0..1, carried in uCamMode's fraction
+  // above 1 (host ramps it). At 0 every fly-specific scale below equals the
+  // orbit's, so entering or leaving Fly/Surface never changes the frame.
+  float cw=fc?clamp(uCamMode-1.0,0.0,1.0):0.0;
   float t=uTime*uSpeed;
   float ex=clamp(uZoom,0.0,1.0)*9.0;
   // Framing. Every scene used to carry its own near AND far distance, tuned by
@@ -1174,36 +1674,55 @@ vec3 render3(vec2 uv){
   //
   // Apparent area falls off as the square of distance, so each distance is
   // scaled by sqrt(measured / target) to bring every scene to the same share
-  // (0.43, the median of what the set was already doing — so the correction
-  // moves the outliers rather than the whole set). Two guards on that: no
-  // scene moves closer than 0.55x its old distance, because the sparse ones
-  // (Pseudo-Klein, Gyroid) would need the eye so close it ends up inside the
-  // geometry, and none moves further than 1.6x.
+  // (0.48 — the Mandelbulb's own share, so that scene is the ruler and every
+  // other one is brought to it rather than all of them to a median). One guard
+  // on that: no scene moves closer than 0.40x its old distance, which only the
+  // sparsest (Pseudo-Klein) now reaches.
   //
   // Mandelbulb and Menger had no entry at all and were sharing the fallback,
   // which is most of why those two never matched anything.
+  // Each scene's distance is scaled by ITS OWN error, not by a constant:
+  // dfar_new = dfar_old * (share_measured / 0.48). A single multiplier applied
+  // to the whole table — which is what this was — zooms the set uniformly and
+  // leaves every scene exactly as mismatched as before.
+  //
+  // Mandelbulb is the ruler and keeps its original 4.85 untouched.
+  //
+  // FLOOR at 0.45x the old distance, and it bites on four scenes. The sparse
+  // ones (Pseudo-Klein 0.08, Gyroid 0.12, mode 4 at 0.13, mode 14 at 0.14)
+  // would need the eye at a third of its current distance or nearer to fill
+  // the same share, which parks the camera inside the geometry — the fractal
+  // stops reading as an object and becomes a wall. Those four are knowingly
+  // left smaller than the reference; matching them properly means rescaling
+  // their distance estimators, not moving the camera, and that changes what
+  // the scenes look like rather than just how they are framed.
   float dfar;
-  if(uMode==0){dfar=4.85;}        // 0.48 -> 0.43
-  else if(uMode==1){dfar=4.05;}   // 0.33
-  else if(uMode==2){dfar=6.81;}   // 0.52
-  else if(uMode==3){dfar=3.21;}   // 0.49
-  else if(uMode==4){dfar=2.34;}   // 0.13, was far too distant
-  else if(uMode==5){dfar=7.49;}   // 0.77, the largest in the set
-  else if(uMode==12){dfar=4.79;}  // 0.31
-  else if(uMode==13){dfar=3.35;}  // 0.24
-  else if(uMode==14){dfar=2.55;}  // 0.14
-  else if(uMode==15){dfar=6.11;}  // 0.64
-  else if(uMode==16){dfar=8.00;}  // 0.43, already on target
-  else if(uMode==30){dfar=2.75;}  // 0.08, floored at 0.55x
-  else if(uMode==31){dfar=5.69;}  // 0.56
-  else if(uMode==32){dfar=6.56;}  // 0.63
-  else if(uMode==33){dfar=4.41;}  // 0.33
-  else if(uMode==34){dfar=2.42;}  // 0.12, floored at 0.55x
-  else if(uMode==35){dfar=5.33;}  // 0.53
-  else if(uMode==36){dfar=3.15;}  // 0.20
-  else if(uMode==41){dfar=6.34;}  // 0.69
-  else if(uMode==42){dfar=4.90;}  // 0.42
-  else {dfar=4.6;}
+  if(uMode==0){dfar=4.85;}        // 0.48 — the reference, unchanged
+  else if(uMode==1){dfar=2.78;}   // 0.33 -> 0.48
+  else if(uMode==2){dfar=7.38;}   // 0.52, was slightly too big
+  else if(uMode==3){dfar=3.28;}   // 0.49, already almost right
+  else if(uMode==4){dfar=1.05;}   // 0.13, floored
+  else if(uMode==5){dfar=12.01;}  // 0.77, the largest — pushed well back
+  else if(uMode==12){dfar=3.09;}  // 0.31
+  else if(uMode==13){dfar=1.68;}  // 0.24
+  else if(uMode==14){dfar=1.15;}  // 0.14, floored
+  else if(uMode==15){dfar=8.15;}  // 0.64
+  else if(uMode==16){dfar=7.17;}  // 0.43
+  else if(uMode==30){dfar=1.24;}  // 0.08, floored — stays undersized
+  else if(uMode==31){dfar=6.64;}  // 0.56
+  else if(uMode==32){dfar=8.61;}  // 0.63
+  else if(uMode==33){dfar=3.03;}  // 0.33
+  else if(uMode==34){dfar=1.09;}  // 0.12, floored — stays undersized
+  else if(uMode==35){dfar=5.89;}  // 0.53
+  else if(uMode==36){dfar=1.42;}  // 0.20, floored
+  else if(uMode==41){dfar=9.11;}  // 0.69
+  else if(uMode==42){dfar=4.29;}  // 0.42
+  else {dfar=4.85;}
+#ifdef NORM3D
+  // Every bounded object is normalised to the Mandelbulb's box (see _NORM), so
+  // they all take the Mandelbulb's framing distance.
+  dfar=4.85;
+#endif
   const float ZRANGE=10.0;                // far distance / near distance
   // No low-end term on the camera distance. Pulling the eye in on every kick
   // and letting it fall back out is the "everything pulsates" the whole set had
@@ -1218,8 +1737,7 @@ vec3 render3(vec2 uv){
   float dist=dfar*(1.0/zr+(1.0-1.0/zr)*exp2(-ex))-uBass*uReact*uStrobe*0.06;
   // The Mandelbulb's framing distance at its default zoom, so Size keeps the
   // value it always had there and every other scene is brought to match it.
-  // Tracks that scene's dfar: it moved from 4.6 to 4.85 in the size audit, and
-  // leaving the divisor behind would have shifted every scene's text by 5%.
+  // Tracks that scene's dfar, which is back at its original 4.85.
   gTxtK=max(dist,0.05)/0.80;
   vec3 ro=vec3(0.0,0.0,-dist);
   float ay=t*0.16*uCamAuto*uSpin+uJump+uCamYaw, ax=sin(t*0.11)*0.55*uCamAuto*abs(uSpin)+uCamPitch;
@@ -1249,7 +1767,18 @@ vec3 render3(vec2 uv){
   // Camera pan. Translating the eye along its own right/up axes without
   // touching the look direction is a true dolly across the subject, so the 3D
   // families get the same travel the 2D and canvas scenes have.
-  ro+=(r*uPan.x+u*uPan.y)*1.6;
+  // Containment: the dolly is limited so the subject's centre projects inside an
+  // ellipse at 85% of the frame. A centre inside the frame keeps over half of a
+  // roughly round subject on screen, so stick, drag and gyro together can never
+  // push it out. Done here because only the shader knows dist.
+  {
+    vec2 po=uPan*1.6;
+    vec2 sp=po*1.7/max(dist,0.05);
+    vec2 lim=vec2(uRes.x/uRes.y,1.0)*0.85;
+    float e=length(sp/lim);
+    if(e>1.0) po/=e;
+    ro+=r*po.x+u*po.y;
+  }
   // Auto-centring. A distance estimator has no notion of its own centre, and
   // almost none of these fractals are symmetric about the world origin — the
   // Mandelbulb's mass sits off-axis, the box folds drift with their constants.
@@ -1258,14 +1787,38 @@ vec3 render3(vec2 uv){
   // the camera back as fast as the thumb pushed it. Scaled by dist so the
   // correction is the same angular amount at any zoom depth.
   ro+=(r*uCtr3.x+u*uCtr3.y)*dist;
-  vec3 rd=normalize(uv.x*r+uv.y*u+1.7*f);
-  float trap0=0.0;
-  float h0=map(ro,trap0);
-  if(h0<0.001) ro-=rd*(abs(h0)+0.6);
+  float dist0=dist;
+  if(fc){ ro=uCamPos; f=uCamF; r=uCamR; u=uCamU; dist=mix(dist0,uCamScale*6.0,cw); }
+  // Zoom on the inside views narrows the lens: the camera position is the
+  // flight's, so zoom has to act on the field of view instead.
+  vec3 rd=normalize(uv.x*r+uv.y*u+(fc?1.7*exp2(clamp(uZoom,0.0,1.0)*2.6*cw):1.7)*f);
+  // Clearance rule, smoothed. The eye backs off along the view axis when the
+  // surface is close, but the push is a continuous function of a distance
+  // averaged over a small shell around the eye, not the raw distance at one
+  // point. On angular sets (Sierpinski, Menger) the raw distance jumps every
+  // time the eye passes a face or corner, and a hard push on it jerked the
+  // camera back and forth; the shell average and the soft curve remove that.
+  {
+    float clr=fc?mix(dfar*0.14,uCamScale*0.35,cw):dfar*0.14;
+    float tqc, hs=0.0, hm=1e9;
+    for(int i=NZERO;i<7;i++){
+      vec3 o=i==0?vec3(0.0):(i<3?vec3(float(i*2-3),0,0):(i<5?vec3(0,float(i*2-7),0):vec3(0,0,float(i*2-11))));
+      float h=map(ro+o*clr*0.6,tqc);
+      hs+=h; hm=min(hm,h);
+    }
+    float hav=mix(hs/7.0, hm, 0.35);
+    float k=1.0-smoothstep(0.0, clr*1.6, hav);
+    // The flying views keep their own stand-off on the host; a second push here
+    // along the view axis fought it and read as the camera bobbing.
+    ro-=f*clr*1.4*k*k*(3.0-2.0*k)*(1.0-cw);
+  }
   float d=0.0,trap=0.0,glow=0.0; bool hit=false; vec3 p=ro;
   int steps=int(clamp(mix(64.0,236.0,uDetail)+ex*13.0, 56.0, (uMode==41)?110.0:252.0));
   // The spherical wrap's estimate is a bounded approximation, not exact, so it
   // marches with the same caution as the Apollonian.
+  // Inside views see far down corridors, which takes more steps than a framed
+  // orbit; short of them the far walls ran out of budget and dropped out.
+  if(fc) steps=max(steps,150);
   float relax = (uMode==3||uMode==31)?0.62:((uMode==41)?0.78:0.9);
   // Hit threshold from the pixel footprint, not an exponential shrink. The old
   // 0.0009*exp2(-ex*0.85) reached ~5e-6 at deep zoom, far below what a float
@@ -1277,36 +1830,111 @@ vec3 render3(vec2 uv){
   // The first surface the ray meets is the one that gets shaded — refraction
   // bends at that interface and samples the environment, so the march has no
   // reason to continue into the body the way the old thickness walk did.
-  vec3 hp = ro; float htrap = 0.0, hd = 0.0;
-  for(int i=0;i<256;i++){
+  vec3 hp = ro; float htrap = 0.0, hd = 0.0, mtrap = 0.0;
+  for(int i=NZERO;i<256;i++){
     if(i>=steps) break;
     p=ro+rd*d;
+    gLod=max(d,1e-3)*2.0/(uRes.y*1.7);
     float h=map(p,trap);
+    // Eye starting inside the surface: back it out along the ray. This was a
+    // separate map() before the loop (a whole extra copy of the estimator).
+    if(i==0 && h<0.001 && !fc){ ro-=rd*(abs(h)+0.6); continue; }
     // Glow is an OUTSIDE-the-surface measure — proximity to the boundary along
     // the approach. Once the march continues through the body h sits at zero,
     // so leaving this unguarded added a twelfth of a unit per interior step and
     // the object went to white. It only accumulates before the first hit.
-    if(!hit) glow+=exp(-h*22.0)*0.012;
-    float eps = max(pxw*d*epsK, 2.0e-5);
+    if(!hit) glow+=exp(-(uRep>0.0?min(gDR,1e3):h)*22.0/(fc?mix(1.0,uCamScale*3.0,cw):1.0))*0.012;
+    float eps = max(pxw*d*epsK*(1.0+uDOF*3.0*abs(d-dist)/max(dist,0.5)), fc?max(uCamScale*2e-3,1e-6):2.0e-5);
     float rt = h/eps;
-    if(rt<minr){ minr=rt; mind=d; }
+    if(rt<minr){ minr=rt; mind=d; mtrap=trap; }
     if(h<eps){ hit=true; hp=p; htrap=trap; hd=d; break; }
     d+=h*relax;
-    if(d>dist+7.0) break;
+    if(d>(fc?mix(dist0+7.0,max(uCamScale*60.0,uCamFog*40.0),cw):dist+7.0)) break;
   }
   // Shade the FIRST surface the ray met, not wherever the walk ended up.
   if(hit){ p=hp; trap=htrap; d=hd; }
+#ifdef VEC_OUT
+  // Vector render: stop after the march. Everything below (lighting, glass,
+  // AO) is dead code in this build, so it compiles in a fraction of the time,
+  // and the camera, repeat and fly-through are exactly the scene's.
+  //
+  // Everything drawn is anchored to the object, the way the contours are:
+  //  - a smoothed surface normal, so the post pass finds creases as places
+  //    where the normal turns sharply between neighbouring pixels (thin,
+  //    stable lines, judged on the broad form rather than every bump);
+  //  - points where two world-space grid planes cross the surface, so each
+  //    dot is a fixed spot on the geometry and rides it exactly.
+  float kE=uVEdge>0.0?uVEdge:1.0;
+  vec3 nN=vec3(0.0,0.0,1.0);
+  if(hit){
+    // Wide-baseline normal: the step is several pixels (more at sparser
+    // densities), which averages away surface noise. One map() call site.
+    float ne=max(pxw*d*3.0*kE, fc?uCamScale*2e-3:2e-4), t_;
+    vec3 acc=vec3(0.0);
+    for(int k=NZERO;k<4;k++){
+      vec3 e=0.5773*(2.0*vec3(float(((k+3)>>1)&1),float((k>>1)&1),float(k&1))-1.0);
+      acc+=e*map(p+e*ne,t_);
+    }
+    nN=normalize(acc+1e-9);
+  }
+  float fdn=fc?mix(smoothstep(dfar*0.45,dfar*1.5,d),smoothstep(0.0,uCamScale*14.0,d),cw):smoothstep(dfar*0.45,dfar*1.5,d);
+  float dfade=1.0-0.8*fdn;
+  // Point lattice: the two grid axes least aligned with the normal, so the
+  // crossings are well defined on any face orientation.
+  float psp=(fc?mix(0.12,uCamScale*0.12,cw):0.12)*kE;
+  vec3 gq=p/psp, fw=fwidth(gq), an=abs(nN);
+  vec2 g2, f2;
+  if(an.x>an.y && an.x>an.z){ g2=gq.yz; f2=fw.yz; }
+  else if(an.y>an.z){ g2=gq.xz; f2=fw.xz; }
+  else { g2=gq.xy; f2=fw.xy; }
+  vec2 dd=abs(fract(g2+0.5)-0.5)/max(f2,vec2(1e-5));
+  float R=1.5*mix(0.55,1.0,dfade);
+  float pcov=(1.0-smoothstep(R-0.6,R+0.6,length(dd)))*(1.0-smoothstep(0.25,0.5,max(f2.x,f2.y)))*mix(0.35,1.0,dfade);
+  float loc=fract(length(p)*0.42+dot(p,vec3(0.13,0.21,0.08)));
+  gVec=vec4(hit?1.0:0.0, d, hit?pcov:0.0, glow);
+  gNrm=vec4(nN*0.5+0.5, 1.0);
+  gPts=vec4(hit?loc:0.0, 0.0, 0.0, hit?dfade:0.0);
+  // Contours anchored to the object: lines of constant world height (a topo
+  // map that turns with the fractal), plus concentric shells for depth. The
+  // derivative needs uniform control flow, so it is taken outside the branch.
+  float csp=fc?mix(0.07,uCamScale*0.18,cw):0.07;
+  float cy=p.y/csp + uTime*0.05, cr=length(p)/(csp*1.6);
+  float fy=fwidth(cy), fr=fwidth(cr);
+  float ly=(1.0-smoothstep(fy*0.6,fy*1.6,abs(fract(cy+0.5)-0.5)))*(1.0-smoothstep(0.2,0.45,fy));
+  float lr=(1.0-smoothstep(fr*0.6,fr*1.6,abs(fract(cr+0.5)-0.5)))*(1.0-smoothstep(0.2,0.45,fr));
+  if(hit) gPts.y=max(ly,lr*0.6);
+  // Tap target for the line views, in gPts.z (unused otherwise): the same
+  // marks as the shaded view reduced to ink - point, outline and sweep on the
+  // surface in Surface view; volume, outline and framing rim in Fly.
+  if(fc && uTgt.w>0.0){
+    float R=uTgt.w, k=uTgtK.x, sw=uTgtK.z, tq=0.0;
+    if(uTgtK.y<0.5){
+      float Rg=max(-uTgtK.y,0.0);
+      if(Rg>0.0){ float sel=tgtSel(hit,p,Rg); tq+=sel*0.16+clamp(fwidth(sel),0.0,1.0)*0.9; }
+      if(hit){ float dd=length(p-uTgt.xyz);
+        tq+=exp(-pow(dd/(R*0.12),2.0))*1.2+exp(-pow((dd-R*0.55)/(R*0.05),2.0))
+          +exp(-pow((dd-R*(0.15+1.3*sw))/(R*0.07),2.0))*(1.0-sw)+(1.0-smoothstep(R*0.5,R*0.6,dd))*0.18; }
+    } else {
+      vec3 w=uTgt.xyz-ro; float ta=clamp(dot(w,rd),0.0,hit?d:1e9), rr=length(w-rd*ta)/R;
+      tq=exp(-rr*rr*1.6)*0.35*(0.75+0.25*sin(uTime*5.0))+exp(-pow((rr-1.0)/0.06,2.0))*0.8
+        +exp(-pow((rr-(0.2+1.3*sw))/0.08,2.0))*(1.0-sw);
+      if(hit){ float dd=length(p-uTgt.xyz)/R; tq+=exp(-pow((dd-1.25)/0.3,2.0))*0.6; }
+    }
+    gPts.z=clamp(tq*k,0.0,1.0);
+  }
+  return vec3(0.0);
+#endif
   // Silhouette coverage: a ray that passed within a few pixel widths shades at
   // partial alpha instead of snapping to background, so edges stop crawling.
   float cov=1.0;
   float covR = mix(1.6,4.0,uSmooth);
   if(!hit && minr<covR){
     hit=true; d=mind; p=ro+rd*mind;
-    float tq=0.0; map(p,tq); trap=tq;
+    trap=mtrap;
     cov=1.0-smoothstep(1.0,covR,minr);
   }
   // Publish where this ray ended, for the pivot probe.
-  gPiv=p; gHit=hit?1.0:0.0;
+  gPiv=p; gHit=hit?1.0:0.0; gVoidK=hit?1.0-cov:1.0;
   // X-ray pass, computed BEFORE shading so it can be blended over whatever the
   // march found. The text is a billboarded slab through the origin, so instead
   // of tracking it through the march (two texture fetches per step) the ray is
@@ -1333,8 +1961,18 @@ vec3 render3(vec2 uv){
     }
   }
   vec3 col=vec3(0.0);
+#ifdef FAST_SHADE
+  // Fast tier: normal from the screen-space change in hit position. Taken here,
+  // outside the branch, because derivatives need every pixel of the quad.
+  vec3 dn=cross(dFdx(p),dFdy(p));
+#endif
   if(hit){
+#ifdef FAST_SHADE
+    vec3 n=dot(dn,dn)>1e-20?normalize(dn):-rd;
+    if(dot(n,rd)>0.0) n=-n;
+#else
     vec3 n=nrm(p);
+#endif
     vec3 l=normalize(vec3(0.7,0.9,-0.6));
     float dif=clamp(dot(n,l),0.0,1.0);
     float fre=pow(1.0-clamp(dot(n,-rd),0.0,1.0),3.0);
@@ -1351,15 +1989,18 @@ vec3 render3(vec2 uv){
       vec3 q2=p; q2.xz*=rot(-ay2); q2.y-=uTxtY*gTxtK; q2.x-=uTxtX*gTxtK; q2.z-=uTxtZ*gTxtK; q2/=(max(uTxtScale,0.02)*gTxtK); q2.xy*=rot(uTxtRot);
       float li=txtLetter(q2.xy);
       float onLit=1.0-smoothstep(0.0,0.9,abs(li-uTxtLit));
-      base=pal(uTxtHue)*(1.25+onLit*1.5);
-      emis=pal(uTxtHue+0.12)*onLit*0.5;
+      base=gP[4]*(1.25+onLit*1.5);
+      emis=gP[5]*onLit*0.5;
       dif=mix(dif,1.0,0.45);
       txtGhost=0.0;   // solid face won the depth test; no ghost needed
     }
     if(vidSurfOn()){
       vec3 sv=surfVid(p,n);
       if(uVidMode==11){
-        base=mix(base, sv*1.2, uVidMix);
+        // Painted on, then lit by the same light as the fractal so the frame
+        // wraps the relief; a share of it self-lit so shadowed folds still read.
+        base=mix(base, sv*1.45, uVidMix);
+        emis+=sv*uVidMix*(0.28+0.22*fre);
       } else {
         // Emissive: the frame's own luma lights the surface, so bright areas of
         // the image read as glowing through the geometry rather than painted on.
@@ -1411,10 +2052,17 @@ vec3 render3(vec2 uv){
       // Every skipped ray falls back to envCol, never to a solid: the glass
       // keeps transmitting whatever the budget.
       float fogW=1.0-smoothstep(2.6,5.5,d);
-      int sbR=int(mix(5.0,11.0,uDetail));
-      int sbT=int(mix(7.0,15.0,uDetail));
-      vec3 mir=(fre>0.22)?rayCol(p+n*0.004,rfl,3.0,sbR):envCol(rfl);
-      vec3 thru=(fogW>0.08 && dot(rfr,rfr)>1e-5)?rayCol(p-n*0.004,rfr,3.0,sbT):envCol(rfr);
+      int sbR=int(mix(4.0,8.0,uDetail));     // trimmed: lattice frame-time
+      int sbT=int(mix(5.0,10.0,uDetail));
+      // Both secondary rays through ONE rayCol call site, for the same reason
+      // as nrm(): each call site is a full inlined copy of the estimator.
+      vec3 mir=envCol(rfl), thru=envCol(rfr);
+      for(int k=NZERO;k<2;k++){
+        bool want = k==0 ? (fre>0.22) : (fogW>0.08 && dot(rfr,rfr)>1e-5);
+        if(!want) continue;
+        vec3 rc=rayCol(k==0 ? p+n*0.004 : p-n*0.004, k==0 ? rfl : rfr, 3.0, k==0 ? sbR : sbT);
+        if(k==0) mir=rc; else thru=rc;
+      }
       vec3 tint=mix(vec3(1.0),gbase*1.5,0.20);
       // Fresnel alone decides reflection against transmission: face-on the
       // surface is a window, edge-on it catches the room. That is what makes a
@@ -1422,15 +2070,15 @@ vec3 render3(vec2 uv){
       vec3 glass=mix(thru,mir,0.14+0.62*fre)*tint;
       float spec=pow(clamp(dot(n,normalize(l2-rd)),0.0,1.0),80.0);
       col=(glass
-          +spec*pal(0.30+uHigh*0.3)*1.8
-          +fre*pal(0.55+uHigh*0.25)*0.85
+          +spec*gP[6]*1.8
+          +fre*gP[7]*0.85
           +emis)*cov;
       // Depth falls off to black. A lattice this repetitive has no scale cue of
       // its own; the fog is what separates the cell you are in from the ones
       // behind it, and it is most of the reason the picture reads as deep.
-      col*=exp(-max(d-1.0,0.0)*0.24);
+      col*=exp(-max(d-1.0,0.0)*0.24*uLook.x);
     } else {
-      vec3 solid=(base*(0.14+0.9*dif)*ao+fre*pal(0.4+uHigh*0.4)*0.9+emis)*cov;
+      vec3 solid=(base*(0.14+0.9*dif)*ao+fre*gP[8]*0.9+emis)*cov;
       // Index of refraction. Translucency here was wrapped light plus
       // absorption, which needed the ray to keep walking through the body to
       // measure how much solid it crossed — expensive, and it only ever read as
@@ -1468,8 +2116,8 @@ vec3 render3(vec2 uv){
         vec3 lg=normalize(vec3(0.7,0.9,-0.6));
         float spec=pow(clamp(dot(n,normalize(lg-rd)),0.0,1.0),90.0);
         vec3 glass=(mix(thru*tint,mir,fr)
-                   +spec*pal(0.30+uHigh*0.3)*1.7
-                   +fre*pal(0.55+uHigh*0.2)*0.5
+                   +spec*gP[6]*1.7
+                   +fre*gP[9]*0.5
                    +emis)*cov;
         col=mix(solid,glass,smoothstep(0.0,0.35,ig));
       } else {
@@ -1477,15 +2125,83 @@ vec3 render3(vec2 uv){
       }
     }
   }
-  col+=glow*pal(0.15+uBass*0.3)*(0.7+uLoud*1.6)*((uMode==41)?0.3:1.0);
-  col+=uBeat*0.16*pal(0.6);
+  // Inside-the-fractal views fade to an atmosphere scaled to the corridor, so
+  // depth reads at any size and a miss is distance rather than a void.
+  // Fog control: above its default, every 3D view sinks into the palette's
+  // dark tone with distance.
+  if(hit && uLook.x>1.0){
+    float fq=1.0-exp(-max(d-(fc?uCamScale*2.0:1.4),0.0)*(uLook.x-1.0)*(fc?0.6/uCamScale:0.55));
+    col=mix(col, gP[10]*0.05+vec3(0.008,0.009,0.012), fq);
+  }
+  if(fc){
+    float fk=hit?1.0-exp(-d*uLook.x/(max(uCamScale,uCamFog)*14.0)):1.0;
+    col=mix(col, gP[10]*0.07+vec3(0.010,0.012,0.018), fk*cw);
+  }
+  col+=glow*uLook.y*gP[11]*(0.7+uLoud*1.6)*((uMode==41)?0.3:1.0);
+  // Depth of field. A real one costs a ray bundle per pixel, which this cannot
+  // afford — so the defocus is built from the two things a cone-tracer already
+  // has. The hit threshold above widens with distance from the focal plane, so
+  // a defocused silhouette genuinely spreads and softens rather than being
+  // blurred after the fact; and here the out-of-focus depths are washed toward
+  // the aerial colour and given back a share of the proximity glow, which is
+  // what turns a soft edge into a bloomed one. Focus sits on the orbit pivot —
+  // the surface facing the viewer — so the subject is sharp and the field falls
+  // away both in front of it and behind.
+  // Depth of field. The defocus itself is a gather in the post pass, which is
+  // the only place a bright point can actually spread into a round highlight;
+  // all this pass owes it is an honest circle of confusion per pixel. Focus sits
+  // on the orbit pivot — the surface facing the viewer — so the subject is sharp
+  // and the field falls away both in front of it and behind. A ray that hit
+  // nothing is background and takes the full aperture.
+  if(uDOF>0.001){
+    gCoC = hit ? clamp(uDOF*abs(d-dist)/max(dist,0.5)*2.4,0.0,1.0) : uDOF;
+  }
+  // Tap target. Surface view marks the picked spot on the geometry: a bright
+  // point, an outline circle drawn on the surface itself (so it wraps edges and
+  // creases) and a confirmation ring that sweeps out from it. Fly marks the
+  // open space instead: a soft volume around the point that walls in front
+  // occlude, its outline, and a rim on the walls that frame the gap.
+  if(fc && uTgt.w>0.0){
+    float R=uTgt.w, k=uTgtK.x, sw=uTgtK.z; vec3 tc=tgtCol();
+    if(uTgtK.y<0.5){
+      // Selected fractal (Surface, uTgtK.y = -radius): the whole copy under the
+      // picked point - its repeat cell, or the one object when space is not
+      // repeated - keeps its light, takes a tint and a silhouette outline;
+      // everything else dims, so the chosen fractal reads at a glance.
+      if(uTgtK.y<0.0){ float kg=clamp(k,0.0,1.0), sel=tgtSel(hit,p,-uTgtK.y);
+        float edge=clamp(fwidth(sel),0.0,1.0), pul=0.85+0.15*sin(uTime*3.0);
+        col=mix(col*(1.0-(hit?0.6:0.45)*kg), col*(1.0+0.25*kg)+tc*0.22*kg*pul, sel);
+        col+=tc*edge*1.4*kg; }
+      if(hit){
+        float dd=length(p-uTgt.xyz);
+        float core=exp(-pow(dd/(R*0.12),2.0));
+        float ring=exp(-pow((dd-R*0.55)/(R*0.05),2.0));
+        float area=1.0-smoothstep(R*0.5,R*0.6,dd);
+        float swp=exp(-pow((dd-R*(0.15+1.3*sw))/(R*0.07),2.0))*(1.0-sw);
+        // Selected piece (Surface, uTgtK.y = -radius): the form around the
+        // picked point keeps its light and takes a tint and an outline drawn on
+        // the geometry; everything outside it dims, so the piece reads as chosen.
+        col=mix(col, col*0.55+tc*0.18, area*0.45*k);
+        col+=tc*(core*1.4+ring*0.9+swp*1.1)*k*cov;
+      }
+    } else {
+      vec3 w=uTgt.xyz-ro; float tEnd=hit?d:1e9;
+      float ta=clamp(dot(w,rd),0.0,tEnd), rr=length(w-rd*ta)/R;
+      float vol=exp(-rr*rr*1.6)*(0.75+0.25*sin(uTime*5.0));
+      float shell=exp(-pow((rr-1.0)/0.06,2.0));
+      float swp=exp(-pow((rr-(0.2+1.3*sw))/0.08,2.0))*(1.0-sw);
+      col+=tc*(vol*0.45+shell*0.7+swp*0.9)*k;
+      if(hit){ float dd=length(p-uTgt.xyz)/R; col+=tc*exp(-pow((dd-1.25)/0.3,2.0))*0.55*k*cov; }
+    }
+  }
+  col+=uBeat*0.16*gP[12];
   // Ghost composite. Only fires where the letters lost the depth test, so the
   // message never disappears into a dense fractal: it reads as glass in front of
   // the scene rather than a solid face, which keeps the occlusion cue while
   // still guaranteeing legibility.
   if(txtGhost>0.001){
     float onLitG=1.0-smoothstep(0.0,0.9,abs(txtLetterId-uTxtLit));
-    vec3 gcol=pal(uTxtHue)*(0.9+onLitG*1.2);
+    vec3 gcol=gP[4]*(0.9+onLitG*1.2);
     float amt=txtGhost*(0.30+onLitG*0.22);
     col=mix(col, mix(col*0.30, gcol, 0.72), amt);
   }
@@ -1494,11 +2210,24 @@ vec3 render3(vec2 uv){
 
 #ifdef P_E2A
 vec3 esc2at(vec2 uv,int kind,float ex,vec2 ctrIn,float rotAdd,float bud,float iex){
-  // Bass breathing on the scale is what made deep zooms impossible to follow —
-  // a 22% pulse per beat outruns any hand movement. 6% reads as breath, not lurch.
-  float sc=2.6*exp2(-ex)*(1.0-0.06*uBass*uReact*uStrobe);
+  // No bass breathing on the frame scale: any pulse here moves the whole view
+  // (and slides a panned frame sideways), which read as the set jerking.
+  float sc=2.6*exp2(-ex);
   vec2 jc=vec2(-0.4+(uCA-0.5)*1.1+(uMorph-0.5)*0.25, 0.6+(uCB-0.5)*1.1);
   vec2 ctr = ctrIn;  vec2 p=uv*sc;
+  if(uMode==7 && uZLoop<0.5){
+    // Framed like Harmony: zoomed out, the whole set sits centred on the
+    // origin (a Julia set is symmetric about it). Deeper on the slider the frame
+    // glides onto the repelling fixed point z* = (1+sqrt(1-4c))/2, which lies on
+    // the set, and the endless (crossfade) zoom closes in on that point wherever
+    // it sits on screen, so the set never leaves the frame.
+    vec2 w=vec2(1.0,0.0)-4.0*jc; float wr=length(w);
+    vec2 sq=vec2(sqrt(max(0.5*(wr+w.x),0.0)), (w.y<0.0?-1.0:1.0)*sqrt(max(0.5*(wr-w.x),0.0)));
+    vec2 zs=0.5*(vec2(1.0,0.0)+sq);
+    float sxf=exp2(-uZX.x*uZX.y*uZX.z);
+    vec2 base=mix(ctrIn,zs,smoothstep(1.4,3.6,ex));
+    ctr=mix(zs,base,sxf);
+  }
   // uCamYaw is the manual rotation on the 2D families (drag / right stick).
   // Applied before the centre offset, so it turns the image about the middle of
   // the frame and the subject never leaves the screen — which is why these
@@ -1516,6 +2245,8 @@ vec3 esc2at(vec2 uv,int kind,float ex,vec2 ctrIn,float rotAdd,float bud,float ie
   // came back in from the opposite edge, which read as the image sliding
   // sideways under itself rather than as arriving anywhere new.
   p+=ctr+(uPan*rot(rotAdd))*sc*2.0;
+  float pxs0=max(max(fwidth(p.x),fwidth(p.y)),1e-9);
+  gPx=pxs0;
     vec2 c,z;
   if(kind==1){ c=jc; z=p; }
   // Sine Lambda's |c| has to exceed 1 or the origin is attracting and the whole
@@ -1523,7 +2254,14 @@ vec3 esc2at(vec2 uv,int kind,float ex,vec2 ctrIn,float rotAdd,float bud,float ie
   // 1.5 now, so mid-slider is the strongest banding and the travel stays inside
   // the range where structure exists.
   else if(kind==2){ c=vec2(1.5+(uCA-0.5)*1.3, (uCB-0.5)*1.1); z=p*2.4; }
-  else { c=p+vec2((uCA-0.5),(uCB-0.5))*0.55; z=vec2(0.0); }
+  // C Re / C Im shift c in VIEW units, not set units. A fixed 0.55 offset is a
+  // few percent of the frame at the top level but several screen widths once
+  // zoomed toward the seahorse valley — any setting off-centre threw the view
+  // into the interior and the scene went black unless C Re sat at an extreme
+  // that happened to land back on the boundary. Scaled by sc, full travel is
+  // about one frame width at every depth, so the controls steer across the
+  // spirals instead of away from them.
+  else { c=p+vec2((uCA-0.5),(uCB-0.5))*min(0.55, sc*1.2); z=vec2(0.0); }
   float fold=clamp(uMorph,0.0,1.0);
   float odk=orbitKeep();
   // The escape loop is the whole cost of this program. The ceiling was 900,
@@ -1545,6 +2283,34 @@ vec3 esc2at(vec2 uv,int kind,float ex,vec2 ctrIn,float rotAdd,float bud,float ie
   vec2 dz=vec2(1.0,0.0);
   float sf=(4.0+uCC*10.0)*sfScale(), st=0.0, sn=0.0, tr=1e9;
   vec3 tw; float tr0; trapCfg(tw,tr0);
+  bool dp = uDeep>0.5 && kind==0;
+  // Deep zoom measures its derivative in frame units (dz/2.6 below), so the
+  // Line view's pixel size has to be in the same units.
+  float gpd=2.6*max(max(fwidth(uv.x),fwidth(uv.y)),1e-9);
+  if(dp) gPx=gpd;
+  if(dp){
+    vec2 q=uv*rot(uTime*0.03*uSpeed*uSpin+uCamYaw+uCamRoll)+uPan*2.0;
+    vec2 dc=uDeepOff+q*uDeepPix, d=vec2(0.0);
+    int mr=0; dz=vec2(0.0);
+    // Uniform bound, not a constant: a constant 16384 invites the compiler to
+    // unroll it, which is a boot-time hang on ANGLE.
+    for(int k=0;k<uDeepMax;k++){
+      vec2 Zm=texelFetch(uOrb,ivec2(mr&4095,mr>>12),0).xy;
+      z=Zm+d;
+      dz=2.0*cmul(z,dz)+vec2(uDeepPix,0.0);
+      d=2.0*cmul(Zm,d)+cmul(d,d)+dc;
+      mr++;
+      z=texelFetch(uOrb,ivec2(mr&4095,mr>>12),0).xy+d;
+      m=dot(z,z);
+      float ang=atan(z.y,z.x), lz=sqrt(m);
+      st=st*odk+0.5+0.5*sin(sf*ang); sn=sn*odk+1.0;
+      tr=min(tr+(1.0-odk)*0.25, trapD(z,lz,tw,tr0));
+      if(m>256.0) break;
+      i+=1.0;
+      if(m<dot(d,d)||mr>=uRefLen-1){ d=z; mr=0; }
+    }
+    maxi=uDeepMax; dz/=2.6;
+  } else
   for(int k=0;k<maxi;k++){
     if(kind==2){
       // Sine Lambda: z <- c * sin(z). Transcendental, so it escapes through
@@ -1566,8 +2332,35 @@ vec3 esc2at(vec2 uv,int kind,float ex,vec2 ctrIn,float rotAdd,float bud,float ie
     if(m>256.0) break;
     i+=1.0;
   }
-  if(i>=float(maxi)-0.5) return esc_in(tr,st,sn,dz,float(maxi));
-  return esc_shade(i,float(maxi),m,z,dz,st,sn,tr);
+  bool inside = i>=float(maxi)-0.5;
+  float ish = dp ? max(i-uDeepBase,0.0) : i;
+  float msh = dp ? max(uDeepShade-uDeepBase,32.0) : float(maxi);
+  vec3 outc = inside ? esc_in(tr,st,sn,dz,msh) : esc_shade(ish,msh,m,z,dz,st,sn,tr);
+  // Orbit traces. Three seeds slide round the edge of the set and their orbits
+  // are drawn on top as glowing polylines, so the empty field carries the
+  // dynamics that made the shape. Parameter-plane families seed c on the main
+  // cardioid and follow 0; Julia seeds z on a circle under its own constant.
+  if(uField>1.5 && kind!=2 && !dp){
+    float pxs=pxs0;
+    float dl=1e9, dd=1e9;
+    for(int s=0;s<3;s++){
+      float th=uTime*0.04*uSpeed+float(s)*2.0944;
+      vec2 e=vec2(cos(th),sin(th));
+      vec2 oc, ow;
+      if(kind==1){ oc=jc; ow=e*(0.55+0.15*sin(th*1.7)); }
+      else { oc=(0.5*e-0.25*cmul(e,e))*0.975; ow=vec2(0.0); }
+      vec2 pv=ow;
+      for(int k=0;k<60;k++){
+        if(kind==3){ ow=mix(ow,abs(ow),fold); ow.y=-ow.y; }
+        ow=cmul(ow,ow)+oc;
+        if(dot(ow,ow)>16.0) break;
+        dl=min(dl,fSeg(p,pv,ow)); dd=min(dd,length(p-ow)); pv=ow;
+      }
+    }
+    float og=0.7+uBass*uReact*0.6;
+    outc+=(pal(0.60+uHigh*0.2)*exp(-dl/pxs*0.8)*0.45+pal(0.95)*exp(-dd/pxs*0.35)*0.85)*og;
+  }
+  return outc;
 }
 
 // Endless zoom by SELF-SIMILAR RE-CENTRING. The stacked-layer version is gone.
@@ -1605,7 +2398,7 @@ vec3 escape2(vec2 uv,int kind){
   // One path. The Feigenbaum point and its delta, a Julia repelling fixed point
   // and its multiplier, and Sine Lambda's lambda at the origin all arrive as
   // the same three numbers now — see zLoopParams on the host.
-  vec2 anchor=uCtr; float ex=2.1+zt*6.4; float rt=0.0; float iex=ex;
+  vec2 anchor=uCtr; float ex=(uMode==7?0.75:2.1)+zt*(uMode==7?7.75:6.4); float rt=0.0; float iex=ex;
   if(lp){ anchor=uZAnc; ex=uZBase+zt*uZRat; rt=-zt*uZRot; iex=uZBase+0.5*uZRat; }
   return esc2at(uv,kind,ex,anchor,rt,1.0,iex);
 }
@@ -1624,11 +2417,12 @@ vec3 escape2b(vec2 uv,int kind){
   float zt=lp ? uZoom-floor(uZoom) : clamp(uZoom,0.0,1.0);
   float ex=lp ? uZBase+zt*uZRat : 2.1+zt*6.4;
   float iex=lp ? uZBase+0.5*uZRat : ex;
-  float sc=2.8*exp2(-ex)*(1.0-0.06*uBass*uReact*uStrobe);
+  float sc=2.8*exp2(-ex);
   float pw0=2.0+uMorph*4.0+(uCA-0.5)*1.2+uMid*uReact*0.6;
   vec2 ctr2 = lp ? uZAnc : uCtr;
   float rt2 = lp ? -zt*uZRot : 0.0;
   vec2 p=uv*sc*rot(uTime*0.02*uSpeed*uSpin+uCamYaw+rt2)+ctr2+(uPan*rot(rt2))*sc*2.0;
+  gPx=max(max(fwidth(p.x),fwidth(p.y)),1e-9);
     float ca=(uCA-0.5)*1.5, cb=(uCB-0.5)*1.5;
   if(kind==2){
     vec2 z=p*2.2+vec2(1e-4);
@@ -1649,9 +2443,13 @@ vec3 escape2b(vec2 uv,int kind){
   float pw=pw0;
   if(kind==0){ c=p; z=vec2(0.0); }
   else if(kind==1){ c=vec2(0.5667+ca*0.35, -0.5+cb*0.35); z=p; }
-  else if(kind==3){ c=vec2(-1.05+ca*0.3, 0.035+cb*0.26); z=p; }
+  // Ship Julia: each slider spans only the half that still has a set; above
+  // the old midpoint c leaves the connected region and the plane goes empty.
+  else if(kind==3){ float ca3=(uCA*0.5-0.5)*1.5, cb3=(uCB*0.5-0.5)*1.5; c=vec2(-1.12+ca3*0.17, 0.035+cb3*0.26); z=p; }
   else { c=p; z=vec2(0.0); }
   int maxi=int(min(max((56.0+iex*50.0)*fi()*uZIter, 32.0), mix(400.0,260.0,uSmooth)));
+  // Ship Julia past ~150 iterations resolves dust finer than a pixel: static.
+  if(kind==3) maxi=min(maxi,int(mix(90.0,150.0,clamp(iex/6.0,0.0,1.0))));
   float i=0.0,m=0.0;
   vec2 dz=vec2(1.0,0.0);
   float sf=(4.0+uCC*10.0)*sfScale(), st=0.0, sn=0.0, tr=1e9;
@@ -1662,8 +2460,33 @@ vec3 escape2b(vec2 uv,int kind){
     // non-analytic (abs) variants too
     dz=pw*cmul(cpow_d(z,pw-1.0),dz)+(kind==0?vec2(1.0,0.0):vec2(0.0));
     if(kind==0){
-      float r=length(z),a=atan(z.y,z.x)*pw;
-      z=pow(max(r,1e-9),pw)*vec2(cos(a),sin(a))+c;
+      // MAGNET (type I), from the renormalisation of the Ising model:
+      // z <- ((z^2 + c - 1) / (2z + c - 2))^2. Two fates: escape to infinity,
+      // or settle on the fixed point z = 1, so the set has a Mandelbrot-like
+      // bulb plus a second, attracting basin with its own filigree. Morph bends
+      // the "-1" toward the type-II-like shift, Cst B adds an imaginary twist.
+      vec2 cc2=c+vec2(0.0,(cb-0.5)*0.5);
+      float sh=mix(0.7,1.3,uMorph);
+      vec2 nm=cmul(z,z)+cc2-vec2(sh,0.0);
+      vec2 dn=2.0*z+cc2-vec2(2.0*sh,0.0);
+      vec2 q=cdiv(nm, dn+vec2(1e-9,0.0));
+      z=cmul(q,q);
+      vec2 dq=z-vec2(1.0,0.0);
+      if(dot(dq,dq)<1e-6){ i+=(1.0-dot(dq,dq)*1e6)*0.0; m=dot(z,z); break; }
+    } else if(kind==99){
+      // (retired) Multibrot with a COMPLEX exponent. Cst B was computed into cb here and
+      // then never read on this branch — control 9 did nothing on the scene.
+      // Giving the exponent an imaginary part is the honest thing to put there:
+      // z^(pw+iq) = exp((pw+iq)(ln r + iθ)), which winds the lobes into
+      // logarithmic spirals instead of leaving them radial. It is the same
+      // family, one parameter wider, and q=0 reproduces the old image exactly —
+      // which is where the 0.5 default sits, so no preset changes look.
+      float r=length(z);
+      float lr=log(max(r,1e-9)), a0=atan(z.y,z.x);
+      float q=cb*0.45;
+      float mg=exp(pw*lr - q*a0);
+      float a=pw*a0 + q*lr;
+      z=mg*vec2(cos(a),sin(a))+c;
     } else if(kind==1){
       // Morph is the memory weight: 0 collapses Phoenix to a plain Julia.
       vec2 nz=cmul(z,z)+vec2(c.x,0.0)+c.y*zp*mix(0.15,1.7,uMorph);
@@ -1675,7 +2498,14 @@ vec3 escape2b(vec2 uv,int kind){
     } else {
       vec2 z2=cmul(z,z);
       // Morph folds between Mandelbrot and the Celtic abs on the real part.
-      z=vec2(mix(z2.x,abs(z2.x),clamp(uMorph,0.0,1.0)),z2.y)+c;
+      // Cst B now folds the IMAGINARY part on the same continuum, which is the
+      // Buffalo set at full travel and Celtic at zero. Same reason as Multibrot
+      // above: cb was dead on this branch, and the second fold is the control
+      // this family actually has to offer.
+      // Fold floor 0.25: an unfolded (Mandelbrot) state framed on the Celtic
+      // centre is empty field.
+      z=vec2(mix(z2.x,abs(z2.x),0.25+0.75*clamp(uMorph,0.0,1.0)),
+             mix(z2.y,abs(z2.y),clamp(uCB,0.0,1.0)))+c;
     }
     m=dot(z,z);
     float ang=atan(z.y,z.x), lz=sqrt(m);
@@ -1691,7 +2521,7 @@ vec3 escape2b(vec2 uv,int kind){
 #endif
 #ifdef P_TUN
 vec3 tunnel(vec2 uv){
-  uv+=uPan*0.6;
+  { vec2 o=uPan*0.6; float l=length(o), L=0.7; uv+= l>L ? o*(L/l) : o; }
   float t=uTime*uSpeed;
   float a=atan(uv.y,uv.x), r=length(uv);
   float seg=floor(mix(4.0,14.0,uMorph)+uCA*8.0);
@@ -1714,7 +2544,7 @@ vec3 tunnel(vec2 uv){
 #endif
 #ifdef P_FLW
 vec3 flow(vec2 uv){
-  uv+=uPan*0.8;
+  { vec2 o=uPan*0.8; float l=length(o), L=0.7; uv+= l>L ? o*(L/l) : o; }
   float t=uTime*0.22*uSpeed;
   vec2 p=uv*mix(1.4,0.45,uZoom);
   float warp=1.1+uMorph*2.4+uCA*1.8+uMid*uReact*1.2;
@@ -1746,7 +2576,7 @@ vec3 escape2c(vec2 uv,int kind){
   float exB = uMode==39 ? 1.0 : 2.1;
   float ex=lp ? uZBase+zt*uZRat : exB+zt*6.4;
   float iex=lp ? uZBase+0.5*uZRat : ex;
-  float sc=2.8*exp2(-ex)*(1.0-0.06*uBass*uReact*uStrobe);
+  float sc=2.8*exp2(-ex);
   float rt3 = lp ? -zt*uZRot : 0.0;
   // Harmony's constant has to be known BEFORE the sampling point, because the
   // frame has to undo the tilt the constant causes. For z^4+c with c = R e^(i0)
@@ -1766,7 +2596,21 @@ vec3 escape2c(vec2 uv,int kind){
   // Upright: the time spin is dropped for this scene. A figure whose whole
   // point is its symmetry cannot be rolling.
   float hspin = uMode==39 ? -hth/3.0 : uTime*0.02*uSpeed*uSpin;
-  vec2 p=uv*sc*rot(hspin+uCamYaw+rt3)+(lp?uZAnc:uCtr)+(uPan*rot(rt3))*sc*2.0;
+  vec2 ctr3=lp?uZAnc:uCtr;
+  if(uMode==39){
+    // Zoomed out the figure stays centred; zooming in, the frame glides off the
+    // origin (a flat interior with banding) onto the most repelling fixed point
+    // of z^4+c. That point lies on the set itself, so detail never runs out.
+    vec2 ch=hrad*vec2(cos(hth),sin(hth)); vec2 best=vec2(0.0); float bm=-1.0;
+    for(int g=0;g<4;g++){
+      float ga=1.5707963*float(g)+0.4; vec2 zf=1.05*vec2(cos(ga),sin(ga));
+      for(int k=0;k<12;k++){ vec2 z2=cmul(zf,zf), z3=cmul(z2,zf); zf-=cdiv(cmul(z2,z2)-zf+ch, 4.0*z3-vec2(1.0,0.0)); }
+      float mu=4.0*pow(length(zf),3.0); if(mu>bm){ bm=mu; best=zf; }
+    }
+    ctr3=mix(ctr3,best,smoothstep(1.7,3.4,ex));
+  }
+  vec2 p=uv*sc*rot(hspin+uCamYaw+rt3)+ctr3+(uPan*rot(rt3))*sc*2.0;
+  gPx=max(max(fwidth(p.x),fwidth(p.y)),1e-9);
     if(kind==0){
     vec2 ab=p*0.55+vec2(3.1,3.1)+vec2((uCA-0.5),(uCB-0.5))*0.5;
     float x=0.5, sum=0.0;
@@ -2243,6 +3087,7 @@ vec3 synth(vec2 uv,int k){
 
 vec3 sampleVid(vec2 t){
   t.x = mix(t.x, 1.0-t.x, uVidFlip);
+  t.y = mix(t.y, 1.0-t.y, uVidFlipV);
   t = clamp(t, 0.0, 1.0);
   return texture(uTex, vec2(t.x, 1.0-t.y)).rgb;
 }
@@ -2252,10 +3097,14 @@ vec3 surfVid(vec3 p, vec3 n){
   // normal, so it wraps the surface without seams or edge-on stretching. The
   // coords are object-space, which is what locks the image to the geometry as
   // the camera orbits instead of sliding across the screen.
-  vec3 w=pow(abs(n),vec3(4.0));
+  // Mirrored repeat instead of a clamp, so the frame keeps tiling across the
+  // whole form rather than smearing its edge pixels over everything past it.
+  vec3 w=pow(abs(n),vec3(6.0));
   w/=max(w.x+w.y+w.z,1e-4);
-  float s=0.34;
-  return sampleVid(p.zy*s+0.5)*w.x + sampleVid(p.xz*s+0.5)*w.y + sampleVid(p.xy*s+0.5)*w.z;
+  float s=0.42;
+  vec2 a=p.zy*s+0.5, b=p.xz*s+0.5, c=p.xy*s+0.5;
+  a=1.0-abs(1.0-mod(a,2.0)); b=1.0-abs(1.0-mod(b,2.0)); c=1.0-abs(1.0-mod(c,2.0));
+  return sampleVid(a)*w.x + sampleVid(b)*w.y + sampleVid(c)*w.z;
 }
 float sobel(vec2 t, vec2 px){
   float l00=vidLuma(t+vec2(-px.x,-px.y)), l10=vidLuma(t+vec2(0.0,-px.y)), l20=vidLuma(t+vec2(px.x,-px.y));
@@ -2316,8 +3165,8 @@ vec3 asciiArt(vec2 suv, vec3 col){
   // Video's own colour by default, palette-mapped by luma as Morph goes up.
   vec3 tint = mix(vv/max(max(vv.r,max(vv.g,vv.b)),0.08)*(0.35+l*0.95),
                   pal(l*1.25+uHigh*0.25)*(0.4+l*0.9), uMorph);
-  vec3 bg = mix(vv*0.07, col*0.16, 0.5);
-  return bg + tint*m*(1.15+uLoud*0.35);
+  // Glyphs only: the fractal underneath stays as it is.
+  return tint*m*(1.15+uLoud*0.35);
 }
 // Wireframe. The frame's luma is read as relief — bright is near, dark is far —
 // and a quad mesh is laid over it in the surface's own coordinates rather than
@@ -2357,9 +3206,17 @@ vec3 wireMesh(vec2 uv, vec2 suv, vec3 col){
   float lit = (0.30 + facing*0.55 + h*0.55)*mix(0.35, 1.0, solid);
   vec3 c = neon*(line*1.45*lit + glow*0.30*lit + rim*0.75);
   c += neon*0.045*solid;                      // faint interior fill
-  return c*(1.0 + uLoud*0.25) + col*0.05;
+  return c*(1.0 + uLoud*0.25);
 }
 vec3 videoLayer(vec2 uv, vec2 suv, vec3 col){
+  if(uSceneOff>0.5){
+    // Vector-only: there is no scene image under the lines. Effects that are
+    // built out of the scene's colour (matte, surface projection) would draw
+    // black, so those show the plain video instead.
+    if(uHasTex<0.5 || uVidMix<=0.001) return vec3(0.0);
+    if(uVidMode==6 || uVidMode==11 || uVidMode==12) return sampleVid(suv)*uVidMix;
+    col=vec3(0.0);
+  }
   if(uHasTex<0.5 || uVidMix<=0.001) return col;
   if(uVidMode>=11 && uVidMode<=12){
 #ifdef SURF3D
@@ -2370,9 +3227,14 @@ vec3 videoLayer(vec2 uv, vec2 suv, vec3 col){
     // shears where the escape gradient is steep.
     float l=dot(col,vec3(0.299,0.587,0.114));
     vec2 g=vec2(dFdx(l),dFdy(l));
-    vec2 t=suv+(length(g)>1e-6?normalize(g):vec2(0.0))*l*0.35;
+    vec2 t=suv+(length(g)>1e-6?normalize(g):vec2(0.0))*(0.03+l*0.22);
     vec3 vv=sampleVid(t);
-    if(uVidMode==11) return mix(col, vv*(0.4+l*1.6), uVidMix);
+    if(uVidMode==11){
+      // Shaded by the field's own relief so the bands read as folds the frame
+      // is draped over, with a floor so dark bands do not swallow it.
+      float sh=0.75+clamp(dot(g*40.0, vec2(0.6,0.8)),-0.35,0.45);
+      return mix(col, vv*sh*(0.8+l*0.7)+col*0.18, uVidMix);
+    }
     float vl=dot(vv,vec3(0.299,0.587,0.114));
     return mix(col, col*0.4+vv*vl*2.2, uVidMix);
 #endif
@@ -2413,9 +3275,75 @@ vec3 videoLayer(vec2 uv, vec2 suv, vec3 col){
     vec3 vv=sampleVid(suv);
     return mix(col, abs(vv-col)*1.45, uVidMix);
   } else if(uVidMode==13){
-    return mix(col, asciiArt(suv, col), uVidMix);
+    vec3 a=asciiArt(suv, col);
+    float am=clamp(dot(a,vec3(0.4)),0.0,1.0);
+    return mix(col, a, am*uVidMix);
   } else if(uVidMode==14){
-    return mix(col, wireMesh(uv, suv, col), uVidMix);
+    vec3 wm=wireMesh(uv, suv, col);
+    return 1.0-(1.0-col)*(1.0-clamp(wm*uVidMix,0.0,1.0));
+  } else if(uVidMode==15){
+    // Void: the video lives only in the empty (black) parts of the scene; the
+    // fractal itself is left untouched. Soft edge so it does not cut out hard.
+    // Green screen: the fractal is the foreground, everything else is keyed
+    // out and replaced by the frame. 3D scenes key on the ray miss itself; 2D
+    // and canvas scenes key on near-black.
+    float hole;
+    if(gVoidK>=0.0) hole=gVoidK;
+    else { float l=dot(col,vec3(0.299,0.587,0.114)); hole=1.0-smoothstep(0.02,0.10,l); }
+    return mix(col, sampleVid(suv), hole*uVidMix);
+  } else if(uVidMode==16){
+    // Quad: a screen in each corner. Detail sizes them, up to a full 2x2 wall.
+    float sz=mix(0.26,0.49,uDetail), gp=0.012;
+    vec2 cq=step(0.5,suv);
+    vec2 o=mix(vec2(gp), vec2(1.0-gp-sz), cq);
+    vec2 lc=(suv-o)/sz;
+    float inside=step(0.0,lc.x)*step(lc.x,1.0)*step(0.0,lc.y)*step(lc.y,1.0);
+    vec2 bw=vec2(1.5/(sz*uRes.x),1.5/(sz*uRes.y));
+    float edge=inside*(1.0-step(bw.x,lc.x)*step(lc.x,1.0-bw.x)*step(bw.y,lc.y)*step(lc.y,1.0-bw.y));
+    vec3 vv=sampleVid(lc);
+    vec3 c2=mix(col, vv, inside*uVidMix);
+    return mix(c2, pal(0.2+uHigh*0.2)*1.2, edge*uVidMix);
+  } else if(uVidMode==17){
+    // Dream: diffusion filter. A wide soft copy of the frame is laid over the
+    // sharp one, highlights bloom into halation, blacks lift into haze.
+    vec2 r=(0.004+uDetail*0.018)*vec2(uRes.y/uRes.x,1.0)*(1.0+uBass*0.4);
+    vec3 b=vec3(0.0); float ws=0.0;
+    for(int i=0;i<16;i++){
+      float fi2=float(i), a=fi2*2.39996, rr=sqrt((fi2+0.5)/16.0);
+      float w=1.0-rr*0.6;
+      b+=sampleVid(suv+vec2(cos(a),sin(a))*rr*r*3.0)*w; ws+=w;
+    }
+    b/=ws;
+    vec3 sh=sampleVid(suv);
+    vec3 soft=mix(sh,b,0.5+uMorph*0.4);
+    vec3 bloom=pow(b,vec3(2.0))*(0.9+uLoud*0.6);
+    vec3 dv=soft*0.88+bloom+vec3(0.035,0.03,0.045);
+    vec3 cs=col*0.82+col*col*0.45+vec3(0.025,0.02,0.035);
+    vec3 scr=1.0-(1.0-cs)*(1.0-clamp(dv,0.0,1.0));
+    return mix(col, scr*vec3(1.03,0.99,1.02), uVidMix);
+  } else if(uVidMode==18){
+    // Mirror: the frame folded on its centre line, screened over the scene.
+    vec2 t=vec2(0.5-abs(suv.x-0.5), suv.y);
+    vec3 vv=sampleVid(t);
+    return mix(col, 1.0-(1.0-col)*(1.0-vv), uVidMix);
+  } else if(uVidMode==19){
+    // Grid: the frame tiled 2x2 up to 5x5 with Detail.
+    float n=floor(mix(2.0,5.99,uDetail));
+    vec3 vv=sampleVid(fract(suv*n));
+    return mix(col, 1.0-(1.0-col)*(1.0-vv), uVidMix);
+  } else if(uVidMode==20){
+    // Halftone: the frame as a dot screen in the scene's palette, over the scene.
+    float cells=floor(mix(40.0,140.0,uDetail));
+    vec2 asp=vec2(uRes.x/uRes.y,1.0);
+    vec2 g=suv*asp*cells; g=mat2(0.7071,-0.7071,0.7071,0.7071)*g;
+    vec2 id=floor(g)+0.5, f=fract(g)-0.5;
+    vec2 cc=(mat2(0.7071,0.7071,-0.7071,0.7071)*id)/cells/asp;
+    float l=vidLuma(cc);
+    float rad=sqrt(l)*0.62*(1.0+uBass*0.25);
+    float fw=fwidth(length(f))+1e-4;
+    float dot1=1.0-smoothstep(rad-fw,rad+fw,length(f));
+    vec3 ink=pal(l*1.3+uHigh*0.25)*1.2;
+    return mix(col, ink, dot1*uVidMix);
   }
   if(uVidMode==0){
     v = sampleVid(suv);
@@ -2430,6 +3358,7 @@ vec3 videoLayer(vec2 uv, vec2 suv, vec3 col){
     v = sampleVid(suv+d);
   } else {
     v = sampleVid(suv);
+    if(uSceneOff>0.5) return v*uVidMix;
     float l=dot(v,vec3(0.299,0.587,0.114));
     return col*mix(1.0, l*2.3, uVidMix) + pal(l*1.6+uHigh*0.3)*l*uVidMix*0.4;
   }
@@ -2439,6 +3368,8 @@ vec3 videoLayer(vec2 uv, vec2 suv, vec3 col){
 void main(){
   vec2 uv=(gl_FragCoord.xy*2.0-uRes)/uRes.y;
   vec2 suv=gl_FragCoord.xy/uRes;
+  float plF=1.0;
+  vec3 scn=vec3(0.0);
   // Declared ahead of the "vec3 col;" line: everything from there to the
   // videoLayer call is the per-family dispatch, which each program swaps out for
   // its own single call — anything declared inside it is gone from the others.
@@ -2447,6 +3378,22 @@ void main(){
   // it. Pushing the sampling point along the field's gradient makes every
   // stripe, rib and filament bend around the letterforms, so the type is
   // legible as a shape in the pattern while the pattern itself stays continuous.
+  if(!is3 && abs(uPlane.x)+abs(uPlane.y)>1e-4){
+    // Plane basis = Ry(roll)*Rx(pitch); eye at (0,0,-F). At zero tilt this is
+    // the identity, so an untilted frame is pixel-for-pixel what it was.
+    float F=1.8, ca=cos(uPlane.x), sa=sin(uPlane.x), cb=cos(uPlane.y), sb=sin(uPlane.y);
+    vec3 ex=vec3(cb,0.0,-sb), ey=vec3(sa*sb,ca,sa*cb), pn=vec3(ca*sb,-sa,ca*cb);
+    vec3 d=vec3(uv,F);
+    float dn=dot(pn,d);
+    if(dn>1e-3){
+      float t=F*pn.z/dn;
+      vec3 hp=vec3(0.0,0.0,-F)+d*t;
+      uv=vec2(dot(hp,ex),dot(hp,ey));
+      // Horizon fade + distance haze: past a few plane-widths a pixel covers
+      // more field than the escape loop can resolve, which reads as fizz.
+      plF=smoothstep(0.0,0.08,dn/length(d))*exp(-max(t-1.0,0.0)*0.28);
+    } else { uv=vec2(0.0); plF=0.0; }
+  }
   vec2 tq=vec2(0.0);
   float tS=1e9;
   if(uTxtOn>0.5 && !is3){
@@ -2470,7 +3417,14 @@ void main(){
   if(is3) col=render3(uv);
   else if(uMode>=22 && uMode<30) col=synth(uv,uMode-22);
   else col=sc2(uv);
-  col=videoLayer(uv,suv,col);
+  col=videoLayer(uv,suv,scn=col);
+  col*=plF;
+  if(uCamProbe>0.5 && is3 && gProbeC.a>0.5){ fragColor=vec4(gProbeC.rgb,1.0); return; }
+  if(uCamProbe>0.5 && is3){
+    float e=clamp((log2(max(abs(gProbe.x),1e-12))+40.0)/64.0,0.0,1.0)*65535.0;
+    fragColor=vec4(floor(e/256.0)/255.0, mod(floor(e),256.0)/255.0, gProbe.x<0.0?1.0:0.0, 1.0);
+    return;
+  }
   if(uDepthOut>0.5){
     // 16 bits per axis over a +/-32 world box: high bytes in the first column
     // of the probe, low bytes in the second.
@@ -2499,13 +3453,23 @@ void main(){
   col*=1.0-0.28*dot(uv,uv)*0.42;
   col=col/(1.0+col*0.7);
   col=pow(max(col,0.0),vec3(0.85));
+  bool vOn=uHasTex>0.5 && uVidMix>0.001 && uFeed>0.002;
   if(uFeed>0.002){
+    if(vOn){
+      scn*=plF*(1.0+uLoud*0.5*uReact)*(1.0-0.28*dot(uv,uv)*0.42);
+      scn=scn/(1.0+scn*0.7);
+      scn=pow(max(scn,0.0),vec3(0.85));
+    }
     vec2 cc=suv-0.5;
     float z=1.0+uDrift*(0.004+uBass*0.014);
     float a=uDrift*(0.0015+uHigh*0.005)*sin(uTime*0.13);
     vec2 t=(rot(a)*cc)/z+0.5;
-    vec3 prev=texture(uPrev,t).rgb;
-    col=max(col, prev*uFeed);
+    vec4 pv=texture(uPrev,t);
+    // Alpha of the previous frame holds how much of it was fractal rather than
+    // video, so only the fractal's share is fed back.
+    float k=(vOn && uCoCOut<0.5) ? pv.a : 1.0;
+    col=max(col, pv.rgb*k*uFeed);
+    if(vOn) scn=max(scn, pv.rgb*k*uFeed);
   }
   // Scene transitions. The outgoing image is the previous COMPOSITED frame, so
   // whatever warp is applied here is re-applied to its own output next frame —
@@ -2589,7 +3553,15 @@ void main(){
     col=mix(col, texture(uPrev,pv).rgb, clamp(bl,0.0,0.92));
   }
   col+=(hash(gl_FragCoord.xy+fract(uTime))-0.5)*0.016;
-  fragColor=vec4(col,1.0);
+  float oA=1.0;
+  if(vOn) oA=clamp(dot(scn,vec3(0.333))/max(dot(col,vec3(0.333)),1e-3),0.0,1.0);
+  fragColor=vec4(col,oA);
+#ifdef SURF3D
+  // Alpha carries the circle of confusion for the post pass to size its gather
+  // — but ONLY when that pass is going to run. Otherwise this frame is the one
+  // being composited and alpha has to mean opacity.
+  if(uCoCOut>0.5) fragColor.a=gCoC;
+#endif
 }`;
 
 const PRESETS = [
@@ -2610,9 +3582,10 @@ const PRESETS = [
   {name:'Tetra Fold',   grp:'LATT', kind:'3D', mode:32, p:{morph:0.4,detail:0.6,speed:0.7,zoom:0.45,hue:0.4,ca:0.5,cb:0.5,cc:0.35,iter:0.55}},
   {name:'Menger Rot',   grp:'LATT', kind:'3D', mode:33, p:{morph:0.4,detail:0.62,speed:0.6,zoom:0.45,hue:0.78,ca:0.5,cb:0.5,cc:0.5,iter:0.5}},
   {name:'Gyroid',       grp:'BULB', kind:'3D', mode:34, p:{morph:0.5,detail:0.62,speed:0.55,zoom:0.44,hue:0.02,ca:0.45,cb:0.32,cc:0.4,iter:0.6}},
+  {name:'DNA',          grp:'BULB', kind:'3D', mode:43, p:{morph:0.45,detail:0.15,speed:0.5,zoom:0.4,hue:0.55,ca:0.62,cb:0,cc:0.55,iter:0.5}},
   {name:'Spudsville',   grp:'BULB', kind:'3D', mode:35, p:{morph:0.45,detail:0.62,speed:0.55,zoom:0.28,hue:0.7,ca:0.5,cb:0.5,cc:0.4,iter:0.5}},
   {name:'Quat Mandel',  grp:'BULB', kind:'3D', mode:36, p:{morph:0.4,detail:0.6,speed:0.7,zoom:0.42,hue:0.9,ca:0.5,cb:0.5,cc:0.35,iter:0.58}},
-  {name:'CubeKochMosely',grp:'LATT',kind:'3D', mode:42, p:{morph:0.42,detail:0.60,speed:0.6,zoom:0.30,hue:0.45,ca:0.5,cb:0.45,cc:0.2,iter:0.5}},
+  {name:'HexKochMosely',grp:'LATT',kind:'3D', mode:42, p:{morph:0.42,detail:0.60,speed:0.6,zoom:0.30,hue:0.45,ca:0.5,cb:0.45,cc:0.2,iter:0.5}},
   {name:'Tesseract',    grp:'LATT', kind:'3D', mode:41, p:{morph:0.45,detail:0.62,speed:0.5,zoom:0.22,hue:0.60,ca:0.5,cb:0.3,cc:0.34,iter:0.5}},
   // 2D escape-time
   {name:'Mandelbrot',   grp:'FLD', kind:'2D', mode:6,  p:{morph:0.55,detail:0.60,speed:0.6,zoom:0.62,hue:0.20,cc:0.2}},
@@ -2620,7 +3593,7 @@ const PRESETS = [
   {name:'Sine Lambda',  grp:'FLD', kind:'2D', mode:8,  p:{morph:0.5,detail:0.55,speed:0.5,zoom:0.30,hue:0.05,ca:0.5,cb:0.5,cc:0.15}},
   {name:'Mirror Tunnel',grp:'TUN', kind:'2D', mode:10, p:{morph:0.55,detail:0.50,speed:1.1,zoom:0.40,hue:0.62,cc:0.3}},
   {name:'Flow',         grp:'TUN', kind:'2D', mode:11, p:{morph:0.42,detail:0.45,speed:1.0,zoom:0.45,hue:0.90,cc:0.5}},
-  {name:'Multibrot',    grp:'FLD', kind:'2D', mode:17, p:{morph:0.4,detail:0.55,speed:0.5,zoom:0.35,hue:0.25,ca:0.35,cb:0.5,cc:0.25}},
+  {name:'Magnet',       grp:'FLD', kind:'2D', mode:17, p:{morph:0.5,detail:0.55,speed:0.5,zoom:0.30,hue:0.25,ca:0.5,cb:0.5,cc:0.25}},
   {name:'Phoenix',      grp:'FLD', kind:'2D', mode:18, p:{morph:0.4,detail:0.55,speed:0.6,zoom:0.22,hue:0.55,ca:0.5,cb:0.5,cc:0.4}},
   {name:'Ship Julia',   grp:'FLD', kind:'2D', mode:20, p:{morph:0.5,detail:0.55,speed:0.6,zoom:0.42,hue:0.08,ca:0.5,cb:0.5,cc:0.3}},
   {name:'Celtic',       grp:'FLD', kind:'2D', mode:21, p:{morph:0.4,detail:0.55,speed:0.5,zoom:0.35,hue:0.45,ca:0.5,cb:0.5,cc:0.35}},
@@ -2638,9 +3611,9 @@ const PRESETS = [
   {name:'Ink Blobs',    grp:'SYN', kind:'SYN', mode:28, p:{morph:0.45,detail:0.66,speed:0.7,zoom:0.45,hue:0.3,ca:0.55,cb:0.5,cc:0.45}},
   // Canvas-drawn scenes (modes >= 90): no shader family, no raymarch pass.
   {name:'Spectrum Mesh',grp:'SYN', kind:'2DC', mode:90, p:{morph:0.4,detail:0.6,speed:0.9,zoom:0.5,hue:0.2,ca:0.5,cb:0.5,cc:0.3}},
-  {name:'Outrun',       grp:'TUN', kind:'2DC', mode:91, p:{morph:0.5,detail:0.6,speed:0.9,zoom:0.5,hue:0.55,ca:0.5,cb:0.5,cc:0.3}},
+  {name:'Outrun',       grp:'SCN', kind:'2DC', mode:91, p:{morph:0.5,detail:0.6,speed:0.9,zoom:0.5,hue:0.55,ca:0.5,cb:0.5,cc:0.3}},
   {name:'Code Tunnel',  grp:'TUN', kind:'2DC', mode:92, p:{morph:0.5,detail:0.6,speed:0.9,zoom:0.5,hue:0.35,ca:0.5,cb:0.5,cc:0.3}},
-  {name:'Half Pipe',    grp:'TUN', kind:'2DC', mode:93, p:{morph:0.5,detail:0.6,speed:0.85,zoom:0.5,hue:0.55,ca:0.5,cb:0.45,cc:0.4,iter:0.5}},
+  {name:'Half Pipe',    grp:'SCN', kind:'2DC', mode:93, p:{morph:0.5,detail:0.6,speed:0.85,zoom:0.5,hue:0.55,ca:0.5,cb:0.45,cc:0.4,iter:0.5}},
   {name:'Shorebreak',   grp:'SCN', kind:'2DC', mode:94, p:{morph:0.5,detail:0.6,speed:0.7,zoom:0.5,hue:0.5,ca:0.55,cb:0.5,cc:0.5,iter:0.5}},
   {name:'Pascal Weave',  grp:'ATTR', kind:'2DC', mode:95, p:{morph:0.5,detail:0.55,speed:0.6,zoom:0.5,hue:0.42,ca:0.5,cb:0.45,cc:0.5,iter:0.35}},
   {name:'Chaos Sequence',grp:'ATTR', kind:'2DC', mode:96, p:{morph:0.5,detail:0.55,speed:0.6,zoom:0.5,hue:0.62,ca:0.42,cb:0.5,cc:0.2,iter:0.4}},
@@ -2651,7 +3624,21 @@ const PRESETS = [
   {name:'Hypno Swirl',   grp:'TUN', kind:'2DC', mode:101,p:{morph:0.42,detail:0.4,speed:0.45,zoom:0.5,hue:0.6,ca:0.14,cb:0.4,cc:1.0,iter:0.0}},
   {name:'Black Hole',    grp:'TUN', kind:'2DC', mode:102,p:{morph:0.72,detail:0.3,speed:0.5,zoom:0.5,hue:0.08,ca:0.5,cb:0.5,cc:0.45,iter:0.45}},
   {name:'Disco Robot',   grp:'SCN', kind:'2DC', mode:103,p:{morph:0.5,detail:0.6,speed:0.85,zoom:0.5,hue:0.5,ca:0.55,cb:0.5,cc:0.45,iter:0.5}},
-  {name:'Aizawa',        grp:'ATTR', kind:'2DC', mode:104,p:{morph:0.46,detail:0.5,speed:0.5,zoom:0.5,hue:0.62,ca:0.5,cb:0.5,cc:0.72,iter:0.45}}
+  {name:'Aizawa',        grp:'ATTR', kind:'2DC', mode:104,p:{morph:0.46,detail:0.5,speed:0.5,zoom:0.5,hue:0.62,ca:0.5,cb:0.5,cc:0.72,iter:0.45}},
+  // Fractal flames: IFS point scatter, log-density tone map.
+  {name:'Spiral Flame',  grp:'FLM', kind:'2DC', mode:105,p:{morph:0.5,detail:0.55,speed:0.4,zoom:0.5,hue:0.5,ca:0.5,cb:0.5,cc:0.2,iter:0}},
+  {name:'Dragon Flame',  grp:'FLM', kind:'2DC', mode:106,p:{morph:0.5,detail:0.55,speed:0.4,zoom:0.5,hue:0.5,ca:0.5,cb:0.5,cc:0.2,iter:0}},
+  {name:'Fern Flame',    grp:'FLM', kind:'2DC', mode:107,p:{morph:0.5,detail:0.55,speed:0.4,zoom:0.5,hue:0.5,ca:0.5,cb:0.5,cc:0.2,iter:0}},
+  {name:'Galaxy Flame',  grp:'FLM', kind:'2DC', mode:108,p:{morph:0.5,detail:0.55,speed:0.4,zoom:0.5,hue:0.5,ca:0.5,cb:0.5,cc:0.3,iter:0.4}},
+  // Video scenes: the clip is part of the set (colour bars stand in without one).
+  {name:'Drive-in',grp:'SCN', kind:'2DC', mode:109,p:{morph:0.5,detail:0.5,speed:0.6,zoom:0.5,hue:0.62,ca:0.5,cb:0.5,cc:0.3,iter:0.5}},
+  {name:'Billboard City',grp:'SCN', kind:'2DC', mode:110,p:{morph:0.5,detail:0.5,speed:0.6,zoom:0.5,hue:0.58,ca:0.5,cb:0.5,cc:0.3,iter:0.5}},
+  {name:'TV Wall',grp:'SCN', kind:'2DC', mode:111,p:{morph:0.5,detail:0.5,speed:0.6,zoom:0.5,hue:0.5,ca:0.5,cb:0.5,cc:0.3,iter:0.5}},
+  {name:'Mirage',grp:'SCN', kind:'2DC', mode:112,p:{morph:0.5,detail:0.5,speed:0.6,zoom:0.5,hue:0.08,ca:0.5,cb:0.5,cc:0.3,iter:0.5}},
+  {name:'Frame Corridor',grp:'SCN', kind:'2DC', mode:113,p:{morph:0.5,detail:0.5,speed:0.6,zoom:0.5,hue:0.1,ca:0.5,cb:0.5,cc:0.3,iter:0.5}},
+  {name:'Reflection Pool',grp:'SCN', kind:'2DC', mode:114,p:{morph:0.5,detail:0.5,speed:0.6,zoom:0.5,hue:0.55,ca:0.5,cb:0.5,cc:0.3,iter:0.5}},
+  {name:'Starfield Warp',grp:'SCN', kind:'2DC', mode:115,p:{morph:0.5,detail:0.5,speed:0.6,zoom:0.5,hue:0.66,ca:0.5,cb:0.5,cc:0.3,iter:0.5}},
+  {name:'Sphere',grp:'SCN', kind:'2DC', mode:116,p:{morph:0.5,detail:0.5,speed:0.5,zoom:0.5,hue:0.75,ca:0.3,cb:0.5,cc:0.3,iter:0.5}}
 ];
 
 const SLIDER_DEFS = [
@@ -2687,7 +3674,13 @@ const VID_MODES = [
   {id:11, name:'Surface'},
   {id:12, name:'Emit'},
   {id:13, name:'Ascii'},
-  {id:14, name:'Wire'}
+  {id:14, name:'Wire'},
+  {id:15, name:'Void'},
+  {id:16, name:'Quad'},
+  {id:17, name:'Dream'},
+  {id:18, name:'Mirror'},
+  {id:19, name:'Grid'},
+  {id:20, name:'Halftone'}
 ];
 
 const KEYMAP = ['1','2','3','4','5','6','7','8','9','q','w','e'];
@@ -2703,6 +3696,13 @@ const _SYN_A = FRAG.indexOf('vec2 kfold(');
 const _SYN_B = FRAG.indexOf('vec3 sampleVid(vec2 t){');
 const _MAIN = FRAG.indexOf('void main(){');
 const _HEAD = FRAG.slice(0, _SDBOX);
+// Per-cell variation for Repeat space. The 3D estimators read uMorph/uCA/uCB
+// directly, so on the 3D programs those names are re-pointed at uniform +
+// offset; map() sets the offsets from the cell hash around each mapG call and
+// zeroes them again, so shading and everything outside the estimator sees the
+// plain uniforms. A self-referencing macro is not re-expanded, and it is
+// defined after the uniform declarations in _HEAD, so they are untouched.
+const _VARY3 = 'float gVM=0.0,gVA=0.0,gVB=0.0,gVC=0.0,gVZ=0.0,gVS=0.0,gVP=0.0,gVF=1.0;\n#define uMorph (uMorph+gVM)\n#define uCA (uCA+gVA)\n#define uCB (uCB+gVB)\n#define uCC (uCC+gVC)\n#define uZoom (uZoom+gVZ)\n#define uSpin (uSpin+gVS)\n#define uSpeed (uSpeed+gVP)\n#define fi() (fi()*gVF)\n';
 const _B3 = FRAG.slice(_SDBOX, _E2);
 const _B2 = FRAG.slice(_E2, _SYN_A);
 const _BS = FRAG.slice(_SYN_A, _SYN_B);
@@ -2710,6 +3710,124 @@ const _VID = FRAG.slice(_SYN_B, _MAIN);
 const _TAILSRC = FRAG.slice(_MAIN);
 const _DISPATCH = FRAG.slice(FRAG.indexOf('  vec3 col;'), FRAG.indexOf('  col=videoLayer('));
 const _tail = d => _TAILSRC.replace(_DISPATCH, '  vec3 col=' + d + ';\n');
+// Vector output encoding: r hit, g/b depth as d/(d+2) in 16 bits, a = trap.
+const _VEC_DISPATCH = "  vec3 col=render3(uv);\n#ifdef VEC_OUT\n  { float z=clamp(gVec.y/(gVec.y+2.0),0.0,1.0)*65535.0; fragColor=vec4(gVec.x, floor(z/256.0)/255.0, mod(floor(z),256.0)/255.0, clamp(gVec.z,0.0,1.0)); fragPts=gPts; fragNrm=gNrm; return; }\n#endif\n";
+const VEC_FOR = m => {
+  if(FAM_OF(m).slice(0,3) !== '3d:') return null;
+  const src = _HEAD + '#define SURF3D 1\n#define VEC_OUT 1\nvec4 gVec;\nvec4 gPts;\nvec4 gNrm;\nuniform float uVEdge;\n' + _VARY3 + _B3.replace(_MAPSRC, _mapFor(m)) + _VID + _TAILSRC.replace(_DISPATCH, _VEC_DISPATCH);
+  return _slim(src.replace(/uniform\s+int\s+uMode\s*;/, 'const int uMode = ' + (m|0) + ';')
+    .replace(/out vec4 fragColor;/, 'layout(location=0) out vec4 fragColor;\nlayout(location=1) out vec4 fragPts;\nlayout(location=2) out vec4 fragNrm;'));
+};
+// Vector compositor: reads the encoded march buffer and draws edge lines,
+// depth contours and a point cloud in the accent colour, pulsing on the beat.
+const VEC_POST = `#version 300 es
+precision highp float;
+out vec4 o;
+uniform sampler2D uV, uP;
+uniform vec2 uRes, uVRes;
+uniform vec3 uAcc;
+uniform float uStyle, uOnly, uBeat, uLoud, uTime, uVHue;
+uniform sampler2D uN;
+uniform float uVK;
+vec3 N(vec2 p){ return texture(uN,p).rgb*2.0-1.0; }
+vec3 hsv(float h,float s,float v){ vec3 k=clamp(abs(mod(h*6.0+vec3(0,4,2),6.0)-3.0)-1.0,0.0,1.0); return v*mix(vec3(1.0),k,s); }
+float H(vec2 p){ return texture(uV,p).r; }
+float Z(vec2 p){ vec4 t=texture(uV,p); return (t.g*65280.0+t.b*255.0)/65535.0; }
+float h2(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
+void main(){
+  vec2 uv=gl_FragCoord.xy/uRes, px=1.0/uVRes;
+  vec4 c0=texture(uV,uv);
+  float hit=c0.r, z=Z(uv);
+  int st=int(uStyle+0.5);
+  float pulse=1.0+uBeat*1.6+uLoud*0.6;
+  float ink=0.0, glow=0.0;
+  // Edges: outer silhouette, occlusion edges (depth jumps) and creases
+  // (normal turns), all read off the march buffers. Was: plus the outer silhouette from the hit mask.
+  if((st&1)!=0){
+    float sil=abs(H(uv-vec2(px.x,0))-H(uv+vec2(px.x,0)))+abs(H(uv-vec2(0,px.y))-H(uv+vec2(0,px.y)));
+    float wr=0.0;
+    float cr=0.0;
+    if(hit>0.5){
+      float zl=Z(uv-vec2(px.x,0)), zr=Z(uv+vec2(px.x,0)), zd=Z(uv-vec2(0,px.y)), zu=Z(uv+vec2(0,px.y));
+      float zs=max(z,0.03);
+      float curv=(abs(zl+zr-2.0*z)+abs(zd+zu-2.0*z))/zs;
+      float jump=max(abs(zl-zr),abs(zd-zu))/zs;
+      float occ=smoothstep(0.08*uVK,0.2*uVK,jump);
+      // Creases: the smoothed normal turning sharply across two pixels. Only
+      // between surface pixels at similar depth, so it never doubles an
+      // occlusion edge. Sparser density needs a sharper turn.
+      vec3 n0=N(uv);
+      float hl=H(uv-vec2(px.x,0)), hr=H(uv+vec2(px.x,0)), hd=H(uv-vec2(0,px.y)), hu=H(uv+vec2(0,px.y));
+      float nd=0.0;
+      if(hl>0.5 && hr>0.5) nd=max(nd, 1.0-dot(N(uv-vec2(px.x,0)),N(uv+vec2(px.x,0))));
+      if(hd>0.5 && hu>0.5) nd=max(nd, 1.0-dot(N(uv-vec2(0,px.y)),N(uv+vec2(0,px.y))));
+      float crs=smoothstep(0.10*uVK,0.24*uVK,nd)*(1.0-occ);
+      cr=max(occ, crs);
+    }
+    float e=max(max(clamp(sil,0.0,1.0), cr), wr);
+    ink=max(ink, e*(0.8+0.2*pulse*0.5));
+    glow+=e*0.2*pulse;
+  }
+  vec4 P=texture(uP,uv);
+  // Location value for edge pixels: a silhouette pixel can be a miss, so take
+  // the surface neighbour's value.
+  float loc=P.x;
+  if(hit<0.5 && P.x==0.0){ vec4 a1=texture(uP,uv+vec2(px.x,0)), a2=texture(uP,uv-vec2(px.x,0)), a3=texture(uP,uv+vec2(0,px.y)), a4=texture(uP,uv-vec2(0,px.y));
+    loc=H(uv+vec2(px.x,0))>0.5?a1.x:H(uv-vec2(px.x,0))>0.5?a2.x:H(uv+vec2(0,px.y))>0.5?a3.x:a4.x; }
+  // Depth fade for this pixel; a silhouette miss takes its surface neighbour's.
+  float df=P.w;
+  if(df<=0.0){ df=max(max(texture(uP,uv+vec2(px.x,0)).w,texture(uP,uv-vec2(px.x,0)).w),max(texture(uP,uv+vec2(0,px.y)).w,texture(uP,uv-vec2(0,px.y)).w)); if(df<=0.0) df=1.0; }
+  bool combo=(st&5)==5;
+  // Edge+Points: the lines step back to a thin guide so the points carry it.
+  float eK=df*(combo?0.5:1.0);
+  float eInk=ink*eK, eGlow=glow*eK; ink=0.0; glow=0.0;
+  // Contours: computed in world space by the march pass (topo lines + shells).
+  float cInk=0.0;
+  if((st&2)!=0 && hit>0.5){ cInk=P.y*(0.8+uBeat*0.4); }
+  // Points: world-anchored nodes from the march pass.
+  float pInk=0.0;
+  float pz=P.x;
+  if((st&4)!=0){
+    // Points: world-lattice dots from the march pass (fixed spots on the
+    // geometry). Edge+Points keeps only the dots near a line: a ring of
+    // normal and hit samples three pixels out has to see a fold or the rim.
+    float best=c0.a;
+    if(combo && best>0.0){
+      vec3 n0=N(uv); float near=0.0;
+      for(int k=0;k<8;k++){
+        float an=float(k)*0.7853982;
+        vec2 o=vec2(cos(an),sin(an))*3.0*px;
+        float hk=H(uv+o);
+        if(hk<0.5){ near=1.0; break; }
+        near=max(near, smoothstep(0.10*uVK,0.24*uVK,1.0-dot(n0,N(uv+o))));
+      }
+      best*=near;
+    }
+    best*=1.0+uBeat*0.25;
+    pInk=best;
+  }
+  // Depth fade so far structure recedes.
+  float fade=1.0;   // depth falloff is done along the ray in the march pass
+  // Colour follows the Hue slider: base hue from Hue, shifted along the
+  // fractal's orbit trap and depth so structure reads as bands of colour.
+  // Colour by location on the object, offset by the Hue slider.
+  vec3 tE=hsv(fract(uVHue + loc*0.6 + uBeat*0.04), 0.82, 1.0);
+  // Points take the complementary hue so they read apart from the lines.
+  vec3 tP=hsv(fract(uVHue + 0.5 + pz*0.3 + uBeat*0.04), 0.55, 1.0);
+  float bw=uBeat*0.35;
+  tE=mix(tE,vec3(1.0),bw); tP=mix(tP,vec3(1.0),bw);
+  float pg=pInk*0.35*pulse;
+  vec3 col=mix((tE*(eInk+eGlow) + tE*(cInk*(1.0+0.15*pulse))), tP*(1.0+pg), clamp(pInk,0.0,1.0))*fade;
+  float a=clamp(eInk+eGlow+cInk+pInk+pg,0.0,1.0)*fade;
+  // Always blended: in vector-only the frame underneath is black or the
+  // video drawn over black, and an opaque write here was wiping the video.
+  // Tap target ink from the march pass, in the accent colour, over everything.
+  float tz=P.z;
+  // Coloured from the line hue (Hue slider) so it sits with the lines.
+  if(tz>0.002){ vec3 tc=mix(hsv(fract(uVHue),0.6,1.0),vec3(1.0),0.15); col+=tc*tz*1.3; a=clamp(a+tz,0.0,1.0); }
+  o=vec4(col,a);
+}`;
+
 
 const _MAPSRC = _B3.slice(_B3.indexOf('float map(vec3 p,out float trap){'), _B3.indexOf('vec3 nrm('));
 const _BRANCH = {};
@@ -2721,26 +3839,87 @@ const _BRANCH = {};
   if(el) _BRANCH['5'] = el[1];
 }
 // Per-mode fill-in for controls a given distance estimator ignores, injected
-// before its branch. Every 3D scene ends up with a live Morph and Cst C:
+// before its branch:
 //   twist - Morph shears the solid around Y, a shape change every DE responds to
+//   split - Cst A mirrors on X through a moving plane. abs() is 1-Lipschitz and the
+//           offset is a translation, so the distance bound holds.
+//   bend  - Cst B rotates about X by an amount that grows along Z. A rotation is an
+//           isometry, so the DE is untouched; it arcs the solid over instead of
+//           twisting it about the vertical, which is Morph's axis.
 //   warp  - Cst C displaces along a sine lattice, adding surface relief
-const _MORPH_DEAD = ['5','12','13','14','15','16','30','32','33','34','36'];
-const _CC_DEAD    = ['0','1','3','4','5','12','13','14','15','16','30','32','34','36'];
+//
+// WHICH MODES NEED WHICH IS READ OFF THE SOURCE, not listed by hand. The lists
+// were written from memory of what each estimator does and were wrong in both
+// directions: the gyroid reads uMorph as its isosurface threshold and uCC as its
+// bounding radius, yet sat in both dead lists, so Morph moved the threshold AND
+// twisted space while the strip named only the first. A hand-kept list of "what
+// this code does" drifts from the code by construction — asking the code is the
+// only version that stays true as scenes are added.
+//
+// A branch often reads a uniform inside a helper it calls (mode 0's uCB lives in
+// bulb, not in the branch), so the text searched is the branch plus the body of
+// every helper named in it.
+const _HELPERS = {};
+{
+  const re = /\nfloat (\w+)\(([\s\S]*?)\n\}/g;
+  let m;
+  while((m = re.exec(_B3))) _HELPERS[m[1]] = m[2];
+}
+// Controls bound somewhere other than map() — the shading block, say — which a
+// search of the estimator cannot see. Mode 42 colours its lattice from uCB in
+// render3, so an injected bend there would be a second binding again.
+const _BOUND_ELSEWHERE = {42:['uCA','uCB','uCC']};
+const _readsU = (mode, name) => {
+  const k = String(mode);
+  if((_BOUND_ELSEWHERE[mode] || []).indexOf(name) >= 0) return true;
+  let src = _BRANCH[k] || '';
+  Object.keys(_HELPERS).forEach(h => {
+    if(src.indexOf(h + '(') >= 0) src += '\n' + _HELPERS[h];
+  });
+  return src.indexOf(name) >= 0;
+};
 const _fillFor = m => {
-  const k = String(m);
   let pre = '';
-  if(_MORPH_DEAD.indexOf(k) >= 0)
-    pre += '  p.xz*=rot((uMorph-0.5)*1.9*p.y);\n';
-  if(_CC_DEAD.indexOf(k) >= 0)
-    pre += '  p+=sin(p.zxy*mix(1.0,7.0,uCC))*(uCC-0.28)*0.13;\n';
+  if(!_readsU(m,'uMorph')) pre += '  p.xz*=rot((uMorph-0.5)*1.9*p.y);\n';
+  if(!_readsU(m,'uCA'))    pre += '  p.x=abs(p.x)-(uCA-0.5)*0.95;\n';
+  if(!_readsU(m,'uCB'))    pre += '  p.xy*=rot((uCB-0.5)*1.5*p.z);\n';
+  if(!_readsU(m,'uCC'))    pre += '  p+=sin(p.zxy*mix(1.0,7.0,uCC))*(uCC-0.28)*0.13;\n';
   return pre;
 };
 // Text is unioned in at the map level rather than composited afterwards: that
 // is what buys real occlusion (a fractal arm in front of a letter hides it) and
 // correct normals, since nrm() differences this same function. trap=-1 marks a
 // text hit so the shader can give it its own material.
-const _mapFor = m => 'float mapG(vec3 p,out float trap){\n  trap=0.0;\n' + _fillFor(m) + (_BRANCH[String(m)] || _BRANCH['0']) + '\n}\n'
-  + 'float map(vec3 p,out float trap){\n  float d=mapG(p,trap);\n  float dt=sdText3(p);\n  if(dt<d){ trap=-1.0; return dt; }\n  return d;\n}\n';
+// Measured bounding box of every bounded 3D object at its preset settings
+// (64^3 occupancy grid, 2nd-98th percentile): extent x,y,z and centre. Each is
+// rescaled per axis to the Mandelbulb's 2.06 cube and recentred, so every
+// object arrives the same size in all three dimensions and all share one
+// framing distance. The distance stays a safe bound: d(q)/max(scale).
+// Space-filling scenes (Apollonian, Kleinian, Pseudo-Klein) have no box and
+// keep their own framing.
+const _NORM = {
+  0:[2.06,2.06,2.44,0,0,0], 1:[2.06,2.06,2.06,0,0,0], 2:[2.63,2.44,2.63,-1.03,-0.94,-1.03],
+  4:[2.44,2.06,2.06,0,0,0], 5:[2.06,2.06,2.06,0,0,0], 12:[16.88,15.63,16.88,0,0,0],
+  14:[2.06,2.06,2.06,0,0,0], 15:[1.69,1.69,1.69,0,0,0], 16:[4.69,4.31,4.69,0.09,0,0.09],
+  31:[2.44,4.31,2.81,0.19,0,0], 32:[2.06,2.06,2.06,0,0,0], 33:[4.69,4.31,4.69,0,0,0],
+  34:[6.88,6.88,6.88,0,0,0], 35:[15.63,15.63,15.63,0,0,0], 36:[2.63,2.44,2.44,-0.66,0,0],
+  41:[2.06,2.06,2.06,0,0,0], 42:[2.06,2.06,2.06,0,0,0],
+};
+const _NT = 2.06;
+const _normFor = m => {
+  const n = _NORM[m]; const f = v => (+v).toFixed(4);
+  if(!n) return {def:'', a:'vec3(1.0)', c:'vec3(0.0)', k:'1.0'};
+  const a = [n[0]/_NT, n[1]/_NT, n[2]/_NT];
+  return {def:'#define NORM3D 1\n', a:'vec3('+a.map(f).join(',')+')', c:'vec3('+[n[3],n[4],n[5]].map(f).join(',')+')', k:f(Math.max(...a))};
+};
+const _mapFor = m => _normFor(m).def + 'float mapG(vec3 p,out float trap){\n  trap=0.0;\n' + _fillFor(m) + (_BRANCH[String(m)] || _BRANCH['0']) + '\n}\n'
+  // Repeat space with per-cell variation: each tile hashes its cell id into a
+  // turn (any angle about a tilted axis), a size (26-100%, biased small, and
+  // off-centre in its cell so small ones don't sit in a grid), a mirror fold on a
+  // third of the cells, and a small colour shift. All are isometries or a
+  // uniform scale, so the distance stays valid; the cap at the cell wall stops
+  // a step from carrying the ray into a neighbour that is turned differently.
+  + 'float map(vec3 p,out float trap){\n  vec3 pq=p; float ks=1.0, bnd=1e9, csh=0.0;\n  if(uRep>0.0){\n    vec3 cid=floor(p/uRep+0.5); vec3 lp=p-cid*uRep;\n    vec3 hr=fract(sin(vec3(dot(cid,vec3(127.1,311.7,74.7)),dot(cid,vec3(269.5,183.3,246.1)),dot(cid,vec3(113.5,271.9,124.6))))*43758.5453);\n    bnd=uRep*0.5-max(abs(lp.x),max(abs(lp.y),abs(lp.z)));\n    pq=lp;\n    pq.xz*=rot(hr.x*6.2831853*uRepV.y); pq.xy*=rot((hr.y-0.5)*1.4*uRepV.y);\n    if(hr.z<0.33*uRepV.y) pq.x=abs(pq.x);\n    ks=mix(clamp(uRepV.x,0.08,1.0),1.0,pow(fract(hr.y*7.13+hr.z),1.3)); pq-=(fract(hr.zxy*vec3(5.3,8.9,3.7))-0.5)*(1.0-ks)*uRep*0.84*uRepV.w; pq/=ks;\n    csh=(hr.z-0.5)*0.5;\n    vec3 hv=fract(hr*vec3(13.7,29.3,7.9)+hr.zxy);\n    vec3 hw=fract(hv*vec3(41.3,17.9,23.1)+hr.yzx);\n    vec3 hx=fract(hw*vec3(11.1,37.7,19.3)+hv.zxy);\n    float vk=uRepV.z;\n    gVM=(hv.x-0.5)*1.1*vk; gVA=(hv.y-0.5)*1.0*vk; gVB=(hv.z-0.5)*1.0*vk; gVC=(hw.x-0.5)*0.8*vk;\n    gVZ=(hw.y-0.5)*0.6*vk; gVS=(hw.z-0.5)*2.4*uSpin*vk; gVP=(hx.x-0.5)*1.2*vk; gVF=mix(1.0,mix(0.55,1.45,hx.y),vk);\n    csh=(hx.z-0.5)*0.7*vk;\n  }\n  float lod0=gLod; gLod*=' + _normFor(m).k + ';\n  float d=mapG(pq*' + _normFor(m).a + '+' + _normFor(m).c + ',trap)*ks/' + _normFor(m).k + ';\n  gLod=lod0;\n  gVM=0.0; gVA=0.0; gVB=0.0; gVC=0.0; gVZ=0.0; gVS=0.0; gVP=0.0; gVF=1.0;\n  gDR=d;\n  if(uRep>0.0){ d=min(d,max(bnd,0.0)+uRep*0.04); trap=clamp(trap+csh,0.0,1.0); }\n  float dt=sdText3(p);\n  if(dt<d){ trap=-1.0; gDR=dt; return dt; }\n  return d;\n}\n';
 
 const _2D_PATH = m => m<=9 ? ['P_E2A','escape2(uv,uMode-6)']
   : m===10 ? ['P_TUN','tunnel(uv)']
@@ -2749,18 +3928,118 @@ const _2D_PATH = m => m<=9 ? ['P_E2A','escape2(uv,uMode-6)']
            : ['P_E2B','escape2b(uv,uMode-17)'];
 const _frag2D = m => {
   const [def, call] = _2D_PATH(m);
+  // Single call site. A two-copy blend here doubled the inlined escape loop and
+  // hung the driver's compile (the reload loop). The endless loop for these
+  // scenes zooms the view by uZX and the host crossfades at the wrap.
   return _HEAD + '#define '+def+' 1\n' + _B2 + _VID
-    + _TAILSRC.replace(_DISPATCH, '  vec3 col='+call+';\n');
+    + _TAILSRC.replace(_DISPATCH, '  vec3 col='+call.replace('(uv', '(uv*exp2(-uZX.x*uZX.y*uZX.z)')+';\n');
 };
 const FRAG_SYN = _HEAD + _BS + _VID + _tail('synth(uv,uMode-22)');
 const FAM_OF = m => m>=90 ? 'can'
-  : (m<=5 || (m>=12 && m<=16) || (m>=30 && m<=36) || m===41 || m===42) ? ('3d:'+m)
+  : (m<=5 || (m>=12 && m<=16) || (m>=30 && m<=36) || m===41 || m===42 || m===43) ? ('3d:'+m)
   : (m>=22 && m<30 ? 'syn' : '2d:'+_2D_PATH(m)[0]);
-const FRAG_FOR = m => {
+// Drop every function main() can never reach. Each program carries the whole
+// helper library (every family's estimator, every 2D shader), and on Windows the
+// D3D11 compiler optimises all of it at link time whether called or not — on an
+// Iris Xe that link of ~86k characters never came back.
+const _stripDead = src => {
+  try{
+    const fns = []; let depth = 0, segStart = 0, i = 0, n = src.length;
+    while(i < n){
+      const ch = src[i];
+      if(ch === '/' && src[i+1] === '/'){ const e = src.indexOf('\n', i); i = e < 0 ? n : e; continue; }
+      if(ch === '/' && src[i+1] === '*'){ const e = src.indexOf('*/', i+2); i = e < 0 ? n : e+2; continue; }
+      if(ch === '#' && depth === 0){ const e = src.indexOf('\n', i); i = e < 0 ? n : e; segStart = i; continue; }
+      if(ch === '{'){
+        if(depth === 0){
+          const seg = src.slice(segStart, i);
+          const mm = /(^|\n)[ \t]*((?:highp|mediump|lowp)\s+)?(\w+)\s+(\w+)\s*\(([^()]*)\)\s*$/.exec(seg);
+          if(mm && mm[3] !== 'struct'){
+            let d = 1, j = i+1;
+            while(j < n && d > 0){ if(src[j]==='{') d++; else if(src[j]==='}') d--; j++; }
+            fns.push({name: mm[4], start: segStart + mm.index + mm[1].length, end: j, body: src.slice(i, j)});
+            i = j; segStart = j; continue;
+          }
+        }
+        depth++;
+      } else if(ch === '}'){ depth--; if(depth === 0) segStart = i+1; }
+      else if(ch === ';' && depth === 0) segStart = i+1;
+      i++;
+    }
+    if(!fns.some(f => f.name === 'main')) return src;
+    const names = new Set(fns.map(f => f.name));
+    const calls = t => { const s = new Set(); t.replace(/\b(\w+)\s*\(/g, (_, w) => { if(names.has(w)) s.add(w); return _; }); return s; };
+    let rest = ''; let p = 0;
+    fns.forEach(f => { rest += src.slice(p, f.start); p = f.end; }); rest += src.slice(p);
+    rest = rest.replace(/\/\/[^\n]*/g, '').replace(/\b\w+\s+\w+\s*\([^()]*\)\s*;/g, '');
+    const live = new Set(['main']); const q = ['main', ...calls(rest)];
+    q.forEach(x => live.add(x));
+    while(q.length){
+      const nm = q.pop();
+      fns.filter(f => f.name === nm).forEach(f => calls(f.body).forEach(c => { if(!live.has(c)){ live.add(c); q.push(c); } }));
+    }
+    let out = ''; p = 0;
+    fns.forEach(f => { out += src.slice(p, f.start); if(live.has(f.name)) out += src.slice(f.start, f.end); p = f.end; });
+    return out + src.slice(p);
+  }catch(e){ return src; }
+};
+const _slim = src => _stripDead(src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/[ \t]*\/\/[^\n]*/g, '').replace(/\n\s*\n+/g, '\n'));
+// Safe variant for drivers that reject the optimised program (seen on a Pixel):
+// the palette table goes back to direct pal() calls, no derivative normals, no
+// const-int mode folding. Same picture, the pre-optimisation code shape.
+const _unPal = src => {
+  const T = [];
+  const ml = /\/\/ gP\[\d+\] terms: ([^\n]*)/.exec(src);
+  if(ml) ml[1].split(' ').forEach(p => { const j = p.indexOf('='); T[+p.slice(0, j)] = p.slice(j + 1); });
+  if(!T.length) return src;
+  const a = src.indexOf('vec3 gP['), b = src.indexOf('\n}', src.indexOf('void palPre()')) + 1;
+  if(a >= 0 && b > a) src = src.slice(0, a) + src.slice(b + 1);
+  return src.replace(/[ \t]*palPre\(\);\n/, '').replace(/gP\[(\d+)\]/g, (_, i) => 'pal(' + T[+i] + ')');
+};
+const FRAG_FOR = (m, fast, safe) => {
   const f = FAM_OF(m);
   if(f === 'syn') return FRAG_SYN;
-  if(f.slice(0,3) === '2d:') return _frag2D(m);
-  return _HEAD + '#define SURF3D 1\n' + _B3.replace(_MAPSRC, _mapFor(m)) + _VID + _tail('render3(uv)');
+  if(f.slice(0,3) === '2d:') return _slim(_frag2D(m));
+  // One program per 3D mode, so the mode is a compile-time constant: every
+  // uMode branch for other scenes folds away before the driver sees it.
+  let src = _HEAD + '#define SURF3D 1\n' + (fast && !safe ? '#define FAST_SHADE 1\n' : '') + _VARY3 + _B3.replace(_MAPSRC, _mapFor(m)) + _VID + _tail('render3(uv)');
+  if(safe) return _slim(_unPal(src));
+  return _slim(src.replace(/uniform\s+int\s+uMode\s*;/, 'const int uMode = ' + (m|0) + ';'));
+};
+
+// Build preview: the SAME distance estimator as the scene (map() for this mode,
+// Repeat included), behind a bare march with no lighting, AO, shadows, text or
+// video. Normals and shading are done on the CPU from the depth it returns, so
+// the driver only ever sees one inlined copy of the estimator: a fraction of
+// the full program's compile cost, and it is the actual fractal, not a sketch.
+// Output: r = hit, g/b = depth (16 bit), a = orbit trap.
+const _LITE_MAIN = `uniform vec4 uLiteCam;
+void main(){
+  vec2 uv=(gl_FragCoord.xy*2.0-uRes)/uRes.y;
+  float dist=liteDfar()*uLiteCam.x;
+  vec3 ro=vec3(0.0,0.0,-dist), cup=vec3(0.0,1.0,0.0);
+  ro.yz*=rot(uLiteCam.z); cup.yz*=rot(uLiteCam.z);
+  ro.xz*=rot(uLiteCam.y); cup.xz*=rot(uLiteCam.y);
+  vec3 f=normalize(-ro), r=normalize(cross(cup,f)), u=cross(f,r);
+  vec3 rd=normalize(uv.x*r+uv.y*u+1.7*f);
+  float far=dist*2.5, t=0.0, tr=0.0; bool hit=false;
+  for(int i=min(0,int(abs(uTime)));i<110;i++){
+    float h=map(ro+rd*t,tr);
+    if(h<max(0.0009*t,1e-4)){hit=true;break;}
+    t+=h*0.85;
+    if(t>far) break;
+  }
+  float d=clamp(t/far,0.0,1.0)*65535.0;
+  fragColor=vec4(hit?1.0:0.0, floor(d/256.0)/255.0, mod(floor(d),256.0)/255.0, clamp(tr,0.0,1.0));
+}
+`;
+// The scene's own framing distance, lifted out of render3 so the preview sees
+// the object the way the scene will, not a guess.
+const _DFAR = (() => { const a = FRAG.indexOf('  float dfar;'), b = FRAG.indexOf('  const float ZRANGE'); return a > 0 && b > a ? FRAG.slice(a, b) : '  float dfar=4.85;\n'; })();
+const LITE_FOR = m => {
+  if(FAM_OF(m).slice(0,3) !== '3d:') return null;
+  const src = _HEAD + '#define SURF3D 1\n' + _VARY3 + _B3.replace(_MAPSRC, _mapFor(m)) + 'float liteDfar(){\n' + _DFAR + '  return dfar*0.82;\n}\n' + _LITE_MAIN;
+  return _slim(src.replace(/uniform\s+int\s+uMode\s*;/, 'const int uMode = ' + (m|0) + ';'));
 };
 
 function ifsCenter(ang, scale, iter){
@@ -2801,5 +4080,19 @@ function ifsCenter(ang, scale, iter){
 const XF_NAMES = ['Dissolve','Möbius','Power','Contour','Droste','Quadratic','Wipe','Slice','Zoom'];
 
 const GLYPHS = new Uint8Array([0,0,0,0,0,0,0,0,0,0,0,0,4,0,0,0,0,0,0,4,2,4,4,0,0,0,0,0,0,4,0,0,4,0,0,4,10,17,0,0,0,0,4,4,4,4,0,4,0,16,16,8,4,2,1,1,1,1,2,4,8,16,16,4,4,4,4,4,4,4,8,4,2,2,2,4,8,2,4,8,8,8,4,2,16,8,4,2,4,8,16,1,2,4,8,4,2,1,8,4,4,2,4,4,8,2,4,4,8,4,4,2,12,4,4,4,4,4,12,6,4,4,4,4,4,6,1,17,8,4,2,17,16,1,1,1,1,1,15,0,17,17,10,4,4,4,0,28,8,8,8,9,6,0,31,4,4,4,4,4,0,14,4,4,4,4,14,0,0,4,21,14,21,4,0,17,17,17,17,10,4,0,17,17,10,4,10,17,0,14,17,1,1,17,14,0,17,9,5,5,9,17,0,31,1,1,15,1,1,0,17,17,17,17,17,14,0,31,16,8,4,2,31,0,30,1,14,16,17,14,0,15,17,17,15,1,1,0,14,17,17,17,17,14,0,6,9,6,25,21,9,22,17,17,17,21,27,17,0,17,17,17,31,17,17,0,17,19,21,25,17,17,0,17,27,21,17,17,17,0,14,17,1,29,17,14,0,14,17,17,21,9,22,0,14,17,17,31,17,17,0,15,17,17,15,9,17,0,15,17,17,17,17,15,0,4,30,5,14,20,15,4,31,1,1,15,1,31,0,15,17,15,17,17,15,0,10,10,31,10,31,10,10,14,17,23,21,23,17,14]);
-window.VJE = {ifsCenter,VERT,FRAG_FOR,FAM_OF,POST,PAL_NAMES,XF_NAMES,PRESETS,SLIDER_DEFS,SOURCES,VID_MODES,KEYMAP,GLYPHS};
+// Map library for one mode with a caller-supplied main (used by the size probe).
+const MAPLIB_FOR = (m, main) => FAM_OF(m).slice(0,3) !== '3d:' ? null
+  : _slim((_HEAD + '#define SURF3D 1\n' + _VARY3 + _B3.replace(_MAPSRC, _mapFor(m)) + main).replace(/uniform\s+int\s+uMode\s*;/, 'const int uMode = ' + (m|0) + ';'));
+// Video effects over a canvas scene: the canvas frame arrives as a texture
+// and stands in for the scene colour, so every video mode works on them too.
+const VIDFX_FRAG = () => _slim(_HEAD + _VID + `uniform sampler2D uCanv;
+void main(){
+  vec2 suv=gl_FragCoord.xy/uRes;
+  vec2 uv=(gl_FragCoord.xy*2.0-uRes)/uRes.y;
+  vec3 col=texture(uCanv,vec2(suv.x,1.0-suv.y)).rgb;
+  col=videoLayer(uv,suv,col);
+  fragColor=vec4(col,1.0);
+}
+`);
+window.VJE = {VIDFX_FRAG,ifsCenter,VERT,FRAG_FOR,LITE_FOR,VEC_FOR,VEC_POST,MAPLIB_FOR,FAM_OF,POST,PAL_NAMES,XF_NAMES,PRESETS,SLIDER_DEFS,SOURCES,VID_MODES,KEYMAP,GLYPHS};
 })();
