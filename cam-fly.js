@@ -287,8 +287,11 @@ class CamFly{
     const I=this.insp, ease=(r)=>1-Math.exp(-r*0.5*dt);
     if(!I.C){
       const rp=this.rep;
+      // Pivot is the piece's own centre: its repeat cell, or the object origin
+      // for a single fractal. The old pivot was a point just inside the tapped
+      // spot, sized by how far away the tap was, so a long tap orbited wide.
       if(rp>0){ I.C=I.P.map(x=>Math.round(x/rp)*rp); I.Rg=rp*0.5; }
-      else I.C=V.add(I.P,V.sc(I.dir,I.Rg*0.4));
+      else I.C=[0,0,0];
       const r0=V.len(V.sub(this.sp||this.p,I.C));
       I.r0=Math.max(r0,I.Rg*1.25); I.rOff=0; I.T=0;
       let off=V.sub(this.sp||this.p,I.C); I.rad=V.len(off)>1e-9?V.nrm(off):V.sc(I.dir,-1);
@@ -307,13 +310,15 @@ class CamFly{
     // where it has less; it can never creep outward over time. A collision
     // push-out still exists but decays in about a second, and the radius is
     // bounded to the piece so the camera stays in its pull.
-    if(I.rMax==null){ I.rMax=Math.max(I.Rg*1.6, I.r0*1.05); I.rMin=Math.max(F*0.002, I.Rg*0.35); }
-    const alt=Math.max(F*0.0035, I.Rg*0.22);
-    I.r0+=(alt-dR)*ease(dR>alt?0.9:2.4);
+    // Altitude is fixed in scene units, not tied to the piece's size, and the
+    // radius can only shrink below the arrival radius: the pull is inward.
+    const alt=F*0.004;
+    if(I.rMax==null){ I.r0=V.len(V.sub(this.sp||this.p,I.C)); I.rMax=I.r0*1.08; if(this.rep>0) I.rMax=Math.min(I.rMax,this.rep*0.7); I.rMin=alt; }
+    I.r0+=(alt-dR)*ease(dR>alt?2.2:4.5);
     I.r0=Math.min(I.rMax, Math.max(I.rMin, I.r0));
-    const clr=alt*0.45;
-    if(dR<clr)I.rOff+=(clr-dR)*ease(4); else I.rOff*=Math.exp(-dt*1.2);
-    I.rOff=Math.min(I.rOff, I.r0*0.4);
+    const clr=alt*0.5;
+    if(dR<clr)I.rOff+=(clr-dR)*ease(5); else I.rOff*=Math.exp(-dt*2.0);
+    I.rOff=Math.min(I.rOff, alt*2);
     const r=I.r0+I.rOff, np=V.add(I.C,V.sc(I.rad,r));
     this.vs=V.len(V.sub(np,this.p))/Math.max(dt,1e-4);
     this.p=np;
