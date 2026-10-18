@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<script src="./support.js?v=b24"></script>
+<script src="./support.js?v=b25"></script>
 <meta name="ext-resource-dependency" content="./csi.js" data-resource-id="csiJs">
 </head>
 <body>
@@ -30,12 +30,12 @@
   @keyframes vjspin{to{transform:rotate(360deg)}}
   @keyframes vjscan{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
 </style>
-<script src="vj-engine.js?v=b24"></script>
-<script src="deep-zoom.js?v=b24"></script>
-<script src="cam-fly.js?v=b24"></script>
-<script src="wave-mesh.js?v=b24"></script>
-<script src="wave-gl.js?v=b24"></script>
-<script src="scene-thumbs.js?v=b24"></script>
+<script src="vj-engine.js?v=b25"></script>
+<script src="deep-zoom.js?v=b25"></script>
+<script src="cam-fly.js?v=b25"></script>
+<script src="wave-mesh.js?v=b25"></script>
+<script src="wave-gl.js?v=b25"></script>
+<script src="scene-thumbs.js?v=b25"></script>
 </helmet>
 <template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#08090A"/><circle cx="50" cy="50" r="22" fill="none" stroke="#C8FF2E" stroke-width="3"/><circle cx="50" cy="50" r="11" fill="none" stroke="#C8FF2E" stroke-width="2" opacity="0.6"/><circle cx="50" cy="50" r="3.5" fill="#C8FF2E"/></svg></template>
 <div style="position:relative;width:100vw;height:100dvh;overflow:hidden;background:#08090A;font-family:'JetBrains Mono',ui-monospace,monospace;color:#F2F3F0;user-select:none;-webkit-user-select:none;">
@@ -98,7 +98,7 @@
           <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.42);">A SWRV Systems production</div>
           <div style="width:18px;height:1px;background:rgba(242,243,240,0.25);"></div>
         </div>
-        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 24 · 18 Oct 2026</div>
+        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 25 · 18 Oct 2026</div>
       </div>
       <div style="max-width:420px;text-align:center;font-size:12.5px;line-height:1.7;color:rgba(242,243,240,0.55);">The visuals are driven entirely by what the microphone hears. Nothing is recorded or sent anywhere.</div>
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,230px));gap:10px;width:100%;max-width:470px;justify-content:center;">
@@ -157,7 +157,7 @@
     <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
       <div style="font-family:Archivo,sans-serif;font-weight:700;font-size:54px;letter-spacing:-0.03em;line-height:1;">SPECTRA</div>
       <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.36);">A SWRV Systems production</div>
-      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 24 · 18 Oct 2026</div>
+      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 25 · 18 Oct 2026</div>
     </div>
     <div ref="{{ warmWrapRef }}" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
       <div style="width:260px;height:2px;background:rgba(255,255,255,0.1);">
@@ -201,7 +201,12 @@
       <sc-for list="{{ txtSliders }}" as="ts" hint-placeholder-count="6">
         <div style="display:flex;align-items:center;gap:8px;">
           <div style="width:44px;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(242,243,240,0.45);">{{ ts.label }}</div>
-          <input type="range" min="0" max="1" step="0.01" value="{{ ts.value }}" onInput="{{ ts.set }}" style="flex:1;accent-color:var(--acc);background:rgba(8,9,10,0.34);" />
+          <div onPointerDown="{{ ts.drag.down }}" onPointerMove="{{ ts.drag.move }}" onPointerUp="{{ ts.drag.up }}" style="position:relative;flex:1 1 auto;min-width:0;height:{{ ctlHitH }};display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
+            <div style="position:relative;width:100%;height:{{ ctlTrackH }};background:rgba(255,255,255,0.13);">
+              <div style="position:absolute;left:0;top:0;bottom:0;width:{{ ts.pct }};background:var(--acc45);"></div>
+              <div style="position:absolute;top:{{ ctlThumbTop }};left:{{ ts.pct }};width:{{ ctlThumbW }};height:{{ ctlThumbH }};margin-left:{{ ctlThumbML }};background:var(--acc);"></div>
+            </div>
+          </div>
           <div style="width:26px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(242,243,240,0.4);">{{ ts.read }}</div>
         </div>
       </sc-for>
@@ -560,7 +565,7 @@
         <div ref="{{ vidStripRef }}" style="display:{{ vidStripDisp }};width:100%;min-width:0;gap:4px;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;touch-action:pan-x;padding-bottom:5px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.22) transparent;">
           <sc-for list="{{ vidClips }}" as="c" hint-placeholder-count="0">
             <button onClick="{{ c.select }}" onContextMenu="{{ c.del }}" data-vclip="{{ c.i }}" title="Click to play · × or right-click to remove" style="position:relative;flex:0 0 auto;width:118px;height:66px;padding:0;overflow:hidden;cursor:pointer;border:1px solid {{ c.tBorder }};background:rgba(8,9,10,0.34);font-family:'JetBrains Mono',monospace;color:{{ c.tFg }};text-align:left;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
-              <div style="display:{{ c.thumbDisp }};position:absolute;inset:0;background-image:{{ c.thumbBg }};background-size:cover;background-position:center;opacity:{{ c.thumbOp }};pointer-events:none;"></div><div style="display:{{ c.thumbDisp }};position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,9,10,0.05) 0%,rgba(8,9,10,0.72) 100%);pointer-events:none;"></div>
+              <div style="display:{{ c.thumbDisp }};position:absolute;inset:0;background-image:{{ c.thumbBg }};background-size:cover;background-position:center;opacity:{{ c.thumbOp }};pointer-events:none;"></div>
               <span style="position:absolute;left:6px;right:20px;top:5px;display:flex;justify-content:space-between;gap:6px;font-size:8px;letter-spacing:0.14em;opacity:0.75;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);pointer-events:none;"><span>{{ c.n }}</span><span>{{ c.len }}</span></span>
               <span style="position:absolute;left:6px;right:6px;bottom:5px;font-size:9.5px;font-weight:700;letter-spacing:0.03em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);pointer-events:none;">{{ c.name }}</span>
               <span role="button" title="Remove clip" onClick="{{ c.clear }}" style="position:absolute;top:0;right:0;display:flex;align-items:center;justify-content:center;width:18px;height:18px;font-size:10px;line-height:1;color:rgba(242,243,240,0.8);cursor:pointer;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);" style-hover="color:#F2F3F0;background:rgba(255,255,255,0.12);">×</span>
@@ -633,7 +638,7 @@
         <div style="display:{{ deckSlotDisp }};grid-template-columns:{{ deckSlotCols }};flex-wrap:wrap;justify-content:flex-start;gap:5px;flex:1 1 auto;min-width:0;">
           <sc-for list="{{ slots }}" as="sl" hint-placeholder-count="8">
             <button onClick="{{ sl.click }}" onContextMenu="{{ sl.ctx }}" draggable="false" onDragOver="{{ sl.dragOver }}" onDragLeave="{{ sl.dragLeave }}" onDrop="{{ sl.drop }}" style="position:relative;display:flex;flex-direction:column;align-items:{{ deckSlotAlign }};gap:2px;flex:0 0 auto;min-width:{{ deckSlotMin }};width:{{ deckSlotW }};min-height:{{ deckBtnH }};justify-content:center;box-sizing:border-box;padding:6px 8px;cursor:pointer;font-family:'JetBrains Mono',monospace;text-align:{{ deckSlotText }};border:1px solid {{ sl.border }};background:{{ sl.bg }};color:{{ sl.fg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);overflow:hidden;">
-              <div style="display:{{ sl.thumbDisp }};position:absolute;inset:0;background-image:{{ sl.thumbBg }};background-size:cover;background-position:center;opacity:{{ sl.thumbOp }};pointer-events:none;"></div><div style="display:{{ sl.thumbDisp }};position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,9,10,0.05) 0%,rgba(8,9,10,0.72) 100%);pointer-events:none;"></div>
+              <div style="display:{{ sl.thumbDisp }};position:absolute;inset:0;background-image:{{ sl.thumbBg }};background-size:cover;background-position:center;opacity:{{ sl.thumbOp }};pointer-events:none;"></div>
               <span style="position:relative;font-size:8px;letter-spacing:0.14em;opacity:0.6;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);">{{ sl.num }}</span>
               <span style="position:relative;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);font-size:9px;letter-spacing:0.06em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">{{ sl.label }}</span>
               <span role="button" title="Clear slot" onClick="{{ sl.clear }}" style="position:absolute;top:0;right:0;display:{{ sl.xDisp }};align-items:center;justify-content:center;width:18px;height:18px;font-size:10px;line-height:1;color:rgba(242,243,240,0.7);cursor:pointer;" style-hover="color:#F2F3F0;background:rgba(255,255,255,0.12);">×</span>
@@ -679,7 +684,7 @@
         <div ref="{{ cueStripRef }}" style="display:{{ cueStripDisp }};width:100%;min-width:0;gap:4px;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;touch-action:pan-x;padding-bottom:5px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.22) transparent;">
           <sc-for list="{{ cueRows }}" as="c" hint-placeholder-count="0">
             <button onClick="{{ c.go }}" onContextMenu="{{ c.del }}" data-cue="{{ c.i }}" title="Click to go · × or right-click to remove" style="position:relative;flex:0 0 auto;width:118px;height:66px;padding:0;overflow:hidden;cursor:pointer;border:1px solid {{ c.tBorder }};background:rgba(8,9,10,0.34);font-family:'JetBrains Mono',monospace;color:{{ c.tFg }};text-align:left;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
-              <div style="display:{{ c.thumbDisp }};position:absolute;inset:0;background-image:{{ c.thumbBg }};background-size:cover;background-position:center;opacity:{{ c.thumbOp }};pointer-events:none;"></div><div style="display:{{ c.thumbDisp }};position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,9,10,0.05) 0%,rgba(8,9,10,0.72) 100%);pointer-events:none;"></div>
+              <div style="display:{{ c.thumbDisp }};position:absolute;inset:0;background-image:{{ c.thumbBg }};background-size:cover;background-position:center;opacity:{{ c.thumbOp }};pointer-events:none;"></div>
               <span style="position:absolute;left:6px;right:20px;top:5px;display:flex;justify-content:space-between;gap:6px;font-size:8px;letter-spacing:0.14em;opacity:0.75;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);pointer-events:none;"><span>{{ c.n }}</span><span>{{ c.len }}</span></span>
               <span style="position:absolute;left:6px;right:6px;bottom:5px;font-size:9.5px;font-weight:700;letter-spacing:0.03em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);pointer-events:none;">{{ c.name }}</span>
               <span role="button" title="Remove cue" onClick="{{ c.clear }}" style="position:absolute;top:0;right:0;display:flex;align-items:center;justify-content:center;width:18px;height:18px;font-size:10px;line-height:1;color:rgba(242,243,240,0.8);cursor:pointer;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);" style-hover="color:#F2F3F0;background:rgba(255,255,255,0.12);">×</span>
@@ -734,8 +739,7 @@
           <div style="display:contents;">
             <div style="display:{{ pr.headDisplay }};grid-column:1/-1;font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:var(--acc70);">{{ pr.head }}</div>
             <button onClick="{{ pr.select }}" onPointerEnter="{{ pr.preheat }}" title="{{ pr.title }}" draggable="true" onDragStart="{{ pr.dragStart }}" onDragEnd="{{ pr.dragEnd }}" style="position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:3px;padding:8px 10px;min-height:max-content;cursor:pointer;opacity:{{ pr.op }};font-family:'JetBrains Mono',monospace;text-align:left;min-width:0;border:1px solid {{ pr.border }};background:{{ pr.bg }};color:{{ pr.fg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
-              <div style="display:{{ pr.thumbDisp }};position:absolute;inset:0;background-image:{{ pr.thumbBg }};background-size:cover;background-position:center;opacity:0.75;pointer-events:none;"></div>
-              <div style="display:{{ pr.thumbDisp }};position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,9,10,0.15) 0%,rgba(8,9,10,0.62) 100%);pointer-events:none;"></div>
+              <div style="display:{{ pr.thumbDisp }};position:absolute;inset:0;background-image:{{ pr.thumbBg }};background-size:cover;background-position:center;opacity:1;pointer-events:none;"></div>
               <span style="position:relative;display:flex;justify-content:space-between;gap:6px;width:100%;font-size:8.5px;letter-spacing:0.14em;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);"><span style="opacity:0.6;">{{ pr.num }} · {{ pr.kind }}</span><span style="color:var(--acc);">{{ pr.ready }}</span></span>
               <span style="position:relative;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);width:100%;font-size:10.5px;font-weight:700;letter-spacing:0.03em;text-transform:uppercase;line-height:1.25;overflow-wrap:anywhere;">{{ pr.name }}</span>
             </button>
@@ -817,7 +821,12 @@
                 <sc-for list="{{ repSliders }}" as="rs" hint-placeholder-count="5">
                   <div title="{{ rs.tip }}" style="display:flex;align-items:center;gap:8px;box-sizing:border-box;min-height:{{ deckBtnH }};padding:0;min-width:0;">
                     <div style="flex:0 0 auto;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(242,243,240,0.6);">{{ rs.label }}</div>
-                    <input type="range" min="0" max="1" step="0.01" value="{{ rs.value }}" onInput="{{ rs.set }}" style="flex:1 1 auto;min-width:0;height:{{ ctlHitH }};margin:0;cursor:ew-resize;accent-color:var(--acc);background:transparent;" />
+                    <div onPointerDown="{{ rs.drag.down }}" onPointerMove="{{ rs.drag.move }}" onPointerUp="{{ rs.drag.up }}" style="position:relative;flex:1 1 auto;min-width:0;height:{{ ctlHitH }};display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
+                      <div style="position:relative;width:100%;height:{{ ctlTrackH }};background:rgba(255,255,255,0.13);">
+                        <div style="position:absolute;left:0;top:0;bottom:0;width:{{ rs.pct }};background:var(--acc45);"></div>
+                        <div style="position:absolute;top:{{ ctlThumbTop }};left:{{ rs.pct }};width:{{ ctlThumbW }};height:{{ ctlThumbH }};margin-left:{{ ctlThumbML }};background:var(--acc);"></div>
+                      </div>
+                    </div>
                     <div style="flex:0 0 auto;min-width:34px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--acc);">{{ rs.read }}</div>
                   </div>
                 </sc-for>
@@ -829,7 +838,8 @@
               <span style="font-size:9px;letter-spacing:0.08em;text-transform:uppercase;color:rgba(242,243,240,0.6);flex:0 0 auto;">Trail</span>
               <div onPointerDown="{{ trailDrag.down }}" onPointerMove="{{ trailDrag.move }}" onPointerUp="{{ trailDrag.up }}" style="position:relative;flex:1 1 auto;min-width:70px;height:{{ ctlHitH }};display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
                 <div style="position:relative;width:100%;height:{{ ctlTrackH }};background:rgba(255,255,255,0.13);">
-                  <div style="position:absolute;left:0;top:0;bottom:0;width:{{ trailPct }};background:var(--acc);"></div>
+                  <div style="position:absolute;left:0;top:0;bottom:0;width:{{ trailPct }};background:var(--acc45);"></div>
+                  <div style="position:absolute;top:{{ ctlThumbTop }};left:{{ trailPct }};width:{{ ctlThumbW }};height:{{ ctlThumbH }};margin-left:{{ ctlThumbML }};background:var(--acc);"></div>
                 </div>
               </div>
               <span style="font-size:9px;color:var(--acc);">{{ trailRead }}</span>
@@ -991,7 +1001,7 @@
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;">
           <sc-for list="{{ slots }}" as="sl" hint-placeholder-count="8">
             <button onClick="{{ sl.click }}" onContextMenu="{{ sl.ctx }}" draggable="false" onDragOver="{{ sl.dragOver }}" onDragLeave="{{ sl.dragLeave }}" onDrop="{{ sl.drop }}" style="position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:6px 7px;cursor:pointer;font-family:'JetBrains Mono',monospace;text-align:left;overflow:hidden;border:1px solid {{ sl.border }};background:{{ sl.bg }};color:{{ sl.fg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
-              <div style="display:{{ sl.thumbDisp }};position:absolute;inset:0;background-image:{{ sl.thumbBg }};background-size:cover;background-position:center;opacity:{{ sl.thumbOp }};pointer-events:none;"></div><div style="display:{{ sl.thumbDisp }};position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,9,10,0.05) 0%,rgba(8,9,10,0.72) 100%);pointer-events:none;"></div>
+              <div style="display:{{ sl.thumbDisp }};position:absolute;inset:0;background-image:{{ sl.thumbBg }};background-size:cover;background-position:center;opacity:{{ sl.thumbOp }};pointer-events:none;"></div>
               <span style="position:relative;font-size:8px;letter-spacing:0.14em;opacity:0.6;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);">{{ sl.num }}</span>
               <span style="position:relative;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);font-size:8.5px;letter-spacing:0.04em;text-transform:uppercase;white-space:nowrap;">{{ sl.label }}</span>
               <span role="button" title="Clear slot" onClick="{{ sl.clear }}" style="position:absolute;top:0;right:0;display:{{ sl.xDisp }};align-items:center;justify-content:center;width:18px;height:18px;font-size:10px;line-height:1;color:rgba(242,243,240,0.7);cursor:pointer;" style-hover="color:#F2F3F0;background:rgba(255,255,255,0.12);">×</span>
@@ -1006,10 +1016,11 @@
         </div>
         <div style="display:flex;align-items:center;gap:6px;">
           <button onClick="{{ macroACycle }}" style="font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:0.08em;padding:5px 7px;cursor:pointer;flex:0 0 auto;border:1px solid rgba(255,255,255,0.11);background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.7);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ macroATag }}</button>
-          <div onPointerDown="{{ macroDrag.down }}" onPointerMove="{{ macroDrag.move }}" onPointerUp="{{ macroDrag.up }}" style="position:relative;flex:1 1 auto;min-width:0;height:{{ trimH }};display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
-            <div style="position:relative;width:100%;height:3px;background:rgba(255,255,255,0.13);">
-              <div style="position:absolute;left:0;top:0;bottom:0;width:{{ macroPct }};background:var(--acc);"></div>
-              <div style="position:absolute;top:-2px;bottom:-2px;left:50%;width:1px;background:rgba(255,255,255,0.28);"></div>
+          <div onPointerDown="{{ macroDrag.down }}" onPointerMove="{{ macroDrag.move }}" onPointerUp="{{ macroDrag.up }}" style="position:relative;flex:1 1 auto;min-width:0;height:{{ ctlHitH }};display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
+            <div style="position:relative;width:100%;height:{{ ctlTrackH }};background:rgba(255,255,255,0.13);">
+              <div style="position:absolute;left:0;top:0;bottom:0;width:{{ macroPct }};background:var(--acc45);"></div>
+              <div style="position:absolute;top:-4px;bottom:-4px;left:50%;width:1px;background:rgba(255,255,255,0.35);"></div>
+              <div style="position:absolute;top:{{ ctlThumbTop }};left:{{ macroPct }};width:{{ ctlThumbW }};height:{{ ctlThumbH }};margin-left:{{ ctlThumbML }};background:var(--acc);"></div>
             </div>
           </div>
           <button onClick="{{ macroBCycle }}" style="font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:0.08em;padding:5px 7px;cursor:pointer;flex:0 0 auto;border:1px solid rgba(255,255,255,0.11);background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.7);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ macroBTag }}</button>
@@ -1028,7 +1039,7 @@
         <div style="display:flex;flex-direction:column;gap:3px;">
           <sc-for list="{{ cueRows }}" as="c" hint-placeholder-count="0">
             <button onClick="{{ c.go }}" onContextMenu="{{ c.del }}" title="Click to go · × or right-click to remove" style="position:relative;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 26px 6px 8px;cursor:pointer;font-family:'JetBrains Mono',monospace;text-align:left;border:1px solid {{ c.border }};background:{{ c.bg }};color:{{ c.fg }};overflow:hidden;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
-              <div style="display:{{ c.thumbDisp }};position:absolute;inset:0;background-image:{{ c.thumbBg }};background-size:cover;background-position:center;opacity:{{ c.thumbOp }};pointer-events:none;"></div><div style="display:{{ c.thumbDisp }};position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,9,10,0.05) 0%,rgba(8,9,10,0.72) 100%);pointer-events:none;"></div>
+              <div style="display:{{ c.thumbDisp }};position:absolute;inset:0;background-image:{{ c.thumbBg }};background-size:cover;background-position:center;opacity:{{ c.thumbOp }};pointer-events:none;"></div>
               <span style="position:relative;font-size:8px;letter-spacing:0.14em;opacity:0.6;flex:0 0 auto;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);">{{ c.n }}</span>
               <span style="position:relative;font-size:9px;letter-spacing:0.04em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1 1 auto;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);">{{ c.name }}</span>
               <span style="position:relative;font-size:8px;letter-spacing:0.08em;opacity:0.5;flex:0 0 auto;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);">{{ c.len }}</span>
@@ -1082,7 +1093,6 @@
             <sc-for list="{{ vidClips }}" as="c" hint-placeholder-count="6">
               <button onClick="{{ c.select }}" title="{{ c.title }}" data-vclip="{{ c.i }}" style="position:relative;flex:0 0 auto;width:104px;height:58px;padding:0;overflow:hidden;cursor:pointer;border:1px solid {{ c.border }};background:rgba(8,9,10,0.34);font-family:'JetBrains Mono',monospace;color:{{ c.fg }};text-align:left;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
                 <div style="position:absolute;inset:0;background-image:{{ c.thumbBg }};background-size:cover;background-position:center;opacity:{{ c.thumbOp }};pointer-events:none;"></div>
-                <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,9,10,0) 30%,rgba(8,9,10,0.85) 100%);pointer-events:none;"></div>
                 <span style="position:absolute;left:6px;right:6px;bottom:5px;display:flex;flex-direction:column;gap:1px;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);pointer-events:none;">
                   <span style="font-size:8px;letter-spacing:0.14em;opacity:0.65;">{{ c.num }}</span>
                   <span style="font-size:9.5px;font-weight:700;letter-spacing:0.03em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ c.name }}</span>
@@ -1099,9 +1109,10 @@
           </div>
           <div style="display:flex;align-items:center;gap:8px;">
             <span style="font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(242,243,240,0.4);">Mix</span>
-            <div onPointerDown="{{ vidMixDrag.down }}" onPointerMove="{{ vidMixDrag.move }}" onPointerUp="{{ vidMixDrag.up }}" style="position:relative;flex:1;height:16px;display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
-              <div style="position:relative;width:100%;height:3px;background:rgba(255,255,255,0.13);">
-                <div style="position:absolute;left:0;top:0;bottom:0;width:{{ vidMixPct }};background:var(--acc);"></div>
+            <div onPointerDown="{{ vidMixDrag.down }}" onPointerMove="{{ vidMixDrag.move }}" onPointerUp="{{ vidMixDrag.up }}" style="position:relative;flex:1;min-width:0;height:{{ ctlHitH }};display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
+              <div style="position:relative;width:100%;height:{{ ctlTrackH }};background:rgba(255,255,255,0.13);">
+                <div style="position:absolute;left:0;top:0;bottom:0;width:{{ vidMixPct }};background:var(--acc45);"></div>
+                <div style="position:absolute;top:{{ ctlThumbTop }};left:{{ vidMixPct }};width:{{ ctlThumbW }};height:{{ ctlThumbH }};margin-left:{{ ctlThumbML }};background:var(--acc);"></div>
               </div>
             </div>
             <span style="font-size:9px;color:var(--acc);">{{ vidMixRead }}</span>
@@ -1135,9 +1146,10 @@
             </div>
             <div style="display:flex;align-items:center;gap:8px;">
               <span style="font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(242,243,240,0.4);">V Trail</span>
-              <div onPointerDown="{{ vidTrailDrag.down }}" onPointerMove="{{ vidTrailDrag.move }}" onPointerUp="{{ vidTrailDrag.up }}" style="position:relative;flex:1;height:16px;display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
-                <div style="position:relative;width:100%;height:3px;background:rgba(255,255,255,0.13);">
-                  <div style="position:absolute;left:0;top:0;bottom:0;width:{{ vidTrailPct }};background:var(--acc);"></div>
+              <div onPointerDown="{{ vidTrailDrag.down }}" onPointerMove="{{ vidTrailDrag.move }}" onPointerUp="{{ vidTrailDrag.up }}" style="position:relative;flex:1;min-width:0;height:{{ ctlHitH }};display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
+                <div style="position:relative;width:100%;height:{{ ctlTrackH }};background:rgba(255,255,255,0.13);">
+                  <div style="position:absolute;left:0;top:0;bottom:0;width:{{ vidTrailPct }};background:var(--acc45);"></div>
+                  <div style="position:absolute;top:{{ ctlThumbTop }};left:{{ vidTrailPct }};width:{{ ctlThumbW }};height:{{ ctlThumbH }};margin-left:{{ ctlThumbML }};background:var(--acc);"></div>
                 </div>
               </div>
               <span style="font-size:9px;color:var(--acc);">{{ vidTrailRead }}</span>
@@ -1147,9 +1159,10 @@
         </div>
         <div title="{{ trailTitle }}" style="display:{{ trailDisp }};align-items:center;gap:8px;">
           <span style="font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(242,243,240,0.4);">Trail</span>
-          <div onPointerDown="{{ trailDrag.down }}" onPointerMove="{{ trailDrag.move }}" onPointerUp="{{ trailDrag.up }}" style="position:relative;flex:1;height:16px;display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
-            <div style="position:relative;width:100%;height:3px;background:rgba(255,255,255,0.13);">
-              <div style="position:absolute;left:0;top:0;bottom:0;width:{{ trailPct }};background:var(--acc);"></div>
+          <div onPointerDown="{{ trailDrag.down }}" onPointerMove="{{ trailDrag.move }}" onPointerUp="{{ trailDrag.up }}" style="position:relative;flex:1;min-width:0;height:{{ ctlHitH }};display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
+            <div style="position:relative;width:100%;height:{{ ctlTrackH }};background:rgba(255,255,255,0.13);">
+              <div style="position:absolute;left:0;top:0;bottom:0;width:{{ trailPct }};background:var(--acc45);"></div>
+              <div style="position:absolute;top:{{ ctlThumbTop }};left:{{ trailPct }};width:{{ ctlThumbW }};height:{{ ctlThumbH }};margin-left:{{ ctlThumbML }};background:var(--acc);"></div>
             </div>
           </div>
           <span style="font-size:9px;color:var(--acc);text-shadow:0 0 3px rgba(8,9,10,0.95),0 0 7px rgba(8,9,10,0.85),0 1px 2px rgba(8,9,10,0.9);">{{ trailRead }}</span>
@@ -1181,11 +1194,11 @@
               <span style="white-space:nowrap;">{{ c.label }}</span>
               <span style="color:var(--acc);">{{ c.read }}</span>
             </div>
-            <div onPointerDown="{{ c.drag.down }}" onPointerMove="{{ c.drag.move }}" onPointerUp="{{ c.drag.up }}" onDoubleClick="{{ c.reset }}" title="Double-click to reset" style="position:relative;height:18px;display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
-              <div style="position:relative;width:100%;height:3px;background:rgba(255,255,255,0.13);">
+            <div onPointerDown="{{ c.drag.down }}" onPointerMove="{{ c.drag.move }}" onPointerUp="{{ c.drag.up }}" onDoubleClick="{{ c.reset }}" title="Double-click to reset" style="position:relative;height:{{ ctlHitH }};display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
+              <div style="position:relative;width:100%;height:{{ ctlTrackH }};background:rgba(255,255,255,0.13);">
                 <div style="position:absolute;left:0;top:0;bottom:0;width:{{ c.pct }};background:var(--acc45);"></div>
                 <div style="position:absolute;top:-4px;bottom:-4px;width:1px;left:{{ c.mid }};background:rgba(255,255,255,0.35);"></div>
-                <div style="position:absolute;top:-4px;left:{{ c.pct }};width:3px;height:11px;margin-left:-1px;background:var(--acc);"></div>
+                <div style="position:absolute;top:{{ ctlThumbTop }};left:{{ c.pct }};width:{{ ctlThumbW }};height:{{ ctlThumbH }};margin-left:{{ ctlThumbML }};background:var(--acc);"></div>
               </div>
             </div>
           </div>
@@ -1206,17 +1219,18 @@
                 </select>
               </div>
             </div>
-            <div onPointerDown="{{ s.down }}" onPointerMove="{{ s.move }}" onPointerUp="{{ s.up }}" style="position:relative;height:18px;display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
-              <div style="position:relative;width:100%;height:3px;background:rgba(255,255,255,0.13);">
+            <div onPointerDown="{{ s.down }}" onPointerMove="{{ s.move }}" onPointerUp="{{ s.up }}" style="position:relative;height:{{ ctlHitH }};display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
+              <div style="position:relative;width:100%;height:{{ ctlTrackH }};background:rgba(255,255,255,0.13);">
                 <div ref="{{ s.fillRef2 }}" style="position:absolute;left:0;top:0;bottom:0;width:0%;background:var(--acc45);"></div>
-                <div ref="{{ s.thumbRef2 }}" style="position:absolute;top:-4px;left:0%;width:3px;height:11px;margin-left:-1px;background:var(--acc);"></div>
+                <div ref="{{ s.thumbRef2 }}" style="position:absolute;top:{{ ctlThumbTop }};left:0%;width:{{ ctlThumbW }};height:{{ ctlThumbH }};margin-left:{{ ctlThumbML }};background:var(--acc);"></div>
               </div>
             </div>
             <div style="display:flex;align-items:center;gap:6px;opacity:{{ s.depthOpacity }};">
               <span style="font-size:9.5px;letter-spacing:0.13em;text-transform:uppercase;color:rgba(242,243,240,0.6);text-shadow:0 0 3px rgba(8,9,10,0.95),0 0 7px rgba(8,9,10,0.85),0 1px 2px rgba(8,9,10,0.9);">Amt</span>
-              <div onPointerDown="{{ s.dDown }}" onPointerMove="{{ s.dMove }}" onPointerUp="{{ s.dUp }}" style="position:relative;flex:1;height:12px;display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
-                <div style="position:relative;width:100%;height:3px;background:rgba(255,255,255,0.13);box-shadow:0 0 4px rgba(8,9,10,0.9);">
-                  <div style="position:absolute;left:0;top:0;bottom:0;width:{{ s.depthPct }};background:var(--acc);"></div>
+              <div onPointerDown="{{ s.dDown }}" onPointerMove="{{ s.dMove }}" onPointerUp="{{ s.dUp }}" style="position:relative;flex:1;min-width:0;height:{{ ctlHitH }};display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
+                <div style="position:relative;width:100%;height:{{ ctlTrackH }};background:rgba(255,255,255,0.13);box-shadow:0 0 4px rgba(8,9,10,0.9);">
+                  <div style="position:absolute;left:0;top:0;bottom:0;width:{{ s.depthPct }};background:var(--acc45);"></div>
+                  <div style="position:absolute;top:{{ ctlThumbTop }};left:{{ s.depthPct }};width:{{ ctlThumbW }};height:{{ ctlThumbH }};margin-left:{{ ctlThumbML }};background:var(--acc);"></div>
                 </div>
               </div>
               <select value="{{ s.divVal }}" onChange="{{ s.setDiv }}" title="LFO length for this control alone" style="display:{{ s.divShow }};flex:0 0 auto;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0;padding:4px 5px;min-height:{{ selH }};cursor:pointer;appearance:none;text-align:center;border:1px solid {{ s.tagBorder }};background:{{ s.tagBg }};color:{{ s.tagFg }};">
@@ -1279,7 +1293,12 @@
           <sc-for list="{{ repSliders }}" as="rs" hint-placeholder-count="5">
             <div title="{{ rs.tip }}" style="display:flex;align-items:center;gap:8px;">
               <div style="width:52px;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(242,243,240,0.55);">{{ rs.label }}</div>
-              <input type="range" min="0" max="1" step="0.01" value="{{ rs.value }}" onInput="{{ rs.set }}" style="flex:1;min-width:0;accent-color:var(--acc);" />
+              <div onPointerDown="{{ rs.drag.down }}" onPointerMove="{{ rs.drag.move }}" onPointerUp="{{ rs.drag.up }}" style="position:relative;flex:1 1 auto;min-width:0;height:{{ ctlHitH }};display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
+                <div style="position:relative;width:100%;height:{{ ctlTrackH }};background:rgba(255,255,255,0.13);">
+                  <div style="position:absolute;left:0;top:0;bottom:0;width:{{ rs.pct }};background:var(--acc45);"></div>
+                  <div style="position:absolute;top:{{ ctlThumbTop }};left:{{ rs.pct }};width:{{ ctlThumbW }};height:{{ ctlThumbH }};margin-left:{{ ctlThumbML }};background:var(--acc);"></div>
+                </div>
+              </div>
               <div style="width:30px;text-align:right;font-size:9px;color:rgba(242,243,240,0.5);">{{ rs.read }}</div>
             </div>
           </sc-for>
@@ -1366,7 +1385,12 @@
     </div>
   </sc-if>
 
-  <div id="vj-diag" ref="{{ diagRef }}" style="position:absolute;right:22px;bottom:20px;z-index:44;display:{{ diagDisplay }};font-family:'JetBrains Mono',monospace;font-size:10px;line-height:1.55;letter-spacing:0.02em;white-space:pre;color:rgba(242,243,240,0.72);background:rgba(8,9,10,0.34);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.11);padding:13px 15px;box-sizing:border-box;max-height:calc(100vh - 40px);overflow-y:auto;overscroll-behavior:contain;transform:{{ diagShift }};cursor:grab;touch-action:none;pointer-events:auto;" onPointerDown="{{ diagDrag.down }}" onPointerMove="{{ diagDrag.move }}" onPointerUp="{{ diagDrag.up }}" onPointerCancel="{{ diagDrag.up }}" onDoubleClick="{{ diagDrag.reset }}" title="Drag to move · double-click to put it back"></div>
+  <!-- The text is rewritten four times a second into the inner box, so the
+       close button lives on the outer one, which also carries the drag. -->
+  <div style="position:absolute;right:22px;bottom:20px;z-index:44;display:{{ diagDisplay }};font-family:'JetBrains Mono',monospace;font-size:10px;line-height:1.55;letter-spacing:0.02em;white-space:pre;color:rgba(242,243,240,0.72);background:rgba(8,9,10,0.34);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.11);padding:13px 15px;box-sizing:border-box;max-height:calc(100vh - 40px);overflow-y:auto;overscroll-behavior:contain;transform:{{ diagShift }};cursor:grab;touch-action:none;pointer-events:auto;" onPointerDown="{{ diagDrag.down }}" onPointerMove="{{ diagDrag.move }}" onPointerUp="{{ diagDrag.up }}" onPointerCancel="{{ diagDrag.up }}" onDoubleClick="{{ diagDrag.reset }}" title="Drag to move · double-click to put it back">
+    <span role="button" title="Close diagnostics (J)" onClick="{{ diagClose }}" onPointerDown="{{ stopEv }}" style="position:absolute;top:0;right:0;display:flex;align-items:center;justify-content:center;width:22px;height:22px;font-size:13px;line-height:1;color:rgba(242,243,240,0.7);cursor:pointer;" style-hover="color:#F2F3F0;background:rgba(255,255,255,0.12);">×</span>
+    <div id="vj-diag" ref="{{ diagRef }}" style="white-space:pre;"></div>
+  </div>
 
   <div style="position:absolute;left:22px;bottom:20px;z-index:30;display:{{ hotkeyDisplay }};flex-direction:column;gap:5px;pointer-events:none;opacity:{{ hotkeyOpacity }};transition:opacity .35s;">
     <div style="font-size:9.5px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(242,243,240,0.62);text-shadow:0 0 3px rgba(8,9,10,0.95),0 0 7px rgba(8,9,10,0.85),0 1px 2px rgba(8,9,10,0.9);">1–9 QWE scene · [ ] hue · A automation · R spin · X formula · SPACE cue · C add cue · M morph · O output · U chrome · ESC hide · F full</div>
@@ -4543,7 +4567,7 @@ class Component extends DCLogic {
       8:{morph:'Orbit', ca:'c re', cb:'c im', cc:'Stripe'},
       17:{morph:'Shift', ca:'Drift', cb:'Twist', cc:'Stripe'},
       43:{morph:'Twist', ca:'Groove', cb:'Spacing', cc:'Grain', iter:'Pairs', detail:'Thickness'},
-      44:{morph:'Buds', ca:'Angle', cb:'Tilt', cc:'Grow', detail:'Levels'},
+      44:{morph:'Florets', ca:'Profile', cb:'Tilt', cc:'Grow', detail:'Levels'},
       45:{morph:'Scale', ca:'Inner R', cb:'Fold', cc:'Twist'},
       18:{morph:'Memory', ca:'c re', cb:'c im', cc:'Stripe'},
       20:{morph:'Orbit', ca:'c re', cb:'c im', cc:'Stripe'},
@@ -4622,7 +4646,7 @@ class Component extends DCLogic {
       11:['Flow','domain-warped fbm','v = fbm(p + fbm(p))'],
       43:['DNA','a field of double helices to fly through','Twist · Groove · Spacing · Grain'],
       45:['Cathedral','Mandelbox at negative scale','arcades of arches and ogee windows; Scale · Inner R · Fold · Twist'],
-      44:['Romanesco','cone of golden-angle buds, each a smaller cone of buds','Buds · Angle · Tilt · Grow'],
+      44:['Romanesco','r = a·e^(bn), θ = n·137.5°, z = H(1−r/R)^c','each floret the whole head again; Florets · Profile · Tilt · Grow'],
       17:['Magnet','z ← ((z² + c − 1)/(2z + c − 2))²','Ising-model renormalisation'],
       18:['Phoenix','z ← z² + c₁ + c₂·z₋₁','one-step memory'],
       20:['Ship Julia','z ← (|Re z| + i·Im z)² + c','Burning Ship with fixed c'],
@@ -15495,7 +15519,7 @@ class Component extends DCLogic {
       const c = url ? (on ? {bg:'rgba(8,9,10,0.34)', fg:accent, border:accent} : Object.assign({}, base || chip(false), {bg:'rgba(8,9,10,0.34)'})) : (base || chip(on));
       return Object.assign({}, c, {
         tBorder: on ? accent : 'rgba(255,255,255,0.11)', tFg: on ? accent : 'rgba(242,243,240,0.85)',
-        thumbBg: url ? 'url("' + this.blobOf(key, url) + '")' : 'none', thumbDisp: url ? 'block' : 'none', thumbOp: on ? 1 : 0.85 });
+        thumbBg: url ? 'url("' + this.blobOf(key, url) + '")' : 'none', thumbDisp: url ? 'block' : 'none', thumbOp: 1 });
     };
     const chip = on => on ? {bg:accent,fg:'#08090A',border:accent}
       : {bg:'rgba(8,9,10,0.34)',fg:'rgba(242,243,240,0.78)',border:'rgba(255,255,255,0.11)'};
@@ -15546,7 +15570,8 @@ class Component extends DCLogic {
         preheat:()=>this.preheat(i),
         dragStart:(ev)=>{ this.dragPreset=i; try{ ev.dataTransfer.setData('text/plain','spectra-preset:'+i); ev.dataTransfer.effectAllowed='copy'; }catch(e){} },
         dragEnd:()=>{ this.dragPreset=null; if(this.state.slotHover!=null) this.setState({slotHover:null}); }
-      }, chip(i===s.preset));
+      // Selected: an accent edge and tint, the text stays white over the still.
+      }, i===s.preset ? {bg:this.accA(0.18), fg:'#F2F3F0', border:accent} : Object.assign(chip(false), {fg:'#F2F3F0'}));
     });
     return {
       hidLabel: s.hid==='on' ? (s.imu ? 'imu · touch' : 'touch') : (s.hid==='unsupported' ? 'no hid' : (s.hid==='error' ? 'hid failed' : 'hid')),
@@ -15595,6 +15620,8 @@ class Component extends DCLogic {
         this.setState({meshSrc:o[(i+1)%o.length]});
       },
       diagRef: this.diagRef,
+      diagClose: (ev)=>{ if(ev){ ev.stopPropagation && ev.stopPropagation(); } if(this.state.diag) this.toggleDiag(); },
+      stopEv: (ev)=>{ if(ev && ev.stopPropagation) ev.stopPropagation(); },
       topBarRef: this.topBarRef,
       scanOn: !!s.scanOn,
       scanTiles: s.scanOn ? this.E.PRESETS.map((p,i)=>{
@@ -15676,8 +15703,8 @@ class Component extends DCLogic {
                    ['Warp','txtWarp',0.6],['Ink','txtInk',0.55],['React','txtReact',0.5]]
         .map(([label,key,def])=>{
           const v = s[key]==null ? def : s[key];
-          return {label, value:v, read:Math.round(v*100),
-                  set: ev=>{ const nv=parseFloat(ev.target.value); this.setState({[key]:nv}, ()=>this.saveText()); }};
+          return {label, value:v, read:Math.round(v*100), pct:(v*100).toFixed(1)+'%',
+                  drag: this.drag(nv=>this.setState({[key]:nv}, ()=>this.saveText()))};
         }),
       warmSkipNow: () => { this.warmNote = 'started early by operator'; this.dismissLoader(); },
       warmBarRef: this.warmBarRef, warmTxtRef: this.warmTxtRef, warmWrapRef: this.warmWrapRef, warmNowRef: this.warmNowRef, warmSecRef: this.warmSecRef, warmListRef: this.warmListRef, loadRef: this.loadRef,
@@ -15894,7 +15921,7 @@ class Component extends DCLogic {
         ['repTurn','Turn',1,'How far each copy is rotated and mirrored',v=>Math.round(v*100)+'%'],
         ['repVar','Variety',1,'How much each copy varies its shape and colour',v=>Math.round(v*100)+'%'],
         ['repDrift','Drift',0.5,'Off-centre offset of the smaller copies',v=>Math.round(v*100)+'%'],
-      ].map(([k,label,def,tip,fmt])=>{ const v = s[k] ?? def; return {label, tip, value:v, read:fmt(v), set:(ev)=>this.setState({[k]: parseFloat(ev.target.value)})}; }),
+      ].map(([k,label,def,tip,fmt])=>{ const v = s[k] ?? def; return {label, tip, value:v, read:fmt(v), pct:(v*100).toFixed(1)+'%', drag:this.drag(nv=>this.setState({[k]: nv}))}; }),
       rollSel: String(s.vspin || 0),
       rollOptions: [{v:'1',tag:'Roll ⤵ Fwd'},{v:'0',tag:'Roll Off'},{v:'-1',tag:'Roll ⤴ Back'}],
       setRoll: (e)=>this.setState({vspin: parseInt(e.target.value,10)||0}),
@@ -16255,7 +16282,7 @@ class Component extends DCLogic {
       vidClips: (this.vidList || []).map((f, i) => {
         const on = s.vid.on && s.vid.src === 'file' && i === this.vidIdx, th = (s.vidThumbs || [])[i];
         return { i, num: String(i+1).padStart(2,'0'), name: f.name.replace(/\.[^.]+$/,''), title: f.webkitRelativePath || f.name,
-          thumbBg: th ? 'url("' + this.blobOf('vclip:' + this._vtGen + ':' + i, th) + '")' : 'none', thumbOp: on ? 1 : 0.75,
+          thumbBg: th ? 'url("' + this.blobOf('vclip:' + this._vtGen + ':' + i, th) + '")' : 'none', thumbOp: 1,
           border: on ? 'var(--acc)' : 'rgba(255,255,255,0.11)', fg: on ? 'var(--acc)' : 'rgba(242,243,240,0.85)',
           select: () => this.vidPick(i),
           del: (ev) => { if(ev && ev.preventDefault) ev.preventDefault(); this.vidDrop(i); },

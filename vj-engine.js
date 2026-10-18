@@ -1339,71 +1339,142 @@ float dna(vec3 p, out float trap, float tw, float ca, float cb, float cc){
   return min(df, -max(e.x,e.y)+C*0.5-0.75);
 }
 
-// Romanesco (44). A cone of buds on golden-angle spirals, each bud a smaller
-// copy of the whole. On a cone the spiral is self-similar, so in log-polar cone
-// coordinates (X = log of the slant distance from the base, theta around) the
-// buds sit on a regular lattice; its 8 and 13 parastichies make a nearly
-// square cell, so the nearest bud is a round-off in that lattice plus four
-// neighbours. The nearest bud's frame becomes the next level's space, and so on
-// down: a fixed four candidates per level, however many buds there are.
-//   morph  bud size        ca  cone angle      cb  bud tilt (out -> up)
-//   cc     growth: buds drift toward the tip      uDetail  bud levels 1..3
-//   bass: buds swell        beat: a pulse down the levels
-float romCone(vec3 p, vec2 c){
-  // apex at the origin, opening downward to y=-1; c = (sin, cos) of the half-angle
-  vec2 q=vec2(c.x/c.y,-1.0), w=vec2(length(p.xz),p.y);
-  vec2 a=w-q*clamp(dot(w,q)/dot(q,q),0.0,1.0);
-  vec2 b=w-q*vec2(clamp(w.x/q.x,0.0,1.0),1.0);
-  float s=max(-(w.x*q.y-w.y*q.x),-(w.y-q.y));
-  return sqrt(min(dot(a,a),dot(b,b)))*sign(s);
+// Romanesco (44). Built on the head's own parametric form. In cylindrical
+// coordinates each floret n sits at
+//   r_n = a * e^(b*n),   theta_n = n * golden angle,
+//   z_n = H * (1 - r_n/R)^c
+// so the head is the solid under that power profile (c < 1 domed, c > 1
+// hollow-sided), the florets follow the golden spiral out from the tip, and a
+// floret's size scales with its radius: big at the rim, tiny at the top. Every
+// floret is the same head again, smaller, so the sum over florets is the
+// function applied to itself, level after level.
+// The spiral is a lattice in (log r, theta). Its 8 and 13 parastichies make a
+// square cell when b = 0.027, so the nearest floret is a round-off in that
+// lattice plus three neighbours: four candidates a level, whatever the count.
+//   morph  floret size     ca  profile exponent c (pointed -> domed)
+//   cb     floret tilt     cc  growth: florets drift out from the tip
+//   uDetail  levels 1..3   bass: florets swell   beat: a pulse down the levels
+float romHead(vec3 q, float H, float c){
+  // The solid under z = H*(1-rho)^c on the unit disc, as a distance estimate:
+  // height over the profile divided by the slope, capped by base and rim.
+  float rho=length(q.xz), u=clamp(1.0-rho,0.0,1.0);
+  float z=H*pow(u,c), dz=H*c*pow(max(u,0.02),c-1.0);
+  float d=(q.y-z)/sqrt(1.0+dz*dz);
+  d=max(d,-q.y);
+  return max(d,rho-1.0);
 }
-float romanesco(vec3 p, out float trap){
-  p.xz*=rot(uTime*0.06*uSpeed*uSpin);
-  float al=mix(0.5,0.78,clamp(uCA,0.0,1.0));
-  vec2 cs=vec2(sin(al),cos(al));
-  float T0=1.0/cs.y, a=cs.x*0.02701;
-  const float G1=0.35014992, G2=-0.21640455;
-  float det=8.0*a*G2-13.0*a*G1;
-  float bud=mix(0.85,1.25,clamp(uMorph,0.0,1.0))*0.135*(1.0+uBass*uReact*0.12);
-  float tilt=mix(0.1,0.65,clamp(uCB,0.0,1.0));
-  float flow=uTime*uSpeed*clamp(uCC,0.0,1.0)*0.03;
+float romHalf(vec3 q, float sc, out float trap){
+  const float H=1.3, B=0.02699, G1=0.35014992, G2=-0.21640455;
+  // The spiral is spaced along the surface, not the radius: on the slope a
+  // step dr is sqrt(1+H^2) times longer, so log r is scaled by that before
+  // the lattice, which keeps the florets touching both ways.
+  const float SF=1.64;
+  float c=mix(1.1,0.55,clamp(uCA,0.0,1.0));
+  float det=8.0*B*G2-13.0*B*G1;
+  float fs=mix(0.17,0.25,clamp(uMorph,0.0,1.0))*(1.0+uBass*uReact*0.1);
+  float tilt=mix(0.0,0.55,clamp(uCB,0.0,1.0));
+  float flow=uTime*uSpeed*clamp(uCC,0.0,1.0)*0.04;
   int lv=1+int(floor(clamp(uDetail,0.0,1.0)*2.99));
-  float sc=2.1; vec3 q=(p-vec3(0.0,1.55,0.0))/sc;
   float d=1e9; trap=0.2;
   for(int L=0;L<4;L++){
-    float dc=romCone(q,cs);
-    // Core of this level, a touch inside its buds so they read as the surface.
-    d=min(d,(dc+0.04)*sc);
+    float dh=romHead(q,H,c);
+    // Core of this level: shrunk and lifted well inside its florets, so only
+    // florets show. At full size its smooth sides and flat underside read as
+    // a cone the florets sat on.
+    float dcore=romHead((q-vec3(0.0,0.18,0.0))/0.8,H,c)*0.8;
+    // The top level fills to the seam, so the two halves meet solid.
+    if(L==0) dcore=min(dcore,romHead(q/0.86,H,c)*0.86);
+    d=min(d,dcore*sc);
     if(L>=lv) break;
-    // Buds reach at most ~0.3 of this cone's size off its surface. The cut-off
-    // sits well beyond that so rays passing outside take full steps; at the
-    // reach itself they crawled and drew a faint ghost of the cone.
-    if(dc>0.45){ d=min(d,(dc-0.3)*sc); break; }
-    float t=max(dot(vec2(length(q.xz),q.y),vec2(cs.x,-cs.y)),1e-4);
-    float X=log(T0/t)+flow, th=atan(q.z,q.x);
-    float fi=(G2*X-13.0*a*th)/det, fj=(-G1*X+8.0*a*th)/det;
+    // Florets reach about a quarter of the head's size off its surface.
+    if(dh>0.4){ d=min(d,(dh-0.3)*sc); break; }
+    float rho=max(length(q.xz),1e-4), th=atan(q.z,q.x);
+    float X=SF*log(rho)+flow;                   // the n*b of r = a e^(b n), along the surface
+    float fi=(G2*X-13.0*B*th)/det, fj=(-G1*X+8.0*B*th)/det;
     vec2 ij0=floor(vec2(fi,fj));
-    float best=1e9; vec3 bq=q; float bh=1.0, bk=0.0;
+    float best=1e9; vec3 bq=q; float bs=1.0, bk=0.0;
     for(int k=0;k<4;k++){
       vec2 ij=ij0+vec2(float(k&1),float(k>>1));
-      float Xc=ij.x*8.0*a+ij.y*13.0*a, tc=ij.x*G1+ij.y*G2;
-      if(Xc-flow<0.02 || Xc-flow>3.2) continue;
-      float tsl=T0*exp(-(Xc-flow));
-      // Base radius about half the lattice spacing, so neighbouring buds touch.
-      float hb=bud*tsl*cs.y/cs.x*(1.0+uBeat*uReact*0.15*sin(float(L)*2.0-uTime*6.0));
+      float Xc=ij.x*8.0*B+ij.y*13.0*B, tc=ij.x*G1+ij.y*G2;
+      float rn=exp((Xc-flow)/SF);
+      if(rn>1.02 || rn<0.03) continue;
+      float un=1.0-rn, zn=H*pow(un,c), sl=H*c*pow(max(un,0.02),c-1.0);
+      float fsz=fs*rn*SF*0.62*(1.0+uBeat*uReact*0.15*sin(float(L)*2.0-uTime*6.0));
       vec3 rad=vec3(cos(tc),0.0,sin(tc));
-      vec3 S=tsl*vec3(cs.x*rad.x,-cs.y,cs.x*rad.z);
-      vec3 A=normalize(mix(vec3(cs.y*rad.x,cs.x,cs.y*rad.z),vec3(0.0,1.0,0.0),tilt));
+      // Floret axis: the profile's outward normal, leaned toward vertical.
+      vec3 A=normalize(mix(normalize(vec3(rad.x*sl,1.0,rad.z*sl)),vec3(0.0,1.0,0.0),tilt));
       vec3 Bz=vec3(-rad.z,0.0,rad.x), Bx=cross(A,Bz);
-      vec3 dl=(q-(S+A*hb*0.92))/hb;
+      vec3 dl=(q-(vec3(rn*rad.x,zn,rn*rad.z)-A*fsz*0.25))/fsz;
       vec3 ql=vec3(dot(dl,Bx),dot(dl,A),dot(dl,Bz));
-      float db=romCone(ql,cs)*hb;
-      if(db<best){ best=db; bq=ql; bh=hb; bk=ij.x+ij.y*1.618; }
+      float db=romHead(ql,H,c)*fsz;
+      if(db<best){ best=db; bq=ql; bs=fsz; bk=ij.x+ij.y*1.618; }
     }
     if(best>=1e8) break;
     d=min(d,best*sc);
     trap=0.18+0.17*float(L+1)+0.08*fract(bk*0.618);
-    q=bq; sc*=bh;
+    q=bq; sc*=bs;
+  }
+  return d;
+}
+// The whole head: one spiral of florets wrapped round a closed egg, so it
+// is complete from any angle with no seam. The florets sit on the golden
+// lattice in Mercator coordinates (u = log tan(pi/4 + lat/2), theta), the
+// conformal map of the sphere, so one spiral runs tip to tip through the
+// widest point. Each floret is sized by the local scale (cos lat): largest
+// at the waist, shrinking into both tips. Each floret is the cone head above
+// with its own florets, so the self-similarity carries on down.
+float romanesco(vec3 p, out float trap){
+  p.xz*=rot(uTime*0.06*uSpeed*uSpin);
+  const float HY=1.12, B=0.02699, G1=0.35014992, G2=-0.21640455, ST=0.8;
+  float det=8.0*B*G2-13.0*B*G1;
+  float fs=mix(0.17,0.25,clamp(uMorph,0.0,1.0))*(1.0+uBass*uReact*0.1);
+  float tilt=mix(0.0,0.55,clamp(uCB,0.0,1.0));
+  float flow=uTime*uSpeed*clamp(uCC,0.0,1.0)*0.04;
+  const float sc=1.05; vec3 q=p/sc;
+  vec3 ra=vec3(1.0,HY,1.0);
+  float k0=length(q/ra), k1=max(length(q/(ra*ra)),1e-4);
+  float db=k0*(k0-1.0)/k1;
+  trap=0.2;
+  // Body, sunk well inside the florets so only florets show.
+  float d=(db+0.12)*sc;
+  if(db>0.55) return min(d,(db-0.4)*sc);
+  vec3 qs=q/ra;
+  float ph=asin(clamp(qs.y/max(length(qs),1e-4),-0.999,0.999)), th=atan(qs.z,qs.x);
+  float X=log(tan(0.78539816+0.5*ph))*ST+flow;
+  float fi=(G2*X-13.0*B*th)/det, fj=(-G1*X+8.0*B*th)/det;
+  vec2 ij0=floor(vec2(fi,fj));
+  float best=1e9; vec3 bq=q; float bs=1.0, bk=0.0;
+  for(int k=0;k<4;k++){
+    vec2 ij=ij0+vec2(float(k&1),float(k>>1));
+    float Xc=ij.x*8.0*B+ij.y*13.0*B, tc=ij.x*G1+ij.y*G2;
+    float phn=2.0*atan(exp((Xc-flow)/ST))-1.5707963;
+    if(abs(phn)>1.42) continue;
+    float cp=cos(phn), sp=sin(phn);
+    vec3 rad=vec3(cos(tc),0.0,sin(tc));
+    vec3 S=vec3(cp*rad.x,HY*sp,cp*rad.z);
+    vec3 N=normalize(vec3(cp*rad.x,sp/HY,cp*rad.z));
+    vec3 A=normalize(mix(N,vec3(0.0,sp>=0.0?1.0:-1.0,0.0),tilt*abs(sp)));
+    float fsz=fs*1.3*cp*(1.0+uBeat*uReact*0.12*sin(uTime*6.0));
+    vec3 Bz=vec3(-rad.z,0.0,rad.x), Bx=normalize(cross(A,Bz));
+    Bz=cross(Bx,A);
+    vec3 dl=(q-(S-A*fsz*0.25))/fsz;
+    vec3 ql=vec3(dot(dl,Bx),dot(dl,A),dot(dl,Bz));
+    // Cheap pick: the floret whose bounding head is nearest.
+    float e=romHead(ql,1.3,1.0)*fsz;
+    if(e<best){ best=e; bq=ql; bs=fsz; bk=ij.x+ij.y*1.618; }
+  }
+  // An apex floret at each tip, where the spiral has shrunk away: a full head
+  // pointing out along the axis, so the poles are closed like a real head.
+  {
+    float sg=q.y>=0.0?1.0:-1.0, fsz=fs*1.3*0.42;
+    vec3 dl=(q-vec3(0.0,sg*(HY-fsz*0.25),0.0))/fsz;
+    vec3 ql=vec3(dl.x,sg*dl.y,dl.z*sg);
+    float e=romHead(ql,1.3,1.0)*fsz;
+    if(e<best){ best=e; bq=ql; bs=fsz; bk=sg; }
+  }
+  if(best<1e8){
+    float tf; float df=romHalf(bq,sc*bs,tf);
+    if(df<d){ d=df; trap=tf+0.06*fract(bk*0.618); }
   }
   return d;
 }
@@ -3803,8 +3874,8 @@ const PRESETS = [
   {name:'Starfield Warp',grp:'SCN', kind:'2DC', mode:115,p:{morph:0.5,detail:0.5,speed:0.6,zoom:0.5,hue:0.66,ca:0.5,cb:0.5,cc:0.3,iter:0.5}},
   {name:'Sphere',grp:'SCN', kind:'2DC', mode:116,p:{morph:0.5,detail:0.5,speed:0.5,zoom:0.5,hue:0.75,ca:0.3,cb:0.5,cc:0.3,iter:0.5}},
   // Added last so the stored slots and cues, which name scenes by index, keep theirs.
-  {name:'Cathedral',grp:'LATT', kind:'3D', mode:45, pal:1, p:{morph:0.45,detail:0.75,speed:0.4,zoom:0.58,hue:0.08,ca:0.5,cb:0.5,cc:0.3,iter:0.7}},
-  {name:'Romanesco',grp:'BULB', kind:'3D', mode:44, pal:9, p:{morph:0.5,detail:0.45,speed:0.5,zoom:0.42,hue:0.25,ca:0.5,cb:0.45,cc:0.35,iter:0.5}}
+  {name:'Cathedral',grp:'LATT', kind:'3D', mode:45,p:{morph:0.45,detail:0.75,speed:0.4,zoom:0.58,hue:0.08,ca:0.5,cb:0.5,cc:0.3,iter:0.7}},
+  {name:'Romanesco',grp:'BULB', kind:'3D', mode:44,p:{morph:0.5,detail:0.3,speed:0.5,zoom:0.42,hue:0.25,ca:0.5,cb:0.45,cc:0.35,iter:0.5}}
 ];
 
 const SLIDER_DEFS = [
