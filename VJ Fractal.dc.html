@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<script src="./support.js?v=b18"></script>
+<script src="./support.js?v=b19"></script>
 <meta name="ext-resource-dependency" content="./csi.js" data-resource-id="csiJs">
 </head>
 <body>
@@ -30,11 +30,11 @@
   @keyframes vjspin{to{transform:rotate(360deg)}}
   @keyframes vjscan{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
 </style>
-<script src="vj-engine.js?v=b18"></script>
-<script src="deep-zoom.js?v=b18"></script>
-<script src="cam-fly.js?v=b18"></script>
-<script src="wave-mesh.js?v=b18"></script>
-<script src="wave-gl.js?v=b18"></script>
+<script src="vj-engine.js?v=b19"></script>
+<script src="deep-zoom.js?v=b19"></script>
+<script src="cam-fly.js?v=b19"></script>
+<script src="wave-mesh.js?v=b19"></script>
+<script src="wave-gl.js?v=b19"></script>
 </helmet>
 <template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#08090A"/><circle cx="50" cy="50" r="22" fill="none" stroke="#C8FF2E" stroke-width="3"/><circle cx="50" cy="50" r="11" fill="none" stroke="#C8FF2E" stroke-width="2" opacity="0.6"/><circle cx="50" cy="50" r="3.5" fill="#C8FF2E"/></svg></template>
 <div style="position:relative;width:100vw;height:100dvh;overflow:hidden;background:#08090A;font-family:'JetBrains Mono',ui-monospace,monospace;color:#F2F3F0;user-select:none;-webkit-user-select:none;">
@@ -97,7 +97,7 @@
           <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.42);">A SWRV Systems production</div>
           <div style="width:18px;height:1px;background:rgba(242,243,240,0.25);"></div>
         </div>
-        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 18 · 18 Oct 2026</div>
+        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 19 · 18 Oct 2026</div>
       </div>
       <div style="max-width:420px;text-align:center;font-size:12.5px;line-height:1.7;color:rgba(242,243,240,0.55);">The visuals are driven entirely by what the microphone hears. Nothing is recorded or sent anywhere.</div>
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,230px));gap:10px;width:100%;max-width:470px;justify-content:center;">
@@ -156,7 +156,7 @@
     <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
       <div style="font-family:Archivo,sans-serif;font-weight:700;font-size:54px;letter-spacing:-0.03em;line-height:1;">SPECTRA</div>
       <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.36);">A SWRV Systems production</div>
-      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 18 · 18 Oct 2026</div>
+      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 19 · 18 Oct 2026</div>
     </div>
     <div ref="{{ warmWrapRef }}" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
       <div style="width:260px;height:2px;background:rgba(255,255,255,0.1);">
@@ -533,92 +533,96 @@
   <sc-if value="{{ isDeck }}" hint-placeholder-val="{{ true }}">
     <div style="position:absolute;left:0;right:0;top:{{ deckTop }};bottom:0;overflow:hidden;z-index:25;display:flex;flex-direction:column;justify-content:flex-end;pointer-events:none;">
     <div ref="{{ deckScrollRef }}" onScroll="{{ deckScrolled }}" style="max-height:100%;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:var(--acc30) transparent;padding:{{ deckPad }};box-sizing:border-box;display:flex;flex-direction:column;gap:{{ deckGap }};opacity:{{ chromeOpacity }};pointer-events:{{ chromePE }};transition:opacity .35s;">
-      <div style="display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;">
-        <div style="display:{{ vidRowDisplay }};align-items:center;gap:6px;margin-right:auto;flex:1 1 {{ deckGroupBasis }};min-width:150px;flex-wrap:wrap;align-self:stretch;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;">
-          <div style="display:{{ vidRowDisplay }};flex-wrap:wrap;gap:3px;flex:0 1 auto;min-width:0;">
-            <sc-for list="{{ vidModes }}" as="m" hint-placeholder-count="21">
-              <button onClick="{{ m.select }}" style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:6px 9px;min-height:{{ deckBtnH }};box-sizing:border-box;cursor:pointer;border:1px solid {{ m.border }};background:{{ m.bg }};color:{{ m.fg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ m.name }}</button>
-            </sc-for>
-          </div>
-          <div style="display:{{ vidRowDisplay }};align-items:center;flex-wrap:wrap;gap:8px;flex:1 1 100%;min-width:0;">
-            <div style="display:flex;align-items:center;gap:8px;min-width:150px;">
-              <span style="font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(242,243,240,0.6);">Mix</span>
-              <div onPointerDown="{{ vidMixDrag.down }}" onPointerMove="{{ vidMixDrag.move }}" onPointerUp="{{ vidMixDrag.up }}" style="position:relative;flex:1;height:{{ ctlHitH }};display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
-                <div style="position:relative;width:100%;height:{{ ctlTrackH }};background:rgba(255,255,255,0.13);">
-                  <div style="position:absolute;left:0;top:0;bottom:0;width:{{ vidMixPct }};background:var(--acc);"></div>
-                </div>
-              </div>
-              <span style="font-size:9px;color:var(--acc);">{{ vidMixRead }}</span>
-            </div>
-            <button onClick="{{ vidFlip }}" style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;padding:6px 10px;min-height:{{ deckBtnH }};box-sizing:border-box;cursor:pointer;border:1px solid {{ vidFlipBorder }};background:{{ vidFlipBg }};color:{{ vidFlipFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Mirror</button>
-            <button onClick="{{ vidFlipVT }}" style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;padding:6px 10px;min-height:{{ deckBtnH }};box-sizing:border-box;cursor:pointer;border:1px solid {{ vidFlipVBorder }};background:{{ vidFlipVBg }};color:{{ vidFlipVFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Flip</button>
-            <button onClick="{{ vidRevT }}" style="display:{{ vidRevDisplay }};font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;padding:6px 10px;min-height:{{ deckBtnH }};box-sizing:border-box;cursor:pointer;border:1px solid {{ vidRevBorder }};background:{{ vidRevBg }};color:{{ vidRevFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ vidRevLabel }}</button>
-            <button onClick="{{ vidPauseT }}" style="display:{{ vidRevDisplay }};font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;padding:6px 10px;min-height:{{ deckBtnH }};box-sizing:border-box;cursor:pointer;border:1px solid {{ vidPauseBorder }};background:{{ vidPauseBg }};color:{{ vidPauseFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ vidPauseLabel }}</button>
-            <button onClick="{{ vidHideT }}" style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;padding:6px 10px;min-height:{{ deckBtnH }};box-sizing:border-box;cursor:pointer;border:1px solid {{ vidHideBorder }};background:{{ vidHideBg }};color:{{ vidHideFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ vidHideLabel }}</button>
-            <div style="display:flex;gap:4px;">
-              <sc-for list="{{ vidDevices }}" as="d" hint-placeholder-count="1">
-                <button onClick="{{ d.select }}" style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.08em;padding:6px 10px;min-height:{{ deckBtnH }};box-sizing:border-box;cursor:pointer;border:1px solid {{ d.border }};background:{{ d.bg }};color:{{ d.fg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ d.label }}</button>
-              </sc-for>
-            </div>
-          </div>
-          <div title="How the video changes: clip advance, transition and the video's own trail" style="display:{{ vidRowDisplay }};align-items:center;flex-wrap:wrap;gap:6px;flex:1 1 100%;min-width:0;border-top:1px solid rgba(255,255,255,0.08);padding-top:8px;">
-            <!-- Built like Scene change: same heading, same grid of equal
-                 controls, transition as a select. -->
-            <div style="display:flex;flex-direction:column;gap:6px;flex:1 1 100%;min-width:0;">
-            <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);">Video change</span>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:{{ deckBtnGap }};align-items:stretch;">
-              <button onClick="{{ vidAutoT }}" title="Advance through the clip list on its own" style="display:{{ vidListDisplay }};align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid {{ vidAutoBorder }};background:{{ vidAutoBg }};color:{{ vidAutoFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Auto</button>
-              <button onClick="{{ vidShufT }}" title="Play the clip list in order or at random" style="display:{{ vidListDisplay }};align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid {{ vidShufBorder }};background:{{ vidShufBg }};color:{{ vidShufFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ vidShufLabel }}</button>
-              <button onClick="{{ vidLinkT }}" title="Change the clip when the scene changes" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid {{ vidLinkBorder }};background:{{ vidLinkBg }};color:{{ vidLinkFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Link scene</button>
-              <button onClick="{{ vidFxcT }}" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid {{ vidFxcBorder }};background:{{ vidFxcBg }};color:{{ vidFxcFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">FX cycle</button>
-              <select value="{{ vidTxSel }}" onChange="{{ setVidTx }}" title="Transition used when the clip changes" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid var(--acc30);background:rgba(8,9,10,0.34);color:var(--acc);appearance:none;-webkit-appearance:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
-                <sc-for list="{{ vidTxOptions }}" as="o" hint-placeholder-count="4">
-                  <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
-                </sc-for>
-              </select>
-              <button onClick="{{ vidDriftT }}" title="The video trail zooms and turns as it fades" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid {{ vidDriftBorder }};background:{{ vidDriftBg }};color:{{ vidDriftFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Drift</button>
-            </div>
-            <div style="display:flex;align-items:center;gap:10px;min-width:0;">
-              <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);flex:0 0 auto;">V Trail</span>
-              <div onPointerDown="{{ vidTrailDrag.down }}" onPointerMove="{{ vidTrailDrag.move }}" onPointerUp="{{ vidTrailDrag.up }}" style="position:relative;flex:1;min-width:0;height:{{ ctlHitH }};display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
-                <div style="position:relative;width:100%;height:{{ ctlTrackH }};background:rgba(255,255,255,0.13);">
-                  <div style="position:absolute;left:0;top:0;bottom:0;width:{{ vidTrailPct }};background:var(--acc45);"></div>
-                  <div style="position:absolute;top:{{ ctlThumbTop }};left:{{ vidTrailPct }};width:{{ ctlThumbW }};height:{{ ctlThumbH }};margin-left:{{ ctlThumbML }};background:var(--acc);"></div>
-                </div>
-              </div>
-              <span style="font-size:9px;color:var(--acc);flex:0 0 auto;min-width:24px;text-align:right;">{{ vidTrailRead }}</span>
-            </div>
-            </div>
-          </div>
+      <!-- Panel menu: one panel group at a time instead of the whole deck
+           stacked. Sticky, so it stays in reach when a panel scrolls. -->
+      <div style="position:sticky;top:0;z-index:2;display:flex;flex-wrap:wrap;gap:4px;flex:0 0 auto;background:rgba(8,9,10,0.62);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:6px;box-sizing:border-box;">
+        <sc-for list="{{ deckTabs }}" as="t" hint-placeholder-count="7">
+          <button onClick="{{ t.select }}" title="{{ t.title }}" style="flex:1 1 0;min-width:72px;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.16em;text-transform:uppercase;padding:6px 8px;min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;border:1px solid {{ t.border }};background:{{ t.bg }};color:{{ t.fg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ t.label }}</button>
+        </sc-for>
+      </div>
+      <!-- Video is built exactly like the Cues row: a list panel with the same
+           header buttons and the same strip of items, and Video change as a
+           copy of Scene change beside it. Video look sits under them. -->
+      <div style="display:{{ tabVideo }};flex-direction:column;gap:{{ deckGap }};">
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;">
+      <div title="The video source and its clip list" style="display:flex;flex-direction:column;gap:8px;flex:1 1 340px;min-width:0;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);flex:0 0 auto;min-width:56px;">Video {{ vidTag }}</span>
+        <button onClick="{{ vidBack }}" title="Previous clip" style="display:flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:62px;min-height:40px;padding:4px 8px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:16px;line-height:1;cursor:pointer;flex:0 0 auto;border:1px solid rgba(255,255,255,0.11);background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.7);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">◂</button>
+        <button onClick="{{ vidSkip }}" title="Next clip" style="display:flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:62px;min-height:40px;padding:4px 8px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:16px;line-height:1;cursor:pointer;flex:0 0 auto;border:1px solid var(--acc);background:var(--acc14);color:var(--acc);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">▸</button>
+        <button onClick="{{ vidFilePick }}" title="Play video files from this computer in place of the camera" style="display:flex;flex-direction:column;align-items:flex-start;justify-content:center;box-sizing:border-box;min-width:62px;min-height:40px;padding:6px 8px;text-align:left;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;flex:0 0 auto;border:1px solid {{ vidFileBorder }};background:{{ vidFileBg }};color:{{ vidFileFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ vidFileLabel }}</button>
+        <button onClick="{{ vidDirPick }}" title="Pick a folder of videos to cycle through" style="display:flex;flex-direction:column;align-items:flex-start;justify-content:center;box-sizing:border-box;min-width:62px;min-height:40px;padding:6px 8px;text-align:left;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;flex:0 0 auto;border:1px solid rgba(255,255,255,0.11);background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.7);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">+ Folder</button>
+        <button onClick="{{ vidToggle }}" title="Use the camera as the video source" style="display:flex;flex-direction:column;align-items:flex-start;justify-content:center;box-sizing:border-box;min-width:62px;min-height:40px;padding:6px 8px;text-align:left;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;flex:0 0 auto;border:1px solid {{ vidBtnBorder }};background:{{ vidBtnBg }};color:{{ vidBtnFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ vidBtnLabel }}</button>
         </div>
-        <div style="display:flex;align-items:stretch;flex-wrap:wrap;justify-content:flex-end;gap:8px;flex:1 1 auto;min-width:0;">
-        <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;flex:1 1 100%;min-width:0;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;">
-          <button onClick="{{ vidToggle }}" style="display:flex;flex-direction:column;align-items:flex-start;justify-content:center;box-sizing:border-box;width:78px;min-height:40px;padding:6px 8px;text-align:left;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;flex:0 0 auto;white-space:nowrap;overflow:hidden;border:1px solid {{ vidBtnBorder }};background:{{ vidBtnBg }};color:{{ vidBtnFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ vidBtnLabel }}</button>
-          <button onClick="{{ vidFilePick }}" title="Play a video file from this computer in place of the camera" style="display:flex;flex-direction:column;align-items:flex-start;justify-content:center;box-sizing:border-box;width:78px;min-height:40px;padding:6px 8px;text-align:left;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;flex:0 0 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:1px solid {{ vidFileBorder }};background:{{ vidFileBg }};color:{{ vidFileFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ vidFileLabel }}</button>
-          <button onClick="{{ vidDirPick }}" title="Pick a folder of videos to cycle through" style="display:flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:56px;min-height:40px;padding:6px 8px;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;flex:0 0 auto;border:1px solid rgba(255,255,255,0.11);background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.78);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Folder</button>
-          <sc-if value="{{ vidListOn }}" hint-placeholder-val="{{ false }}">
-          <button onClick="{{ vidSkip }}" title="Next video in the list" style="display:flex;flex-direction:column;align-items:center;justify-content:center;box-sizing:border-box;min-width:48px;min-height:40px;padding:4px 6px;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.08em;cursor:pointer;flex:0 0 auto;border:1px solid var(--acc30);background:rgba(8,9,10,0.34);color:var(--acc);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);"><span>▸▸</span><span style="font-size:8px;opacity:0.7;">{{ vidPos }}</span></button>
-          </sc-if>
-          <div style="display:{{ vidErrDisplay }};align-self:center;flex:1 1 180px;min-width:0;font-size:9.5px;line-height:1.45;letter-spacing:0.06em;color:rgba(242,243,240,0.6);">{{ vidErr }}</div>
-          <sc-if value="{{ vidClipsOn }}" hint-placeholder-val="{{ false }}">
-          <div ref="{{ vidStripRef }}" style="flex:1 1 100%;width:100%;min-width:0;display:flex;gap:4px;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;touch-action:pan-x;padding-bottom:5px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.22) transparent;">
-            <sc-for list="{{ vidClips }}" as="c" hint-placeholder-count="6">
-              <button onClick="{{ c.select }}" title="{{ c.title }}" data-vclip="{{ c.i }}" style="position:relative;flex:0 0 auto;width:118px;height:66px;padding:0;overflow:hidden;cursor:pointer;border:1px solid {{ c.border }};background:rgba(8,9,10,0.34);font-family:'JetBrains Mono',monospace;color:{{ c.fg }};text-align:left;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
-                <div style="position:absolute;inset:0;background-image:{{ c.thumbBg }};background-size:cover;background-position:center;opacity:{{ c.thumbOp }};pointer-events:none;"></div>
-                <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,9,10,0) 30%,rgba(8,9,10,0.85) 100%);pointer-events:none;"></div>
-                <span style="position:absolute;left:6px;right:6px;bottom:5px;display:flex;flex-direction:column;gap:1px;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);pointer-events:none;">
-                  <span style="font-size:8px;letter-spacing:0.14em;opacity:0.65;">{{ c.num }}</span>
-                  <span style="font-size:9.5px;font-weight:700;letter-spacing:0.03em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ c.name }}</span>
-                </span>
-              </button>
-            </sc-for>
-          </div>
-          </sc-if>
-        </div>
+        <span style="display:{{ vidEmptyDisp }};font-size:9px;letter-spacing:0.06em;color:rgba(242,243,240,0.45);">No clips yet — + File or + Folder loads video.</span>
+        <span style="display:{{ vidErrDisplay }};font-size:9px;letter-spacing:0.06em;color:rgba(242,243,240,0.6);">{{ vidErr }}</span>
+        <div ref="{{ vidStripRef }}" style="display:{{ vidStripDisp }};width:100%;min-width:0;gap:4px;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;touch-action:pan-x;padding-bottom:5px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.22) transparent;">
+          <sc-for list="{{ vidClips }}" as="c" hint-placeholder-count="0">
+            <button onClick="{{ c.select }}" onContextMenu="{{ c.del }}" data-vclip="{{ c.i }}" title="Click to play · × or right-click to remove" style="position:relative;flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:6px 26px 6px 8px;min-height:40px;max-width:200px;box-sizing:border-box;cursor:pointer;font-family:'JetBrains Mono',monospace;text-align:left;border:1px solid {{ c.chipBorder }};background:{{ c.chipBg }};color:{{ c.chipFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+              <span style="font-size:8px;letter-spacing:0.14em;opacity:0.6;flex:0 0 auto;">{{ c.num }}</span>
+              <span style="font-size:9px;letter-spacing:0.04em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1 1 auto;">{{ c.name }}</span>
+              <span role="button" title="Remove clip" onClick="{{ c.clear }}" style="position:absolute;top:0;right:0;display:flex;align-items:center;justify-content:center;width:18px;height:18px;font-size:10px;line-height:1;color:rgba(242,243,240,0.7);cursor:pointer;" style-hover="color:#F2F3F0;background:rgba(255,255,255,0.12);">×</span>
+            </button>
+          </sc-for>
         </div>
       </div>
+      <div title="When the clip moves on, and how one clip hands over to the next" style="display:flex;flex-direction:column;gap:6px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;flex:1 1 340px;min-width:0;">
+        <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);">Video change</span>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:{{ deckBtnGap }};align-items:stretch;">
+        <button onClick="{{ vidAutoT }}" title="Advance through the clip list on its own" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid {{ vidAutoBorder }};background:{{ vidAutoBg }};color:{{ vidAutoFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Auto</button>
+        <button onClick="{{ vidShufT }}" title="Play the clip list in order or at random" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid {{ vidShufBorder }};background:{{ vidShufBg }};color:{{ vidShufFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ vidShufLabel }}</button>
+        <button onClick="{{ vidLinkT }}" title="Change the clip when the scene changes" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid {{ vidLinkBorder }};background:{{ vidLinkBg }};color:{{ vidLinkFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Link scene</button>
+        <button onClick="{{ vidFxcT }}" title="Pick a new video filter on every clip change" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid {{ vidFxcBorder }};background:{{ vidFxcBg }};color:{{ vidFxcFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">FX cycle</button>
+        <select value="{{ vidTxSel }}" onChange="{{ setVidTx }}" title="Transition used when the clip changes" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid var(--acc30);background:rgba(8,9,10,0.34);color:var(--acc);appearance:none;-webkit-appearance:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+          <sc-for list="{{ vidTxOptions }}" as="o" hint-placeholder-count="4">
+            <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
+          </sc-for>
+        </select>
+        <button onClick="{{ vidDriftT }}" title="The video trail zooms and turns as it fades" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid {{ vidDriftBorder }};background:{{ vidDriftBg }};color:{{ vidDriftFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Drift</button>
+        </div>
+      </div>
+      </div>
+      <div title="How the video sits over the scene" style="display:{{ vidRowDisplay }};flex-direction:column;gap:8px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;">
+        <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);">Video look</span>
+        <div style="display:flex;flex-wrap:wrap;gap:3px;min-width:0;">
+          <sc-for list="{{ vidModes }}" as="m" hint-placeholder-count="21">
+            <button onClick="{{ m.select }}" style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:6px 9px;min-height:{{ deckBtnH }};box-sizing:border-box;cursor:pointer;border:1px solid {{ m.border }};background:{{ m.bg }};color:{{ m.fg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ m.name }}</button>
+          </sc-for>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:{{ deckBtnGap }};align-items:stretch;">
+        <button onClick="{{ vidFlip }}" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid {{ vidFlipBorder }};background:{{ vidFlipBg }};color:{{ vidFlipFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Mirror</button>
+        <button onClick="{{ vidFlipVT }}" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid {{ vidFlipVBorder }};background:{{ vidFlipVBg }};color:{{ vidFlipVFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Flip</button>
+        <button onClick="{{ vidRevT }}" style="display:{{ vidRevDisplay }};font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid {{ vidRevBorder }};background:{{ vidRevBg }};color:{{ vidRevFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ vidRevLabel }}</button>
+        <button onClick="{{ vidPauseT }}" style="display:{{ vidRevDisplay }};font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid {{ vidPauseBorder }};background:{{ vidPauseBg }};color:{{ vidPauseFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ vidPauseLabel }}</button>
+        <button onClick="{{ vidHideT }}" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid {{ vidHideBorder }};background:{{ vidHideBg }};color:{{ vidHideFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ vidHideLabel }}</button>
+        <sc-for list="{{ vidDevices }}" as="d" hint-placeholder-count="1">
+          <button onClick="{{ d.select }}" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-overflow:ellipsis;text-align:center;min-width:0;border:1px solid {{ d.border }};background:{{ d.bg }};color:{{ d.fg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ d.label }}</button>
+        </sc-for>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+          <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);flex:0 0 auto;min-width:56px;">Mix</span>
+          <div onPointerDown="{{ vidMixDrag.down }}" onPointerMove="{{ vidMixDrag.move }}" onPointerUp="{{ vidMixDrag.up }}" style="position:relative;flex:1;min-width:0;height:{{ ctlHitH }};display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
+            <div style="position:relative;width:100%;height:{{ ctlTrackH }};background:rgba(255,255,255,0.13);">
+              <div style="position:absolute;left:0;top:0;bottom:0;width:{{ vidMixPct }};background:var(--acc45);"></div>
+              <div style="position:absolute;top:{{ ctlThumbTop }};left:{{ vidMixPct }};width:{{ ctlThumbW }};height:{{ ctlThumbH }};margin-left:{{ ctlThumbML }};background:var(--acc);"></div>
+            </div>
+          </div>
+          <span style="font-size:9px;color:var(--acc);flex:0 0 auto;min-width:24px;text-align:right;">{{ vidMixRead }}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+          <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);flex:0 0 auto;min-width:56px;">V Trail</span>
+          <div onPointerDown="{{ vidTrailDrag.down }}" onPointerMove="{{ vidTrailDrag.move }}" onPointerUp="{{ vidTrailDrag.up }}" style="position:relative;flex:1;min-width:0;height:{{ ctlHitH }};display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
+            <div style="position:relative;width:100%;height:{{ ctlTrackH }};background:rgba(255,255,255,0.13);">
+              <div style="position:absolute;left:0;top:0;bottom:0;width:{{ vidTrailPct }};background:var(--acc45);"></div>
+              <div style="position:absolute;top:{{ ctlThumbTop }};left:{{ vidTrailPct }};width:{{ ctlThumbW }};height:{{ ctlThumbH }};margin-left:{{ ctlThumbML }};background:var(--acc);"></div>
+            </div>
+          </div>
+          <span style="font-size:9px;color:var(--acc);flex:0 0 auto;min-width:24px;text-align:right;">{{ vidTrailRead }}</span>
+        </div>
+      </div>
+      </div>
       <!-- Slots and Morph together: Morph fades between two slots. -->
-      <div style="display:flex;flex-direction:column;gap:8px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;">
+      <div style="display:{{ tabSlots }};flex-direction:column;gap:8px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;">
         <div style="display:flex;align-items:center;gap:8px;min-width:0;">
         <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);flex:0 0 auto;" title="Click an empty slot to store the live look, a filled one to recall it">Slots</span>
         <div style="display:{{ deckSlotDisp }};grid-template-columns:{{ deckSlotCols }};flex-wrap:wrap;justify-content:flex-start;gap:5px;flex:1 1 auto;min-width:0;">
@@ -656,7 +660,7 @@
       </div>
       <!-- Cue and Scene change share one row, half each; below ~700px they
            stack. -->
-      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;">
+      <div style="display:{{ tabCues }};flex-wrap:wrap;gap:8px;align-items:stretch;">
       <div title="An ordered run of looks. Each cue keeps the transition and length it was added with" style="display:flex;flex-direction:column;gap:8px;flex:1 1 340px;min-width:0;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;">
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
         <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);flex:0 0 auto;min-width:56px;">Cues {{ cueTag }}</span>
@@ -707,7 +711,7 @@
       </div>
       </div>
       <div style="display:{{ outErrDisplay }};font-size:9px;line-height:1.5;letter-spacing:0.04em;color:rgba(242,243,240,0.6);">{{ outErr }}</div>
-      <div style="display:flex;flex-direction:column;gap:8px;flex:0 0 auto;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;">
+      <div style="display:{{ tabScenes }};flex-direction:column;gap:8px;flex:0 0 auto;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;">
       <div style="display:flex;align-items:center;gap:6px;flex:0 0 auto;flex-wrap:wrap;">
         <span style="font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:rgba(242,243,240,0.6);">Scenes</span>
         <sc-for list="{{ kindTabs }}" as="k" hint-placeholder-count="4">
@@ -736,7 +740,7 @@
       <!-- Trim, styled like the parameter grid below it: name and value on
            one line, the track under them with the same fill and thumb. The
            thin tick marks each trim's neutral point. -->
-      <div style="display:grid;grid-template-columns:{{ deckCtlCols }};gap:12px 14px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);box-sizing:border-box;padding:12px 14px;">
+      <div style="display:{{ tabParamsGrid }};grid-template-columns:{{ deckCtlCols }};gap:12px 14px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);box-sizing:border-box;padding:12px 14px;">
         <span style="grid-column:1/-1;font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);">Trim</span>
         <sc-for list="{{ trims }}" as="c" hint-placeholder-count="7">
           <div style="display:flex;flex-direction:column;gap:4px;min-width:0;">
@@ -754,8 +758,8 @@
           </div>
         </sc-for>
       </div>
-      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;flex:0 0 auto;">
-        <div style="flex:1 1 100%;display:grid;grid-template-columns:{{ deckCtlCols }};gap:12px 14px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;padding:12px 14px;">
+      <div style="display:{{ tabLower }};align-items:center;flex-wrap:wrap;gap:8px 12px;flex:0 0 auto;">
+        <div style="flex:1 1 100%;display:{{ tabParamsGrid }};grid-template-columns:{{ deckCtlCols }};gap:12px 14px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;padding:12px 14px;">
           <sc-for list="{{ sliders }}" as="s" hint-placeholder-count="10">
             <div style="display:{{ s.show }};flex-direction:column;gap:4px;min-width:0;">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0;font-size:9.5px;letter-spacing:0.13em;text-transform:uppercase;color:rgba(242,243,240,0.6);">
@@ -799,7 +803,7 @@
           </sc-for>
         </div>
         <div style="display:flex;flex-wrap:wrap;align-items:center;gap:9px 10px;flex:1 1 100%;min-width:0;">
-          <div style="display:flex;flex-wrap:wrap;gap:8px;flex:1 1 100%;min-width:0;align-items:stretch;">
+          <div style="display:{{ tabLook }};flex-wrap:wrap;gap:8px;flex:1 1 100%;min-width:0;align-items:stretch;">
             <sc-if value="{{ repStripOn }}" hint-placeholder-val="{{ false }}">
             <div title="Repeat space settings" style="flex:1 1 100%;min-width:0;display:flex;flex-direction:column;gap:6px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;">
               <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);">Repeat</span>
@@ -933,6 +937,8 @@
               </select>
               </div>
             </div>
+          </div>
+          <div style="display:{{ tabSys }};flex-wrap:wrap;gap:8px;flex:1 1 100%;min-width:0;align-items:stretch;">
             <div title="Resolution and frame-rate cap" style="display:flex;flex-direction:column;gap:6px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;flex:2 1 144px;min-width:0;">
               <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);">Render</span>
               <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:{{ deckBtnGap }};align-items:stretch;">
@@ -1487,7 +1493,7 @@ class Component extends DCLogic {
       {key:'dpth', label:'Depth', min:0,   max:1,   def:0,   fmt:v=>Math.round(v*100).toString()}
     ];
     this.state = {
-      preset:0, layout:props.panelLayout||'deck', chrome:true, mic:'idle',
+      preset:0, layout:props.panelLayout||'deck', deckTab:'scenes', chrome:true, mic:'idle',
       // Global color trim, unity-at-default so a fresh load looks unchanged.
       trim:{smth:0.55, sat:1, gam:1, span:1, warm:0, dof:0, dpth:0}, dmode:0, fieldFx:0, lineFx:0,
       micHint:'Your browser will ask for permission.', auto:props.autopilot!==false,
@@ -1604,9 +1610,15 @@ class Component extends DCLogic {
   // hits it routinely, a healthy one never does.
   SLOW_BUILD_MS = 400;
 
+  // Deck menu entries: key, label, tooltip.
+  DECK_TABS = [['scenes','Scenes','Scene library'],['cues','Cues','Cue list and scene change'],
+               ['video','Video','Video source, clips and video change'],['slots','Slots','Stored looks and Morph'],
+               ['params','Params','Trim and the scene parameters'],['look','Look','Trail, palette, 3D, motion and strobe'],
+               ['system','System','Render, layout, output and help']];
+
   SETTINGS_KEYS = ['vecDen','qual','rate','layout','pal','fx','spin','vspin','accentSel',
                    'lfoDiv','strobeAmt','strobeLen','strobeRate','xfadeOn','xfSeen','xfMode','xfLen','xfQ','advBars','imu','mesh','meshSrc','rfUrl','auto','qMinSeen','dmode','repSize','repTurn','repVar','repDrift','repGap','vecG','vecScene',
-                   'strobe','fieldFx','lineFx','camView','camRep','levels','touchParam'];
+                   'strobe','fieldFx','lineFx','camView','camRep','levels','touchParam','deckTab'];
 
   // Accent is a theme value, so it lives in CSS custom properties rather than in
   // every style string: the template carries the lime defaults (so it paints
@@ -3925,9 +3937,9 @@ class Component extends DCLogic {
   // stayed black), so the decoder sits in the page off-screen and is played
   // briefly; a frame that comes back black is retried further in. The clip
   // that is actually playing also fills its own tile as a fallback.
-  async vidThumbsBuild(list){
+  async vidThumbsBuild(list, keep){
     const gen = this._vtGen = (this._vtGen||0) + 1;
-    this.setState({vidThumbs: new Array(list.length).fill('')});
+    this.setState({vidThumbs: keep || new Array(list.length).fill('')});
     const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto';
     v.style.cssText = 'position:fixed;left:-9999px;top:0;width:160px;height:90px;opacity:0;pointer-events:none;';
     document.body.appendChild(v);
@@ -3936,7 +3948,7 @@ class Component extends DCLogic {
     const frame = () => wait(done => { if(v.requestVideoFrameCallback) v.requestVideoFrameCallback(() => done()); else setTimeout(done, 120); }, 800);
     for(let i=0;i<list.length;i++){
       if(gen !== this._vtGen) break;
-      if((this.state.vidThumbs||[])[i]) continue;
+      if((this.state.vidThumbs||[])[i] || (keep && keep[i])) continue;
       const url = URL.createObjectURL(list[i]);
       try{
         await wait(done => { v.onloadeddata = done; v.onerror = done; v.src = url; v.load(); }, 5000);
@@ -3968,6 +3980,19 @@ class Component extends DCLogic {
     const img = cv.toDataURL('image/jpeg', 0.72);
     if(gen == null || gen === this._vtGen) this.setState(st => { const a = (st.vidThumbs||[]).slice(); a[i] = img; return {vidThumbs:a}; });
     return true;
+  }
+  // Remove one clip from the list, like × on a cue. The thumbnails already made
+  // move with their clips; a new generation re-keys them and fills any gaps.
+  vidDrop(i){
+    const L = this.vidList; if(!L || !L[i]) return;
+    const live = this.state.vid.on && this.state.vid.src === 'file', cur = i === this.vidIdx;
+    const list = L.slice(); list.splice(i, 1);
+    const th = (this.state.vidThumbs || []).slice(); th.splice(i, 1);
+    this.vidList = list;
+    if(!list.length){ this.vidIdx = 0; this._vtGen = (this._vtGen||0) + 1; this.setState({vidThumbs:[]}); if(live) this.disableVideo(); return; }
+    if(i < this.vidIdx || this.vidIdx >= list.length) this.vidIdx = Math.max(0, Math.min(this.vidIdx - (i < this.vidIdx ? 1 : 0), list.length - 1));
+    this.vidThumbsBuild(list, th);
+    if(live && cur) this.playVidIdx(Math.min(i, list.length - 1));
   }
   // Tile click. Same rules as a scene change: bar-locked when Quantize is on,
   // and the clip lands through the selected transition.
@@ -15216,6 +15241,7 @@ class Component extends DCLogic {
     // symptom of the last several rounds, and none of them in the graphics code
     // I kept looking at. accRGB() already had the literal right.
     const s=this.state, accent=s.accentSel||this.props.accent||'#C8FF2E';
+    const deckTab = this.DECK_TABS.some(t=>t[0]===s.deckTab) ? s.deckTab : 'scenes';
     const chip = on => on ? {bg:accent,fg:'#08090A',border:accent}
       : {bg:'rgba(8,9,10,0.34)',fg:'rgba(242,243,240,0.78)',border:'rgba(255,255,255,0.11)'};
     // Tabs group by LOOK, not by how the pixels get made. The old four were the
@@ -15692,6 +15718,19 @@ class Component extends DCLogic {
       hotkeyDisplay: (s.layout==='minimal' && !s.touch) ? 'flex' : 'none',
       metersOpacity: this.props.showMeters===false ? 0 : (s.chrome?1:0),
       isDeck: s.layout==='deck', isRail: s.layout==='rail',
+      // Deck menu: the deck shows one panel group at a time.
+      deckTabs: this.DECK_TABS.map(([k,label,title])=>Object.assign({label, title,
+        select: ()=>this.setState({deckTab:k}, ()=>{ this._deckPinned = true; this.pinDeck(); })
+      }, chip(deckTab===k))),
+      tabScenes: deckTab==='scenes' ? 'flex' : 'none',
+      tabCues: deckTab==='cues' ? 'flex' : 'none',
+      tabVideo: deckTab==='video' ? 'flex' : 'none',
+      tabSlots: deckTab==='slots' ? 'flex' : 'none',
+      tabParamsGrid: deckTab==='params' ? 'grid' : 'none',
+      tabLook: deckTab==='look' ? 'flex' : 'none',
+      tabSys: deckTab==='system' ? 'flex' : 'none',
+      // Holds Params, Look and System; hidden otherwise so it adds no empty row.
+      tabLower: ['params','look','system'].includes(deckTab) ? 'flex' : 'none',
       cueListDisp: ((s.cues && s.cues.length) || 0) ? 'flex' : 'none',
       // Deck on a phone. Every row in the deck is wrapping flex sized for a
       // laptop, so at narrow widths they stack several deep, the panel grows
@@ -15942,12 +15981,16 @@ class Component extends DCLogic {
       vidBtnLabel: (s.vid.on && s.vid.src!=='file') ? 'Camera on' : 'Camera',
       vidBtnBg: chip(s.vid.on && s.vid.src!=='file').bg, vidBtnFg: chip(s.vid.on && s.vid.src!=='file').fg, vidBtnBorder: chip(s.vid.on && s.vid.src!=='file').border,
       vidToggle: () => (s.vid.on && s.vid.src!=='file') ? this.disableVideo() : this.enableVideo(s.vid.deviceId),
-      vidFileLabel: (s.vid.on && s.vid.src==='file') ? (s.vid.name || 'Video on') : 'Video file',
+      vidFileLabel: (s.vid.on && s.vid.src==='file') ? 'File on' : '+ File',
       vidFileBg: chip(s.vid.on && s.vid.src==='file').bg, vidFileFg: chip(s.vid.on && s.vid.src==='file').fg, vidFileBorder: chip(s.vid.on && s.vid.src==='file').border,
       vidFilePick: () => (s.vid.on && s.vid.src==='file') ? this.disableVideo() : this.pickVideoFile(),
       vidFileChange: (ev) => this.enableVideoFile(ev),
       vidDirPick: () => this.pickVideoDir(),
       vidSkip: () => this.vidNext(1),
+      vidBack: () => this.vidNext(-1),
+      vidTag: (this.vidList && this.vidList.length) ? (((s.vid.on && s.vid.src==='file') ? this.vidIdx+1 : '–')+'/'+this.vidList.length) : '0',
+      vidStripDisp: (this.vidList && this.vidList.length) ? 'flex' : 'none',
+      vidEmptyDisp: (this.vidList && this.vidList.length) ? 'none' : 'block',
       vidListOn: !!(s.vid.on && s.vid.src==='file' && this.vidList && this.vidList.length > 1),
       vidPos: s.vid.pos || '',
       vidClipsOn: !!(this.vidList && this.vidList.length > 1),
@@ -15957,7 +16000,12 @@ class Component extends DCLogic {
         return { i, num: String(i+1).padStart(2,'0'), name: f.name.replace(/\.[^.]+$/,''), title: f.webkitRelativePath || f.name,
           thumbBg: th ? 'url("' + this.blobOf('vclip:' + this._vtGen + ':' + i, th) + '")' : 'none', thumbOp: on ? 1 : 0.75,
           border: on ? 'var(--acc)' : 'rgba(255,255,255,0.11)', fg: on ? 'var(--acc)' : 'rgba(242,243,240,0.85)',
-          select: () => this.vidPick(i) };
+          select: () => this.vidPick(i),
+          del: (ev) => { if(ev && ev.preventDefault) ev.preventDefault(); this.vidDrop(i); },
+          // The × sits inside the clip button, so it must not also play the clip.
+          clear: (ev) => { if(ev){ ev.stopPropagation && ev.stopPropagation(); ev.preventDefault && ev.preventDefault(); } this.vidDrop(i); },
+          // Deck strip: coloured like the cue strip.
+          chipBorder: chip(on).border, chipBg: chip(on).bg, chipFg: chip(on).fg };
       }),
       vidDirRef: this.vidDirRef,
       vidFileRef: this.vidFileRef, vidLayerRef: this.vidLayerRef,
