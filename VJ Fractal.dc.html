@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<script src="./support.js?v=b19"></script>
+<script src="./support.js?v=b21"></script>
 <meta name="ext-resource-dependency" content="./csi.js" data-resource-id="csiJs">
 </head>
 <body>
@@ -30,11 +30,11 @@
   @keyframes vjspin{to{transform:rotate(360deg)}}
   @keyframes vjscan{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
 </style>
-<script src="vj-engine.js?v=b19"></script>
-<script src="deep-zoom.js?v=b19"></script>
-<script src="cam-fly.js?v=b19"></script>
-<script src="wave-mesh.js?v=b19"></script>
-<script src="wave-gl.js?v=b19"></script>
+<script src="vj-engine.js?v=b21"></script>
+<script src="deep-zoom.js?v=b21"></script>
+<script src="cam-fly.js?v=b21"></script>
+<script src="wave-mesh.js?v=b21"></script>
+<script src="wave-gl.js?v=b21"></script>
 </helmet>
 <template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#08090A"/><circle cx="50" cy="50" r="22" fill="none" stroke="#C8FF2E" stroke-width="3"/><circle cx="50" cy="50" r="11" fill="none" stroke="#C8FF2E" stroke-width="2" opacity="0.6"/><circle cx="50" cy="50" r="3.5" fill="#C8FF2E"/></svg></template>
 <div style="position:relative;width:100vw;height:100dvh;overflow:hidden;background:#08090A;font-family:'JetBrains Mono',ui-monospace,monospace;color:#F2F3F0;user-select:none;-webkit-user-select:none;">
@@ -97,7 +97,7 @@
           <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.42);">A SWRV Systems production</div>
           <div style="width:18px;height:1px;background:rgba(242,243,240,0.25);"></div>
         </div>
-        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 19 · 18 Oct 2026</div>
+        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 21 · 18 Oct 2026</div>
       </div>
       <div style="max-width:420px;text-align:center;font-size:12.5px;line-height:1.7;color:rgba(242,243,240,0.55);">The visuals are driven entirely by what the microphone hears. Nothing is recorded or sent anywhere.</div>
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,230px));gap:10px;width:100%;max-width:470px;justify-content:center;">
@@ -156,7 +156,7 @@
     <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
       <div style="font-family:Archivo,sans-serif;font-weight:700;font-size:54px;letter-spacing:-0.03em;line-height:1;">SPECTRA</div>
       <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.36);">A SWRV Systems production</div>
-      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 19 · 18 Oct 2026</div>
+      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 21 · 18 Oct 2026</div>
     </div>
     <div ref="{{ warmWrapRef }}" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
       <div style="width:260px;height:2px;background:rgba(255,255,255,0.1);">
@@ -558,10 +558,11 @@
         <span style="display:{{ vidErrDisplay }};font-size:9px;letter-spacing:0.06em;color:rgba(242,243,240,0.6);">{{ vidErr }}</span>
         <div ref="{{ vidStripRef }}" style="display:{{ vidStripDisp }};width:100%;min-width:0;gap:4px;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;touch-action:pan-x;padding-bottom:5px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.22) transparent;">
           <sc-for list="{{ vidClips }}" as="c" hint-placeholder-count="0">
-            <button onClick="{{ c.select }}" onContextMenu="{{ c.del }}" data-vclip="{{ c.i }}" title="Click to play · × or right-click to remove" style="position:relative;flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:6px 26px 6px 8px;min-height:40px;max-width:200px;box-sizing:border-box;cursor:pointer;font-family:'JetBrains Mono',monospace;text-align:left;border:1px solid {{ c.chipBorder }};background:{{ c.chipBg }};color:{{ c.chipFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
-              <span style="font-size:8px;letter-spacing:0.14em;opacity:0.6;flex:0 0 auto;">{{ c.num }}</span>
-              <span style="font-size:9px;letter-spacing:0.04em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1 1 auto;">{{ c.name }}</span>
-              <span role="button" title="Remove clip" onClick="{{ c.clear }}" style="position:absolute;top:0;right:0;display:flex;align-items:center;justify-content:center;width:18px;height:18px;font-size:10px;line-height:1;color:rgba(242,243,240,0.7);cursor:pointer;" style-hover="color:#F2F3F0;background:rgba(255,255,255,0.12);">×</span>
+            <button onClick="{{ c.select }}" onContextMenu="{{ c.del }}" data-vclip="{{ c.i }}" title="Click to play · × or right-click to remove" style="position:relative;flex:0 0 auto;width:118px;height:66px;padding:0;overflow:hidden;cursor:pointer;border:1px solid {{ c.tBorder }};background:rgba(8,9,10,0.34);font-family:'JetBrains Mono',monospace;color:{{ c.tFg }};text-align:left;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+              <div style="display:{{ c.thumbDisp }};position:absolute;inset:0;background-image:{{ c.thumbBg }};background-size:cover;background-position:center;opacity:{{ c.thumbOp }};pointer-events:none;"></div><div style="display:{{ c.thumbDisp }};position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,9,10,0.05) 0%,rgba(8,9,10,0.72) 100%);pointer-events:none;"></div>
+              <span style="position:absolute;left:6px;right:20px;top:5px;display:flex;justify-content:space-between;gap:6px;font-size:8px;letter-spacing:0.14em;opacity:0.75;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);pointer-events:none;"><span>{{ c.n }}</span><span>{{ c.len }}</span></span>
+              <span style="position:absolute;left:6px;right:6px;bottom:5px;font-size:9.5px;font-weight:700;letter-spacing:0.03em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);pointer-events:none;">{{ c.name }}</span>
+              <span role="button" title="Remove clip" onClick="{{ c.clear }}" style="position:absolute;top:0;right:0;display:flex;align-items:center;justify-content:center;width:18px;height:18px;font-size:10px;line-height:1;color:rgba(242,243,240,0.8);cursor:pointer;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);" style-hover="color:#F2F3F0;background:rgba(255,255,255,0.12);">×</span>
             </button>
           </sc-for>
         </div>
@@ -628,8 +629,9 @@
         <div style="display:{{ deckSlotDisp }};grid-template-columns:{{ deckSlotCols }};flex-wrap:wrap;justify-content:flex-start;gap:5px;flex:1 1 auto;min-width:0;">
           <sc-for list="{{ slots }}" as="sl" hint-placeholder-count="8">
             <button onClick="{{ sl.click }}" onContextMenu="{{ sl.ctx }}" draggable="false" onDragOver="{{ sl.dragOver }}" onDragLeave="{{ sl.dragLeave }}" onDrop="{{ sl.drop }}" style="position:relative;display:flex;flex-direction:column;align-items:{{ deckSlotAlign }};gap:2px;flex:0 0 auto;min-width:{{ deckSlotMin }};width:{{ deckSlotW }};min-height:{{ deckBtnH }};justify-content:center;box-sizing:border-box;padding:6px 8px;cursor:pointer;font-family:'JetBrains Mono',monospace;text-align:{{ deckSlotText }};border:1px solid {{ sl.border }};background:{{ sl.bg }};color:{{ sl.fg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);overflow:hidden;">
-              <span style="font-size:8px;letter-spacing:0.14em;opacity:0.6;">{{ sl.num }}</span>
-              <span style="font-size:9px;letter-spacing:0.06em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">{{ sl.label }}</span>
+              <div style="display:{{ sl.thumbDisp }};position:absolute;inset:0;background-image:{{ sl.thumbBg }};background-size:cover;background-position:center;opacity:{{ sl.thumbOp }};pointer-events:none;"></div><div style="display:{{ sl.thumbDisp }};position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,9,10,0.05) 0%,rgba(8,9,10,0.72) 100%);pointer-events:none;"></div>
+              <span style="position:relative;font-size:8px;letter-spacing:0.14em;opacity:0.6;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);">{{ sl.num }}</span>
+              <span style="position:relative;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);font-size:9px;letter-spacing:0.06em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">{{ sl.label }}</span>
               <span role="button" title="Clear slot" onClick="{{ sl.clear }}" style="position:absolute;top:0;right:0;display:{{ sl.xDisp }};align-items:center;justify-content:center;width:18px;height:18px;font-size:10px;line-height:1;color:rgba(242,243,240,0.7);cursor:pointer;" style-hover="color:#F2F3F0;background:rgba(255,255,255,0.12);">×</span>
             </button>
           </sc-for>
@@ -672,11 +674,11 @@
         <span style="display:{{ cueEmptyDisp }};font-size:9px;letter-spacing:0.06em;color:rgba(242,243,240,0.45);">No cues yet — + Cue (or C) adds the live look.</span>
         <div ref="{{ cueStripRef }}" style="display:{{ cueStripDisp }};width:100%;min-width:0;gap:4px;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;touch-action:pan-x;padding-bottom:5px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.22) transparent;">
           <sc-for list="{{ cueRows }}" as="c" hint-placeholder-count="0">
-            <button onClick="{{ c.go }}" onContextMenu="{{ c.del }}" data-cue="{{ c.i }}" title="Click to go · × or right-click to remove" style="position:relative;flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:6px 26px 6px 8px;min-height:40px;max-width:200px;box-sizing:border-box;cursor:pointer;font-family:'JetBrains Mono',monospace;text-align:left;border:1px solid {{ c.border }};background:{{ c.bg }};color:{{ c.fg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
-              <span style="font-size:8px;letter-spacing:0.14em;opacity:0.6;flex:0 0 auto;">{{ c.n }}</span>
-              <span style="font-size:9px;letter-spacing:0.04em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1 1 auto;">{{ c.name }}</span>
-              <span style="font-size:8px;letter-spacing:0.08em;opacity:0.5;flex:0 0 auto;">{{ c.len }}</span>
-              <span role="button" title="Remove cue" onClick="{{ c.clear }}" style="position:absolute;top:0;right:0;display:flex;align-items:center;justify-content:center;width:18px;height:18px;font-size:10px;line-height:1;color:rgba(242,243,240,0.7);cursor:pointer;" style-hover="color:#F2F3F0;background:rgba(255,255,255,0.12);">×</span>
+            <button onClick="{{ c.go }}" onContextMenu="{{ c.del }}" data-cue="{{ c.i }}" title="Click to go · × or right-click to remove" style="position:relative;flex:0 0 auto;width:118px;height:66px;padding:0;overflow:hidden;cursor:pointer;border:1px solid {{ c.tBorder }};background:rgba(8,9,10,0.34);font-family:'JetBrains Mono',monospace;color:{{ c.tFg }};text-align:left;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+              <div style="display:{{ c.thumbDisp }};position:absolute;inset:0;background-image:{{ c.thumbBg }};background-size:cover;background-position:center;opacity:{{ c.thumbOp }};pointer-events:none;"></div><div style="display:{{ c.thumbDisp }};position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,9,10,0.05) 0%,rgba(8,9,10,0.72) 100%);pointer-events:none;"></div>
+              <span style="position:absolute;left:6px;right:20px;top:5px;display:flex;justify-content:space-between;gap:6px;font-size:8px;letter-spacing:0.14em;opacity:0.75;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);pointer-events:none;"><span>{{ c.n }}</span><span>{{ c.len }}</span></span>
+              <span style="position:absolute;left:6px;right:6px;bottom:5px;font-size:9.5px;font-weight:700;letter-spacing:0.03em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);pointer-events:none;">{{ c.name }}</span>
+              <span role="button" title="Remove cue" onClick="{{ c.clear }}" style="position:absolute;top:0;right:0;display:flex;align-items:center;justify-content:center;width:18px;height:18px;font-size:10px;line-height:1;color:rgba(242,243,240,0.8);cursor:pointer;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);" style-hover="color:#F2F3F0;background:rgba(255,255,255,0.12);">×</span>
             </button>
           </sc-for>
         </div>
@@ -985,8 +987,9 @@
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;">
           <sc-for list="{{ slots }}" as="sl" hint-placeholder-count="8">
             <button onClick="{{ sl.click }}" onContextMenu="{{ sl.ctx }}" draggable="false" onDragOver="{{ sl.dragOver }}" onDragLeave="{{ sl.dragLeave }}" onDrop="{{ sl.drop }}" style="position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:6px 7px;cursor:pointer;font-family:'JetBrains Mono',monospace;text-align:left;overflow:hidden;border:1px solid {{ sl.border }};background:{{ sl.bg }};color:{{ sl.fg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
-              <span style="font-size:8px;letter-spacing:0.14em;opacity:0.6;">{{ sl.num }}</span>
-              <span style="font-size:8.5px;letter-spacing:0.04em;text-transform:uppercase;white-space:nowrap;">{{ sl.label }}</span>
+              <div style="display:{{ sl.thumbDisp }};position:absolute;inset:0;background-image:{{ sl.thumbBg }};background-size:cover;background-position:center;opacity:{{ sl.thumbOp }};pointer-events:none;"></div><div style="display:{{ sl.thumbDisp }};position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,9,10,0.05) 0%,rgba(8,9,10,0.72) 100%);pointer-events:none;"></div>
+              <span style="position:relative;font-size:8px;letter-spacing:0.14em;opacity:0.6;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);">{{ sl.num }}</span>
+              <span style="position:relative;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);font-size:8.5px;letter-spacing:0.04em;text-transform:uppercase;white-space:nowrap;">{{ sl.label }}</span>
               <span role="button" title="Clear slot" onClick="{{ sl.clear }}" style="position:absolute;top:0;right:0;display:{{ sl.xDisp }};align-items:center;justify-content:center;width:18px;height:18px;font-size:10px;line-height:1;color:rgba(242,243,240,0.7);cursor:pointer;" style-hover="color:#F2F3F0;background:rgba(255,255,255,0.12);">×</span>
             </button>
           </sc-for>
@@ -1020,10 +1023,11 @@
         </div>
         <div style="display:flex;flex-direction:column;gap:3px;">
           <sc-for list="{{ cueRows }}" as="c" hint-placeholder-count="0">
-            <button onClick="{{ c.go }}" onContextMenu="{{ c.del }}" title="Click to go · × or right-click to remove" style="position:relative;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 26px 6px 8px;cursor:pointer;font-family:'JetBrains Mono',monospace;text-align:left;border:1px solid {{ c.border }};background:{{ c.bg }};color:{{ c.fg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
-              <span style="font-size:8px;letter-spacing:0.14em;opacity:0.6;flex:0 0 auto;">{{ c.n }}</span>
-              <span style="font-size:9px;letter-spacing:0.04em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1 1 auto;">{{ c.name }}</span>
-              <span style="font-size:8px;letter-spacing:0.08em;opacity:0.5;flex:0 0 auto;">{{ c.len }}</span>
+            <button onClick="{{ c.go }}" onContextMenu="{{ c.del }}" title="Click to go · × or right-click to remove" style="position:relative;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 26px 6px 8px;cursor:pointer;font-family:'JetBrains Mono',monospace;text-align:left;border:1px solid {{ c.border }};background:{{ c.bg }};color:{{ c.fg }};overflow:hidden;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+              <div style="display:{{ c.thumbDisp }};position:absolute;inset:0;background-image:{{ c.thumbBg }};background-size:cover;background-position:center;opacity:{{ c.thumbOp }};pointer-events:none;"></div><div style="display:{{ c.thumbDisp }};position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,9,10,0.05) 0%,rgba(8,9,10,0.72) 100%);pointer-events:none;"></div>
+              <span style="position:relative;font-size:8px;letter-spacing:0.14em;opacity:0.6;flex:0 0 auto;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);">{{ c.n }}</span>
+              <span style="position:relative;font-size:9px;letter-spacing:0.04em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1 1 auto;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);">{{ c.name }}</span>
+              <span style="position:relative;font-size:8px;letter-spacing:0.08em;opacity:0.5;flex:0 0 auto;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);">{{ c.len }}</span>
               <span role="button" title="Remove cue" onClick="{{ c.clear }}" style="position:absolute;top:0;right:0;display:flex;align-items:center;justify-content:center;width:18px;height:18px;font-size:10px;line-height:1;color:rgba(242,243,240,0.7);cursor:pointer;" style-hover="color:#F2F3F0;background:rgba(255,255,255,0.12);">×</span>
             </button>
           </sc-for>
@@ -1376,7 +1380,7 @@
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:8px;">
       <button onClick="{{ touchParamCycle }}" style="height:46px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:'JetBrains Mono',monospace;cursor:pointer;border:1px solid var(--acc42);background:var(--acc10);color:var(--acc);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
-        <span style="font-size:8px;letter-spacing:0.14em;opacity:0.65;">DRAG Y</span>
+        <span style="font-size:8px;letter-spacing:0.14em;opacity:0.65;">DRAG ↕ · ↔ HUE</span>
         <span style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">{{ touchParamLabel }}</span>
       </button>
       <button onClick="{{ palCycle }}" style="height:46px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:'JetBrains Mono',monospace;cursor:pointer;border:1px solid rgba(255,255,255,0.16);background:rgba(8,9,10,0.34);color:#F2F3F0;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
@@ -1418,7 +1422,7 @@
           </sc-for>
         </div>
       </div>
-      <div style="font-size:9px;line-height:1.5;letter-spacing:0.04em;color:rgba(242,243,240,0.55);text-shadow:0 0 3px rgba(8,9,10,0.95),0 0 7px rgba(8,9,10,0.85),0 1px 2px rgba(8,9,10,0.9);">One finger: same as a mouse drag (on scenes: tap or drag to place the vanishing point) · two fingers: pinch zoom, twist turn, drag pan · three fingers: {{ touchParamLabel }} + hue · double-tap: hide chrome</div>
+      <div style="font-size:9px;line-height:1.5;letter-spacing:0.04em;color:rgba(242,243,240,0.55);text-shadow:0 0 3px rgba(8,9,10,0.95),0 0 7px rgba(8,9,10,0.85),0 1px 2px rgba(8,9,10,0.9);">One finger: drag ↕ {{ touchParamLabel }}, ↔ colour · two fingers: drag to move the view (same as a mouse drag), pinch zoom, twist turn · three fingers: pan · double-tap: hide chrome</div>
     </div>
   </div>
 
@@ -1965,11 +1969,11 @@ class Component extends DCLogic {
       cv0.addEventListener('wheel', this.onWheel, {passive:false});
       cv0.style.cursor='grab';
 
-      // Touch: one finger does what a plain mouse drag does in that scene; two
-      // fingers pinch to zoom, twist to rotate and drag to pan (all families) —
-      // the touch side of the mouse's shift/right drag and wheel; three fingers
-      // drag the chosen parameter (Y) and hue (X); double-tap toggles chrome. Same state the
-      // gamepad writes, so easing and automation still apply.
+      // Touch: one finger drags the chosen parameter (Y) and hue (X); two
+      // fingers move the view the way a plain mouse drag does in that scene,
+      // and pinch to zoom and twist to turn; three fingers pan; double-tap
+      // toggles chrome. Same state the gamepad writes, so easing and automation
+      // still apply.
       const T = this.touch = {};
       // Fly / Surface targeting: press a point and hold to set how far to go.
       // Under a second is one step, each further second one more; the ring
@@ -2006,34 +2010,32 @@ class Component extends DCLogic {
       cv0.addEventListener('mouseup', (e)=>{ if(e.button===0) holdUp(); else holdOff(); }); cv0.addEventListener('mouseleave', holdOff);
       cv0.addEventListener('click', ()=>{ this.held=false; });
       cv0.addEventListener('dblclick', ()=>{ clearTimeout(this.tapTimer); this.camFly && this.camFly.cancelCharge && this.camFly.cancelCharge(); if(T.last && Date.now()-T.last<700) return; this.autoHidden=false; this.setState(s=>({chrome:!s.chrome})); });
+      // Ends the two-finger view drag: a fresh flick keeps a 3D orbit turning,
+      // and the plain-drag handler gets its mouse-up.
+      const viewEnd=()=>{
+        const R=T.rot;
+        if(R){
+          const W=Math.max(1,cv0.clientWidth), H=Math.max(1,cv0.clientHeight);
+          const fresh=performance.now()-R.lt<90, sp=Math.hypot(R.vx,R.vy);
+          if(fresh && sp>250){ const cap=v=>Math.max(-6,Math.min(6,v)); this.fling={vy:cap(-R.vx/W*3.4), vp:cap(R.vy/H*2.4)}; }
+          T.rot=null;
+        }
+        if(T.drag){ T.drag=false; this.md=null; this.onMUp && this.onMUp(); }
+      };
       cv0.addEventListener('touchstart', (e)=>{
         if(e.touches.length===1){
           const t=e.touches[0];
           T.x=t.clientX; T.y=t.clientY;
           T.p0=this.state.p[this.state.touchParam] ?? 0.5;
           T.h0=this.state.p.hue ?? 0.5;
-          T.rot=null;
-          // Orbit gestures on 3D scenes:
-          //   1 finger drag  - turn the fractal (same sense as the mouse)
-          //   flick, release - it keeps spinning and slows to a stop
-          //   hold still     - stops a spin
-          //   2 fingers      - pinch zoom, twist roll, drag pan
-          //   3 fingers      - the old parameter (Y) / hue (X) drag
+          T.rot=null; T.drag=false; T.surf=false;
+          // One finger is the parameter (Y) / hue (X) drag on every scene. The
+          // view moved to two fingers, where it no longer fights this drag:
+          //   1 finger       - parameter (Y), hue (X); hold and tap as before
+          //   2 fingers      - drag: orbit on 3D (flick to spin), travel or
+          //                    look-around elsewhere; pinch zoom; twist turn
+          //   3 fingers      - pan
           //   double tap     - menu, unchanged
-          T.drag=false; T.surf=false;
-          if(orb3()){ T.p0=null; this.fling=null; this.cancelHome && this.cancelHome();
-            T.rot={x:t.clientX,y:t.clientY,yaw:this.cam.yaw,pitch:this.cam.pitch,lx:t.clientX,ly:t.clientY,lt:performance.now(),vx:0,vy:0};
-            this.pivGrab(); }
-          // Every other scene: one finger is exactly the mouse's plain drag —
-          // travel on 2D and the canvas scenes, look-around in Fly and Surface —
-          // through the same handler, so the two can never drift apart. The
-          // parameter/hue drag moved to three fingers, as on the 3D orbit.
-          // Shorebreak's rider follows the hovering mouse; a finger has no
-          // hover, so on that scene one finger steers him instead.
-          else { T.p0=null; T.drag=true; this.cancelHome && this.cancelHome();
-            this.md={x:t.clientX, y:t.clientY, yaw:this.cam.yaw, pitch:this.cam.pitch, px:this.pan.x, py:this.pan.y, alt:false};
-            this.pivGrab();
-            if(this.isCanvasScene && this.isCanvasScene()) this.onMMove({clientX:t.clientX, clientY:t.clientY}); }
           const now=Date.now();
           T.tx=t.clientX; T.ty=t.clientY; T.tt=now;
           holdOn(t.clientX,t.clientY);
@@ -2045,21 +2047,28 @@ class Component extends DCLogic {
           }
           T.last=now;
         } else if(e.touches.length===3){
-          holdOff(); T.rot=null; T.d0=null; T.tt=0; if(T.drag){ this.md=null; T.drag=false; } T.surf=false;
+          holdOff(); T.p0=null; T.d0=null; T.tt=0; viewEnd();
           const c3=[0,1,2].map(i=>e.touches[i]);
-          T.x=(c3[0].clientX+c3[1].clientX+c3[2].clientX)/3; T.y=(c3[0].clientY+c3[1].clientY+c3[2].clientY)/3;
-          T.p0=this.state.p[this.state.touchParam] ?? 0.5; T.h0=this.state.p.hue ?? 0.5; T.three=true;
+          T.cx=(c3[0].clientX+c3[1].clientX+c3[2].clientX)/3; T.cy=(c3[0].clientY+c3[1].clientY+c3[2].clientY)/3;
+          T.px=this.pan.x; T.py=this.pan.y; T.three=true;
+          this.pivGrab();
         } else if(e.touches.length===2){
-          holdOff(); T.rot=null; T.roll0=this.cam.roll||0; T.sr0=this.scnRoll||0; this.vpGoal=null; this.fling=null; if(T.drag){ this.md=null; T.drag=false; } T.surf=false;
+          holdOff(); T.p0=null; T.rot=null; T.roll0=this.cam.roll||0; T.sr0=this.scnRoll||0; this.vpGoal=null; this.fling=null;
           const a=e.touches[0], b=e.touches[1];
           T.d0=Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY);
           T.z0=this.state.p.zoom ?? 0.5;
-          // Twist rotates, centroid drag pans — on every family. Both are
-          // measured against the state captured here, so the two compose with
-          // the pinch instead of fighting it.
+          // Twist is measured against the state captured here, so it composes
+          // with the pinch instead of fighting it.
           T.a0=Math.atan2(b.clientY-a.clientY, b.clientX-a.clientX);
-          T.cx=(a.clientX+b.clientX)/2; T.cy=(a.clientY+b.clientY)/2;
-          T.yaw0=this.cam.yaw; T.px=this.pan.x; T.py=this.pan.y;
+          T.yaw0=this.cam.yaw;
+          // The pair's midpoint drives the view exactly as one finger used to:
+          // orbit on 3D, and elsewhere the mouse's own plain-drag handler.
+          const cx=(a.clientX+b.clientX)/2, cy=(a.clientY+b.clientY)/2;
+          this.cancelHome && this.cancelHome();
+          if(orb3()) T.rot={x:cx,y:cy,yaw:this.cam.yaw,pitch:this.cam.pitch,lx:cx,ly:cy,lt:performance.now(),vx:0,vy:0};
+          else if(!T.drag){ T.drag=true;
+            this.md={x:cx, y:cy, yaw:this.cam.yaw, pitch:this.cam.pitch, px:this.pan.x, py:this.pan.y, alt:false};
+            if(this.isCanvasScene && this.isCanvasScene()) this.onMMove({clientX:cx, clientY:cy}); }
           this.pivGrab();
         }
         this.onActivity();
@@ -2067,75 +2076,61 @@ class Component extends DCLogic {
       cv0.addEventListener('touchmove', (e)=>{
         e.preventDefault();
         const W=Math.max(1,cv0.clientWidth), H=Math.max(1,cv0.clientHeight);
-        if(e.touches.length===1 && T.rot){
-          const t=e.touches[0], R=T.rot;
-          holdMove(t.clientX,t.clientY,12);
-          this.cancelHome && this.cancelHome();
-          this.cam.yaw=R.yaw-(t.clientX-R.x)/W*3.4;
-          let np=R.pitch+(t.clientY-R.y)/H*2.4;
-          if(np>Math.PI) np-=Math.PI*2; else if(np<-Math.PI) np+=Math.PI*2;
-          this.cam.pitch=np;
-          const nt=performance.now(), dtt=Math.max(1,nt-R.lt)/1000;
-          R.vx=R.vx*0.6+((t.clientX-R.lx)/dtt)*0.4; R.vy=R.vy*0.6+((t.clientY-R.ly)/dtt)*0.4;
-          R.lx=t.clientX; R.ly=t.clientY; R.lt=nt;
-        } else if(e.touches.length===1 && T.drag && this.md){
-          const t=e.touches[0];
-          holdMove(t.clientX,t.clientY,12);
-          this.onMMove({clientX:t.clientX, clientY:t.clientY});
-        } else if(e.touches.length===1 && T.surf){
-          const t=e.touches[0];
-          holdMove(t.clientX,t.clientY,12);
-          this.onMSurf && this.onMSurf({clientX:t.clientX, clientY:t.clientY});
-        } else if(e.touches.length===3 && T.three && T.p0!=null){
-          const c3=[0,1,2].map(i=>e.touches[i]);
-          const cx=(c3[0].clientX+c3[1].clientX+c3[2].clientX)/3, cy=(c3[0].clientY+c3[1].clientY+c3[2].clientY)/3;
-          this.setP(this.state.touchParam, T.p0 - (cy-T.y)/H*1.25);
-          this.setP('hue', T.h0 + (cx-T.x)/W*0.9);
-        } else if(e.touches.length===1 && T.p0!=null && !T.three){
+        if(e.touches.length===1 && T.p0!=null && !T.three){
           const t=e.touches[0];
           holdMove(t.clientX,t.clientY,12);
           this.setP(this.state.touchParam, T.p0 - (t.clientY-T.y)/H*1.25);
           this.setP('hue', T.h0 + (t.clientX-T.x)/W*0.9);
-        } else if(e.touches.length===2 && T.d0!=null){
-          const a=e.touches[0], b=e.touches[1];
-          const d=Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY);
-          this.setP('zoom', T.z0 + (d-T.d0)/Math.max(W,H)*1.5);
-          this.cancelHome();
-          // Twist: the signed angle between the current finger line and the one
-          // at touch-down, unwrapped so a turn past ±180° keeps going instead of
-          // snapping back. Turning the fingers clockwise turns the scene
-          // clockwise, so yaw takes the raw delta.
-          let da=Math.atan2(b.clientY-a.clientY, b.clientX-a.clientX) - T.a0;
-          while(da>Math.PI) da-=Math.PI*2;
-          while(da<-Math.PI) da+=Math.PI*2;
-          // Orbit on 3D: twist rolls the fractal with the fingers. Elsewhere it
-          // still turns (yaw) as before.
-          if(orb3()){ let nr=(T.roll0||0)-da; if(nr>Math.PI) nr-=Math.PI*2; else if(nr<-Math.PI) nr+=Math.PI*2; this.cam.roll=nr; }
-          else if(this.isCanvasScene && this.isCanvasScene()) this.scnRoll=Math.max(-0.52,Math.min(0.52,(T.sr0||0)+da));
-          else this.cam.yaw = T.yaw0 - da*1.6;
-          // Centroid drag pans, in the same screen-width units and per-family
-          // sense the mouse pan uses.
-          const dx=((a.clientX+b.clientX)/2 - T.cx)/W;
-          const dy=((a.clientY+b.clientY)/2 - T.cy)/H;
+        } else if(e.touches.length===3 && T.three){
+          const c3=[0,1,2].map(i=>e.touches[i]);
+          const dx=((c3[0].clientX+c3[1].clientX+c3[2].clientX)/3 - T.cx)/W;
+          const dy=((c3[0].clientY+c3[1].clientY+c3[2].clientY)/3 - T.cy)/H;
+          // Same screen-width units and per-family sense the mouse pan uses.
           const un=this.is2D();
           const cl=(v)=>un?v:Math.max(-1.6,Math.min(1.6,v));
           const k = this.isCanvasScene() ? [-1.8,1.8] : (un ? [1.8,-1.8] : [1.5,-1.5]);
           if(un) this.manual2D = true;
+          this.cancelHome && this.cancelHome();
           this.pan.x=cl(T.px - dx*k[0]); this.pan.y=cl(T.py - dy*k[1]);
           this.pan.vx=0; this.pan.vy=0;
+        } else if(e.touches.length===2 && T.d0!=null){
+          const a=e.touches[0], b=e.touches[1];
+          const cx=(a.clientX+b.clientX)/2, cy=(a.clientY+b.clientY)/2;
+          const d=Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY);
+          this.setP('zoom', T.z0 + (d-T.d0)/Math.max(W,H)*1.5);
+          this.cancelHome();
+          if(T.rot){
+            const R=T.rot;
+            this.cam.yaw=R.yaw-(cx-R.x)/W*3.4;
+            let np=R.pitch+(cy-R.y)/H*2.4;
+            if(np>Math.PI) np-=Math.PI*2; else if(np<-Math.PI) np+=Math.PI*2;
+            this.cam.pitch=np;
+            const nt=performance.now(), dtt=Math.max(1,nt-R.lt)/1000;
+            R.vx=R.vx*0.6+((cx-R.lx)/dtt)*0.4; R.vy=R.vy*0.6+((cy-R.ly)/dtt)*0.4;
+            R.lx=cx; R.ly=cy; R.lt=nt;
+          } else if(T.drag && this.md) this.onMMove({clientX:cx, clientY:cy});
+          // Twist: the signed angle between the current finger line and the one
+          // at touch-down, unwrapped so a turn past ±180° keeps going instead of
+          // snapping back. Turning the fingers clockwise turns the scene
+          // clockwise.
+          let da=Math.atan2(b.clientY-a.clientY, b.clientX-a.clientX) - T.a0;
+          while(da>Math.PI) da-=Math.PI*2;
+          while(da<-Math.PI) da+=Math.PI*2;
+          // Orbit on 3D: twist rolls the fractal with the fingers. 2D scenes
+          // turn (yaw). Fly and Surface leave yaw to the drag's look-around.
+          if(orb3()){ let nr=(T.roll0||0)-da; if(nr>Math.PI) nr-=Math.PI*2; else if(nr<-Math.PI) nr+=Math.PI*2; this.cam.roll=nr; }
+          else if(this.isCanvasScene && this.isCanvasScene()) this.scnRoll=Math.max(-0.52,Math.min(0.52,(T.sr0||0)+da));
+          else if(this.is2D()) this.cam.yaw = T.yaw0 - da*1.6;
         }
       }, {passive:false});
       cv0.addEventListener('touchend', (e)=>{
         const c=e.changedTouches&&e.changedTouches[0];
         if(e.touches.length===0 && !T.three) holdUp(); else holdOff();
         if(this.held){ this.held=false; T.tt=0; }
-        if(T.rot && e.touches.length===0){
-          const R=T.rot, W=Math.max(1,cv0.clientWidth), H=Math.max(1,cv0.clientHeight);
-          const fresh=performance.now()-R.lt<90, sp=Math.hypot(R.vx,R.vy);
-          if(fresh && sp>250){ const cap=v=>Math.max(-6,Math.min(6,v)); this.fling={vy:cap(-R.vx/W*3.4), vp:cap(R.vy/H*2.4)}; }
-          T.rot=null;
-        }
-        if(e.touches.length===0){ T.three=false; T.surf=false; if(T.drag){ T.drag=false; this.onMUp && this.onMUp(); } }
+        // Two fingers down to one (or none) ends the view drag; the finger
+        // left on the glass does nothing until it lifts.
+        if(e.touches.length<2) viewEnd();
+        if(e.touches.length===0){ T.three=false; T.surf=false; }
         if(e.touches.length>0) T.tt=0;
         T.p0=null; T.d0=null; T.a0=null; this.pivHeld=false; }, {passive:true});
     };
@@ -10634,11 +10629,14 @@ class Component extends DCLogic {
     }catch(e){ return new Array(8).fill(null); }
   }
   persistSlots(slots){
-    try{ localStorage.setItem('spectra.slots', JSON.stringify(slots)); }catch(e){}
+    // Stills make the list bigger; past the storage quota, keep the looks without them.
+    try{ localStorage.setItem('spectra.slots', JSON.stringify(slots)); }
+    catch(e){ try{ localStorage.setItem('spectra.slots', JSON.stringify(slots.map(x => x && Object.assign({}, x, {thumb:''})))); }catch(e2){} }
   }
   saveSlot(i){
     const s = this.state;
     const snap = this.snapNow();
+    this.snapThumb(snap);
     const slots = s.slots.slice(); slots[i] = snap;
     this.persistSlots(slots);
     this.setState({slots, lastSlot:i});
@@ -10662,6 +10660,7 @@ class Component extends DCLogic {
     if(pr.pal != null) snap.pal = pr.pal;
     snap.cam = {yaw:0, pitch:0, roll:0, auto:snap.cam.auto};
     snap.pan = {x:0, y:0};
+    snap.thumb = (this.thumbMem || {})[pr.name] || '';
     const slots = this.state.slots.slice(); slots[i] = snap;
     this.persistSlots(slots);
     this.setState({slots});
@@ -13043,6 +13042,30 @@ class Component extends DCLogic {
   // scene that has been up and settled for 2.5s with no still gets one taken,
   // once, from the clean scene (not vector, video or mid-transition), and the
   // set is saved with the scan stills.
+  // Slots and cues take their still from the next drawn frame: the GL
+  // read-back is only valid straight after a draw, not from a click handler.
+  wantThumb(cb){ (this._thumbQ || (this._thumbQ = [])).push(cb); }
+  thumbJobs(){
+    const q = this._thumbQ; if(!q || !q.length) return;
+    this._thumbQ = [];
+    const cap = this.scanCapture(), url = (cap && cap.luma >= 3) ? cap.url : null;
+    q.forEach(cb => { try{ cb(url); }catch(e){} });
+  }
+  // A still for a stored look: kept on the snap itself, so the slot or cue
+  // shows what it was saved as. The scene's own still is filled from it too
+  // when it has none yet, unless video was over the frame.
+  snapThumb(snap){
+    snap.thumb = (this.thumbMem || {})[snap.name] || '';
+    this.wantThumb(url => {
+      if(!url) return;
+      snap.thumb = url;
+      const sl = this.state.slots || [], cu = this.state.cues || [];
+      if(sl.includes(snap)){ const a = sl.slice(); this.persistSlots(a); this.setState({slots:a}); }
+      if(cu.some(c => c.snap === snap)){ const a = cu.slice(); this.persistCues(a); this.setState({cues:a}); }
+      const mem = this.thumbMem || (this.thumbMem = {});
+      if(!mem[snap.name] && !(this.state.vid && this.state.vid.on)){ mem[snap.name] = url; this.saveThumbs(mem); }
+    });
+  }
   autoThumb(){
     const now = performance.now();
     if(now - (this._atT||0) < 1000) return; this._atT = now;
@@ -13770,9 +13793,13 @@ class Component extends DCLogic {
   // Cue list: an ordered walk through the set. Each cue carries its own
   // transition and length, so the shape of the change is part of the cue rather
   // than a global setting you have to remember to move.
-  persistCues(cues){ try{ localStorage.setItem('spectra.cues', JSON.stringify(cues)); }catch(e){} }
+  persistCues(cues){
+    try{ localStorage.setItem('spectra.cues', JSON.stringify(cues)); }
+    catch(e){ try{ localStorage.setItem('spectra.cues', JSON.stringify(cues.map(c => Object.assign({}, c, {snap:Object.assign({}, c.snap, {thumb:''})})))); }catch(e2){} }
+  }
   addCue(){
-    const cues=(this.state.cues||[]).concat([{snap:this.snapNow(), len:this.state.xfLen ?? 1.6, mode:this.state.xfMode||0}]);
+    const snap=this.snapNow(); this.snapThumb(snap);
+    const cues=(this.state.cues||[]).concat([{snap, len:this.state.xfLen ?? 1.6, mode:this.state.xfMode||0}]);
     this.persistCues(cues); this.setState({cues}, ()=>this.cueStripFollow(cues.length-1));
   }
   delCue(i){
@@ -14215,7 +14242,7 @@ class Component extends DCLogic {
 
     // Canvas scenes own the frame: skip the whole raymarch/post chain. Sizing
     // still runs for them, or the backing store stays at 1x1.
-    if(this.canvasMode()){ this.buildFx(null, false); this.resize(); if(this.scan) this.scanFrame(); else this.autoThumb(); return; }
+    if(this.canvasMode()){ this.buildFx(null, false); this.resize(); this.thumbJobs(); if(this.scan) this.scanFrame(); else this.autoThumb(); return; }
     const e=this.eff, gl=this.gl, vd=this.state.vid;
     // A family that is still linking returns 'wait'. Returning here used to mean
     // drawing nothing — which is NOT the same as holding the last frame: resize()
@@ -15033,7 +15060,7 @@ class Component extends DCLogic {
         }
       }catch(e){}
     }
-    if(this.scan) this.scanFrame(); else this.autoThumb();
+    this.thumbJobs(); if(this.scan) this.scanFrame(); else this.autoThumb();
   };
 
   // Start a family's link WITHOUT switching to it. There is nothing to preload
@@ -15242,6 +15269,14 @@ class Component extends DCLogic {
     // I kept looking at. accRGB() already had the literal right.
     const s=this.state, accent=s.accentSel||this.props.accent||'#C8FF2E';
     const deckTab = this.DECK_TABS.some(t=>t[0]===s.deckTab) ? s.deckTab : 'scenes';
+    // Stills on cue, clip and slot tiles. Over a still, the live one keeps the
+    // dark ground with an accent edge and text, so the picture stays readable.
+    const stillOf = (key, url, on, base) => {
+      const c = url ? (on ? {bg:'rgba(8,9,10,0.34)', fg:accent, border:accent} : Object.assign({}, base || chip(false), {bg:'rgba(8,9,10,0.34)'})) : (base || chip(on));
+      return Object.assign({}, c, {
+        tBorder: on ? accent : 'rgba(255,255,255,0.11)', tFg: on ? accent : 'rgba(242,243,240,0.85)',
+        thumbBg: url ? 'url("' + this.blobOf(key, url) + '")' : 'none', thumbDisp: url ? 'block' : 'none', thumbOp: on ? 1 : 0.85 });
+    };
     const chip = on => on ? {bg:accent,fg:'#08090A',border:accent}
       : {bg:'rgba(8,9,10,0.34)',fg:'rgba(242,243,240,0.78)',border:'rgba(255,255,255,0.11)'};
     // Tabs group by LOOK, not by how the pixels get made. The old four were the
@@ -15545,7 +15580,7 @@ class Component extends DCLogic {
         del:(ev)=>{ if(ev && ev.preventDefault) ev.preventDefault(); this.delCue(i); },
         // The × sits inside the cue button, so it must not also fire the cue.
         clear:(ev)=>{ if(ev){ ev.stopPropagation && ev.stopPropagation(); ev.preventDefault && ev.preventDefault(); } this.delCue(i); }
-      }, chip(i===s.cueIdx))),
+      }, stillOf('cue:'+i, (c.snap&&c.snap.thumb) || thumbs[(c.snap&&c.snap.name)||''], i===s.cueIdx))),
       cueStripRef: this.cueStripRef,
       cueStripDisp: (s.cues||[]).length ? 'flex' : 'none',
       cueEmptyDisp: (s.cues||[]).length ? 'none' : 'block',
@@ -15929,9 +15964,11 @@ class Component extends DCLogic {
           : i===s.lastSlot && filled ? chip(true) : (filled
           ? {bg:this.accA(0.14), fg:'#F2F3F0', border:this.accA(0.4)}
           : {bg:'rgba(8,9,10,0.34)', fg:'rgba(242,243,240,0.3)', border:'rgba(255,255,255,0.1)'});
+        const st = filled ? stillOf('slot:'+i, sl.thumb || thumbs[sl.name], i===s.lastSlot, c) : Object.assign({thumbBg:'none', thumbDisp:'none', thumbOp:0}, c);
         return {
           num:(i+1)+'', label: filled ? sl.name : 'empty',
-          bg:c.bg, fg:c.fg, border:c.border,
+          bg:st.bg, fg:st.fg, border:st.border,
+          thumbBg:st.thumbBg, thumbDisp:st.thumbDisp, thumbOp:st.thumbOp,
           n:(i+1)+'',
           tap:()=>{ if(filled) this.recallSlot(i); else this.saveSlot(i); },
           click:(ev)=>{ if(ev && (ev.shiftKey||ev.altKey)) this.saveSlot(i); else if(filled) this.recallSlot(i); else this.saveSlot(i); },
@@ -16004,8 +16041,7 @@ class Component extends DCLogic {
           del: (ev) => { if(ev && ev.preventDefault) ev.preventDefault(); this.vidDrop(i); },
           // The × sits inside the clip button, so it must not also play the clip.
           clear: (ev) => { if(ev){ ev.stopPropagation && ev.stopPropagation(); ev.preventDefault && ev.preventDefault(); } this.vidDrop(i); },
-          // Deck strip: coloured like the cue strip.
-          chipBorder: chip(on).border, chipBg: chip(on).bg, chipFg: chip(on).fg };
+          n: String(i+1).padStart(2,'0'), len: '', tBorder: on ? accent : 'rgba(255,255,255,0.11)', tFg: on ? accent : 'rgba(242,243,240,0.85)', thumbDisp: th ? 'block' : 'none' };
       }),
       vidDirRef: this.vidDirRef,
       vidFileRef: this.vidFileRef, vidLayerRef: this.vidLayerRef,
