@@ -1388,8 +1388,11 @@
 
   <!-- The text is rewritten four times a second into the inner box, so the
        close button lives on the outer one, which also carries the drag. -->
-  <div style="position:absolute;right:22px;bottom:20px;z-index:44;display:{{ diagDisplay }};font-family:'JetBrains Mono',monospace;font-size:10px;line-height:1.55;letter-spacing:0.02em;white-space:pre;color:rgba(242,243,240,0.72);background:rgba(8,9,10,0.34);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.11);padding:13px 15px;box-sizing:border-box;max-height:calc(100vh - 40px);overflow-y:auto;overscroll-behavior:contain;transform:{{ diagShift }};cursor:grab;touch-action:none;pointer-events:auto;" onPointerDown="{{ diagDrag.down }}" onPointerMove="{{ diagDrag.move }}" onPointerUp="{{ diagDrag.up }}" onPointerCancel="{{ diagDrag.up }}" onDoubleClick="{{ diagDrag.reset }}" title="Drag to move · double-click to put it back">
-    <button onClick="{{ diagClose }}" onPointerDown="{{ stopEv }}" title="Close diagnostics (J)" style="position:absolute;top:10px;right:10px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1;padding:3px 7px;cursor:pointer;border:1px solid rgba(255,255,255,0.12);background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.45);" style-hover="color:#F2F3F0;border-color:rgba(255,255,255,0.3);">×</button>
+  <div style="position:absolute;right:22px;bottom:20px;z-index:44;font-family:'JetBrains Mono',monospace;font-size:10px;line-height:1.55;letter-spacing:0.02em;white-space:pre;color:rgba(242,243,240,0.72);background:rgba(8,9,10,0.34);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.11);padding:16px 18px 18px;display:{{ diagDisplay }};flex-direction:column;gap:14px;box-sizing:border-box;max-height:calc(100vh - 40px);overflow-y:auto;overscroll-behavior:contain;transform:{{ diagShift }};cursor:grab;touch-action:none;pointer-events:auto;" onPointerDown="{{ diagDrag.down }}" onPointerMove="{{ diagDrag.move }}" onPointerUp="{{ diagDrag.up }}" onPointerCancel="{{ diagDrag.up }}" onDoubleClick="{{ diagDrag.reset }}" title="Drag to move · double-click to put it back">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+      <div style="font-size:9.5px;letter-spacing:0.24em;text-transform:uppercase;color:rgba(242,243,240,0.55);">Diagnostics</div>
+      <button onClick="{{ diagClose }}" onPointerDown="{{ stopEv }}" title="Close diagnostics (J)" style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1;padding:3px 7px;cursor:pointer;border:1px solid rgba(255,255,255,0.12);background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.45);" style-hover="color:#F2F3F0;border-color:rgba(255,255,255,0.3);">×</button>
+    </div>
     <div id="vj-diag" ref="{{ diagRef }}" style="white-space:pre;"></div>
   </div>
 
@@ -9879,8 +9882,7 @@ class Component extends DCLogic {
     if(!el) return;
     try{ this.diagBody(el); }
     catch(err){
-      el.textContent = 'DIAGNOSTICS            J to close\n\n'
-        + 'This panel threw while building its own text.\n\n'
+      el.textContent = 'This panel threw while building its own text.\n\n'
         + (err && err.message ? err.message : String(err)) + '\n\n'
         + ((err && err.stack ? err.stack : '').split('\n').slice(0,6).join('\n'));
     }
@@ -9898,8 +9900,6 @@ class Component extends DCLogic {
     const f = p => p ? (Math.round(p.x*1920) + ',' + Math.round(p.y*942) + '  id ' + p.id) : '—';
     const live = H.dev && performance.now() - H.ok < 400;
     el.textContent = [
-      'DIAGNOSTICS            J to close',
-      '',
       'navigator.hid   ' + (navigator.hid ? 'present' : 'MISSING'),
       'secure context  ' + (secure ? 'yes' : 'NO — needs https or localhost'),
       'in iframe       ' + (framed ? 'YES — needs allow="hid"' : 'no'),
@@ -15710,7 +15710,7 @@ class Component extends DCLogic {
       strobeRateSel: String(s.strobeRate || 1),
       strobeRateOptions: [{v:'1',tag:'Every beat'},{v:'2',tag:'Every 2nd'},{v:'4',tag:'Downbeat'}],
       setStrobeRate: (e)=>this.setState({strobeRate: parseFloat(e.target.value)||1}),
-      diagDisplay: s.diag ? 'block' : 'none',
+      diagDisplay: s.diag ? 'flex' : 'none',
       // Opening the HUD zeroes the latched worst-frame and stall count, so what
       // you read is this observation rather than everything since boot.
       diagToggle: (e) => { if(e && e.preventDefault) e.preventDefault(); this.toggleDiag(); },
