@@ -5448,7 +5448,7 @@ class Component extends DCLogic {
     let R=M.sigHist; if(!R || R.w!==w || R.h!==h) R=M.sigHist={w,h,cv:[],head:-1,n:0,t:-1e9};
     if(t-R.t>=2 || t<R.t){ R.t=t; R.head=(R.head+1)%N;
       let c=R.cv[R.head]; if(!c){ c=R.cv[R.head]=document.createElement('canvas'); c.width=w; c.height=h; }
-      try{ c.getContext('2d').drawImage(V.src,0,0,w,h); }catch(e){}
+      try{ c.getContext('2d').drawImage(V.src,0,0,w,h); c._ver=(c._ver||0)+1; }catch(e){}
       R.n=Math.min(N,R.n+1); }
     if(R.n<1) return V;
     const lag=Math.floor(this.hsh1(k*7.31+3.7)*N)%R.n;
@@ -5520,6 +5520,117 @@ class Component extends DCLogic {
   // screens, lights) belong to a face and paint straight after it, so they can
   // never sort behind the wall they sit on. Video is mapped onto quads with
   // subdivided affine triangles, so it keeps its perspective.
+  // WebGL back end for lp3: one offscreen canvas shared by every canvas scene.
+  // Faces go in as triangles with their lit, fogged colour; the GPU's depth
+  // buffer decides what is in front per pixel, which no ordering of whole
+  // faces can do once faces cross, nest or overlap in a loop. Passes:
+  //   1 opaque faces, writing depth;
+  //   2 decals and screens (a face's kids), in order, depth-tested but not
+  //     writing it and pulled slightly forward, so they sit on their face and
+  //     are hidden by anything nearer; blend per decal (normal, lighter,
+  //     multiply, scanlines);
+  //   3 see-through faces (glass), far to near.
+  // The result is copied into the scene's 2D canvas, so the glows, the pool's
+  // reflection and the other 2D layers drawn afterwards work as before.
+  lpGL(){
+    if(this._lpg!==undefined) return this._lpg;
+    let R=null;
+    try{
+      const cv=document.createElement('canvas'), gl=cv.getContext('webgl',{alpha:true,premultipliedAlpha:true,antialias:true,depth:true,preserveDrawingBuffer:true});
+      if(gl){
+        const sh=(t,src)=>{ const o=gl.createShader(t); gl.shaderSource(o,src); gl.compileShader(o); if(!gl.getShaderParameter(o,gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o)); return o; };
+        const pr=gl.createProgram();
+        gl.attachShader(pr,sh(gl.VERTEX_SHADER,'attribute vec4 aPos;attribute vec4 aCol;attribute vec2 aUV;varying vec4 vCol;varying vec2 vUV;void main(){vCol=aCol;vUV=aUV;gl_Position=aPos;}'));
+        gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,'precision mediump float;varying vec4 vCol;varying vec2 vUV;uniform sampler2D uTex;uniform int uMode;uniform int uMul;'+
+          'void main(){vec4 c;if(uMode==1){c=texture2D(uTex,vUV)*vCol.a;}else if(uMode==2){float on=mod(floor(gl_FragCoord.y),3.0)<1.0?0.35:0.0;c=vec4(0.0,0.0,0.0,on*vCol.a);}else{c=vec4(vCol.rgb*vCol.a,vCol.a);}'+
+          'if(uMul==1){c=vec4(mix(vec3(1.0),vCol.rgb,vCol.a),1.0);}gl_FragColor=c;}'));
+        gl.linkProgram(pr); if(!gl.getProgramParameter(pr,gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pr));
+        const L={pos:gl.getAttribLocation(pr,'aPos'),col:gl.getAttribLocation(pr,'aCol'),uv:gl.getAttribLocation(pr,'aUV'),mode:gl.getUniformLocation(pr,'uMode'),mul:gl.getUniformLocation(pr,'uMul'),tex:gl.getUniformLocation(pr,'uTex')};
+        const buf=gl.createBuffer(), texs=new Map(), white=gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D,white); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([255,255,255,255]));
+        let lost=false; cv.addEventListener('webglcontextlost',e=>{ e.preventDefault(); lost=true; });
+        const self=this, rawC=new Map();
+        const parseRaw=s=>{ let v=rawC.get(s); if(v) return v; const m=/rgba?\(([^)]+)\)/.exec(s); if(m){ const q=m[1].split(',').map(Number); v=[q[0],q[1],q[2],q.length>3?q[3]:1]; } else v=[0,0,0,1]; rawC.set(s,v); return v; };
+        // One texture per picture source. Canvases that say when they change
+        // (_ver) upload only then; video uploads when its frame moves on;
+        // anything else is re-sent each draw.
+        const texFor=src=>{ let T=texs.get(src);
+          if(!T){ T={t:gl.createTexture(),ver:-1,ct:-1,used:0}; texs.set(src,T); gl.bindTexture(gl.TEXTURE_2D,T.t);
+            gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE); }
+          T.used=R.frame;
+          const isV=src.tagName==='VIDEO', need=src._ver!=null ? src._ver!==T.ver : isV ? src.currentTime!==T.ct || T.ver<0 : T.stamp!==R.frame;
+          if(need){ try{ gl.bindTexture(gl.TEXTURE_2D,T.t); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL,true); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,src);
+            T.ver=src._ver!=null?src._ver:0; T.ct=isV?src.currentTime:-1; T.stamp=R.frame; }catch(e){ return null; } }
+          return T.t; };
+        R={frame:0, render(ctx,faces,K){
+          if(lost) return false;
+          const W=ctx.canvas.width, H=ctx.canvas.height; if(!W||!H) return false;
+          R.frame++;
+          if(cv.width!==W||cv.height!==H){ cv.width=W; cv.height=H; }
+          const {toC,F,OX,OY,near}=K;
+          // far plane from what is actually in the frame
+          let zmax=near*20; for(const f of faces){ if(f.w) for(const p of f.w){ const z=toC(p)[2]; if(z>zmax) zmax=z; } }
+          const far=zmax*1.05+1, A=(far+near)/(far-near), B=-2*far*near/(far-near), ax=2*OX/W-1, ay=1-2*OY/H, kx=2*F/W, ky=2*F/H;
+          const V=[], draws=[]; let cur=null;
+          const state=(mode,blend,tex,zw,off)=>{ if(!cur||cur.mode!==mode||cur.blend!==blend||cur.tex!==tex||cur.zw!==zw||cur.off!==off){ cur={mode,blend,tex,zw,off,first:V.length/10,count:0}; draws.push(cur); } };
+          const vert=(c,col,a,u,v)=>{ V.push(ax*c[2]+kx*c[0], ay*c[2]+ky*c[1], A*c[2]+B, c[2], col[0]/255,col[1]/255,col[2]/255,a, u,v); cur.count++; };
+          const poly=(pts,col,a)=>{ const cs=pts.map(toC); for(let i=1;i<cs.length-1;i++){ vert(cs[0],col,a,0,0); vert(cs[i],col,a,0,0); vert(cs[i+1],col,a,0,0); } };
+          const look=f=>{ if(f.fill && typeof f.fill!=='string') return {pat:true,col:[0,0,0],a:f.a==null?1:f.a};
+            if(typeof f.fill==='string' && f.fill.charAt(0)==='r' && f.fill.indexOf('rgba')===0){ const q=parseRaw(f.fill); return {col:q,a:q[3]*(f.a==null?1:f.a)}; }
+            return {col:f.col||[0,0,0],a:f.a==null?1:f.a}; };
+          const blendOf=f=>f.comp==='lighter'?'add':f.comp==='multiply'?'mul':'alpha';
+          const drawVid=(f,zw,off)=>{
+            const Vd=f.vid, o=f.o||{}, q=f.q0||f.q; if(!Vd||!Vd.src||q.length<4) return;
+            const t=texFor(Vd.src); if(!t) return;
+            const qw=Math.hypot(q[1][0]-q[0][0],q[1][1]-q[0][1],q[1][2]-q[0][2]), qh=Math.hypot(q[3][0]-q[0][0],q[3][1]-q[0][1],q[3][2]-q[0][2]);
+            const C=o.crop||self._vcrop(Vd,qw/Math.max(1e-4,qh)), Wt=Vd.w||Vd.src.width||1, Ht=Vd.h||Vd.src.height||1;
+            const su=u=>(C.sx+(Vd.flip?1-u:u)*C.sw)/Wt, sv=v=>(C.sy+(Vd.flipV?1-v:v)*C.sh)/Ht, a=o.alpha==null?1:o.alpha;
+            state(1,'alpha',t,zw,off);
+            const cs=q.map(toC), uv=[[su(0),sv(0)],[su(1),sv(0)],[su(1),sv(1)],[su(0),sv(1)]], one=[255,255,255];
+            for(const k of [0,1,2,0,2,3]) vert(cs[k],one,a,uv[k][0],uv[k][1]);
+          };
+          // pass 1: opaque faces
+          const glass=[];
+          for(const f of faces){ if(f.vid||!f.w) continue; const L2=look(f);
+            if(L2.pat||L2.a<0.999||f.comp){ glass.push(f); continue; }
+            state(0,'none',null,true,false); poly(f.w,L2.col,1); }
+          // pass 2: kids in order (and screens with no face of their own)
+          const kid=k=>{ if(k.vid) drawVid(k,false,true);
+            else if(k.w){ const L2=look(k); state(L2.pat?2:0,L2.pat?'alpha':blendOf(k),null,false,true); poly(k.w,L2.col,L2.a); }
+            if(k.kids) for(const k2 of k.kids) kid(k2); };
+          for(const f of faces){ if(f.vid){ kid(f); continue; } if(f.kids) for(const k of f.kids) kid(k); }
+          // pass 3: see-through faces, far to near
+          for(const f of glass){ const L2=look(f); state(L2.pat?2:0,L2.pat?'alpha':blendOf(f),null,false,false); poly(f.w,L2.col,L2.a); }
+          // draw
+          gl.viewport(0,0,W,H); gl.clearColor(0,0,0,0); gl.clearDepth(1); gl.depthMask(true); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+          if(V.length){
+            gl.useProgram(pr); gl.bindBuffer(gl.ARRAY_BUFFER,buf); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(V),gl.STREAM_DRAW);
+            gl.enableVertexAttribArray(L.pos); gl.vertexAttribPointer(L.pos,4,gl.FLOAT,false,40,0);
+            gl.enableVertexAttribArray(L.col); gl.vertexAttribPointer(L.col,4,gl.FLOAT,false,40,16);
+            gl.enableVertexAttribArray(L.uv); gl.vertexAttribPointer(L.uv,2,gl.FLOAT,false,40,32);
+            gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.disable(gl.CULL_FACE); gl.uniform1i(L.tex,0); gl.activeTexture(gl.TEXTURE0);
+            for(const d of draws){ if(!d.count) continue;
+              gl.depthMask(d.zw);
+              if(d.off){ gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(-1,-4); } else gl.disable(gl.POLYGON_OFFSET_FILL);
+              if(d.blend==='none') gl.disable(gl.BLEND);
+              else { gl.enable(gl.BLEND);
+                if(d.blend==='add') gl.blendFunc(gl.ONE,gl.ONE);
+                else if(d.blend==='mul') gl.blendFuncSeparate(gl.DST_COLOR,gl.ZERO,gl.ZERO,gl.ONE);
+                else gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA); }
+              gl.uniform1i(L.mode,d.mode); gl.uniform1i(L.mul,d.blend==='mul'?1:0);
+              gl.bindTexture(gl.TEXTURE_2D,d.tex||white);
+              gl.drawArrays(gl.TRIANGLES,d.first,d.count); }
+          }
+          // forget pictures that have not been drawn for a while
+          if(R.frame%300===0) for(const [k,T] of texs) if(R.frame-T.used>300){ gl.deleteTexture(T.t); texs.delete(k); }
+          ctx.drawImage(cv,0,0,W,H);
+          return true;
+        }};
+      }
+    }catch(e){ console.warn('lp3 WebGL unavailable, using the 2D painter:', e); R=null; }
+    return (this._lpg=R);
+  }
   lp3(cam){
     const self=this, cY=Math.cos(cam.yaw||0), sY=Math.sin(cam.yaw||0), cP=Math.cos(cam.pitch||0), sP=Math.sin(cam.pitch||0);
     const near=cam.near||0.15, F=cam.f, OX=cam.cx, OY=cam.cy, faces=[];
@@ -5540,15 +5651,17 @@ class Component extends DCLogic {
         r*=lr; g*=lg; b*=lb;
       }
       if(fogK && !o.noFog){ const k=1-Math.exp(-d*fogK*(o.fogMul||1)); r+=(fogC[0]-r)*k; g+=(fogC[1]-g)*k; b+=(fogC[2]-b)*k; }
-      return 'rgb('+cl(r)+','+cl(g)+','+cl(b)+')';
+      return [cl(r),cl(g),cl(b)];
     };
+    const css=c=>'rgb('+c[0]+','+c[1]+','+c[2]+')';
     const normOf=(pts)=>{ const A=pts[0],B=pts[1],C=pts[2];
       return nrm([(B[1]-A[1])*(C[2]-A[2])-(B[2]-A[2])*(C[1]-A[1]),(B[2]-A[2])*(C[0]-A[0])-(B[0]-A[0])*(C[2]-A[2]),(B[0]-A[0])*(C[1]-A[1])-(B[1]-A[1])*(C[0]-A[0])]); };
     const make=(pts,rgb,o,n)=>{
       const cs=clip(pts.map(toC)); if(cs.length<3) return null;
       let d=0; for(const c of cs) d+=c[2]; d/=cs.length;
       if(!n){ n=normOf(pts); const A=pts[0]; if(n[0]*(cam.x-A[0])+n[1]*(cam.y-A[1])+n[2]*(cam.z-A[2])<0) n=[-n[0],-n[1],-n[2]]; }
-      return {d:d+(o.bias||0), p:cs.map(pj), fill:o.raw||(rgb?shade(rgb,n,o,d):'#000'), a:o.alpha, comp:o.comp, edge:!o.alpha&&!o.comp&&!o.noEdge, kids:null, n, w:pts};
+      const col=rgb?shade(rgb,n,o,d):[0,0,0];
+      return {d:d+(o.bias||0), p:cs.map(pj), fill:o.raw||css(col), col, a:o.alpha, comp:o.comp, edge:!o.alpha&&!o.comp&&!o.noEdge, kids:null, n, w:pts};
     };
     // Box faces, corners ordered BL, TL, TR, BR as seen from outside.
     const BF={pz:[[.5,-.5,.5],[.5,.5,.5],[-.5,.5,.5],[-.5,-.5,.5]], nz:[[-.5,-.5,-.5],[-.5,.5,-.5],[.5,.5,-.5],[.5,-.5,-.5]],
@@ -5573,17 +5686,30 @@ class Component extends DCLogic {
       big.sort((a,b)=>b.ar-a.ar); if(big.length>96) big.length=96;
       // Each big face's plane orders the faces overlapping it: wholly on the
       // camera's side paints after it, wholly behind before it. All of those
-      // constraints are met at once by re-sorting the list topologically,
-      // always taking the earliest face (by depth order) that is free to go,
-      // so wherever no plane says otherwise the depth order stands. Moving
-      // one face at a time could not: a soffit had to go before the rear
+      // constraints are met at once by re-sorting the list topologically
+      // (see the walk below), so wherever no plane says otherwise the depth
+      // order stands. Moving one face at a time could not: a soffit had to go
+      // before the rear
       // columns AND after the frieze above it, which itself sorted after
-      // those columns, and the single move gave up. A cycle (rare) is broken
-      // by releasing the earliest face left.
+      // those columns, and the single move gave up.
       const eps=2e-3;
       faces.forEach((f,i)=>{ f.ix=i; });
-      const succ=new Array(N), deg=new Int32Array(N);
-      const edge=(a,c)=>{ (succ[a]||(succ[a]=[])).push(c); deg[c]++; };
+      // Do two faces' outlines overlap on screen (by more than a pixel)?
+      // Separating-axis test on the projected convex polygons.
+      const poly=f=>f.sp||(f.sp=f.p||(f.q?f.q.map(q=>pj(toC(q))):[]));
+      const ovl=(F1,F2)=>{ const A=poly(F1), Bq=poly(F2); if(A.length<3||Bq.length<3) return false;
+        for(const P of [A,Bq]) for(let i=0;i<P.length;i++){ const a=P[i], b=P[(i+1)%P.length], ax=b[1]-a[1], ay=a[0]-b[0], l=Math.hypot(ax,ay); if(l<1e-6) continue;
+          let a0=Infinity,a1=-Infinity,b0=Infinity,b1=-Infinity;
+          for(const v of A){ const d=(v[0]*ax+v[1]*ay)/l; if(d<a0) a0=d; if(d>a1) a1=d; }
+          for(const v of Bq){ const d=(v[0]*ax+v[1]*ay)/l; if(d<b0) b0=d; if(d>b1) b1=d; }
+          if(a1<b0+1 || b1<a0+1) return false; }
+        return true; };
+      // Faces that touch (a wall standing on the floor) each lie on the
+      // other's camera side, which reads as a constraint both ways: a cycle
+      // that tangled the order round them. Two faces each in front
+      // of the other cannot hide each other, so such pairs are dropped.
+      const pre=new Array(N), ek=new Set();
+      const edge=(a,c)=>{ ek.add(a*N+c); };
       for(const B of big){
         const n=B.n, P0=B.w[0], sc=n[0]*(cam.x-P0[0])+n[1]*(cam.y-P0[1])+n[2]*(cam.z-P0[2]);
         if(Math.abs(sc)<1e-6) continue;
@@ -5593,23 +5719,22 @@ class Component extends DCLogic {
           const x=X.bb; if(!X.w || x[2]<b[0] || x[0]>b[2] || x[3]<b[1] || x[1]>b[3]) continue;
           let mn=Infinity, mx=-Infinity;
           for(const v of X.w){ const s=(n[0]*(v[0]-P0[0])+n[1]*(v[1]-P0[1])+n[2]*(v[2]-P0[2]))*sg; if(s<mn) mn=s; if(s>mx) mx=s; }
-          if(mn>-eps && mx>eps) edge(B.ix,X.ix);
-          else if(mx<eps && mn<-eps) edge(X.ix,B.ix);
+          // Boxes overlapping is not enough: two faces whose outlines never
+          // cross on screen still yield a valid but irrelevant constraint, and
+          // chains of those dragged faces right across the order.
+          if(mn>-eps && mx>eps){ if(ovl(B,X)) edge(B.ix,X.ix); }
+          else if(mx<eps && mn<-eps){ if(ovl(B,X)) edge(X.ix,B.ix); }
         }
       }
-      // binary min-heap of free face indices
-      const hp=[], push=v=>{ hp.push(v); let k=hp.length-1; while(k>0){ const q=(k-1)>>1; if(hp[q]<=v) break; hp[k]=hp[q]; k=q; } hp[k]=v; };
-      const pop=()=>{ const top=hp[0], v=hp.pop(); if(hp.length){ let k=0; for(;;){ let c=2*k+1; if(c>=hp.length) break; if(c+1<hp.length && hp[c+1]<hp[c]) c++; if(hp[c]>=v) break; hp[k]=hp[c]; k=c; } hp[k]=v; } return top; };
-      for(let k=0;k<N;k++) if(!deg[k]) push(k);
-      const out=[], done=new Uint8Array(N); let scan=0;
-      while(out.length<N){
-        let k;
-        if(hp.length) k=pop();
-        else { while(done[scan]) scan++; k=scan; deg[k]=0; }
-        if(done[k]) continue;
-        done[k]=1; out.push(faces[k]);
-        const L=succ[k]; if(L) for(const c of L){ if(!done[c] && --deg[c]===0) push(c); }
-      }
+      // Walk the depth order; before a face goes out, whatever must paint
+      // before it is pulled forward to just ahead of it (recursively). Faces
+      // are only ever moved EARLIER, so one waiting on a constraint never lets
+      // unrelated faces slip past it, which is what a queue-based sort did. A
+      // cycle is cut where the walk meets a face already in progress.
+      for(const k of ek){ const a=Math.floor(k/N), c=k-a*N; if(ek.has(c*N+a)) continue; (pre[c]||(pre[c]=[])).push(a); }
+      const out=[], st=new Uint8Array(N);
+      const visit=k=>{ st[k]=1; const P=pre[k]; if(P){ P.sort((x,y)=>x-y); for(const a of P) if(!st[a]) visit(a); } st[k]=2; out.push(faces[k]); };
+      for(let k=0;k<N;k++) if(!st[k]) visit(k);
       for(let k=0;k<N;k++) faces[k]=out[k];
     };
     const api={
@@ -5679,6 +5804,11 @@ class Component extends DCLogic {
       },
       paint(ctx){
         faces.sort((p,q)=>q.d-p.d);
+        // Depth-buffered path: WebGL draws the faces with a z-buffer, so
+        // nothing can paint over something nearer whatever the sort. The 2D
+        // painter below stays as the fallback where WebGL is unavailable.
+        const R=self.lpGL();
+        if(R && R.render(ctx,faces,{toC,F,OX,OY,near})) return;
         resolve();
         ctx.lineJoin='round';
         const tri=(img,A,B,C,u0,v0,u1,v1,u2,v2)=>{
@@ -6522,8 +6652,8 @@ class Component extends DCLogic {
     S.box([0,0.8,0],[Rs*2.3,1.6,Rs*2.3],0.785,rgb(hu-20,0.12,0.18));
     const ring=S.box([0,1.8,0],[Rs*1.7,0.6,Rs*1.7],0,rgb(hu-20,0.1,0.12));
     // the dome
-    // The clip is cropped to 4:3 (centred) before it is wrapped.
-    const nLon=22, nLat=12, half=nLon/2, Vd=V, C=this._vcrop(V,4/3);
+    // The clip is cropped to a centred square before it is wrapped.
+    const nLon=22, nLat=12, half=nLon/2, Vd=V, C=this._vcrop(V,1);
     const spin=t*0.15*Math.max(0,(e.ca??0.3)-0.3)*1.5;
     // Latitudes start where the dome meets the top of the ring, so no facet
     // reaches below the podium and none can paint over it.
