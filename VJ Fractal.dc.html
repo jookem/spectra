@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<script src="./support.js?v=b17"></script>
+<script src="./support.js?v=b18"></script>
 <meta name="ext-resource-dependency" content="./csi.js" data-resource-id="csiJs">
 </head>
 <body>
@@ -30,11 +30,11 @@
   @keyframes vjspin{to{transform:rotate(360deg)}}
   @keyframes vjscan{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
 </style>
-<script src="vj-engine.js?v=b17"></script>
-<script src="deep-zoom.js?v=b17"></script>
-<script src="cam-fly.js?v=b17"></script>
-<script src="wave-mesh.js?v=b17"></script>
-<script src="wave-gl.js?v=b17"></script>
+<script src="vj-engine.js?v=b18"></script>
+<script src="deep-zoom.js?v=b18"></script>
+<script src="cam-fly.js?v=b18"></script>
+<script src="wave-mesh.js?v=b18"></script>
+<script src="wave-gl.js?v=b18"></script>
 </helmet>
 <template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#08090A"/><circle cx="50" cy="50" r="22" fill="none" stroke="#C8FF2E" stroke-width="3"/><circle cx="50" cy="50" r="11" fill="none" stroke="#C8FF2E" stroke-width="2" opacity="0.6"/><circle cx="50" cy="50" r="3.5" fill="#C8FF2E"/></svg></template>
 <div style="position:relative;width:100vw;height:100dvh;overflow:hidden;background:#08090A;font-family:'JetBrains Mono',ui-monospace,monospace;color:#F2F3F0;user-select:none;-webkit-user-select:none;">
@@ -97,7 +97,7 @@
           <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.42);">A SWRV Systems production</div>
           <div style="width:18px;height:1px;background:rgba(242,243,240,0.25);"></div>
         </div>
-        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 17 · 18 Oct 2026</div>
+        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 18 · 18 Oct 2026</div>
       </div>
       <div style="max-width:420px;text-align:center;font-size:12.5px;line-height:1.7;color:rgba(242,243,240,0.55);">The visuals are driven entirely by what the microphone hears. Nothing is recorded or sent anywhere.</div>
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,230px));gap:10px;width:100%;max-width:470px;justify-content:center;">
@@ -156,7 +156,7 @@
     <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
       <div style="font-family:Archivo,sans-serif;font-weight:700;font-size:54px;letter-spacing:-0.03em;line-height:1;">SPECTRA</div>
       <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.36);">A SWRV Systems production</div>
-      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 17 · 18 Oct 2026</div>
+      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 18 · 18 Oct 2026</div>
     </div>
     <div ref="{{ warmWrapRef }}" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
       <div style="width:260px;height:2px;background:rgba(255,255,255,0.1);">
@@ -562,27 +562,32 @@
             </div>
           </div>
           <div title="How the video changes: clip advance, transition and the video's own trail" style="display:{{ vidRowDisplay }};align-items:center;flex-wrap:wrap;gap:6px;flex:1 1 100%;min-width:0;border-top:1px solid rgba(255,255,255,0.08);padding-top:8px;">
-            <span style="font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(242,243,240,0.6);">Video change</span>
-            <div style="display:{{ vidListDisplay }};gap:4px;">
-              <button onClick="{{ vidAutoT }}" style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;padding:6px 10px;min-height:{{ deckBtnH }};box-sizing:border-box;cursor:pointer;border:1px solid {{ vidAutoBorder }};background:{{ vidAutoBg }};color:{{ vidAutoFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Auto</button>
-              <button onClick="{{ vidShufT }}" style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;padding:6px 10px;min-height:{{ deckBtnH }};box-sizing:border-box;cursor:pointer;border:1px solid {{ vidShufBorder }};background:{{ vidShufBg }};color:{{ vidShufFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ vidShufLabel }}</button>
+            <!-- Built like Scene change: same heading, same grid of equal
+                 controls, transition as a select. -->
+            <div style="display:flex;flex-direction:column;gap:6px;flex:1 1 100%;min-width:0;">
+            <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);">Video change</span>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:{{ deckBtnGap }};align-items:stretch;">
+              <button onClick="{{ vidAutoT }}" title="Advance through the clip list on its own" style="display:{{ vidListDisplay }};align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid {{ vidAutoBorder }};background:{{ vidAutoBg }};color:{{ vidAutoFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Auto</button>
+              <button onClick="{{ vidShufT }}" title="Play the clip list in order or at random" style="display:{{ vidListDisplay }};align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid {{ vidShufBorder }};background:{{ vidShufBg }};color:{{ vidShufFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ vidShufLabel }}</button>
+              <button onClick="{{ vidLinkT }}" title="Change the clip when the scene changes" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid {{ vidLinkBorder }};background:{{ vidLinkBg }};color:{{ vidLinkFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Link scene</button>
+              <button onClick="{{ vidFxcT }}" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid {{ vidFxcBorder }};background:{{ vidFxcBg }};color:{{ vidFxcFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">FX cycle</button>
+              <select value="{{ vidTxSel }}" onChange="{{ setVidTx }}" title="Transition used when the clip changes" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid var(--acc30);background:rgba(8,9,10,0.34);color:var(--acc);appearance:none;-webkit-appearance:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+                <sc-for list="{{ vidTxOptions }}" as="o" hint-placeholder-count="4">
+                  <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
+                </sc-for>
+              </select>
+              <button onClick="{{ vidDriftT }}" title="The video trail zooms and turns as it fades" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid {{ vidDriftBorder }};background:{{ vidDriftBg }};color:{{ vidDriftFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Drift</button>
             </div>
-            <button onClick="{{ vidLinkT }}" style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;padding:6px 10px;min-height:{{ deckBtnH }};box-sizing:border-box;cursor:pointer;border:1px solid {{ vidLinkBorder }};background:{{ vidLinkBg }};color:{{ vidLinkFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Link scene</button>
-            <button onClick="{{ vidFxcT }}" style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;padding:6px 10px;min-height:{{ deckBtnH }};box-sizing:border-box;cursor:pointer;border:1px solid {{ vidFxcBorder }};background:{{ vidFxcBg }};color:{{ vidFxcFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">FX cycle</button>
-            <div style="display:flex;gap:3px;">
-              <sc-for list="{{ vidTxOpts }}" as="o" hint-placeholder-count="4">
-                <button onClick="{{ o.select }}" style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:6px 9px;min-height:{{ deckBtnH }};box-sizing:border-box;cursor:pointer;border:1px solid {{ o.border }};background:{{ o.bg }};color:{{ o.fg }};">{{ o.label }}</button>
-              </sc-for>
-            </div>
-            <div style="display:flex;align-items:center;gap:8px;flex:1 1 180px;min-width:150px;">
-              <span style="font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(242,243,240,0.6);">V Trail</span>
-              <div onPointerDown="{{ vidTrailDrag.down }}" onPointerMove="{{ vidTrailDrag.move }}" onPointerUp="{{ vidTrailDrag.up }}" style="position:relative;flex:1;height:{{ ctlHitH }};display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
+            <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+              <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);flex:0 0 auto;">V Trail</span>
+              <div onPointerDown="{{ vidTrailDrag.down }}" onPointerMove="{{ vidTrailDrag.move }}" onPointerUp="{{ vidTrailDrag.up }}" style="position:relative;flex:1;min-width:0;height:{{ ctlHitH }};display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
                 <div style="position:relative;width:100%;height:{{ ctlTrackH }};background:rgba(255,255,255,0.13);">
-                  <div style="position:absolute;left:0;top:0;bottom:0;width:{{ vidTrailPct }};background:var(--acc);"></div>
+                  <div style="position:absolute;left:0;top:0;bottom:0;width:{{ vidTrailPct }};background:var(--acc45);"></div>
+                  <div style="position:absolute;top:{{ ctlThumbTop }};left:{{ vidTrailPct }};width:{{ ctlThumbW }};height:{{ ctlThumbH }};margin-left:{{ ctlThumbML }};background:var(--acc);"></div>
                 </div>
               </div>
-              <span style="font-size:9px;color:var(--acc);">{{ vidTrailRead }}</span>
-              <button onClick="{{ vidDriftT }}" style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;padding:6px 10px;min-height:{{ deckBtnH }};box-sizing:border-box;cursor:pointer;border:1px solid {{ vidDriftBorder }};background:{{ vidDriftBg }};color:{{ vidDriftFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Drift</button>
+              <span style="font-size:9px;color:var(--acc);flex:0 0 auto;min-width:24px;text-align:right;">{{ vidTrailRead }}</span>
+            </div>
             </div>
           </div>
         </div>
@@ -675,7 +680,7 @@
       <div title="When the look moves on, and how one scene hands over to the next" style="display:flex;flex-direction:column;gap:6px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;flex:1 1 340px;min-width:0;">
         <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);">Scene change</span>
         <span style="display:{{ sceneHeldDisplay }};font-size:8.5px;letter-spacing:0.06em;color:var(--acc);">{{ sceneHeld }}</span>
-        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:{{ deckBtnGap }};align-items:stretch;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:{{ deckBtnGap }};align-items:stretch;">
         <button onClick="{{ advanceToggle }}" title="{{ advTitle }}" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid {{ advBorder }};background:{{ advBg }};color:{{ advFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Advance</button>
         <select value="{{ advBarsSel }}" onChange="{{ setAdvBars }}" title="How often Advance steps" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid var(--acc30);background:rgba(8,9,10,0.34);color:var(--acc);appearance:none;-webkit-appearance:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
           <sc-for list="{{ advBarsOptions }}" as="o" hint-placeholder-count="5">
@@ -15986,6 +15991,9 @@ class Component extends DCLogic {
       vidFxcBg: chip(!!s.vid.fxc).bg, vidFxcFg: chip(!!s.vid.fxc).fg, vidFxcBorder: chip(!!s.vid.fxc).border,
       vidListDisplay: (s.vid.src==='file' && this.vidList && this.vidList.length > 1) ? 'flex' : 'none',
       vidTxOpts: [['cut','Cut'],['fade','Fade'],['dip','Dip'],['glitch','Glitch']].map(([k,l]) => Object.assign({label:l, select:()=>this.setVid({tx:k})}, chip((s.vid.tx||'fade')===k))),
+      vidTxSel: s.vid.tx || 'fade',
+      vidTxOptions: [['cut','Cut'],['fade','Fade'],['dip','Dip'],['glitch','Glitch']].map(([k,l]) => ({v:k, tag:'Tx '+l})),
+      setVidTx: (e)=>this.setVid({tx:e.target.value}),
       vidTrailDrag: this.drag(v=>this.setVid({vtrail:v})),
       vidTrailPct: ((s.vid.vtrail||0)*100).toFixed(0)+'%',
       vidTrailRead: Math.round((s.vid.vtrail||0)*100).toString().padStart(2,'0'),
