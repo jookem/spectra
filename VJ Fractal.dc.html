@@ -20,7 +20,7 @@
 <script>if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){ const reg=()=>navigator.serviceWorker.register('sw.js').catch(()=>{}); if(document.readyState==='complete') reg(); else addEventListener('load',reg); }</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Bebas+Neue&family=Monoton&family=Orbitron:wght@700&family=Pacifico&family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
   :root{--acc:#C8FF2E;--acc5:rgba(200,255,46,0.05);--acc10:rgba(200,255,46,0.1);--acc12:rgba(200,255,46,0.12);--acc14:rgba(200,255,46,0.14);--acc22:rgba(200,255,46,0.22);--acc28:rgba(200,255,46,0.28);--acc30:rgba(200,255,46,0.3);--acc35:rgba(200,255,46,0.35);--acc40:rgba(200,255,46,0.4);--acc42:rgba(200,255,46,0.42);--acc45:rgba(200,255,46,0.45);--acc50:rgba(200,255,46,0.5);--acc55:rgba(200,255,46,0.55);--acc65:rgba(200,255,46,0.65);--acc70:rgba(200,255,46,0.7);--acc75:rgba(200,255,46,0.75);}
   html,body{margin:0;padding:0;background:#08090A;overflow:hidden;overscroll-behavior:none;-webkit-text-size-adjust:100%;}
@@ -194,7 +194,7 @@
         </sc-for>
       </div>
       <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:3px;">
-        <sc-for list="{{ txtFonts }}" as="ft" hint-placeholder-count="5">
+        <sc-for list="{{ txtFonts }}" as="ft" hint-placeholder-count="10">
           <button onClick="{{ ft.pick }}" title="{{ ft.name }}" style="font-family:{{ ft.css }};font-weight:700;font-size:12px;padding:7px 0;cursor:pointer;border:1px solid {{ ft.border }};background:{{ ft.bg }};color:{{ ft.fg }};">Aa</button>
         </sc-for>
       </div>
@@ -1730,6 +1730,9 @@ class Component extends DCLogic {
 
   async componentDidMount(){
     this.applyAccent();
+    // A saved web font (Bebas, Neon, Pixel, Script, Orbit) loads on demand;
+    // once it is in, re-bake and let the in-scene signs redraw.
+    try{ document.fonts.load('700 64px '+this.txtFont()).then(()=>{ this.fontGen=(this.fontGen||0)+1; if(this.bakeText) this.bakeText(); }); }catch(err){}
     // Console handle. A VJ rig gets driven from odd places — a second machine,
     // a phone on the same page, a debug console mid-set — and every control in
     // here is a method on this object: SPECTRA.selectPreset(n), .cycleMsg(1).
@@ -4979,7 +4982,9 @@ class Component extends DCLogic {
     const M=this.MESH;
     if(cm==='outrun'){ this.drawOutrun(ctx,W,H,tick); this.drawCanvasText(ctx,W,H); return; }
     { const vf={drivein:'drawDriveIn',city:'drawCity',tvwall:'drawTVWall',mirage:'drawMirage',frames:'drawFrames',pool:'drawPool',warp:'drawWarp',sphere:'drawSphere'}[cm];
-      if(vf){ this.drawRolled(ctx,W,H,tick,vf); this.drawCanvasText(ctx,W,H); return; } }
+      // TV Wall and Billboard City put the message in the set (neon sign,
+      // billboards), so the overlay stays off on those two.
+      if(vf){ this.drawRolled(ctx,W,H,tick,vf); if(cm!=='tvwall' && cm!=='city') this.drawCanvasText(ctx,W,H); return; } }
     if(cm==='code'){ this.drawCode(ctx,W,H,tick); this.drawCanvasText(ctx,W,H); return; }
     if(cm==='pipe'){ this.drawPipe(ctx,W,H,tick); this.drawCanvasText(ctx,W,H); return; }
     if(cm==='shore'){ this.drawRolled(ctx,W,H,tick,'drawShore'); this.drawCanvasText(ctx,W,H); return; }
@@ -5566,27 +5571,46 @@ class Component extends DCLogic {
       const big=[], minA=OX*OY*4*0.004;
       for(const f of faces){ const b=bb(f); f.ar=(b[2]-b[0])*(b[3]-b[1]); if(f.w && f.n && f.ar>minA) big.push(f); }
       big.sort((a,b)=>b.ar-a.ar); if(big.length>96) big.length=96;
+      // Each big face's plane orders the faces overlapping it: wholly on the
+      // camera's side paints after it, wholly behind before it. All of those
+      // constraints are met at once by re-sorting the list topologically,
+      // always taking the earliest face (by depth order) that is free to go,
+      // so wherever no plane says otherwise the depth order stands. Moving
+      // one face at a time could not: a soffit had to go before the rear
+      // columns AND after the frieze above it, which itself sorted after
+      // those columns, and the single move gave up. A cycle (rare) is broken
+      // by releasing the earliest face left.
       const eps=2e-3;
-      for(let pass=0;pass<2;pass++){ let moved=false;
+      faces.forEach((f,i)=>{ f.ix=i; });
+      const succ=new Array(N), deg=new Int32Array(N);
+      const edge=(a,c)=>{ (succ[a]||(succ[a]=[])).push(c); deg[c]++; };
       for(const B of big){
         const n=B.n, P0=B.w[0], sc=n[0]*(cam.x-P0[0])+n[1]*(cam.y-P0[1])+n[2]*(cam.z-P0[2]);
         if(Math.abs(sc)<1e-6) continue;
         const sg=sc>0?1:-1, b=B.bb;
-        let lastBehind=-1, firstFront=Infinity, cur=-1;
-        for(let i=0;i<faces.length;i++){ const X=faces[i];
-          if(X===B){ cur=i; continue; }
+        for(const X of faces){
+          if(X===B) continue;
           const x=X.bb; if(!X.w || x[2]<b[0] || x[0]>b[2] || x[3]<b[1] || x[1]>b[3]) continue;
           let mn=Infinity, mx=-Infinity;
           for(const v of X.w){ const s=(n[0]*(v[0]-P0[0])+n[1]*(v[1]-P0[1])+n[2]*(v[2]-P0[2]))*sg; if(s<mn) mn=s; if(s>mx) mx=s; }
-          if(mn>-eps && mx>eps){ if(i<firstFront) firstFront=i; }
-          else if(mx<eps && mn<-eps) lastBehind=i;
+          if(mn>-eps && mx>eps) edge(B.ix,X.ix);
+          else if(mx<eps && mn<-eps) edge(X.ix,B.ix);
         }
-        if(lastBehind>=firstFront || (cur>lastBehind && cur<firstFront)) continue;
-        moved=true;
-        faces.splice(cur,1);
-        faces.splice(cur>=firstFront?firstFront:lastBehind,0,B);
       }
-      if(!moved) break; }
+      // binary min-heap of free face indices
+      const hp=[], push=v=>{ hp.push(v); let k=hp.length-1; while(k>0){ const q=(k-1)>>1; if(hp[q]<=v) break; hp[k]=hp[q]; k=q; } hp[k]=v; };
+      const pop=()=>{ const top=hp[0], v=hp.pop(); if(hp.length){ let k=0; for(;;){ let c=2*k+1; if(c>=hp.length) break; if(c+1<hp.length && hp[c+1]<hp[c]) c++; if(hp[c]>=v) break; hp[k]=hp[c]; k=c; } hp[k]=v; } return top; };
+      for(let k=0;k<N;k++) if(!deg[k]) push(k);
+      const out=[], done=new Uint8Array(N); let scan=0;
+      while(out.length<N){
+        let k;
+        if(hp.length) k=pop();
+        else { while(done[scan]) scan++; k=scan; deg[k]=0; }
+        if(done[k]) continue;
+        done[k]=1; out.push(faces[k]);
+        const L=succ[k]; if(L) for(const c of L){ if(!done[c] && --deg[c]===0) push(c); }
+      }
+      for(let k=0;k<N;k++) faces[k]=out[k];
     };
     const api={
       toC, pj, near,
@@ -5895,12 +5919,24 @@ class Component extends DCLogic {
             if(Hb>20){ const ax=P.c[0], ay=P.c[1]+P.s[1]/2; S.box([ax,ay+2,P.c[2]],[0.12,4,0.12],0,[70,70,80]);
               S.box([ax,ay+4.1,P.c[2]],[0.3,0.3,0.3],0,(Math.floor(t*1.5+id)%2)?[255,40,40]:[90,20,20],{emit:1}); }
           }
-          if(pi===0 && r<0.62 && B[inner]){
+          // Screens and signs alternate block by block down each side, the two
+          // sides offset so a screen always faces a sign across the street.
+          const isSign=((id+(s>0?1:0))&1)===1;
+          if(pi===0 && !isSign && B[inner]){
             // Billboards at varied heights: street level, mid facade or near the roof.
             const bh=3.6/P.s[1], lv=hs(id*3.7+s), v0=Math.max(0.06,Math.min(0.92-bh, lv<0.35?2.2/P.s[1]:lv<0.7?0.4+hs(id*1.3)*0.15:0.88-bh)), v1=Math.min(0.94,v0+bh), uc=0.12+hs(id+5)*0.2, uw=Math.min(0.7,7/P.s[2]);
             S.decal(B[inner],B.on(inner,uc-0.02,v0-0.03,uc+uw+0.02,v1+0.03,0.1),[12,12,16],{emit:1});
             S.vid(B[inner],B.on(inner,uc,v0,uc+uw,v1,0.14),this.sceneSigLag(V,id*2+(s>0?1:0)),{alpha:0.95});
             S.decal(B[inner],B.on(inner,uc,v0-0.035,uc+uw,v0-0.015,0.16),[255,240,210],{emit:1});
+          }
+          // Lightbox billboards carrying the message from the text panel, in
+          // its font, in one of three sign colours.
+          else if(pi===0 && isSign && B[inner]){
+            const bh=2.4/P.s[1], v0=Math.max(0.08,Math.min(0.9-bh,0.3+hs(id*2.3+s)*0.45)), v1=v0+bh, uw=Math.min(0.72,7.5/P.s[2]), uc=0.1+hs(id+7)*Math.max(0,0.85-uw-0.1);
+            const T=this.citySign(Math.floor(hs(id*5.9+s)*3),hu);
+            S.decal(B[inner],B.on(inner,uc-0.015,v0-0.025,uc+uw+0.015,v1+0.025,0.1),[18,18,22]);
+            S.vid(B[inner],B.on(inner,uc,v0,uc+uw,v1,0.14),T,{n:2,crop:{sx:0,sy:0,sw:T.w,sh:T.h}});
+            glows.push([s*(gap+2.4),P.c[1]-P.s[1]/2+(v0+v1)/2*P.s[1],z0+D/2]);
           }
         }
       }
@@ -5911,47 +5947,94 @@ class Component extends DCLogic {
     ctx.restore();
   }
 
+  // A billboard face for Billboard City: the current message in the text
+  // panel's font on a backlit panel, in one of three colourways. Cached per
+  // message, font, colourway and hue, and redrawn once a web font finishes
+  // loading (fontGen), so a sign never keeps the fallback face.
+  citySign(k,hu){
+    const M=this.MESH, msg=String((this.txtMsg&&this.txtMsg()||'').trim()||'SPECTRA'), font=this.txtFont();
+    const key=msg+'|'+font+'|'+k+'|'+Math.round(hu/10)+'|'+(this.fontGen||0), C=M.citySigns||(M.citySigns={});
+    if(C[k] && C[k].key===key) return C[k];
+    const cv=(C[k]&&C[k].src)||document.createElement('canvas'); cv.width=768; cv.height=256;
+    const x=cv.getContext('2d'), W=cv.width, H=cv.height;
+    const pal=[[hu+180,'#0b0d14'],[hu+300,'#120a12'],[42,'#14100a']][k], c=this.hrgb(pal[0],0.95,0.62), cs='rgb('+c.map(v=>v|0).join(',')+')';
+    const g=x.createLinearGradient(0,0,0,H); g.addColorStop(0,pal[1]); g.addColorStop(1,'#050507'); x.fillStyle=g; x.fillRect(0,0,W,H);
+    x.strokeStyle=cs; x.lineWidth=6; x.strokeRect(10,10,W-20,H-20);
+    x.textAlign='center'; x.textBaseline='middle';
+    let fs=H*0.5; x.font='700 '+fs+'px '+font; const tw=x.measureText(msg).width; if(tw>W*0.86){ fs*=W*0.86/tw; x.font='700 '+fs+'px '+font; }
+    x.shadowColor=cs; x.shadowBlur=fs*0.4; x.fillStyle=cs; x.fillText(msg,W/2,H/2+fs*0.04);
+    x.shadowBlur=fs*0.1; x.fillStyle='rgba(255,255,255,0.92)'; x.fillText(msg,W/2,H/2+fs*0.04);
+    return (C[k]={src:cv,w:W,h:H,flip:false,flipV:false,key});
+  }
+
   drawTVWall(ctx,W,H,tick){
     const M=this.MESH, e=this.eff||{}, A=this.a||{}, Vw=this.canvasView(W,H), t=(M.mtick||0)/60, rgb=(h,s,l)=>this.hrgb(h,s,l), hs=k=>this.hsh1(k);
     const hu=(e.hue??0.5)*360, V0=this.sceneSig(), vc=this.vidAvg(V0);
     const cols=3+Math.round((e.detail??0.5)*4), rows=Math.max(2,Math.round(cols*0.62));
     const wallW=cols*1.42, wallH=rows*1.0;
-    const a=Math.sin(t*0.11)*0.38+(this.scnYaw||0), dist=(wallW*0.62+1.6)/Vw.sc;
+    // The swing round the stack stops at 90 degrees either side (180 in all):
+    // past that the camera would leave the room through the wall. Twist is
+    // held inside the range so dragging back answers at once.
+    const sw0=Math.sin(t*0.11)*0.38, lim=Math.PI/2;
+    this.scnYaw=Math.max(-lim-sw0,Math.min(lim-sw0,this.scnYaw||0));
+    const a=sw0+this.scnYaw, dist=(wallW*0.62+1.6)/Vw.sc;
     const cam=this.lookAt(Math.sin(a)*dist, wallH*0.55+0.4+Math.sin(t*0.07)*0.35, -Math.cos(a)*dist, 0,wallH*0.58,0);
     const F=H*1.15, OX=W/2, OY=H/2; this.vpAim(cam,F,Vw); this.vpReport(OX+Vw.ox, OY+Vw.oy);
     ctx.fillStyle='hsl('+hu+',14%,5%)'; ctx.fillRect(0,0,W,H);
     const S=this.lp3(Object.assign(cam,{f:F,cx:OX,cy:OY,L1:[-0.4,0.85,-0.5],C1:[0.36,0.36,0.42],amb:[0.24,0.24,0.3],L2:[0,0.1,-1],C2:[vc[0]*0.5,vc[1]*0.5,vc[2]*0.55],fogC:[8,8,10],fogK:0.01}));
-    S.face([[-30,0,-30],[30,0,-30],[30,0,30],[-30,0,30]],rgb(hu,0.1,0.13),{n:[0,1,0],bias:1e4});
-    const bw=S.face([[-30,0,1.6],[30,0,1.6],[30,14,1.6],[-30,14,1.6]],rgb(hu,0.12,0.1),{n:[0,0,-1],bias:1e4-1});
+    S.face([[-30,0,-30],[30,0,-30],[30,0,1.6],[-30,0,1.6]],rgb(hu,0.1,0.13),{n:[0,1,0],bias:1e4});
+    // The back wall is built round two real window openings, and the night
+    // city stands outside in depth: blocks at different distances against a
+    // far sky, so the view through the glass shifts as the camera swings
+    // instead of reading as a picture on the wall. Everything outside paints
+    // before the wall (the camera never leaves the room), the wall pieces
+    // before the room.
+    const X0w=wallW/2, wxO=X0w+3.3, wc=rgb(hu,0.12,0.1), WB={n:[0,0,-1],bias:1e4-1}, wy0=1.6, wy1=5.2;
+    const wq=(x0,y0,x1,y1)=>S.face([[x0,y0,1.6],[x1,y0,1.6],[x1,y1,1.6],[x0,y1,1.6]],wc,WB);
+    const wLow=wq(-30,0,30,wy0);
+    const bw=wq(-(wxO-1.6),wy0,wxO-1.6,14);
+    for(const sd of [-1,1]){ const xi=sd*(wxO-1.6), xo=sd*(wxO+1.6);
+      wq(Math.min(xo,sd*30),wy0,Math.max(xo,sd*30),14); wq(Math.min(xi,xo),wy1,Math.max(xi,xo),14); }
+    { const OB={emit:1,bias:2e4};
+      S.face([[-80,-30,48],[80,-30,48],[80,40,48],[-80,40,48]],rgb(hu+200,0.55,0.12),{n:[0,0,-1],emit:1,bias:3e4,noFog:1});
+      // One skyline across the whole width: seen at a slant the glass looks
+      // far along the street, so the blocks spread wider the further out.
+      for(let b=0;b<56;b++){ const k=b*7.3+13;
+        const bz=7+hs(k)*28, bx=(hs(k+1)-0.5)*(16+bz*3.4), bwd=1.6+hs(k+2)*2.6, top=1.5+hs(k+3)*(3+bz*0.4);   // tops spread through what the glass shows at that depth
+        const B=S.box([bx,(top-30)/2,bz],[bwd,top+30,bwd*(0.8+hs(k+4)*0.6)],0,rgb(hu+210,0.25,0.05+hs(k+5)*0.03),OB);
+        if(B.nz){ const rws=Math.min(14,Math.floor((top+8)/0.75)), cl=Math.max(2,Math.round(bwd/0.45));
+          for(let r=0;r<rws;r++) for(let c=0;c<cl;c++){ const q=k*31+r*7+c;
+            if(hs(q)<0.5 || (hs(q+0.5)<0.08 && (Math.floor(t*0.5+hs(q)*9)%2))) continue;
+            const v1=1-r*0.75/(top+30), v0=v1-0.32/(top+30);
+            S.decal(B.nz,B.on('nz',(c+0.25)/cl,v0,(c+0.7)/cl,v1,0.02),hs(q+1)<0.5?[255,205,120]:[190,220,255],{emit:1}); } }
+        if(top>3 && hs(k+6)<0.4){ const ap=[bx,top+0.9,bz]; S.box(ap,[0.08,1.8,0.08],0,[30,30,36],OB); S.box([bx,top+1.85,bz],[0.18,0.18,0.18],0,(Math.floor(t*1.3+b)%2)?[255,50,50]:[90,20,20],{emit:1,bias:2e4}); } } }
     S.box([0,0.12,0],[wallW+1.2,0.24,1.8],0,rgb(hu+20,0.2,0.2),{bias:500});
     // The room round the stack: night-city windows either side, a neon wave
     // over the sets, a shelf of records, a floor lamp, a plant, a rug and the
     // cables running out of the sets. Lit pieces glow once the frame is painted.
     const X0=wallW/2, Rw=(x0,y0,x1,y1,z)=>[[x0,y0,z],[x1,y0,z],[x1,y1,z],[x0,y1,z]], glo=[];
-    if(bw){
-      S.decal(bw,Rw(-30,0,30,1.1,1.59),rgb(hu,0.14,0.07));                                  // wainscot
-      S.decal(bw,Rw(-30,1.1,30,1.16,1.585),rgb(hu+20,0.2,0.18));                            // dado rail
+    if(wLow){
+      S.decal(wLow,Rw(-30,0,30,1.1,1.59),rgb(hu,0.14,0.07));                                // wainscot
+      S.decal(wLow,Rw(-30,1.1,30,1.16,1.585),rgb(hu+20,0.2,0.18)); }                        // dado rail
+    {
       for(const sd of [-1,1]){
-        const wx=sd*(X0+3.3), x0=wx-1.6, x1=wx+1.6, y0=1.6, y1=5.2;
-        S.decal(bw,Rw(x0-0.14,y0-0.14,x1+0.14,y1+0.14,1.58),[30,26,30]);                      // frame
-        S.decal(bw,Rw(x0,y0,x1,y1,1.575),rgb(hu+200,0.55,0.12),{emit:1});                     // night sky
-        for(let b=0;b<9;b++){ const bx0=x0+b*(x1-x0)/9, bx1=bx0+(x1-x0)/9*0.92, bh=0.6+hs(b*3.7+sd)*2.1;
-          S.decal(bw,Rw(bx0,y0,bx1,y0+bh,1.57),rgb(hu+210,0.25,0.06),{emit:1});
-          for(let wy=0;wy<bh-0.25;wy+=0.28) for(let wxk=0;wxk<2;wxk++){ const k=b*31+wy*7+wxk+sd*5;
-            if(hs(k)<0.45 || (hs(k+0.5)<0.08 && (Math.floor(t*0.5+hs(k)*9)%2))) continue;
-            const lx=bx0+0.06+wxk*(bx1-bx0)/2; S.decal(bw,Rw(lx,y0+0.12+wy,lx+0.07,y0+0.24+wy,1.565),hs(k+1)<0.5?[255,205,120]:[190,220,255],{emit:1}); } }
-        S.decal(bw,Rw(wx-0.04,y0,wx+0.04,y1,1.56),[30,26,30]); S.decal(bw,Rw(x0,(y0+y1)/2-0.04,x1,(y0+y1)/2+0.04,1.56),[30,26,30]);   // mullions
+        const wx=sd*(X0+3.3), x0=wx-1.6, x1=wx+1.6, y0=1.6, y1=5.2, fc=[30,26,30];
+        // frame round the opening, glazing bars across it, a faint pane of glass
+        S.box([wx,y1+0.07,1.53],[3.48,0.14,0.14],0,fc); S.box([wx,y0-0.07,1.53],[3.48,0.14,0.14],0,fc);
+        for(const fx of [x0-0.07,x1+0.07]) S.box([fx,(y0+y1)/2,1.53],[0.14,y1-y0,0.14],0,fc);
+        S.box([wx,(y0+y1)/2,1.58],[0.07,y1-y0,0.06],0,fc); S.box([wx,(y0+y1)/2,1.58],[x1-x0,0.07,0.06],0,fc);
+        S.face(Rw(x0,y0,x1,y1,1.6),[150,170,210],{n:[0,0,-1],alpha:0.06,noEdge:1});
         S.box([wx,y0-0.2,1.35],[3.6,0.08,0.5],0,rgb(hu+20,0.15,0.3));                         // sill
       }
       // Neon sign over the stack, well clear of the aerials: the message from
       // the text panel (SPECTRA until there is one), as glass tube on the wall.
-      { const L=this.state.txtList||[], msg=String(L[this.state.txtIdx||0]||'SPECTRA'), nw=X0+0.4, nh=0.95, ny=wallH+1.55;
-        const nc=this.hrgb(hu+180,1,0.62), key=msg+'|'+Math.round(hu);
+      { const msg=String((this.txtMsg&&this.txtMsg()||'').trim()||'SPECTRA'), nw=X0+0.4, nh=0.95, ny=wallH+1.55;
+        const nc=this.hrgb(hu+180,1,0.62), nf=this.txtFont(), key=msg+'|'+Math.round(hu)+'|'+nf+'|'+(this.fontGen||0);
         let T=M.neonCv; if(!T){ T=M.neonCv=document.createElement('canvas'); }
         if(M.neonKey!==key){ M.neonKey=key; T.width=1024; T.height=Math.max(64,Math.round(1024*nh/(nw*2)));
           const x=T.getContext('2d'), c='rgb('+nc.map(v=>v|0).join(',')+')';
           x.clearRect(0,0,T.width,T.height); x.textAlign='center'; x.textBaseline='middle';
-          let fs=T.height*0.72; x.font='700 '+fs+'px Archivo, sans-serif'; const tw=x.measureText(msg).width; if(tw>T.width*0.92){ fs*=T.width*0.92/tw; x.font='700 '+fs+'px Archivo, sans-serif'; }
+          let fs=T.height*0.72; x.font='700 '+fs+'px '+nf; const tw=x.measureText(msg).width; if(tw>T.width*0.92){ fs*=T.width*0.92/tw; x.font='700 '+fs+'px '+nf; }
           x.lineJoin='round'; x.shadowColor=c; x.shadowBlur=fs*0.35; x.strokeStyle=c; x.lineWidth=fs*0.09;
           x.strokeText(msg,T.width/2,T.height/2); x.strokeText(msg,T.width/2,T.height/2);
           x.shadowBlur=fs*0.12; x.strokeStyle='rgba(255,255,255,0.95)'; x.lineWidth=fs*0.035; x.strokeText(msg,T.width/2,T.height/2); }
@@ -6439,7 +6522,8 @@ class Component extends DCLogic {
     S.box([0,0.8,0],[Rs*2.3,1.6,Rs*2.3],0.785,rgb(hu-20,0.12,0.18));
     const ring=S.box([0,1.8,0],[Rs*1.7,0.6,Rs*1.7],0,rgb(hu-20,0.1,0.12));
     // the dome
-    const nLon=22, nLat=12, half=nLon/2, Vd=V, C=this._vcrop(V,1.4);
+    // The clip is cropped to 4:3 (centred) before it is wrapped.
+    const nLon=22, nLat=12, half=nLon/2, Vd=V, C=this._vcrop(V,4/3);
     const spin=t*0.15*Math.max(0,(e.ca??0.3)-0.3)*1.5;
     // Latitudes start where the dome meets the top of the ring, so no facet
     // reaches below the podium and none can paint over it.
@@ -12418,6 +12502,11 @@ class Component extends DCLogic {
          : f === 'Impact' ? "Impact, 'Arial Narrow Bold', sans-serif"
          : f === 'Black' ? "'Arial Black', 'Archivo', sans-serif"
          : f === 'Serif' ? "Georgia, 'Times New Roman', serif"
+         : f === 'Bebas' ? "'Bebas Neue', Impact, sans-serif"
+         : f === 'Neon' ? "Monoton, 'Archivo', sans-serif"
+         : f === 'Pixel' ? "'Press Start 2P', 'JetBrains Mono', monospace"
+         : f === 'Script' ? "Pacifico, 'Brush Script MT', cursive"
+         : f === 'Orbit' ? "Orbitron, 'Archivo', sans-serif"
          : "Archivo, sans-serif";
   }
 
@@ -16190,9 +16279,14 @@ class Component extends DCLogic {
       })),
       txtFonts: [['Archivo','Archivo, sans-serif'],['Black',"'Arial Black', sans-serif"],
                  ['Impact','Impact, sans-serif'],['Mono',"'JetBrains Mono', monospace"],
-                 ['Serif','Georgia, serif']].map(([name,css])=>({
+                 ['Serif','Georgia, serif'],['Bebas',"'Bebas Neue', Impact, sans-serif"],
+                 ['Neon',"Monoton, sans-serif"],['Pixel',"'Press Start 2P', monospace"],
+                 ['Script',"Pacifico, cursive"],['Orbit',"Orbitron, sans-serif"]].map(([name,css])=>({
         name, css,
-        pick: ()=>this.setState({txtFont:name}, ()=>{ this.saveText(); this.bakeText(); }),
+        // Web fonts load on first use: bake now, and again once the face is in,
+        // bumping fontGen so the in-scene signs redraw with it too.
+        pick: ()=>this.setState({txtFont:name}, ()=>{ this.saveText(); this.bakeText();
+          try{ document.fonts.load('700 64px '+css).then(()=>{ this.fontGen=(this.fontGen||0)+1; this.bakeText(); }); }catch(err){} }),
         border: s.txtFont===name ? accent : 'rgba(255,255,255,0.1)',
         bg: s.txtFont===name ? this.accA(0.1) : 'rgba(8,9,10,0.34)',
         fg: s.txtFont===name ? accent : 'rgba(242,243,240,0.5)'
