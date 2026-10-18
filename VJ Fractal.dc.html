@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<script src="./support.js?v=b26"></script>
+<script src="./support.js?v=b27"></script>
 <meta name="ext-resource-dependency" content="./csi.js" data-resource-id="csiJs">
 </head>
 <body>
@@ -30,12 +30,12 @@
   @keyframes vjspin{to{transform:rotate(360deg)}}
   @keyframes vjscan{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
 </style>
-<script src="vj-engine.js?v=b26"></script>
-<script src="deep-zoom.js?v=b26"></script>
-<script src="cam-fly.js?v=b26"></script>
-<script src="wave-mesh.js?v=b26"></script>
-<script src="wave-gl.js?v=b26"></script>
-<script src="scene-thumbs.js?v=b26"></script>
+<script src="vj-engine.js?v=b27"></script>
+<script src="deep-zoom.js?v=b27"></script>
+<script src="cam-fly.js?v=b27"></script>
+<script src="wave-mesh.js?v=b27"></script>
+<script src="wave-gl.js?v=b27"></script>
+<script src="scene-thumbs.js?v=b27"></script>
 </helmet>
 <template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#08090A"/><circle cx="50" cy="50" r="22" fill="none" stroke="#C8FF2E" stroke-width="3"/><circle cx="50" cy="50" r="11" fill="none" stroke="#C8FF2E" stroke-width="2" opacity="0.6"/><circle cx="50" cy="50" r="3.5" fill="#C8FF2E"/></svg></template>
 <div style="position:relative;width:100vw;height:100dvh;overflow:hidden;background:#08090A;font-family:'JetBrains Mono',ui-monospace,monospace;color:#F2F3F0;user-select:none;-webkit-user-select:none;">
@@ -98,7 +98,7 @@
           <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.42);">A SWRV Systems production</div>
           <div style="width:18px;height:1px;background:rgba(242,243,240,0.25);"></div>
         </div>
-        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 26 · 18 Oct 2026</div>
+        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 27 · 18 Oct 2026</div>
       </div>
       <div style="max-width:420px;text-align:center;font-size:12.5px;line-height:1.7;color:rgba(242,243,240,0.55);">The visuals are driven entirely by what the microphone hears. Nothing is recorded or sent anywhere.</div>
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,230px));gap:10px;width:100%;max-width:470px;justify-content:center;">
@@ -157,7 +157,7 @@
     <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
       <div style="font-family:Archivo,sans-serif;font-weight:700;font-size:54px;letter-spacing:-0.03em;line-height:1;">SPECTRA</div>
       <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.36);">A SWRV Systems production</div>
-      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 26 · 18 Oct 2026</div>
+      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 27 · 18 Oct 2026</div>
     </div>
     <div ref="{{ warmWrapRef }}" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
       <div style="width:260px;height:2px;background:rgba(255,255,255,0.1);">
@@ -556,7 +556,18 @@
         <button onClick="{{ vidFilePick }}" title="Play video files from this computer in place of the camera" style="display:flex;flex-direction:column;align-items:flex-start;justify-content:center;box-sizing:border-box;min-width:62px;min-height:40px;padding:6px 8px;text-align:left;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;flex:0 0 auto;border:1px solid {{ vidFileBorder }};background:{{ vidFileBg }};color:{{ vidFileFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ vidFileLabel }}</button>
         <button onClick="{{ vidDirPick }}" title="Pick a folder of videos to cycle through" style="display:flex;flex-direction:column;align-items:flex-start;justify-content:center;box-sizing:border-box;min-width:62px;min-height:40px;padding:6px 8px;text-align:left;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;flex:0 0 auto;border:1px solid rgba(255,255,255,0.11);background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.7);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">+ Folder</button>
         <button onClick="{{ vidToggle }}" title="Use the camera as the video source" style="display:flex;flex-direction:column;align-items:flex-start;justify-content:center;box-sizing:border-box;min-width:62px;min-height:40px;padding:6px 8px;text-align:left;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;flex:0 0 auto;border:1px solid {{ vidBtnBorder }};background:{{ vidBtnBg }};color:{{ vidBtnFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ vidBtnLabel }}</button>
+        <div style="position:relative;display:flex;flex:0 0 auto;">
+          <select value="{{ arModeSel }}" onChange="{{ setArMode }}" title="AR: control the scene with your hands or head through the camera" style="box-sizing:border-box;min-width:96px;min-height:40px;padding:6px 8px;text-align:left;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;appearance:none;-webkit-appearance:none;border:1px solid {{ vidArBorder }};background:{{ vidArBg }};color:{{ vidArFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+            <option value="off" style="background:#08090A;color:#F2F3F0;">AR off</option>
+            <option value="hand" style="background:#08090A;color:#F2F3F0;">AR hands</option>
+            <option value="head" style="background:#08090A;color:#F2F3F0;">AR head</option>
+            <option value="motion" style="background:#08090A;color:#F2F3F0;">AR motion</option>
+          </select>
+          <span ref="{{ arMeterRef }}" style="position:absolute;left:0;bottom:0;height:3px;width:0%;background:var(--acc);pointer-events:none;"></span>
+          <span ref="{{ arDotRef }}" style="position:absolute;bottom:0;left:50%;width:4px;height:7px;margin-left:-2px;background:#F2F3F0;opacity:0;pointer-events:none;"></span>
         </div>
+        </div>
+        <div style="display:{{ arHintDisp }};font-size:9.5px;line-height:1.5;letter-spacing:0.04em;color:rgba(242,243,240,0.75);border-left:2px solid var(--acc);padding-left:8px;">{{ arHint }}</div>
         <span style="display:{{ vidEmptyDisp }};font-size:9px;letter-spacing:0.06em;color:rgba(242,243,240,0.45);">No clips yet — + File or + Folder loads video.</span>
         <span style="display:{{ vidErrDisplay }};font-size:9px;letter-spacing:0.06em;color:rgba(242,243,240,0.6);">{{ vidErr }}</span>
         <div ref="{{ vidStripRef }}" style="display:{{ vidStripDisp }};width:100%;min-width:0;gap:4px;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;touch-action:pan-x;padding-bottom:5px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.22) transparent;">
@@ -601,12 +612,10 @@
         <button onClick="{{ vidRevT }}" style="display:{{ vidRevDisplay }};font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid {{ vidRevBorder }};background:{{ vidRevBg }};color:{{ vidRevFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ vidRevLabel }}</button>
         <button onClick="{{ vidPauseT }}" style="display:{{ vidRevDisplay }};font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid {{ vidPauseBorder }};background:{{ vidPauseBg }};color:{{ vidPauseFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ vidPauseLabel }}</button>
         <button onClick="{{ vidHideT }}" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid {{ vidHideBorder }};background:{{ vidHideBg }};color:{{ vidHideFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ vidHideLabel }}</button>
-        <button onClick="{{ vidArT }}" title="AR: movement in front of the camera steers the view. Motion also feeds the MOT / MOX / MOY automation sources" style="position:relative;font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid {{ vidArBorder }};background:{{ vidArBg }};color:{{ vidArFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);"><span style="position:relative;">{{ vidArLabel }}</span><span ref="{{ arMeterRef }}" style="position:absolute;left:0;bottom:0;height:3px;width:0%;background:var(--acc);pointer-events:none;"></span><span ref="{{ arDotRef }}" style="position:absolute;bottom:0;left:50%;width:4px;height:7px;margin-left:-2px;background:#F2F3F0;opacity:0;pointer-events:none;"></span></button>
         <sc-for list="{{ vidDevices }}" as="d" hint-placeholder-count="1">
           <button onClick="{{ d.select }}" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-overflow:ellipsis;text-align:center;min-width:0;border:1px solid {{ d.border }};background:{{ d.bg }};color:{{ d.fg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ d.label }}</button>
         </sc-for>
         </div>
-        <div style="display:{{ arHintDisp }};font-size:9.5px;line-height:1.5;letter-spacing:0.04em;color:rgba(242,243,240,0.75);border-left:2px solid var(--acc);padding-left:8px;">{{ arHint }}</div>
         <div style="display:flex;align-items:center;gap:10px;min-width:0;">
           <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);flex:0 0 auto;min-width:56px;">Mix</span>
           <div onPointerDown="{{ vidMixDrag.down }}" onPointerMove="{{ vidMixDrag.move }}" onPointerUp="{{ vidMixDrag.up }}" style="position:relative;flex:1;min-width:0;height:{{ ctlHitH }};display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
@@ -1386,6 +1395,9 @@
     </div>
   </sc-if>
 
+  <!-- What the AR tracker sees: the camera, mirrored as you see yourself,
+       with the hand points or the face box it found, and what to do next. -->
+  <canvas ref="{{ arPrevRef }}" width="256" height="144" style="position:absolute;right:22px;bottom:20px;z-index:43;display:{{ arPrevDisp }};width:256px;height:144px;border:1px solid rgba(255,255,255,0.11);background:#08090A;pointer-events:none;"></canvas>
   <!-- The text is rewritten four times a second into the inner box, so the
        close button lives on the outer one, which also carries the drag. -->
   <div style="position:absolute;right:22px;bottom:20px;z-index:44;font-family:'JetBrains Mono',monospace;font-size:10px;line-height:1.55;letter-spacing:0.02em;white-space:pre;color:rgba(242,243,240,0.72);background:rgba(8,9,10,0.34);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.11);padding:16px 18px 18px;display:{{ diagDisplay }};flex-direction:column;gap:14px;box-sizing:border-box;max-height:calc(100vh - 40px);overflow-y:auto;overscroll-behavior:contain;transform:{{ diagShift }};cursor:grab;touch-action:none;pointer-events:auto;" onPointerDown="{{ diagDrag.down }}" onPointerMove="{{ diagDrag.move }}" onPointerUp="{{ diagDrag.up }}" onPointerCancel="{{ diagDrag.up }}" onDoubleClick="{{ diagDrag.reset }}" title="Drag to move · double-click to put it back">
@@ -1563,7 +1575,7 @@ class Component extends DCLogic {
     this.state.glMsg = '';
     this.state.tutOn = false; this.state.tutStep = 0;
     this.diagRef = React.createRef();
-    this.arMeterRef = React.createRef(); this.arDotRef = React.createRef();
+    this.arMeterRef = React.createRef(); this.arDotRef = React.createRef(); this.arPrevRef = React.createRef();
     this.topBarRef = React.createRef();
     this.deckScrollRef = React.createRef();
     this.state.mesh=true;
@@ -13715,8 +13727,8 @@ class Component extends DCLogic {
         {k:'Mouse move', d:'Shorebreak: the surfer follows the pointer — left climbs the wave’s face, right runs out onto the shoulder, up and down take him along the wave'},
         {k:'Idle 10s', d:'Controls fade out on their own'},
         {k:'Menu tabs (Deck)', d:'The deck shows one group at a time: Scenes, Video, Cues, Slots, Params, Look, System. Minimal’s Menu button opens the deck; System has the layout buttons to go back'},
-        {k:'AR steer (camera)', d:'Video tab → Camera, then AR steer in Video look (it also starts the camera itself). Move a hand left or right in front of the camera and the view turns that way — orbit on 3D, swing round on the canvas scenes, travel on 2D. The bar on the button shows how much movement it sees, the white mark where. A still background works best; Hide keeps the camera image out of the picture'},
-        {k:'MOT / MOX / MOY sources', d:'Camera movement as automation sources, in the tag beside any value: MOT is how much is moving (0 still, 1 a lot), MOX and MOY where it is across and up. Needs video on and Auto on; the AMT bar sets how far it moves the parameter'},
+        {k:'AR (camera)', d:'Pick a mode in the AR menu beside Camera in the Video tab; it starts the camera itself. HANDS: pinch thumb and index to grab, move your hand to turn the scene like a mouse drag, open your hand to let go (a flick keeps it spinning); pinch with both hands and spread or close them to zoom. HEAD: the screen becomes a window — move your head and the view follows, lean in to zoom. MOTION: any movement turns the view toward its side. The preview bottom right shows what the tracker sees. Hands and Head load their tracking from the internet the first time; the camera image never leaves the computer'},
+        {k:'MOT / MOX / MOY sources', d:'Camera control as automation sources, in the tag beside any value. With AR hands: MOX and MOY are where your hand is, MOT how open it is (0 pinched, 1 open). With AR head: where your head is, and MOT how close you lean. With AR motion or AR off: where the movement is and how much. Needs video on and Auto on'},
         {k:'Morph fader (Slots)', d:'Eases toward where you put it, so even a click on the far end morphs over about a second. Between two different scenes the swap happens at the middle and the dissolve follows the fader'},
         {k:'Video change', d:'Auto steps the clip list, In order / Random its order, Link scene changes clip with the scene, FX cycle picks a new video look each clip, Tx the transition, Drift moves the video trail'},
         {k:'Several screens (TV Wall, Billboard City, Frame Corridor)', d:'Each screen plays the clip at its own delay, up to two seconds behind, so they never all show the same frame. Sphere keeps one picture wrapped round its dome'},
@@ -14378,7 +14390,7 @@ class Component extends DCLogic {
     const capHz = (this.RATE.find(x=>x.id===(this.state.rate||'free'))||{}).fps || 60;
     if(ms > 2000/capHz) this.jankN = (this.jankN||0) + 1;
 
-    this.motionStep(dt);
+    this.arStep(dt);
     this.stepEff(dt);
     const tt=this.vtime, mod=this.state.mod, auto=this.state.auto;
     const p = this.macroBlend() || this.state.p;
@@ -15320,15 +15332,163 @@ class Component extends DCLogic {
     mo.e+=(amt-mo.e)*k;
     if(n>12){ let wsum=0; for(let i=0;i<W*H;i++) wsum+=g[i];
       let cx=sx/wsum/(W-1)*2-1, cy=1-sy/wsum/(H-1)*2;
-      if(vd.flip) cx=-cx;   // Mirror on: the picture is a mirror, so is the control
+      cx=-cx;   // as you see yourself: moving right reads as right, whatever Mirror shows
       mo.x+=(cx-mo.x)*k; mo.y+=(cy-mo.y)*k; }
     if(this.arMeterRef.current) this.arMeterRef.current.style.width = Math.round(Math.min(1,mo.e*3)*100) + '%';
     if(this.arDotRef.current){ this.arDotRef.current.style.left = Math.round((mo.x*0.5+0.5)*100) + '%'; this.arDotRef.current.style.opacity = mo.e>0.02 ? '1' : '0'; }
-    if(vd.ar && mo.e>0.02){
+    if((vd.ar===true || vd.ar==='motion') && mo.e>0.02){
       const s=mo.e*0.12;
       if(this.isCanvasScene && this.isCanvasScene()) this.scnYaw=(this.scnYaw||0)+mo.x*s;
       else if(this.is2D()){ this.manual2D=true; this.pan.x+=mo.x*s*0.25; this.pan.y+=mo.y*s*0.25; }
       else { this.cam.yaw+=mo.x*s; this.cam.pitch=Math.max(-1.4,Math.min(1.4,this.cam.pitch-mo.y*s*0.6)); }
+    }
+  }
+  // AR, step two: hands and head, through MediaPipe. The library and its
+  // models load from Google's CDN the first time a mode needs them (which needs
+  // internet once); the frames themselves are analysed here and never leave.
+  //   hand:   pinch thumb and index to grab, move to turn the scene exactly as
+  //           a mouse drag does, let go to release (a flick keeps an orbit
+  //           turning); pinch with both hands and spread or close them to zoom.
+  //           An open hand does nothing. These are the gestures the hand-
+  //           tracking manipulation work settles on: an explicit grab and
+  //           release, relative motion, two hands for scale.
+  //   head:   the screen as a window: move your head and the view follows,
+  //           lean in to zoom.
+  //   motion: the frame-difference steering of step one.
+  arModeOf(){ const a=this.state.vid && this.state.vid.ar; return a===true ? 'motion' : (a || 'off'); }
+  async arLoad(kind){
+    this._ar = this._ar || {}; this._arBusy = this._arBusy || {};
+    if(this._ar[kind] || this._arBusy[kind]) return;
+    this._arBusy[kind] = true;
+    this.arStat = 'Loading ' + (kind==='hand' ? 'hand' : 'head') + ' tracking…';
+    this.forceUpdate();
+    try{
+      const V = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
+      const mp = this._mp || (this._mp = await import(V + '/vision_bundle.mjs'));
+      const files = this._mpFiles || (this._mpFiles = await mp.FilesetResolver.forVisionTasks(V + '/wasm'));
+      const make = (delegate) => kind==='hand'
+        ? mp.HandLandmarker.createFromOptions(files, {baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task', delegate}, runningMode:'VIDEO', numHands:2})
+        : mp.FaceDetector.createFromOptions(files, {baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite', delegate}, runningMode:'VIDEO'});
+      let t; try{ t = await make('GPU'); }catch(e){ t = await make('CPU'); }
+      this._ar[kind] = t; this.arStat = '';
+    }catch(e){
+      this.arStat = 'Could not load ' + (kind==='hand' ? 'hand' : 'head') + ' tracking — it needs internet the first time. ' + ((e && e.message) || e);
+    }
+    this._arBusy[kind] = false;
+    this.forceUpdate();
+  }
+  arStep(dt){
+    const m = this.arModeOf();
+    if(m==='hand' || m==='head') this.trackStep(m);
+    else this.motionStep(dt);
+  }
+  trackStep(kind){
+    const v = this.video, vd = this.state.vid;
+    if(!(vd && vd.on && v && v.videoWidth > 0)) return;
+    const T = this._ar && this._ar[kind];
+    if(!T){ this.arLoad(kind); this.arPreview(null, kind); return; }
+    const now = performance.now();
+    if(now - (this._arT || 0) < 33) return;
+    this._arT = now;
+    let res; try{ res = T.detectForVideo(v, now); }catch(e){ return; }
+    if(kind==='hand') this.handStep(res, now); else this.headStep(res, v);
+  }
+  handStep(res, now){
+    const H = this._hand || (this._hand = {p:[], grab:null, two:null});
+    const cv = this.canvasRef.current, r = cv ? cv.getBoundingClientRect() : {left:0, top:0, width:1, height:1};
+    const pts = ((res && res.landmarks) || []).map((L, i) => {
+      const d = (a, b) => Math.hypot(a.x-b.x, a.y-b.y);
+      const pin = d(L[4], L[8]) / Math.max(1e-3, d(L[0], L[9]));
+      // x flipped: you see yourself mirrored, so moving right reads as right
+      const x = 1-(L[4].x+L[8].x)/2, y = (L[4].y+L[8].y)/2, o = H.p[i];
+      return {L, pin, on: (o && o.on) ? pin < 0.5 : pin < 0.32,
+        sx: o ? o.sx+(x-o.sx)*0.55 : x, sy: o ? o.sy+(y-o.sy)*0.55 : y};
+    });
+    const on = pts.filter(p => p.on), mo = this.mo;
+    if(pts[0]){ mo.x = pts[0].sx*2-1; mo.y = 1-pts[0].sy*2; mo.e = Math.min(1, Math.max(0, (pts[0].pin-0.25)/0.9)); } else mo.e *= 0.9;
+    const toScreen = p => ({clientX: r.left + (H.grab.x0 + (p.sx-H.grab.x0)*1.6)*r.width, clientY: r.top + (H.grab.y0 + (p.sy-H.grab.y0)*1.6)*r.height});
+    const release = () => {
+      const g = H.grab; if(!g) return;
+      const orb = !(this.state.camView > 0) && !this.is2D() && !this.isCanvasScene();
+      if(orb && now - g.t < 120 && Math.hypot(g.vx, g.vy) > 0.4){
+        const cap = v => Math.max(-6, Math.min(6, v));
+        this.fling = {vy: cap(-g.vx*3.4*1.6), vp: cap(g.vy*2.4*1.6)};
+      }
+      if(this.onMUp) this.onMUp();
+      H.grab = null;
+    };
+    if(on.length >= 2){
+      release();
+      const dd = Math.hypot(on[0].sx-on[1].sx, on[0].sy-on[1].sy);
+      if(!H.two) H.two = {d0: dd, z0: this.state.p.zoom ?? 0.5};
+      else this.setP('zoom', H.two.z0 + (dd-H.two.d0)*1.6);
+    } else if(on.length === 1){
+      H.two = null;
+      const p = on[0];
+      if(!H.grab){
+        H.grab = {x0: p.sx, y0: p.sy, x: p.sx, y: p.sy, t: now, vx: 0, vy: 0};
+        this.fling = null; if(this.cancelHome) this.cancelHome();
+        this.md = {x: r.left + p.sx*r.width, y: r.top + p.sy*r.height, yaw: this.cam.yaw, pitch: this.cam.pitch, px: this.pan.x, py: this.pan.y, alt: false};
+        if(this.pivGrab) this.pivGrab();
+      } else {
+        const g = H.grab, dts = Math.max(1, now-g.t)/1000;
+        g.vx = g.vx*0.5 + (p.sx-g.x)/dts*0.5; g.vy = g.vy*0.5 + (p.sy-g.y)/dts*0.5;
+        g.x = p.sx; g.y = p.sy; g.t = now;
+        if(this.md && this.onMMove) this.onMMove(toScreen(p));
+      }
+    } else { release(); H.two = null; }
+    H.p = pts;
+    if(this.arMeterRef.current) this.arMeterRef.current.style.width = (on.length ? 100 : pts.length ? 35 : 0) + '%';
+    if(this.arDotRef.current){ this.arDotRef.current.style.opacity = pts.length ? '1' : '0'; if(pts[0]) this.arDotRef.current.style.left = Math.round(pts[0].sx*100) + '%'; }
+    this.arPreview(pts, 'hand');
+  }
+  headStep(res, v){
+    const H = this._head || (this._head = {applied:{x:0, y:0, z:0}});
+    const d = res && res.detections && res.detections[0], mo = this.mo;
+    if(d && d.boundingBox){
+      const b = d.boundingBox, vw = v.videoWidth, vh = v.videoHeight;
+      const hx = 1-(b.originX+b.width/2)/vw, hy = (b.originY+b.height/2)/vh, hw = b.width/vw;
+      const k = H.x == null ? 1 : 0.3;
+      H.x = H.x == null ? hx : H.x+(hx-H.x)*k; H.y = H.y == null ? hy : H.y+(hy-H.y)*k; H.w = H.w == null ? hw : H.w+(hw-H.w)*k;
+      if(H.w0 == null) H.w0 = H.w;
+      mo.x = H.x*2-1; mo.y = 1-H.y*2; mo.e = Math.min(1, Math.max(0, (H.w/H.w0-0.7)/0.6));
+      // The screen as a window: offsets from where the head started, applied
+      // as changes so the view comes back when the head does.
+      const ox = H.x-0.5, oy = 0.5-H.y, oz = Math.log(H.w/H.w0), a = H.applied;
+      if(this.isCanvasScene && this.isCanvasScene()) this.scnYaw = (this.scnYaw||0) + (ox-a.x)*1.2;
+      else if(this.is2D()){ this.manual2D = true; this.pan.x += (ox-a.x)*0.8; this.pan.y += (oy-a.y)*0.8; }
+      else { this.cam.yaw += (ox-a.x)*1.4; this.cam.pitch += (oy-a.y)*1.0; }
+      this.setP('zoom', (this.state.p.zoom ?? 0.5) + (oz-a.z)*0.35);
+      H.applied = {x: ox, y: oy, z: oz};
+    }
+    if(this.arMeterRef.current) this.arMeterRef.current.style.width = (d ? 100 : 0) + '%';
+    this.arPreview(d ? [d] : [], 'head');
+  }
+  arPreview(data, kind){
+    const c = this.arPrevRef.current; if(!c) return;
+    const x = c.getContext('2d'), W = c.width, H = c.height, v = this.video, acc = this.state.accentSel || this.props.accent || '#C8FF2E';
+    x.fillStyle = '#08090A'; x.fillRect(0, 0, W, H);
+    if(v && v.videoWidth){ x.save(); x.translate(W, 0); x.scale(-1, 1); x.globalAlpha = 0.55; try{ x.drawImage(v, 0, 0, W, H); }catch(e){} x.restore(); }
+    let msg = this.arStat || '';
+    if(kind==='hand' && data){
+      for(const p of data){
+        x.fillStyle = 'rgba(242,243,240,0.75)';
+        for(const l of p.L){ x.fillRect((1-l.x)*W-1.5, l.y*H-1.5, 3, 3); }
+        x.strokeStyle = p.on ? acc : 'rgba(242,243,240,0.9)'; x.lineWidth = p.on ? 3 : 1.5;
+        x.beginPath(); x.arc(p.sx*W, p.sy*H, p.on ? 9 : 6, 0, 6.2832); x.stroke();
+      }
+      if(!msg) msg = !data.length ? 'Show a hand to the camera' : data.some(p => p.on) ? (data.filter(p => p.on).length > 1 ? 'Two hands: spread to zoom' : 'Grabbed — move to turn') : 'Pinch thumb and index to grab';
+    } else if(kind==='head' && data){
+      const v2 = this.video;
+      for(const d of data){ const b = d.boundingBox; if(!b || !v2) continue;
+        x.strokeStyle = acc; x.lineWidth = 2;
+        x.strokeRect((1-(b.originX+b.width)/v2.videoWidth)*W, b.originY/v2.videoHeight*H, b.width/v2.videoWidth*W, b.height/v2.videoHeight*H); }
+      if(!msg) msg = data.length ? 'Move your head to look around; lean in to zoom' : 'Face the camera';
+    }
+    if(msg){
+      x.fillStyle = 'rgba(8,9,10,0.75)'; x.fillRect(0, H-20, W, 20);
+      x.fillStyle = '#F2F3F0'; x.font = '10px JetBrains Mono, monospace'; x.textBaseline = 'middle';
+      x.fillText(msg.length > 46 ? msg.slice(0, 45) + '…' : msg, 6, H-10);
     }
   }
   stepEff(dt){
@@ -16296,12 +16456,18 @@ class Component extends DCLogic {
       vidHideLabel: s.vid.hide ? 'Hidden' : 'Hide',
       vidHideBg: chip(s.vid.hide).bg, vidHideFg: chip(s.vid.hide).fg, vidHideBorder: chip(s.vid.hide).border,
       vidHideT: () => this.setVid({hide:!s.vid.hide}),
-      vidArLabel: s.vid.ar ? 'AR steer on' : 'AR steer',
       vidArBg: chip(!!s.vid.ar).bg, vidArFg: chip(!!s.vid.ar).fg, vidArBorder: chip(!!s.vid.ar).border,
-      vidArT: () => { if(!s.vid.ar && !s.vid.on) this.enableVideo(s.vid.deviceId); this.setVid({ar:!s.vid.ar}); },
-      arMeterRef: this.arMeterRef, arDotRef: this.arDotRef,
+      arModeSel: this.arModeOf(),
+      setArMode: (e) => { const m = e.target.value; if(m !== 'off' && !s.vid.on) this.enableVideo(s.vid.deviceId);
+        if(m === 'hand' || m === 'head') this.arLoad(m); this._head = null; this._hand = null; this.setVid({ar: m === 'off' ? false : m}); },
+      arMeterRef: this.arMeterRef, arDotRef: this.arDotRef, arPrevRef: this.arPrevRef,
+      arPrevDisp: (s.vid.on && (s.vid.ar === 'hand' || s.vid.ar === 'head')) ? 'block' : 'none',
       arHintDisp: s.vid.ar ? 'block' : 'none',
-      arHint: 'AR steer is on. Move a hand left or right in front of the camera to turn the view (up and down tips it); the bar on the button shows how much movement it sees and the white mark where. Keep the background still. Hide keeps the camera out of the picture; Mirror flips the direction. For any parameter, set its source tag to MOT (amount), MOX or MOY (where) to drive it by movement.',
+      arHint: (this.arStat ? this.arStat + ' ' : '') + ({
+        hand: 'AR hands: pinch your thumb and index finger to grab, move your hand to turn the scene, open your hand to let go (a quick flick keeps it spinning). Pinch with both hands and spread them apart or together to zoom. The preview bottom right shows what the camera sees.',
+        head: 'AR head: the screen becomes a window. Move your head left, right, up or down and the view follows; lean in to zoom, lean back to pull out. Sit centred in front of the camera when you switch it on.',
+        motion: 'AR motion: any movement in front of the camera turns the view toward its side. Works without internet but reacts to everything that moves; a still background helps.'
+      })[this.arModeOf()] || '',
       vidRevDisplay: s.vid.src==='file' ? 'block' : 'none',
       vidRevLabel: s.vid.rev ? '\u25C0 Rev' : 'Rev',
       vidRevBg: chip(s.vid.rev).bg, vidRevFg: chip(s.vid.rev).fg, vidRevBorder: chip(s.vid.rev).border,
