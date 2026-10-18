@@ -1,8 +1,7 @@
 .DS_Store
 Thumbs.db
 *.log
+# Local scratch: reference screenshots, editor thumbnail, shader compile probe.
 uploads/
-firmware/
 .thumbnail
 probe.html
-wave-current-scene

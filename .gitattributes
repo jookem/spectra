@@ -1,0 +1,7 @@
+# Stored with LF in the repo whatever the platform; Windows checkouts may use CRLF.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.sh text eol=lf
+*.command text eol=lf
+*.png binary
+*.glb binary
