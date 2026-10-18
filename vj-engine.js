@@ -47,17 +47,32 @@ float Lb(vec2 p){ return dot(textureLod(uScene,p,5.0).rgb, vec3(0.2126,0.7152,0.
 float TH(vec2 xz){
   vec2 c=xz*0.9+0.5; const float r=0.03;
   float base=(Lb(MR(c))*2.0+Lb(MR(c+vec2(r,r)))+Lb(MR(c-vec2(r,r)))+Lb(MR(c+vec2(r,-r)))+Lb(MR(c+vec2(-r,r))))/6.0;
-  // Detail follows complexity: where the mid and coarse reads disagree the
-  // frame is busy (filaments, spirals), so a little more of the mid level is
-  // let through there; flat regions stay rolling. The fine (mip 1.5) level
-  // used to come through as well, and a filament a few pixels wide became a
-  // needle-thin peak: the terrain read as a forest of spikes.
-  float mid=Lt(MR(c));
+  // Detail follows complexity: where the fine and coarse reads disagree the
+  // frame is busy (filaments, spirals), so finer levels are let through there
+  // and those regions grow real ridges; flat regions stay rolling.
+  float mid=Lt(MR(c)), fine=Lf(MR(c));
   float busy=smoothstep(0.02,0.14,abs(mid-base));
-  float a=clamp(base+(mid-base)*mix(0.18,0.38,busy),0.0,1.0);
-  // Half a smoothstep: plateaus still round over, but slopes are not
-  // steepened as much as a full one did.
-  return mix(a,a*a*(3.0-2.0*a),0.5);
+  float a=base+(mid-base)*mix(0.22,0.55,busy)+(fine-mid)*0.32*busy;
+  a=clamp(a,0.0,1.0);
+  return a*a*(3.0-2.0*a);
+}
+// Terrain relief: the same object-fixed bump map the 3D scenes use, on the
+// ground's lighting normal only, so it adds rock detail without making the
+// height field (and the march) any more expensive. Octaves finer than a pixel
+// fade out.
+float bH(vec3 p){ p=fract(p*0.1031); p+=dot(p,p.zyx+31.32); return fract((p.x+p.y)*p.z); }
+float bN(vec3 p){ vec3 i=floor(p),f=fract(p); f=f*f*(3.0-2.0*f);
+  return mix(mix(mix(bH(i),bH(i+vec3(1,0,0)),f.x),mix(bH(i+vec3(0,1,0)),bH(i+vec3(1,1,0)),f.x),f.y),
+             mix(mix(bH(i+vec3(0,0,1)),bH(i+vec3(1,0,1)),f.x),mix(bH(i+vec3(0,1,1)),bH(i+vec3(1,1,1)),f.x),f.y),f.z); }
+float bF(vec3 q,float fp){ float v=0.0,a=0.5;
+  for(int i=0;i<3;i++){ v+=a*bN(q)*(1.0-smoothstep(0.2,0.6,fp)); q=q*2.07+vec3(1.7,9.2,3.1); fp*=2.07; a*=0.5; }
+  return v; }
+vec4 bumpT(vec3 n,vec3 p,float wl,float px,float k){
+  vec3 q=p/wl; float fp=px/wl; const float e=0.07;
+  float h0=bF(q,fp);
+  vec3 g=vec3(bF(q+vec3(e,0,0),fp),bF(q+vec3(0,e,0),fp),bF(q+vec3(0,0,e),fp))-h0;
+  g/=e; g-=n*dot(g,n);
+  return vec4(normalize(n-g*k),h0);
 }
 // Parallax height: continuous, from a mip-2/3 blend of the frame.
 float PH(vec2 p){ vec2 m=MR(p); float a=mix(dot(textureLod(uScene,m,2.0).rgb,vec3(0.2126,0.7152,0.0722)),dot(textureLod(uScene,m,3.5).rgb,vec3(0.2126,0.7152,0.0722)),0.5); return a*a*(3.0-2.0*a); }
@@ -118,7 +133,7 @@ void main(){
       vec3 p=ro+rd*t;
       float h=max(TH(p.xz)*Hh,wl);
       if(p.y<h){ hit=true; break; }
-      tp=t; t+=max(0.0025+t*0.0015,(p.y-h)*0.36); if(t>9.0) break;
+      tp=t; t+=max(0.0025+t*0.0015,(p.y-h)*0.42); if(t>9.0) break;
     }
     float dofk=clamp(uTerrFog,0.0,1.0);
     vec3 voidc=vec3(0.004,0.005,0.008);
@@ -127,7 +142,7 @@ void main(){
     vec3 sky=mix(tint*(0.18+0.25*uLoud)+avg*0.6, voidc, smoothstep(0.0,0.35,hz));
     vec3 ld=normalize(vec3(0.55,0.42,0.35));
     if(hit){
-      for(int k=0;k<8;k++){ float tm=0.5*(tp+t); vec3 p=ro+rd*tm; if(p.y<max(TH(p.xz)*Hh,wl)) t=tm; else tp=tm; }
+      for(int k=0;k<6;k++){ float tm=0.5*(tp+t); vec3 p=ro+rd*tm; if(p.y<max(TH(p.xz)*Hh,wl)) t=tm; else tp=tm; }
       wat = t>=tw-0.002;
       vec3 p=ro+rd*t;
       vec3 c;
@@ -147,11 +162,11 @@ void main(){
         float hx=(TH(p.xz+vec2(ex,0.0))-TH(p.xz-vec2(ex,0.0)))*Hh;
         float hz2=(TH(p.xz+vec2(0.0,ex))-TH(p.xz-vec2(0.0,ex)))*Hh;
         vec3 n=normalize(vec3(-hx,2.0*ex,-hz2));
-        // The scene is projected straight down onto the ground, so on a steep
-        // face one texel is stretched down the whole slope and fine detail
-        // smeared into vertical streaks. Steep faces read a blurrier level.
-        float steep=smoothstep(0.55,0.15,n.y);
-        float lod=clamp((t-0.5)*dofk*2.4+steep*3.0,0.0,7.0);
+        // Relief on the ground: strength follows the Depth trim, and the bump
+        // pattern is fixed to the land so it scrolls with the flight.
+        vec4 bt=bumpT(n,p,0.035,t*2.0/uRes.y,0.45*smoothstep(0.0,0.6,dA));
+        n=bt.xyz;
+        float lod=clamp((t-0.5)*dofk*2.4,0.0,7.0);
         vec3 alb=textureLod(uScene,tc,lod).rgb;
         // Height ramp: wet dark valleys, lit ridges, scene texture on top.
         float hN=clamp(h0,0.0,1.0);
@@ -162,6 +177,7 @@ void main(){
         // Crease darkening: ground below its surroundings.
         float rim=(TH(p.xz+vec2(0.08,0.0))+TH(p.xz-vec2(0.08,0.0))+TH(p.xz+vec2(0.0,0.08))+TH(p.xz-vec2(0.0,0.08)))*0.25;
         float ao=clamp(1.0-(rim-h0)*3.0,0.35,1.0);
+        ao*=mix(1.0,0.7+0.6*bt.w,0.5*smoothstep(0.0,0.6,dA));
         float df=max(dot(n,ld),0.0);
         c=alb*(0.18*ao+1.0*df*(0.25+0.75*sh))+avg*0.15*ao*(0.5+0.5*n.y);
         c+=pow(max(dot(reflect(-ld,n),-rd),0.0),12.0)*(0.06+uBeat*0.16)*sh;
@@ -413,6 +429,9 @@ uniform float uLine;
 float gPx=1e-3;   // world size of one render pixel, set by each escape path
 // Aperture, 0..1. Zero is the pinhole camera every scene used to be.
 uniform float uDOF;
+// Relief on the 3D families, 0..1: a bump map on the lit surface, from the
+// Depth trim (which shapes the 2D scenes and was otherwise idle on 3D).
+uniform float uBump;
 // Scene text. The message is baked to a signed distance field on the CPU (R =
 // distance, G = letter index) so the shader can treat it as real geometry
 // instead of a sprite: extruded in 3D it unions into the raymarch and occludes
@@ -1629,6 +1648,28 @@ vec3 rayCol(vec3 ro,vec3 rd,float far,int budget){
 // Tap target colour, taken from the scene's own palette (the slot its glow
 // uses) at full brightness, so the highlight reads as part of the scene.
 vec3 tgtCol(){ vec3 c=pal(0.15); c=c/max(max(c.r,c.g),max(c.b,0.05)); return mix(c,vec3(1.0),0.15); }
+// Relief: object-space value noise, so the bumps are fixed to the geometry
+// and ride it as the camera moves. Only the normal is tilted (no extra map()
+// calls), so it costs a few hashes per lit pixel. Octaves finer than a pixel
+// fade out instead of sparkling. The hash is arithmetic, not sin(), so it
+// holds up at the large coordinates a deep Fly view reaches.
+float bH(vec3 p){ p=fract(p*0.1031); p+=dot(p,p.zyx+31.32); return fract((p.x+p.y)*p.z); }
+float bN(vec3 p){ vec3 i=floor(p),f=fract(p); f=f*f*(3.0-2.0*f);
+  return mix(mix(mix(bH(i),bH(i+vec3(1,0,0)),f.x),mix(bH(i+vec3(0,1,0)),bH(i+vec3(1,1,0)),f.x),f.y),
+             mix(mix(bH(i+vec3(0,0,1)),bH(i+vec3(1,0,1)),f.x),mix(bH(i+vec3(0,1,1)),bH(i+vec3(1,1,1)),f.x),f.y),f.z); }
+float bF(vec3 q,float fp){ float v=0.0,a=0.5;
+  for(int i=0;i<3;i++){ v+=a*bN(q)*(1.0-smoothstep(0.2,0.6,fp)); q=q*2.07+vec3(1.7,9.2,3.1); fp*=2.07; a*=0.5; }
+  return v; }
+// n: surface normal, p: hit point, wl: world wavelength of the broadest
+// octave, px: world size of one pixel at the hit. xyz = tilted normal,
+// w = relief height 0..~1 for a little cavity shading.
+vec4 bump3(vec3 n,vec3 p,float wl,float px){
+  vec3 q=p/wl; float fp=px/wl; const float e=0.07;
+  float h0=bF(q,fp);
+  vec3 g=vec3(bF(q+vec3(e,0,0),fp),bF(q+vec3(0,e,0),fp),bF(q+vec3(0,0,e),fp))-h0;
+  g/=e; g-=n*dot(g,n);
+  return vec4(normalize(n-g*uBump*0.4),h0);
+}
 vec3 render3(vec2 uv){
   if(uCamProbe>0.5){
     if(int(gl_FragCoord.x)==25){ gProbeC=vec4(tgtCol(),1.0); return vec3(0.0); }
@@ -1980,10 +2021,18 @@ vec3 render3(vec2 uv){
 #else
     vec3 n=nrm(p);
 #endif
+    // Relief. The broadest octave is sized like the contour lines: fixed in
+    // Orbit, following the camera's framing scale in Fly / Surface.
+    float bumpH=0.5;
+    if(uBump>0.001 && trap>-0.5){
+      vec4 bb=bump3(n,p,fc?mix(0.1,uCamScale*0.35,cw):0.1,pxw*d);
+      n=bb.xyz; bumpH=bb.w;
+    }
     vec3 l=normalize(vec3(0.7,0.9,-0.6));
     float dif=clamp(dot(n,l),0.0,1.0);
     float fre=pow(1.0-clamp(dot(n,-rd),0.0,1.0),3.0);
     float ao=clamp(1.0-d*0.16/max(dist,1.0),0.15,1.0);
+    ao*=mix(1.0,0.65+0.7*bumpH,uBump*0.5);
     vec3 base=pal(trap*2.6+d*0.14+uHigh*0.25);
     vec3 emis=vec3(0.0);
     // trap = -1 is the flag map() sets when the text solid was the nearest
