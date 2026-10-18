@@ -25,8 +25,14 @@ const man = JSON.parse(manB.body), oldTpl = JSON.parse(tplB.body), ext = JSON.pa
 
 // Scripts are referenced from the template in head order; csi.js is an
 // external resource. Images are matched to their entries by content.
-const ORDER = ['support.js', 'vj-engine.js', 'deep-zoom.js', 'cam-fly.js', 'wave-mesh.js', 'wave-gl.js'];
+const ORDER = ['support.js', 'vj-engine.js', 'deep-zoom.js', 'cam-fly.js', 'wave-mesh.js', 'wave-gl.js', 'scene-thumbs.js'];
 const srcIds = [...oldTpl.matchAll(/<script src="([0-9a-f-]{36})">/g)].map(m => m[1]);
+// A script added since the previous build has no bundle entry yet: give it one.
+for (let i = srcIds.length; i < ORDER.length; i++) {
+  const id = require('crypto').randomUUID();
+  man[id] = { mime: 'application/javascript', compressed: true, data: '' };
+  srcIds.push(id);
+}
 if (srcIds.length !== ORDER.length) throw new Error('expected ' + ORDER.length + ' scripts in the template, found ' + srcIds.length);
 const ids = {};
 ORDER.forEach((f, i) => { ids[f] = srcIds[i]; });

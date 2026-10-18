@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<script src="./support.js?v=b22"></script>
+<script src="./support.js?v=b23"></script>
 <meta name="ext-resource-dependency" content="./csi.js" data-resource-id="csiJs">
 </head>
 <body>
@@ -30,11 +30,12 @@
   @keyframes vjspin{to{transform:rotate(360deg)}}
   @keyframes vjscan{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
 </style>
-<script src="vj-engine.js?v=b22"></script>
-<script src="deep-zoom.js?v=b22"></script>
-<script src="cam-fly.js?v=b22"></script>
-<script src="wave-mesh.js?v=b22"></script>
-<script src="wave-gl.js?v=b22"></script>
+<script src="vj-engine.js?v=b23"></script>
+<script src="deep-zoom.js?v=b23"></script>
+<script src="cam-fly.js?v=b23"></script>
+<script src="wave-mesh.js?v=b23"></script>
+<script src="wave-gl.js?v=b23"></script>
+<script src="scene-thumbs.js?v=b23"></script>
 </helmet>
 <template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#08090A"/><circle cx="50" cy="50" r="22" fill="none" stroke="#C8FF2E" stroke-width="3"/><circle cx="50" cy="50" r="11" fill="none" stroke="#C8FF2E" stroke-width="2" opacity="0.6"/><circle cx="50" cy="50" r="3.5" fill="#C8FF2E"/></svg></template>
 <div style="position:relative;width:100vw;height:100dvh;overflow:hidden;background:#08090A;font-family:'JetBrains Mono',ui-monospace,monospace;color:#F2F3F0;user-select:none;-webkit-user-select:none;">
@@ -97,7 +98,7 @@
           <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.42);">A SWRV Systems production</div>
           <div style="width:18px;height:1px;background:rgba(242,243,240,0.25);"></div>
         </div>
-        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 22 · 18 Oct 2026</div>
+        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 23 · 18 Oct 2026</div>
       </div>
       <div style="max-width:420px;text-align:center;font-size:12.5px;line-height:1.7;color:rgba(242,243,240,0.55);">The visuals are driven entirely by what the microphone hears. Nothing is recorded or sent anywhere.</div>
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,230px));gap:10px;width:100%;max-width:470px;justify-content:center;">
@@ -156,7 +157,7 @@
     <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
       <div style="font-family:Archivo,sans-serif;font-weight:700;font-size:54px;letter-spacing:-0.03em;line-height:1;">SPECTRA</div>
       <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.36);">A SWRV Systems production</div>
-      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 22 · 18 Oct 2026</div>
+      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 23 · 18 Oct 2026</div>
     </div>
     <div ref="{{ warmWrapRef }}" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
       <div style="width:260px;height:2px;background:rgba(255,255,255,0.1);">
@@ -2053,7 +2054,7 @@ class Component extends DCLogic {
           T.px=this.pan.x; T.py=this.pan.y; T.three=true;
           this.pivGrab();
         } else if(e.touches.length===2){
-          holdOff(); T.p0=null; T.rot=null; T.roll0=this.cam.roll||0; T.sr0=this.scnRoll||0; this.vpGoal=null; this.fling=null;
+          holdOff(); T.p0=null; T.rot=null; T.roll0=this.cam.roll||0; T.sr0=this.scnRoll||0; T.sy0=this.scnYaw||0; this.vpGoal=null; this.fling=null;
           const a=e.touches[0], b=e.touches[1];
           T.d0=Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY);
           T.z0=this.state.p.zoom ?? 0.5;
@@ -2115,7 +2116,7 @@ class Component extends DCLogic {
             if(Math.max(spread, turn, move) < 14) return;
             T.mode2 = (spread>=turn && spread>=move) ? 'pinch' : (turn>=move ? 'twist' : 'drag');
             T.d0=d; T.z0=this.state.p.zoom ?? 0.5;
-            T.a0+=da; da=0; T.roll0=this.cam.roll||0; T.sr0=this.scnRoll||0; T.yaw0=this.cam.yaw;
+            T.a0+=da; da=0; T.roll0=this.cam.roll||0; T.sr0=this.scnRoll||0; T.sy0=this.scnYaw||0; T.yaw0=this.cam.yaw;
             if(R){ R.x=R.lx=cx; R.y=R.ly=cy; R.yaw=this.cam.yaw; R.pitch=this.cam.pitch; R.lt=performance.now(); R.vx=R.vy=0; }
             if(D){ D.x=cx; D.y=cy; D.yaw=this.cam.yaw; D.pitch=this.cam.pitch; D.px=this.pan.x; D.py=this.pan.y; }
             // Only a drag moves the view, so a pinch or twist releases it now.
@@ -2124,10 +2125,11 @@ class Component extends DCLogic {
           this.cancelHome();
           if(T.mode2==='pinch') this.setP('zoom', T.z0 + (d-T.d0)/Math.max(W,H)*1.5);
           else if(T.mode2==='twist'){
-            // Orbit on 3D: twist rolls the fractal with the fingers. 2D scenes
+            // Orbit on 3D: twist rolls the fractal with the fingers. Canvas
+            // scenes turn about their vertical axis (see yawOrbit). 2D scenes
             // turn (yaw). Fly and Surface have no twist; their drag looks around.
             if(orb3()){ let nr=(T.roll0||0)-da; if(nr>Math.PI) nr-=Math.PI*2; else if(nr<-Math.PI) nr+=Math.PI*2; this.cam.roll=nr; }
-            else if(this.isCanvasScene && this.isCanvasScene()) this.scnRoll=Math.max(-0.52,Math.min(0.52,(T.sr0||0)+da));
+            else if(this.isCanvasScene && this.isCanvasScene()) this.scnYaw=(T.sy0||0)-da;
             else if(this.is2D()) this.cam.yaw = T.yaw0 - da*1.6;
           } else if(T.rot){
             const R=T.rot;
@@ -4650,7 +4652,7 @@ class Component extends DCLogic {
       113:['Frame corridor','frames at a·f/z','every frame and the far wall show the video'],
       114:['Reflection pool','mirror rows displaced by ripples','the video is reflected in rippling water; beats drop rings'],
       115:['Starfield warp','stars at x/z streaking out','the video sits at the vanishing point and swells on the level'],
-      116:['Sphere','faceted dome, front-projected','each facet takes the part of the frame it faces; Spin turns the picture round the dome']
+      116:['Sphere','faceted dome, two screens round it','two frames wrap the dome, one per half turn; Spin turns them round']
     };
     return F[mode] || null;
   }
@@ -5571,6 +5573,17 @@ class Component extends DCLogic {
   // Drag places the vanishing point: the camera turns so that straight ahead
   // lands where the frame's pan offset says, the same point the 2D scenes move.
   vpAim(cam,F,Vw){ cam.yaw+=Math.atan(-Vw.ox/F); cam.pitch+=Math.atan(-Vw.oy/F); return cam; }
+  // Twist on a canvas scene turns it about the vertical axis. The camera
+  // swings round a pivot d ahead of it, so the subject turns in place like a
+  // turntable; d 0 turns on the spot (the street and corridor scenes, where
+  // swinging round would put the camera through the walls). The scenes that
+  // already circle a target add scnYaw to their own orbit angle instead.
+  yawOrbit(cam,d){
+    const a=this.scnYaw||0; if(Math.abs(a)<1e-4) return cam;
+    const y0=cam.yaw||0, px=cam.x+Math.sin(y0)*d, pz=cam.z+Math.cos(y0)*d;
+    cam.yaw=y0+a; cam.x=px-Math.sin(cam.yaw)*d; cam.z=pz-Math.cos(cam.yaw)*d;
+    return cam;
+  }
   lookAt(x,y,z,tx,ty,tz){ return {x,y,z,yaw:Math.atan2(tx-x,tz-z),pitch:Math.atan2(y-ty,Math.hypot(tx-x,tz-z))}; }
   glow2(ctx,x,y,r,rgb,a){ if(!(r>0.5)) return; const g=ctx.createRadialGradient(x,y,0,x,y,r);
     g.addColorStop(0,'rgba('+(rgb[0]|0)+','+(rgb[1]|0)+','+(rgb[2]|0)+','+a.toFixed(3)+')'); g.addColorStop(1,'rgba('+(rgb[0]|0)+','+(rgb[1]|0)+','+(rgb[2]|0)+',0)');
@@ -5586,7 +5599,7 @@ class Component extends DCLogic {
   drawDriveIn(ctx,W,H,tick){
     const M=this.MESH, e=this.eff||{}, A=this.a||{}, Vw=this.canvasView(W,H), t=(M.mtick||0)/60;
     const hu=(e.hue??0.62)*360, V=this.sceneSig(), vc=this.vidAvg(V), sc=Vw.sc, rgb=(h,s,l)=>this.hrgb(h,s,l), hs=k=>this.hsh1(k);
-    const orb=Math.sin(t*0.05)*0.42, R=25/sc, T=[0,3,9];
+    const orb=Math.sin(t*0.05)*0.42+(this.scnYaw||0), R=25/sc, T=[0,3,9];
     const cam=this.lookAt(T[0]+Math.sin(orb)*R, 7+((e.morph??0.5)-0.5)*9, T[2]-Math.cos(orb)*R, T[0],T[1],T[2]);
     const F=H*1.25, OX=W/2, OY=H*0.5; this.vpAim(cam,F,Vw); this.vpReport(OX+Vw.ox, OY+Vw.oy); const hz=OY-F*Math.tan(cam.pitch);
     this.skyGrad(ctx,W,hz,'hsl('+hu+',55%,5%)','hsl('+(hu+25)+',45%,16%)');
@@ -5692,7 +5705,7 @@ class Component extends DCLogic {
     const hu=(e.hue??0.58)*360, V=this.sceneSig(), sp=0.4+Math.pow(e.speed??0.8,2)*9;
     M.cz=(M.cz||0)+this.sceneDt()*sp*(1+(A.bass||0)*0.5);
     const gap=3.2+(e.morph??0.5)*3, D=9, NB=14;
-    const cam={x:Math.sin(t*0.13)*0.7, y:1.7, z:M.cz, yaw:Math.sin(t*0.09)*0.07, pitch:-0.07};
+    const cam=this.yawOrbit({x:Math.sin(t*0.13)*0.7, y:1.7, z:M.cz, yaw:Math.sin(t*0.09)*0.07, pitch:-0.07},0);
     const F=H*0.95*Vw.sc, OX=W/2, OY=H*0.56; this.vpAim(cam,F,Vw); this.vpReport(OX-F*Math.tan(cam.yaw)/Math.cos(cam.pitch), OY-F*Math.tan(cam.pitch)); const hz=OY-F*Math.tan(cam.pitch);
     const fogC=rgb(hu+40,0.5,0.14);
     this.skyGrad(ctx,W,hz,'hsl('+hu+',50%,4%)','hsl('+(hu+40)+',50%,14%)');
@@ -5761,7 +5774,7 @@ class Component extends DCLogic {
     const hu=(e.hue??0.5)*360, V=this.sceneSig(), vc=this.vidAvg(V);
     const cols=3+Math.round((e.detail??0.5)*4), rows=Math.max(2,Math.round(cols*0.62));
     const wallW=cols*1.42, wallH=rows*1.0;
-    const a=Math.sin(t*0.11)*0.38, dist=(wallW*0.62+1.6)/Vw.sc;
+    const a=Math.sin(t*0.11)*0.38+(this.scnYaw||0), dist=(wallW*0.62+1.6)/Vw.sc;
     const cam=this.lookAt(Math.sin(a)*dist, wallH*0.55+0.4+Math.sin(t*0.07)*0.35, -Math.cos(a)*dist, 0,wallH*0.48,0);
     const F=H*1.15, OX=W/2, OY=H/2; this.vpAim(cam,F,Vw); this.vpReport(OX+Vw.ox, OY+Vw.oy);
     ctx.fillStyle='hsl('+hu+',14%,5%)'; ctx.fillRect(0,0,W,H);
@@ -5821,7 +5834,7 @@ class Component extends DCLogic {
     const M=this.MESH, e=this.eff||{}, A=this.a||{}, Vw=this.canvasView(W,H), t=(M.mtick||0)/60, rgb=(h,s,l)=>this.hrgb(h,s,l);
     const hu=(e.hue??0.08)*360;
     M.dz=(M.dz||0)+this.sceneDt()*(1+(e.speed??0.6)*9);
-    const cam={x:0, y:2.4+((e.morph??0.5)-0.5)*3, z:M.dz, yaw:Math.sin(t*0.05)*0.05, pitch:-0.02};
+    const cam=this.yawOrbit({x:0, y:2.4+((e.morph??0.5)-0.5)*3, z:M.dz, yaw:Math.sin(t*0.05)*0.05, pitch:-0.02},0);
     const F=H*0.95*Vw.sc, OX=W/2, OY=H*0.52; this.vpAim(cam,F,Vw); this.vpReport(OX-F*Math.tan(cam.yaw)/Math.cos(cam.pitch), OY-F*Math.tan(cam.pitch)); const hz=OY-F*Math.tan(cam.pitch), cx=OX-F*Math.tan(cam.yaw);
     const sk=ctx.createLinearGradient(0,0,0,hz);
     sk.addColorStop(0,'hsl('+(hu+200)+',45%,30%)'); sk.addColorStop(0.7,'hsl('+(hu+20)+',70%,62%)'); sk.addColorStop(1,'hsl('+(hu+35)+',85%,80%)');
@@ -5879,7 +5892,7 @@ class Component extends DCLogic {
     const hu=(e.hue??0.1)*360, V=this.sceneSig();
     M.fz=(M.fz||0)+this.sceneDt()*(0.3+Math.pow(e.speed??0.6,2)*7)*(1+(A.bass||0)*0.4);
     const X=2.6+(e.morph??0.5)*1.4, Yf=-1.5, Yc=2.3, D=4.2+(e.ca??0.5)*3, NF=12, ZF=NF*D;
-    const cam={x:Math.sin(t*0.2)*0.25, y:0.15, z:M.fz, yaw:Math.sin(t*0.13)*0.05, pitch:0};
+    const cam=this.yawOrbit({x:Math.sin(t*0.2)*0.25, y:0.15, z:M.fz, yaw:Math.sin(t*0.13)*0.05, pitch:0},0);
     const F=H*0.8*Vw.sc, OX=W/2, OY=H*0.47; this.vpAim(cam,F,Vw); this.vpReport(OX-F*Math.tan(cam.yaw)/Math.cos(cam.pitch), OY-F*Math.tan(cam.pitch));
     ctx.fillStyle='hsl('+hu+',18%,3%)'; ctx.fillRect(0,0,W,H);
     const S=this.lp3(Object.assign(cam,{f:F,cx:OX,cy:OY,L1:[0.15,1,0.1],C1:[0.6,0.52,0.42],amb:[0.3,0.27,0.24],fogC:rgb(hu,0.2,0.03),fogK:0.045}));
@@ -5913,7 +5926,7 @@ class Component extends DCLogic {
   drawPool(ctx,W,H,tick){
     const M=this.MESH, e=this.eff||{}, A=this.a||{}, Vw=this.canvasView(W,H), t=(M.mtick||0)/60, rgb=(h,s,l)=>this.hrgb(h,s,l), hs=k=>this.hsh1(k);
     const hu=(e.hue??0.55)*360, V=this.sceneSig(), vc=this.vidAvg(V);
-    const cam={x:Math.sin(t*0.06)*1.5, y:1.3+((e.morph??0.5)-0.5)*1.6, z:0, yaw:Math.sin(t*0.05)*0.04, pitch:-0.03};
+    const cam=this.yawOrbit({x:Math.sin(t*0.06)*1.5, y:1.3+((e.morph??0.5)-0.5)*1.6, z:0, yaw:Math.sin(t*0.05)*0.04, pitch:-0.03},19);
     const F=H*1.0*Vw.sc, OX=W/2, OY=H*0.5; this.vpAim(cam,F,Vw); this.vpReport(OX-F*Math.tan(cam.yaw)/Math.cos(cam.pitch), OY-F*Math.tan(cam.pitch)); const hz=OY-F*Math.tan(cam.pitch);
     this.skyGrad(ctx,W,hz,'hsl('+hu+',40%,4%)','hsl('+(hu+20)+',45%,13%)');
     this.octx=ctx; this.outrunStars(W,H,hz,t);
@@ -5925,6 +5938,8 @@ class Component extends DCLogic {
     // with a teal-panelled frieze and a pediment. The clip plays on the cella
     // wall between the columns. One corner has fallen: a toppled drum, a
     // missing column, broken paving and rocks with grass in the cracks.
+    // The screen is the back wall of the cella, deep under the roof, so the
+    // whole temple stands in front of it.
     const sw=7*(0.75+(e.detail??0.5)*0.5), sh=sw*9/16, Z=19;
     const stone=rgb(40,0.22,0.72), stoneD=rgb(38,0.2,0.6), stoneL=rgb(42,0.25,0.8), teal=rgb(180,0.45,0.42), rock=rgb(28,0.3,0.42), sand=rgb(32,0.35,0.5), grass=rgb(115,0.5,0.38);
     const NC=6, TW=sw+3.2, TD=7.2, xs=i=>(i/(NC-1)-0.5)*TW, zf=Z-TD/2+0.6, zb=Z+TD/2-0.6, CH=sh+1.6;
@@ -5934,8 +5949,8 @@ class Component extends DCLogic {
     // stylobate steps
     for(let k=0;k<3;k++){ const g=(2-k)*0.55; S.box([0,0.1+k*0.22,Z],[TW+1.6+g*2,0.22,TD+1.2+g*2],0,k%2?stone:stoneD); }
     const fy=0.76;
-    // cella wall with the screen
-    const cel=S.box([0,fy+CH/2,zf+0.45],[TW-1.9,CH,0.4],0,stoneD);
+    // cella back wall with the screen, just in front of the back colonnade
+    const cel=S.box([0,fy+CH/2,zb-0.45],[TW-1.9,CH,0.4],0,stoneD);
     if(cel.nz){ S.decal(cel.nz,cel.on('nz',0.06,0.08,0.94,0.92,0.01),[14,13,16],{emit:1}); S.vid(cel.nz,cel.on('nz',0.075,0.1,0.925,0.9,0.02),V,{alpha:0.97}); }
     const col=(x,z,hgt,broken)=>{
       S.box([x,fy+0.12,z],[0.95,0.24,0.95],0,stoneL);
@@ -6017,19 +6032,19 @@ class Component extends DCLogic {
     }
     ctx.restore();
     const V=this.sceneSig(), sz=1.2+(e.morph??0.5)*3.2+(A.loud||0)*0.4+(A.beat||0)*0.2;
-    const S=this.lp3({x:0,y:0,z:-8,yaw:0,pitch:0,f:W*0.9*Vw.sc,cx,cy,L1:[0,0,-1],C1:this.hrgb(hu,0.6,0.5).map(x=>x/255),amb:[0.25,0.25,0.35]});
+    const S=this.lp3(Object.assign(this.yawOrbit({x:0,y:0,z:-8,yaw:0,pitch:0},8),{f:W*0.9*Vw.sc,cx,cy,L1:[0,0,-1],C1:this.hrgb(hu,0.6,0.5).map(x=>x/255),amb:[0.25,0.25,0.35]}));
     const B=S.box([0,Math.sin(t*0.7)*0.15,0],[sz,sz*9/16,0.35],Math.sin(t*0.4)*0.4,this.hrgb(hu,0.25,0.2));
     if(B.nz) S.vid(B.nz,B.on('nz',0.025,0.04,0.975,0.96,0.01),V,{alpha:0.97});
     S.paint(ctx);
   }
 
-  // The Sphere: a faceted dome over a dusk city, wrapped in the clip. Each
-  // facet takes the piece of the frame its direction points at, so the
-  // picture reads front-on across the dome and folds round its edges.
+  // The Sphere: a faceted dome over a dusk city, wrapped in the clip. Two
+  // screens go round it, each a whole frame across half the circumference,
+  // so the picture covers the dome all the way round as the camera orbits.
   drawSphere(ctx,W,H,tick){
     const M=this.MESH, e=this.eff||{}, A=this.a||{}, Vw=this.canvasView(W,H), t=(M.mtick||0)/60, rgb=(h,s,l)=>this.hrgb(h,s,l), hs=k=>this.hsh1(k);
     const hu=(e.hue??0.75)*360, V=this.sceneSig(), vc=this.vidAvg(V);
-    const orb=t*0.03*(0.3+(e.speed??0.5)), R=46/Vw.sc;
+    const orb=t*0.03*(0.3+(e.speed??0.5))+(this.scnYaw||0), R=46/Vw.sc;
     const cam=this.lookAt(Math.sin(orb)*R, 19+((e.morph??0.5)-0.5)*20, -Math.cos(orb)*R, 0,7,0);
     const F=H*1.05, OX=W/2, OY=H*0.5; this.vpAim(cam,F,Vw); this.vpReport(OX+Vw.ox, OY+Vw.oy); const hz=OY-F*Math.tan(cam.pitch);
     const sk=ctx.createLinearGradient(0,0,0,hz);
@@ -6073,35 +6088,35 @@ class Component extends DCLogic {
     S.box([0,0.8,0],[Rs*2.3,1.6,Rs*2.3],0.785,rgb(hu-20,0.12,0.18));
     const ring=S.box([0,1.8,0],[Rs*1.7,0.6,Rs*1.7],0,rgb(hu-20,0.1,0.12));
     // the dome
-    const nLon=22, nLat=12, Vd=V, C=this._vcrop(V,1.25);
-    const fy=Math.sin(cam.yaw), fz=Math.cos(cam.yaw);
+    const nLon=22, nLat=12, half=nLon/2, Vd=V, C=this._vcrop(V,1.4);
     const spin=t*0.15*Math.max(0,(e.ca??0.3)-0.3)*1.5;
     // Latitudes start where the dome meets the top of the ring, so no facet
     // reaches below the podium and none can paint over it.
-    const yTop=2.1, pMin=Math.asin(Math.max(-1,Math.min(1,(yTop-cy0)/(Rs*ySc))));
+    const yTop=2.1, pMin=Math.asin(Math.max(-1,Math.min(1,(yTop-cy0)/(Rs*ySc)))), yMax=cy0+Rs*ySc;
+    const vAt=p=>1-(cy0+Math.sin(p)*Rs*ySc-yTop)/(yMax-yTop), rot=spin*Math.PI;
     for(let la=0;la<nLat;la++){
       const p0=pMin+(Math.PI/2-pMin)*la/nLat, p1=pMin+(Math.PI/2-pMin)*(la+1)/nLat;
       for(let lo=0;lo<nLon;lo++){
-        const a0=lo/nLon*6.2832, a1=(lo+1)/nLon*6.2832;
+        // Spin turns the facets themselves, so the screens and the ribs
+        // between them go round together.
+        const a0=rot+lo/nLon*6.2832, a1=rot+(lo+1)/nLon*6.2832;
         const pt=(a,p)=>[Math.cos(p)*Math.sin(a)*Rs, cy0+Math.sin(p)*Rs*ySc, -Math.cos(p)*Math.cos(a)*Rs];
         const q=[pt(a0,p1),pt(a1,p1),pt(a1,p0),pt(a0,p0)];
         const mc=[(q[0][0]+q[2][0])/2,(q[0][1]+q[2][1])/2,(q[0][2]+q[2][2])/2];
         const nn=[mc[0],(mc[1]-cy0)/ySc,mc[2]], nl=Math.hypot(nn[0],nn[1],nn[2]); nn[0]/=nl; nn[1]/=nl; nn[2]/=nl;
         if(nn[0]*(cam.x-mc[0])+nn[1]*(cam.y-mc[1])+nn[2]*(cam.z-mc[2])<=0) continue;
-        // Front projection from the camera's side: screen-space u from the
-        // facet's angle across the dome, v from its height, plus a slow spin.
-        const proj=p=>{ const dx=p[0], dz=p[2]; const u=0.5+((dx*fz-dz*fy)/Rs)*0.5, v=0.5-((p[1]-cy0)/(Rs*ySc))*0.5; return [u,v]; };
-        const uv=q.map(proj), us=uv.map(x=>x[0]), vs=uv.map(x=>x[1]);
-        const shift=(spin%1+1)%1;
-        let u0=Math.min(...us)+shift, u1=Math.max(...us)+shift; u0=u0-Math.floor(u0); u1=u0+(Math.max(...us)-Math.min(...us));
-        if(u1>1){ u0=Math.max(0,1-(u1-u0)); u1=1; }
-        const v0=Math.max(0,Math.min(...vs)), v1=Math.min(1,Math.max(...vs));
+        // Each screen spans half the longitudes: u runs across it left to
+        // right, v from the crown down to the ring.
+        const u0=(lo%half)/half, u1=u0+1/half;
+        const v0=Math.max(0,vAt(p1)), v1=Math.min(1,vAt(p0));
         const Fc=S.face(q,[20,20,26],{n:nn});
         if(!Fc) continue;
         S.vid(Fc,q,Vd,{n:1,crop:{sx:C.sx+u0*C.sw,sy:C.sy+v0*C.sh,sw:Math.max(1,(u1-u0)*C.sw),sh:Math.max(1,(v1-v0)*C.sh)}});
         const lit=Math.max(0,nn[0]*0.5+nn[1]*0.6+nn[2]*-0.3);
         S.decal(Fc,q,null,{raw:'rgba(0,0,0,'+(0.32-lit*0.3).toFixed(3)+')',alpha:1,noFog:1});
         S.decal(Fc,q,null,{raw:'rgba(255,255,255,0.05)',alpha:1,comp:'lighter',noFog:1});
+        // A dark rib where one screen meets the other.
+        if(lo%half===0){ const lr=(A,B,k)=>A.map((c,j)=>c+(B[j]-c)*k); S.decal(Fc,[q[0],lr(q[0],q[1],0.08),lr(q[3],q[2],0.08),q[3]],[12,12,16]); }
       }
     }
     // Ferris wheel: a low-poly 3D build on its own plaza, after the reference
@@ -12858,7 +12873,7 @@ class Component extends DCLogic {
   // is large, and easing it to literal zero would unwind every revolution.
   resetView(){
     if(this.hid) this.hid.ref=null;    // re-zero the pad's level pose
-    this.md=null; this.scnRoll=0; this.vpGoal=null;
+    this.md=null; this.scnRoll=0; this.scnYaw=0; this.vpGoal=null;
     // The text layer's placement is part of the pose the reset recovers. Once the
     // message can be carried anywhere in the world — out past the frame, or
     // behind the fractal — it is as easy to lose as the camera, and R3 has to
@@ -12946,7 +12961,10 @@ class Component extends DCLogic {
   async loadThumbs(){
     let legacy = {}; try{ legacy = JSON.parse(localStorage.getItem('spectra.scan.v2')||'{}') || {}; }catch(e){}
     const stored = (await this.idbGet('thumbs')) || {};
-    this.thumbMem = Object.assign({}, legacy, stored, this.thumbMem || {});
+    // Every scene ships with a still (scene-thumbs.js, baked from a full pass).
+    // They sit over anything stored earlier, so a later bake replaces older
+    // stills; a rescan this session still overrides them.
+    this.thumbMem = Object.assign({}, legacy, stored, window.SPECTRA_THUMBS || {}, this.thumbMem || {});
     if(Object.keys(legacy).length){ this.saveThumbs(this.thumbMem); try{ localStorage.removeItem('spectra.scan.v2'); }catch(e){} }
     this.forceUpdate();
   }
