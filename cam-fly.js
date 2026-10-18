@@ -312,13 +312,15 @@ class CamFly{
     // bounded to the piece so the camera stays in its pull.
     // Altitude is fixed in scene units, not tied to the piece's size, and the
     // radius can only shrink below the arrival radius: the pull is inward.
-    const alt=F*0.002;
-    if(I.rMax==null){ I.r0=V.len(V.sub(this.sp||this.p,I.C)); I.rMax=I.r0*1.08; if(this.rep>0) I.rMax=Math.min(I.rMax,this.rep*0.7); I.rMin=alt*0.5; }
+    const alt=F*0.0028;
+    if(I.rMax==null){ I.r0=V.len(V.sub(this.sp||this.p,I.C)); I.rMax=I.r0*1.08; if(this.rep>0) I.rMax=Math.min(I.rMax,this.rep*0.7); I.rMin=alt*0.8; }
     I.r0+=(alt-dR)*ease(dR>alt?2.2:4.5);
     I.r0=Math.min(I.rMax, Math.max(I.rMin, I.r0));
-    const clr=alt*0.5;
-    if(dR<clr)I.rOff+=(clr-dR)*ease(5); else I.rOff*=Math.exp(-dt*2.0);
-    I.rOff=Math.min(I.rOff, alt*2);
+    // Hard floor: inside 70% of the altitude the push-out is immediate, so a
+    // ridge rising under the orbit lifts the camera before it can cut through.
+    const clr=alt*0.7;
+    if(dR<clr)I.rOff+=(clr-dR)*Math.min(1,ease(10)*2); else I.rOff*=Math.exp(-dt*1.2);
+    I.rOff=Math.min(I.rOff, alt*5);
     const r=I.r0+I.rOff, np=V.add(I.C,V.sc(I.rad,r));
     this.vs=V.len(V.sub(np,this.p))/Math.max(dt,1e-4);
     this.p=np;
