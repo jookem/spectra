@@ -412,6 +412,8 @@ uniform float uStrobe;
 uniform float uCA,uCB,uCC,uIter,uXfade;
 uniform float uXfMode;
 uniform vec2 uCtr;
+// Where the anchor sits on screen (uv units): the golden spiral's eye on the Fields.
+uniform vec2 uFocus;
 uniform vec3 uOrbit;
 uniform int uPalSel;
 uniform float uSat,uGam,uSpan,uWarm;
@@ -1102,6 +1104,32 @@ float mandelbox(vec3 p,out float trap){
   }
   return length(z)/abs(dr);
 }
+// Cathedral (45). The Mandelbox at NEGATIVE scale. A negative scale flips
+// each level as it nests, so the box fold's flat faces become arcades of
+// arches and ogee windows edged with beaded ornament, the look of the classic
+// Mandelbox interiors. The camera's zoom range runs deep (see zr), so the
+// scene opens on the ornament close up and can dive into the arcades.
+//   morph  scale -1.5 .. -2.0      ca  inner (sphere) radius
+//   cb     fold limit              cc  twist per level (breaks the mirror)
+float cathedral(vec3 p,out float trap){
+  float s=mix(-1.5,-2.0,clamp(uMorph,0.0,1.0));
+  float mr=mix(0.12,0.42,clamp(uCA,0.0,1.0));
+  float fold=mix(0.85,1.15,clamp(uCB,0.0,1.0));
+  float tw=(uCC-0.3)*0.35;
+  vec3 off=p, z=p; float dr=1.0; trap=1.0;
+  int mi=int(clamp(14.0*fi(),4.0,24.0));
+  for(int i=0;i<24;i++){
+    if(i>=mi) break;
+    z=clamp(z,-fold,fold)*2.0-z;
+    float r2=dot(z,z);
+    trap=min(trap,r2*0.6+abs(z.y)*0.25);
+    if(r2<mr){ z*=1.0/mr; dr/=mr; }
+    else if(r2<1.0){ z/=r2; dr/=r2; }
+    z.xz*=rot(tw);
+    z=z*s+off; dr=dr*abs(s)+1.0;
+  }
+  return length(z)/abs(dr);
+}
 float kleinian(vec3 p,out float trap){
   vec3 cs=vec3(0.9+(uCA-0.5)*0.3, 0.9+(uCB-0.5)*0.3, 1.15+(uCC-0.5)*0.4);
   float scale=1.0; trap=1.0;
@@ -1247,68 +1275,136 @@ float tessFrac(vec3 p,out float trap){
   return d;
 }
 
-// DNA (43). Low-poly double helix. The space is untwisted about Y (rotate xz by
-// -k*y) so both backbones become straight polygonal rods and each base pair a
-// flat plate between them; the twist stretches distances by sqrt(1+(kR)^2), so
-// the result is divided by that to stay a safe bound. Facet count on the rods
-// gives the low-poly look; flat faces shade as facets on their own.
+// DNA (43). An endless field of double helices to fly through, like the
+// Apollonian's space. Each helix is untwisted about its own axis (rotate xz by
+// -k*y) so both backbones become straight round rods and every base pair a
+// straight rod joining them; the twist stretches distances by sqrt(1+(kR)^2),
+// so the result is divided by that to stay a safe bound. The helices run the
+// full height of space on a staggered grid (alternate rows shifted half a
+// cell), so one stands at the centre and the line the camera looks down stays
+// clear; each has its own phase and drift. Only the nearest helix is ever
+// evaluated, one per step, which is what keeps the field affordable.
 //   tw  pitch (loose ladder -> tight coil)    ca  groove (strand phase offset)
-//   cb  unzip from the top                     cc  ball-and-stick atoms
-//   uIter pairs per turn   uDetail facets 3..8   bass: rod thickness
-//   high: rung flicker     beat: twist ripple down the strand
+//   cb  field spacing (dense -> open)          cc  grain (in the colour, not the shape)
+//   uIter pairs per turn   uDetail rod thickness   bass: swell
+//   high: base pairs light up                 beat: twist ripple down the strands
 float dnaHash(float n){ return fract(sin(n*12.9898)*43758.5453); }
-float dnaPoly(vec2 q, float r, float nf){
-  float seg=6.2831853/nf, a=atan(q.y,q.x);
-  a=mod(a+seg*0.5,seg)-seg*0.5;
-  return length(q)*cos(a)-r;
-}
-float dnaOct(vec3 q, float r){ q=abs(q); return (q.x+q.y+q.z-r)*0.57735; }
-float dna(vec3 p, out float trap, float tw, float ca, float cb, float cc){
-  p.xz*=rot(uTime*0.18*uSpeed*uSpin);
-  float H=1.55;
+float dnaSeg(vec2 p, vec2 a, vec2 b){ vec2 pa=p-a, ba=b-a; float h=clamp(dot(pa,ba)/dot(ba,ba),0.0,1.0); return length(pa-ba*h); }
+float dnaOne(vec3 p, float ph, float seed, out float trap, float tw, float ca, float cc){
   float pitch=mix(2.6,0.95,tw);
   float k=6.2831853/pitch;
   float R=0.52;
-  float ripple=uBeat*uReact*0.55*sin(p.y*3.0-uTime*7.0);
-  vec3 q=p; q.xz*=rot(-k*p.y-ripple);
+  float ripple=uBeat*uReact*0.55*sin(p.y*3.0-uTime*7.0+seed*6.0);
+  vec3 q=p; q.xz*=rot(-k*p.y-ripple+ph);
   float stretch=sqrt(1.0+k*k*R*R);
-  float nf=3.0+floor(clamp(uDetail,0.0,1.0)*5.99);
-  // Unzip: above the zip line the strands part and the rungs break.
-  float zl=H-cb*2.0*H*1.05;
-  float sep=smoothstep(zl-0.15,zl+0.35,p.y)*step(0.02,cb);
-  float Rs=R*(1.0+sep*0.85);
   float ph2=3.14159265-(ca-0.5)*1.7;
-  vec2 c1=vec2(Rs,0.0), c2=Rs*vec2(cos(ph2),sin(ph2));
-  float rb=(0.085+uBass*uReact*0.04)*(1.0-cc*0.35);
-  float d1=dnaPoly(q.xz-c1,rb,nf), d2=dnaPoly(q.xz-c2,rb,nf);
-  float d=min(d1,d2); trap=0.12;
-  // Base pairs.
+  vec2 c1=vec2(R,0.0), c2=R*vec2(cos(ph2),sin(ph2));
+  float rb=(0.075+clamp(uDetail,0.0,1.0)*0.07)*(1.0+uBass*uReact*0.25);
+  float d=min(length(q.xz-c1),length(q.xz-c2))-rb; trap=0.12;
+  // Base pairs: a rod from one backbone to the other at each step, sunk into
+  // both, so every rung is joined at both ends. Its two halves take two
+  // colours, the way a base pair is drawn.
   float npp=6.0+floor(clamp(uIter,0.0,1.0)*8.0);
   float sp=pitch/npp;
   float slot=floor(p.y/sp+0.5), y0=slot*sp;
-  vec2 ax=c2-c1; float L=length(ax); vec2 dir=ax/max(L,1e-4);
-  vec2 rel=q.xz-(c1+c2)*0.5;
-  vec2 lc=vec2(dot(rel,dir), dot(rel,vec2(-dir.y,dir.x)));
-  float hl=L*0.5-rb*0.6;
-  float gap=sep*hl*0.9;
-  float lx=abs(lc.x)-gap; lx=gap>0.001?abs(lx-(hl-gap)*0.5)-(hl-gap)*0.5:abs(lc.x)-hl;
-  float fl=1.0-uHigh*uReact*0.6*step(0.5,dnaHash(slot+floor(uTime*8.0)));
-  vec3 bx=vec3(lx, abs(p.y-y0)-0.032*fl, abs(lc.y)-0.085);
-  float dr=min(max(bx.x,max(bx.y,bx.z)),0.0)+length(max(bx,0.0));
-  float pair=dnaHash(slot*1.7+0.3);
-  if(dr<d){ d=dr; trap=pair<0.5?0.55:0.85; if(lc.x<0.0) trap+=0.06; }
-  // Atoms: low-poly octahedra on the backbone joints and the rung ends.
-  if(cc>0.02){
-    float ar=cc*0.15;
-    vec3 a1=vec3(q.x-c1.x, p.y-y0, q.z-c1.y), a2=vec3(q.x-c2.x, p.y-y0, q.z-c2.y);
-    float da=min(dnaOct(a1,ar*1.15),dnaOct(a2,ar*1.15));
-    vec3 a3=vec3(lc.x*0.5, p.y-y0, lc.y); a3.x=abs(lc.x)-hl*0.5;
-    da=min(da, dnaOct(a3, ar*0.8));
-    if(da<d){ d=da; trap=0.34; }
+  float rr=rb*0.42;
+  float dr=length(vec2(dnaSeg(q.xz,c1,c2), p.y-y0))-rr;
+  if(dr<d){
+    d=dr;
+    float pair=dnaHash(slot*1.7+seed*13.1);
+    vec2 m=(c1+c2)*0.5; float side=dot(q.xz-m,c2-c1);
+    trap=(pair<0.5?0.55:0.85)+(side<0.0?0.06:0.0);
+    trap+=uHigh*uReact*0.3*step(0.6,dnaHash(slot+seed+floor(uTime*8.0)));
   }
-  d/=stretch;
-  // Finite length, flat cut ends.
-  d=max(d, abs(p.y)-H);
+  // Grain: the ridged texture of the reference, carried in the colour index
+  // only. Moving the surface itself cost six sines per step on every helix.
+  if(cc>0.01){ vec3 g=p*vec3(23.0,19.0,23.0); trap+=cc*0.05*sin(g.x+g.y*0.7)*sin(g.z-g.y*0.9); }
+  return d/stretch;
+}
+float dna(vec3 p, out float trap, float tw, float ca, float cb, float cc){
+  p.xz*=rot(uTime*0.18*uSpeed*uSpin);
+  p.y+=uTime*0.12*uSpeed;
+  float C=mix(3.0,5.0,cb);
+  float row=floor(p.z/C+0.5), off=mod(row,2.0)*C*0.5;
+  vec2 cell=vec2(floor((p.x-off)/C+0.5), row);
+  vec2 ctr=vec2(cell.x*C+off, row*C);
+  // The centre helix keeps phase 0, so the scene opens on the same strand.
+  float h=(cell.x==0.0 && row==0.0) ? 0.0 : dnaHash(dot(cell,vec2(7.13,3.71))+1.3);
+  vec3 lp=vec3(p.x-ctr.x, p.y+h*9.0, p.z-ctr.y);
+  float d=dnaOne(lp, h*6.2831853, h, trap, tw, ca, cc), df=d;
+  // Only this cell's helix is evaluated. A neighbour's is at least as far as
+  // the cell edge plus the clear gap on its side (half a cell less the helix
+  // radius), so the step never exceeds that and cannot jump past one.
+  vec2 e=abs(p.xz-ctr)-vec2(C*0.5);
+  return min(df, -max(e.x,e.y)+C*0.5-0.75);
+}
+
+// Romanesco (44). A cone of buds on golden-angle spirals, each bud a smaller
+// copy of the whole. On a cone the spiral is self-similar, so in log-polar cone
+// coordinates (X = log of the slant distance from the base, theta around) the
+// buds sit on a regular lattice; its 8 and 13 parastichies make a nearly
+// square cell, so the nearest bud is a round-off in that lattice plus four
+// neighbours. The nearest bud's frame becomes the next level's space, and so on
+// down: a fixed four candidates per level, however many buds there are.
+//   morph  bud size        ca  cone angle      cb  bud tilt (out -> up)
+//   cc     growth: buds drift toward the tip      uDetail  bud levels 1..3
+//   bass: buds swell        beat: a pulse down the levels
+float romCone(vec3 p, vec2 c){
+  // apex at the origin, opening downward to y=-1; c = (sin, cos) of the half-angle
+  vec2 q=vec2(c.x/c.y,-1.0), w=vec2(length(p.xz),p.y);
+  vec2 a=w-q*clamp(dot(w,q)/dot(q,q),0.0,1.0);
+  vec2 b=w-q*vec2(clamp(w.x/q.x,0.0,1.0),1.0);
+  float s=max(-(w.x*q.y-w.y*q.x),-(w.y-q.y));
+  return sqrt(min(dot(a,a),dot(b,b)))*sign(s);
+}
+float romanesco(vec3 p, out float trap){
+  p.xz*=rot(uTime*0.06*uSpeed*uSpin);
+  float al=mix(0.5,0.78,clamp(uCA,0.0,1.0));
+  vec2 cs=vec2(sin(al),cos(al));
+  float T0=1.0/cs.y, a=cs.x*0.02701;
+  const float G1=0.35014992, G2=-0.21640455;
+  float det=8.0*a*G2-13.0*a*G1;
+  float bud=mix(0.85,1.25,clamp(uMorph,0.0,1.0))*0.135*(1.0+uBass*uReact*0.12);
+  float tilt=mix(0.1,0.65,clamp(uCB,0.0,1.0));
+  float flow=uTime*uSpeed*clamp(uCC,0.0,1.0)*0.03;
+  int lv=1+int(floor(clamp(uDetail,0.0,1.0)*2.99));
+  float sc=2.1; vec3 q=(p-vec3(0.0,1.55,0.0))/sc;
+  float d=1e9; trap=0.2;
+  for(int L=0;L<4;L++){
+    float dc=romCone(q,cs);
+    // Core of this level, a touch inside its buds so they read as the surface.
+    d=min(d,(dc+0.04)*sc);
+    if(L>=lv) break;
+    // Buds reach at most ~0.3 of this cone's size off its surface. The cut-off
+    // sits well beyond that so rays passing outside take full steps; at the
+    // reach itself they crawled and drew a faint ghost of the cone.
+    if(dc>0.45){ d=min(d,(dc-0.3)*sc); break; }
+    float t=max(dot(vec2(length(q.xz),q.y),vec2(cs.x,-cs.y)),1e-4);
+    float X=log(T0/t)+flow, th=atan(q.z,q.x);
+    float fi=(G2*X-13.0*a*th)/det, fj=(-G1*X+8.0*a*th)/det;
+    vec2 ij0=floor(vec2(fi,fj));
+    float best=1e9; vec3 bq=q; float bh=1.0, bk=0.0;
+    for(int k=0;k<4;k++){
+      vec2 ij=ij0+vec2(float(k&1),float(k>>1));
+      float Xc=ij.x*8.0*a+ij.y*13.0*a, tc=ij.x*G1+ij.y*G2;
+      if(Xc-flow<0.02 || Xc-flow>3.2) continue;
+      float tsl=T0*exp(-(Xc-flow));
+      // Base radius about half the lattice spacing, so neighbouring buds touch.
+      float hb=bud*tsl*cs.y/cs.x*(1.0+uBeat*uReact*0.15*sin(float(L)*2.0-uTime*6.0));
+      vec3 rad=vec3(cos(tc),0.0,sin(tc));
+      vec3 S=tsl*vec3(cs.x*rad.x,-cs.y,cs.x*rad.z);
+      vec3 A=normalize(mix(vec3(cs.y*rad.x,cs.x,cs.y*rad.z),vec3(0.0,1.0,0.0),tilt));
+      vec3 Bz=vec3(-rad.z,0.0,rad.x), Bx=cross(A,Bz);
+      vec3 dl=(q-(S+A*hb*0.92))/hb;
+      vec3 ql=vec3(dot(dl,Bx),dot(dl,A),dot(dl,Bz));
+      float db=romCone(ql,cs)*hb;
+      if(db<best){ best=db; bq=ql; bh=hb; bk=ij.x+ij.y*1.618; }
+    }
+    if(best>=1e8) break;
+    d=min(d,best*sc);
+    trap=0.18+0.17*float(L+1)+0.08*fract(bk*0.618);
+    q=bq; sc*=bh;
+  }
   return d;
 }
 
@@ -1572,6 +1668,14 @@ float map(vec3 p,out float trap){
     return tessFrac(p,trap);
   } else if(uMode==43){
     return dna(p,trap,uMorph,uCA,uCB,uCC);
+  } else if(uMode==44){
+    return romanesco(p,trap);
+  } else if(uMode==45){
+    // A corner of the box toward the camera: the middle of a face is a hollow
+    // recess, the arcades and ornament gather on the edges and corners.
+    p.xz*=rot(uTime*0.03*uSpeed*uSpin);
+    p.yz*=rot(0.6155); p.xz*=rot(0.7854);
+    return cathedral(p,trap);
   } else if(uMode==42){
     p.xz*=rot(uTime*0.035*uSpeed*uSpin);
     p.yz*=rot(uTime*0.022*uSpeed*uSpin);
@@ -1765,6 +1869,9 @@ vec3 render3(vec2 uv){
   else if(uMode==36){dfar=1.42;}  // 0.20, floored
   else if(uMode==41){dfar=9.11;}  // 0.69
   else if(uMode==42){dfar=4.29;}  // 0.42
+  else if(uMode==43){dfar=7.2;}   // DNA field: the centre helix whole, the field behind it
+  else if(uMode==44){dfar=9.6;}   // Romanesco: the whole head in frame
+  else if(uMode==45){dfar=9.0;}   // Cathedral: the whole box at zoom 0, the arcades by default
   else {dfar=4.85;}
 #ifdef NORM3D
   // Every bounded object is normalised to the Mandelbulb's box (see _NORM), so
@@ -1781,7 +1888,7 @@ vec3 render3(vec2 uv){
   // a fifth of the framing distance, which parks the eye just outside the outer
   // cube. A much longer range lets the zoom carry the camera through the panes
   // and down into the corner cells, which is where the nesting reads.
-  float zr = (uMode==41)?52.0:ZRANGE;
+  float zr = (uMode==41)?52.0:((uMode==45)?40.0:ZRANGE);
   float dist=dfar*(1.0/zr+(1.0-1.0/zr)*exp2(-ex))-uBass*uReact*uStrobe*0.06;
   // The Mandelbulb's framing distance at its default zoom, so Size keeps the
   // value it always had there and every other scene is brought to match it.
@@ -3638,22 +3745,22 @@ const PRESETS = [
   {name:'Tetra Fold',   grp:'LATT', kind:'3D', mode:32, p:{morph:0.4,detail:0.6,speed:0.7,zoom:0.45,hue:0.4,ca:0.5,cb:0.5,cc:0.35,iter:0.55}},
   {name:'Menger Rot',   grp:'LATT', kind:'3D', mode:33, p:{morph:0.4,detail:0.62,speed:0.6,zoom:0.45,hue:0.78,ca:0.5,cb:0.5,cc:0.5,iter:0.5}},
   {name:'Gyroid',       grp:'BULB', kind:'3D', mode:34, p:{morph:0.5,detail:0.62,speed:0.55,zoom:0.44,hue:0.02,ca:0.45,cb:0.32,cc:0.4,iter:0.6}},
-  {name:'DNA',          grp:'BULB', kind:'3D', mode:43, p:{morph:0.45,detail:0.15,speed:0.5,zoom:0.4,hue:0.55,ca:0.62,cb:0,cc:0.55,iter:0.5}},
+  {name:'DNA',          grp:'LATT', kind:'3D', mode:43, p:{morph:0.45,detail:0.15,speed:0.5,zoom:0.4,hue:0.55,ca:0.62,cb:0,cc:0.55,iter:0.5}},
   {name:'Spudsville',   grp:'BULB', kind:'3D', mode:35, p:{morph:0.45,detail:0.62,speed:0.55,zoom:0.28,hue:0.7,ca:0.5,cb:0.5,cc:0.4,iter:0.5}},
   {name:'Quat Mandel',  grp:'BULB', kind:'3D', mode:36, p:{morph:0.4,detail:0.6,speed:0.7,zoom:0.42,hue:0.9,ca:0.5,cb:0.5,cc:0.35,iter:0.58}},
   {name:'HexKochMosely',grp:'LATT',kind:'3D', mode:42, p:{morph:0.42,detail:0.60,speed:0.6,zoom:0.30,hue:0.45,ca:0.5,cb:0.45,cc:0.2,iter:0.5}},
   {name:'Tesseract',    grp:'LATT', kind:'3D', mode:41, p:{morph:0.45,detail:0.62,speed:0.5,zoom:0.22,hue:0.60,ca:0.5,cb:0.3,cc:0.34,iter:0.5}},
   // 2D escape-time
-  {name:'Mandelbrot',   grp:'FLD', kind:'2D', mode:6,  p:{morph:0.55,detail:0.60,speed:0.6,zoom:0.62,hue:0.20,cc:0.2}},
-  {name:'Julia',        grp:'FLD', kind:'2D', mode:7,  p:{morph:0.50,detail:0.50,speed:1.0,zoom:0.30,hue:0.42,cc:0.35}},
-  {name:'Sine Lambda',  grp:'FLD', kind:'2D', mode:8,  p:{morph:0.5,detail:0.55,speed:0.5,zoom:0.30,hue:0.05,ca:0.5,cb:0.5,cc:0.15}},
+  {name:'Mandelbrot',   grp:'FLD', kind:'2D', mode:6,  p:{morph:0.85,detail:0.35,speed:0.6,zoom:0.12,hue:0.2,ca:0.61,cb:0.36,cc:0.71,iter:0.86}},
+  {name:'Julia',        grp:'FLD', kind:'2D', mode:7,  p:{morph:0.5,detail:0.6,speed:1.0,zoom:0.05,hue:0.42,ca:0.2,cb:0.13,cc:0.35,iter:0.6}},
+  {name:'Sine Lambda',  grp:'FLD', kind:'2D', mode:8,  p:{morph:0.08,detail:0.22,speed:0.5,zoom:0.09,hue:0.05,ca:0.9,cb:0.31,cc:0.65,iter:0.57}},
   {name:'Mirror Tunnel',grp:'TUN', kind:'2D', mode:10, p:{morph:0.55,detail:0.50,speed:1.1,zoom:0.40,hue:0.62,cc:0.3}},
   {name:'Flow',         grp:'TUN', kind:'2D', mode:11, p:{morph:0.42,detail:0.45,speed:1.0,zoom:0.45,hue:0.90,cc:0.5}},
-  {name:'Magnet',       grp:'FLD', kind:'2D', mode:17, p:{morph:0.5,detail:0.55,speed:0.5,zoom:0.30,hue:0.25,ca:0.5,cb:0.5,cc:0.25}},
-  {name:'Phoenix',      grp:'FLD', kind:'2D', mode:18, p:{morph:0.4,detail:0.55,speed:0.6,zoom:0.22,hue:0.55,ca:0.5,cb:0.5,cc:0.4}},
-  {name:'Ship Julia',   grp:'FLD', kind:'2D', mode:20, p:{morph:0.5,detail:0.55,speed:0.6,zoom:0.42,hue:0.08,ca:0.5,cb:0.5,cc:0.3}},
-  {name:'Celtic',       grp:'FLD', kind:'2D', mode:21, p:{morph:0.4,detail:0.55,speed:0.5,zoom:0.35,hue:0.45,ca:0.5,cb:0.5,cc:0.35}},
-  {name:'Newton',       grp:'FLD', kind:'2D', mode:19, p:{morph:0.4,detail:0.55,speed:0.45,zoom:0.3,hue:0.62,ca:0.5,cb:0.5,cc:0.3,iter:0.5}},
+  {name:'Magnet',       grp:'FLD', kind:'2D', mode:17, p:{morph:0.23,detail:0.81,speed:0.5,zoom:0.26,hue:0.25,ca:0.42,cb:0.69,cc:0.22,iter:0.45}},
+  {name:'Phoenix',      grp:'FLD', kind:'2D', mode:18, p:{morph:0.46,detail:0.14,speed:0.6,zoom:0.3,hue:0.55,ca:0.69,cb:0.31,cc:0.21,iter:0.3}},
+  {name:'Ship Julia',   grp:'FLD', kind:'2D', mode:20, p:{morph:0.67,detail:0.72,speed:0.6,zoom:0.26,hue:0.08,ca:0.49,cb:0.8,cc:0.72,iter:0.7}},
+  {name:'Celtic',       grp:'FLD', kind:'2D', mode:21, p:{morph:0.53,detail:0.66,speed:0.5,zoom:0.09,hue:0.45,ca:0.71,cb:0.8,cc:0.81,iter:0.38}},
+  {name:'Newton',       grp:'FLD', kind:'2D', mode:19, p:{morph:0.41,detail:0.43,speed:0.45,zoom:0.31,hue:0.62,ca:0.43,cb:0.5,cc:0.2,iter:0.6}},
   {name:'Lyapunov',     grp:'FLD', kind:'2D', mode:37, p:{morph:0.4,detail:0.6,speed:0.4,zoom:0.28,hue:0.3,ca:0.5,cb:0.5,cc:0.3,iter:0.6}},
   {name:'Harmony',      grp:'FLD', kind:'2D', mode:39, p:{morph:0.5,detail:0.6,speed:0.35,zoom:0.02,hue:0.55,ca:0.5,cb:0.5,cc:0.3,iter:0.55}},
   {name:'Spider',       grp:'FLD', kind:'2D', mode:38, p:{morph:0.35,detail:0.55,speed:0.5,zoom:0.32,hue:0.48,ca:0.5,cb:0.5,cc:0.35,iter:0.55}},
@@ -3694,7 +3801,10 @@ const PRESETS = [
   {name:'Frame Corridor',grp:'SCN', kind:'2DC', mode:113,p:{morph:0.5,detail:0.5,speed:0.6,zoom:0.5,hue:0.1,ca:0.5,cb:0.5,cc:0.3,iter:0.5}},
   {name:'Reflection Pool',grp:'SCN', kind:'2DC', mode:114,p:{morph:0.5,detail:0.5,speed:0.6,zoom:0.5,hue:0.55,ca:0.5,cb:0.5,cc:0.3,iter:0.5}},
   {name:'Starfield Warp',grp:'SCN', kind:'2DC', mode:115,p:{morph:0.5,detail:0.5,speed:0.6,zoom:0.5,hue:0.66,ca:0.5,cb:0.5,cc:0.3,iter:0.5}},
-  {name:'Sphere',grp:'SCN', kind:'2DC', mode:116,p:{morph:0.5,detail:0.5,speed:0.5,zoom:0.5,hue:0.75,ca:0.3,cb:0.5,cc:0.3,iter:0.5}}
+  {name:'Sphere',grp:'SCN', kind:'2DC', mode:116,p:{morph:0.5,detail:0.5,speed:0.5,zoom:0.5,hue:0.75,ca:0.3,cb:0.5,cc:0.3,iter:0.5}},
+  // Added last so the stored slots and cues, which name scenes by index, keep theirs.
+  {name:'Cathedral',grp:'LATT', kind:'3D', mode:45, pal:1, p:{morph:0.45,detail:0.75,speed:0.4,zoom:0.58,hue:0.08,ca:0.5,cb:0.5,cc:0.3,iter:0.7}},
+  {name:'Romanesco',grp:'BULB', kind:'3D', mode:44, pal:9, p:{morph:0.5,detail:0.45,speed:0.5,zoom:0.42,hue:0.25,ca:0.5,cb:0.45,cc:0.35,iter:0.5}}
 ];
 
 const SLIDER_DEFS = [
@@ -3988,11 +4098,11 @@ const _frag2D = m => {
   // hung the driver's compile (the reload loop). The endless loop for these
   // scenes zooms the view by uZX and the host crossfades at the wrap.
   return _HEAD + '#define '+def+' 1\n' + _B2 + _VID
-    + _TAILSRC.replace(_DISPATCH, '  vec3 col='+call.replace('(uv', '(uv*exp2(-uZX.x*uZX.y*uZX.z)')+';\n');
+    + _TAILSRC.replace(_DISPATCH, '  vec3 col='+call.replace('(uv', '((uv-uFocus)*exp2(-uZX.x*uZX.y*uZX.z)')+';\n');
 };
 const FRAG_SYN = _HEAD + _BS + _VID + _tail('synth(uv,uMode-22)');
 const FAM_OF = m => m>=90 ? 'can'
-  : (m<=5 || (m>=12 && m<=16) || (m>=30 && m<=36) || m===41 || m===42 || m===43) ? ('3d:'+m)
+  : (m<=5 || (m>=12 && m<=16) || (m>=30 && m<=36) || m===41 || m===42 || m===43 || m===44 || m===45) ? ('3d:'+m)
   : (m>=22 && m<30 ? 'syn' : '2d:'+_2D_PATH(m)[0]);
 // Drop every function main() can never reach. Each program carries the whole
 // helper library (every family's estimator, every 2D shader), and on Windows the

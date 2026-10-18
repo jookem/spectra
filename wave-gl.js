@@ -37,9 +37,12 @@ void main(){ gl_FragColor = vec4(vCol, 1.0); }`;
   function init(w, h) {
     if (!cv) {
       cv = document.createElement('canvas');
+      // Premultiplied: the antialiased edge pixels are resolved against the
+      // transparent clear, so with straight alpha their colour came out half
+      // black and drew a dark outline round the wave's foot on the sea.
       gl = cv.getContext('webgl', {
         alpha: true, depth: true, antialias: true,
-        premultipliedAlpha: false, preserveDrawingBuffer: false
+        premultipliedAlpha: true, preserveDrawingBuffer: false
       });
       if (!gl) return false;
       const mk = (t, s) => {
