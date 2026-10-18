@@ -2019,7 +2019,13 @@ vec3 render3(vec2 uv){
   if(fc){ ro=uCamPos; f=uCamF; r=uCamR; u=uCamU; dist=mix(dist0,uCamScale*6.0,cw); }
   // Zoom on the inside views narrows the lens: the camera position is the
   // flight's, so zoom has to act on the field of view instead.
-  vec3 rd=normalize(uv.x*r+uv.y*u+(fc?1.7*exp2(clamp(uZoom,0.0,1.0)*2.6*cw):1.7)*f);
+  // Orbit narrows it too over the top of the range. The distance has all but
+  // reached its floor (dfar/ZRANGE) by the middle of the slider and the
+  // clearance rule holds the eye off the surface, so the upper half used to do
+  // almost nothing; the lens carries on to 4x so the object can fill the frame.
+  // The flying views start from the same lens (cw 0) so entry does not jump.
+  float lensO=exp2(smoothstep(0.45,1.0,clamp(uZoom,0.0,1.0))*2.0);
+  vec3 rd=normalize(uv.x*r+uv.y*u+1.7*(fc?mix(lensO,exp2(clamp(uZoom,0.0,1.0)*2.6),cw):lensO)*f);
   // Clearance rule, smoothed. The eye backs off along the view axis when the
   // surface is close, but the push is a continuous function of a distance
   // averaged over a small shell around the eye, not the raw distance at one

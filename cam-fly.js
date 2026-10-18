@@ -39,7 +39,7 @@ function cacheUniforms(gl){
 function orbitPose(gl,prog,u,md,dfar){
   const uc=gl.__uc;
   const g=(n,d)=>{ if(!u[n])return d; let v=uc&&uc.get(u[n]); if(v==null){ try{ v=gl.getUniform(prog,u[n]); }catch(e){} } return v==null?d:v; };
-  const zoom=Math.min(1,Math.max(0,g('uZoom',0))), ex=zoom*9, zr=md===41?52:10;
+  const zoom=Math.min(1,Math.max(0,g('uZoom',0))), ex=zoom*9, zr=md===41?52:(md===45?40:10);
   const dist=dfar*(1/zr+(1-1/zr)*Math.pow(2,-ex));
   const t=g('uTime',0)*g('uSpeed',1), auto=g('uCamAuto',0), spin=g('uSpin',0);
   const ay=t*0.16*auto*spin+g('uJump',0)+g('uCamYaw',0), ax=Math.sin(t*0.11)*0.55*auto*Math.abs(spin)+g('uCamPitch',0);
@@ -616,7 +616,10 @@ class CamFly{
     if(this.push)P=V.add(P,V.sc(F0,this.push*(1-we)));
     const f=tiltF(F0,U0,this.tilt);
     const r=V.nrm(V.cross(U0,f)),uu=V.cross(f,r);
-    const B={f,r,u:uu,P,fl:1.7*Math.pow(2,(this.zoom||0)*2.6*we)};
+    // Lens as the shader has it: orbit's zoom lens at the hand-over, the
+    // fly zoom once the blend is in.
+    const z0=Math.min(1,Math.max(0,this.zoom||0)), lo=sm((z0-0.45)/0.55), lensO=Math.pow(2,lo*2);
+    const B={f,r,u:uu,P,fl:1.7*(lensO+(Math.pow(2,z0*2.6)-lensO)*we)};
     this.B=B; this.off=V.sub(P,this.sp||this.p);
     if(B.r.some(x=>!isFinite(x))||V.len(B.r)<0.5)return;
     gl.uniform1f(u.uCamMode,1+Math.max(0.0001,we));

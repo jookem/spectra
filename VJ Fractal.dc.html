@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<script src="./support.js?v=b28"></script>
+<script src="./support.js?v=b29"></script>
 <meta name="ext-resource-dependency" content="./csi.js" data-resource-id="csiJs">
 </head>
 <body>
@@ -30,12 +30,12 @@
   @keyframes vjspin{to{transform:rotate(360deg)}}
   @keyframes vjscan{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
 </style>
-<script src="vj-engine.js?v=b28"></script>
-<script src="deep-zoom.js?v=b28"></script>
-<script src="cam-fly.js?v=b28"></script>
-<script src="wave-mesh.js?v=b28"></script>
-<script src="wave-gl.js?v=b28"></script>
-<script src="scene-thumbs.js?v=b28"></script>
+<script src="vj-engine.js?v=b29"></script>
+<script src="deep-zoom.js?v=b29"></script>
+<script src="cam-fly.js?v=b29"></script>
+<script src="wave-mesh.js?v=b29"></script>
+<script src="wave-gl.js?v=b29"></script>
+<script src="scene-thumbs.js?v=b29"></script>
 </helmet>
 <template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#08090A"/><circle cx="50" cy="50" r="22" fill="none" stroke="#C8FF2E" stroke-width="3"/><circle cx="50" cy="50" r="11" fill="none" stroke="#C8FF2E" stroke-width="2" opacity="0.6"/><circle cx="50" cy="50" r="3.5" fill="#C8FF2E"/></svg></template>
 <div style="position:relative;width:100vw;height:100dvh;overflow:hidden;background:#08090A;font-family:'JetBrains Mono',ui-monospace,monospace;color:#F2F3F0;user-select:none;-webkit-user-select:none;">
@@ -98,7 +98,7 @@
           <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.42);">A SWRV Systems production</div>
           <div style="width:18px;height:1px;background:rgba(242,243,240,0.25);"></div>
         </div>
-        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 28 · 19 Oct 2026</div>
+        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 29 · 19 Oct 2026</div>
       </div>
       <div style="max-width:420px;text-align:center;font-size:12.5px;line-height:1.7;color:rgba(242,243,240,0.55);">The visuals are driven entirely by what the microphone hears. Nothing is recorded or sent anywhere.</div>
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,230px));gap:10px;width:100%;max-width:470px;justify-content:center;">
@@ -157,7 +157,7 @@
     <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
       <div style="font-family:Archivo,sans-serif;font-weight:700;font-size:54px;letter-spacing:-0.03em;line-height:1;">SPECTRA</div>
       <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.36);">A SWRV Systems production</div>
-      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 28 · 19 Oct 2026</div>
+      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 29 · 19 Oct 2026</div>
     </div>
     <div ref="{{ warmWrapRef }}" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
       <div style="width:260px;height:2px;background:rgba(255,255,255,0.1);">
@@ -1415,7 +1415,7 @@
 
   <!-- What the AR tracker sees: the camera, mirrored as you see yourself,
        with the hand points or the face box it found, and what to do next. -->
-  <canvas ref="{{ arPrevRef }}" width="256" height="144" style="position:absolute;right:22px;bottom:20px;z-index:43;display:{{ arPrevDisp }};width:256px;height:144px;border:1px solid rgba(255,255,255,0.11);background:#08090A;pointer-events:none;"></canvas>
+  <canvas ref="{{ arPrevRef }}" width="256" height="144" onPointerDown="{{ arDrag.down }}" onPointerMove="{{ arDrag.move }}" onPointerUp="{{ arDrag.up }}" onPointerCancel="{{ arDrag.up }}" onDoubleClick="{{ arDrag.reset }}" title="Drag to move · double-click to put it back" style="position:absolute;right:22px;bottom:20px;z-index:43;display:{{ arPrevDisp }};width:256px;height:144px;border:1px solid rgba(255,255,255,0.11);background:#08090A;cursor:grab;touch-action:none;transform:{{ arShift }};"></canvas>
   <!-- The text is rewritten four times a second into the inner box, so the
        close button lives on the outer one, which also carries the drag. -->
   <div style="position:absolute;right:22px;bottom:20px;z-index:44;font-family:'JetBrains Mono',monospace;font-size:10px;line-height:1.55;letter-spacing:0.02em;white-space:pre;color:rgba(242,243,240,0.72);background:rgba(8,9,10,0.34);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.11);padding:16px 18px 18px;display:{{ diagDisplay }};flex-direction:column;gap:14px;box-sizing:border-box;max-height:calc(100vh - 40px);overflow-y:auto;overscroll-behavior:contain;transform:{{ diagShift }};cursor:grab;touch-action:none;pointer-events:auto;" onPointerDown="{{ diagDrag.down }}" onPointerMove="{{ diagDrag.move }}" onPointerUp="{{ diagDrag.up }}" onPointerCancel="{{ diagDrag.up }}" onDoubleClick="{{ diagDrag.reset }}" title="Drag to move · double-click to put it back">
@@ -1499,10 +1499,10 @@ class Component extends DCLogic {
       {id:'24',   tag:'24',   fps:24}
     ];
     this.SRC = [{id:'off',tag:'—'},{id:'lfo',tag:'LFO'},{id:'bass',tag:'BAS'},{id:'mid',tag:'MID'},{id:'high',tag:'HGH'},{id:'lvl',tag:'LVL'},{id:'beat',tag:'BEA'},{id:'bpm',tag:'SAW'},
-      {id:'note',tag:'NTE'},{id:'ton',tag:'TON'},{id:'chd',tag:'CHD'},{id:'mot',tag:'MOT'},{id:'motx',tag:'MOX'},{id:'moty',tag:'MOY'}];
+      {id:'note',tag:'NTE'},{id:'ton',tag:'TON'},{id:'chd',tag:'CHD'},{id:'mot',tag:'MOT'},{id:'motx',tag:'MOX'},{id:'moty',tag:'MOY'},{id:'motr',tag:'MOR'}];
     // Camera motion (AR, step one): how much is moving in the live picture and
     // where. Filled by motionStep while video is on.
-    this.mo = {e:0, x:0, y:0};
+    this.mo = {e:0, x:0, y:0, r:0};
     this.csi = null;
     this.bpm = {flux:[], prev:null, ioi:[], value:0, conf:0, phase:0, period:0, beatCount:0, lastAt:0};
     // Harmony state. chroma is the smoothed 12-bin pitch class profile; slow is a
@@ -4484,6 +4484,15 @@ class Component extends DCLogic {
   // True when no pointer has touched a control in the last 400ms.
   uiQuiet(){ return performance.now() - (this.uiTouch || -1e6) > 400; }
 
+  // A beat from outside the audio (a nod): fires the beat now and adds the
+  // gap since the last one to the tempo estimate, so tapping along steers it.
+  beatTap(now){
+    const B = this.bpm, gap = now - (this._tapAt || 0);
+    if(this._tapAt && gap > 250 && gap < 2000){ B.ioi.push(gap); if(B.ioi.length > 28) B.ioi.shift(); this.estimateTempo(); }
+    this._tapAt = now; B.lastAt = now;
+    B.beatCount = (B.beatCount+1) % 4; B.phase = 0; this.a.beat = 1;
+  }
+
   estimateTempo(){
     const B = this.bpm;
     if(B.ioi.length < 6) return;
@@ -5558,6 +5567,7 @@ class Component extends DCLogic {
       for(const f of faces){ const b=bb(f); f.ar=(b[2]-b[0])*(b[3]-b[1]); if(f.w && f.n && f.ar>minA) big.push(f); }
       big.sort((a,b)=>b.ar-a.ar); if(big.length>96) big.length=96;
       const eps=2e-3;
+      for(let pass=0;pass<2;pass++){ let moved=false;
       for(const B of big){
         const n=B.n, P0=B.w[0], sc=n[0]*(cam.x-P0[0])+n[1]*(cam.y-P0[1])+n[2]*(cam.z-P0[2]);
         if(Math.abs(sc)<1e-6) continue;
@@ -5572,9 +5582,11 @@ class Component extends DCLogic {
           else if(mx<eps && mn<-eps) lastBehind=i;
         }
         if(lastBehind>=firstFront || (cur>lastBehind && cur<firstFront)) continue;
+        moved=true;
         faces.splice(cur,1);
         faces.splice(cur>=firstFront?firstFront:lastBehind,0,B);
       }
+      if(!moved) break; }
     };
     const api={
       toC, pj, near,
@@ -5603,6 +5615,18 @@ class Component extends DCLogic {
         const r={d:d+(o.bias||0), vid:V, q, q0:pts, sub, o, kids:null, n:par?par.n:null, w:q};
         if(par) (par.kids||(par.kids=[])).push(r); else faces.push(r);
         return r;
+      },
+      // A square beam from a to b, w across, for struts at any angle: four
+      // sides and two ends, each drawn only from outside.
+      beam(a,b,w,rgb,o){
+        o=o||{}; const ax=nrm([b[0]-a[0],b[1]-a[1],b[2]-a[2]]), rf=Math.abs(ax[1])<0.9?[0,1,0]:[1,0,0];
+        const cr=(p,q)=>[p[1]*q[2]-p[2]*q[1],p[2]*q[0]-p[0]*q[2],p[0]*q[1]-p[1]*q[0]];
+        const u=nrm(cr(ax,rf)), v=cr(ax,u), h=w/2, at=(p,i,j)=>[p[0]+(u[0]*i+v[0]*j)*h,p[1]+(u[1]*i+v[1]*j)*h,p[2]+(u[2]*i+v[2]*j)*h];
+        const sides=[[[1,-1],[1,1],u],[[1,1],[-1,1],v],[[-1,1],[-1,-1],[-u[0],-u[1],-u[2]]],[[-1,-1],[1,-1],[-v[0],-v[1],-v[2]]]], out=[];
+        const vis=(n,q)=>n[0]*(cam.x-q[0])+n[1]*(cam.y-q[1])+n[2]*(cam.z-q[2])>0;
+        for(const [i,j,n] of sides){ const q=[at(a,i[0],i[1]),at(a,j[0],j[1]),at(b,j[0],j[1]),at(b,i[0],i[1])]; if(vis(n,q[0])){ const f=make(q,rgb,o,n); if(f){ faces.push(f); out.push(f); } } }
+        for(const [p,n] of [[a,[-ax[0],-ax[1],-ax[2]]],[b,ax]]) if(vis(n,p)){ const f=make([at(p,1,1),at(p,-1,1),at(p,-1,-1),at(p,1,-1)],rgb,o,n); if(f){ faces.push(f); out.push(f); } }
+        return out;
       },
       box(c,s,yaw,rgb,o){
         o=o||{}; const cw=Math.cos(yaw||0), sw=Math.sin(yaw||0), tp=o.taper||[1,1], ts=o.topShift||0;
@@ -5841,8 +5865,10 @@ class Component extends DCLogic {
         S.box([s*(gap+1.1),0.09,z0+D/2],[2.2,0.18,D-0.05],0,[70,70,82]);
         S.box([s*(gap+2.2+8),0.04,z0+D/2],[16,0.08,D],0,[44,42,52],{bias:1500});
         // streetlight
-        if(id%2===0){ const lx=s*(gap+0.5); S.box([lx,2.6,z0+0.5],[0.14,5.2,0.14],0,[40,40,50]); S.box([lx-s*0.7,5.15,z0+0.5],[1.5,0.1,0.12],0,[40,40,50]);
-          S.box([lx-s*1.35,5.05,z0+0.5],[0.45,0.12,0.25],0,[255,225,170],{emit:1}); glows.push([lx-s*1.35,5.0,z0+0.5]); }
+        // Post stands ON the kerb (top 0.18), the arm starts at its side and
+        // the lamp hangs under the arm's end: no piece passes through another.
+        if(id%2===0){ const lx=s*(gap+0.5); S.box([lx,0.18+2.6,z0+0.5],[0.14,5.2,0.14],0,[40,40,50]); S.box([lx-s*(0.07+0.65),5.15,z0+0.5],[1.3,0.1,0.12],0,[40,40,50]);
+          S.box([lx-s*1.15,5.04,z0+0.5],[0.45,0.12,0.25],0,[255,225,170],{emit:1}); glows.push([lx-s*1.15,4.98,z0+0.5]); }
         if(r2<0.08) continue;
         const bw=5+r*6, bd=D*(0.78+r2*0.16), Hb=6+r*r*30, bx=s*(gap+2.2+bw/2), bz=z0+D/2, wall=rgb(hu+r*50-20,0.16+r2*0.12,0.2+r2*0.14);
         const tw=Hb>18, Hbase=tw?Hb*0.55:Hb;
@@ -5891,7 +5917,7 @@ class Component extends DCLogic {
     const cols=3+Math.round((e.detail??0.5)*4), rows=Math.max(2,Math.round(cols*0.62));
     const wallW=cols*1.42, wallH=rows*1.0;
     const a=Math.sin(t*0.11)*0.38+(this.scnYaw||0), dist=(wallW*0.62+1.6)/Vw.sc;
-    const cam=this.lookAt(Math.sin(a)*dist, wallH*0.55+0.4+Math.sin(t*0.07)*0.35, -Math.cos(a)*dist, 0,wallH*0.48,0);
+    const cam=this.lookAt(Math.sin(a)*dist, wallH*0.55+0.4+Math.sin(t*0.07)*0.35, -Math.cos(a)*dist, 0,wallH*0.58,0);
     const F=H*1.15, OX=W/2, OY=H/2; this.vpAim(cam,F,Vw); this.vpReport(OX+Vw.ox, OY+Vw.oy);
     ctx.fillStyle='hsl('+hu+',14%,5%)'; ctx.fillRect(0,0,W,H);
     const S=this.lp3(Object.assign(cam,{f:F,cx:OX,cy:OY,L1:[-0.4,0.85,-0.5],C1:[0.36,0.36,0.42],amb:[0.24,0.24,0.3],L2:[0,0.1,-1],C2:[vc[0]*0.5,vc[1]*0.5,vc[2]*0.55],fogC:[8,8,10],fogK:0.01}));
@@ -5917,34 +5943,71 @@ class Component extends DCLogic {
         S.decal(bw,Rw(wx-0.04,y0,wx+0.04,y1,1.56),[30,26,30]); S.decal(bw,Rw(x0,(y0+y1)/2-0.04,x1,(y0+y1)/2+0.04,1.56),[30,26,30]);   // mullions
         S.box([wx,y0-0.2,1.35],[3.6,0.08,0.5],0,rgb(hu+20,0.15,0.3));                         // sill
       }
-      // neon wave over the stack
-      const ny=wallH+1.15, nw=X0+0.6, nc=this.hrgb(hu+180,1,0.62), np=[];
-      for(let k=0;k<=48;k++){ const u=k/48, x=-nw+u*nw*2, y=ny+Math.sin(u*12.566+t*1.4)*0.22*(0.6+(A.bass||0)*0.8); np.push([x,y]); }
-      for(let k=0;k<48;k++){ const [xa,ya]=np[k], [xb,yb]=np[k+1];
-        S.decal(bw,[[xa,ya-0.035,1.55],[xb,yb-0.035,1.55],[xb,yb+0.035,1.55],[xa,ya+0.035,1.55]],[255,255,255],{emit:1});
-        S.decal(bw,[[xa,ya-0.09,1.555],[xb,yb-0.09,1.555],[xb,yb+0.09,1.555],[xa,ya+0.09,1.555]],nc,{emit:1,alpha:0.55});
-        if(k%6===0) glo.push([[xa,ya,1.5],nc,0.18+(A.loud||0)*0.2,0.9]); }
+      // Neon sign over the stack, well clear of the aerials: the message from
+      // the text panel (SPECTRA until there is one), as glass tube on the wall.
+      { const L=this.state.txtList||[], msg=String(L[this.state.txtIdx||0]||'SPECTRA'), nw=X0+0.4, nh=0.95, ny=wallH+1.55;
+        const nc=this.hrgb(hu+180,1,0.62), key=msg+'|'+Math.round(hu);
+        let T=M.neonCv; if(!T){ T=M.neonCv=document.createElement('canvas'); }
+        if(M.neonKey!==key){ M.neonKey=key; T.width=1024; T.height=Math.max(64,Math.round(1024*nh/(nw*2)));
+          const x=T.getContext('2d'), c='rgb('+nc.map(v=>v|0).join(',')+')';
+          x.clearRect(0,0,T.width,T.height); x.textAlign='center'; x.textBaseline='middle';
+          let fs=T.height*0.72; x.font='700 '+fs+'px Archivo, sans-serif'; const tw=x.measureText(msg).width; if(tw>T.width*0.92){ fs*=T.width*0.92/tw; x.font='700 '+fs+'px Archivo, sans-serif'; }
+          x.lineJoin='round'; x.shadowColor=c; x.shadowBlur=fs*0.35; x.strokeStyle=c; x.lineWidth=fs*0.09;
+          x.strokeText(msg,T.width/2,T.height/2); x.strokeText(msg,T.width/2,T.height/2);
+          x.shadowBlur=fs*0.12; x.strokeStyle='rgba(255,255,255,0.95)'; x.lineWidth=fs*0.035; x.strokeText(msg,T.width/2,T.height/2); }
+        // tube flicker: mostly steady, the odd stutter, brighter on the loud parts
+        const fl=(hs(Math.floor(t*12))<0.04?0.35:1)*(0.82+(A.loud||0)*0.18);
+        S.vid(bw,[[-nw,ny+nh/2,1.55],[nw,ny+nh/2,1.55],[nw,ny-nh/2,1.55],[-nw,ny-nh/2,1.55]],{src:T,w:T.width,h:T.height,flip:false,flipV:false},{n:2,alpha:fl,crop:{sx:0,sy:0,sw:T.width,sh:T.height}});
+        for(let k=0;k<5;k++) glo.push([[-nw*0.8+k*nw*0.4,ny,1.5],nc,(0.14+(A.loud||0)*0.16)*fl,1.1]); }
       // record shelf
       const shx=X0+3.3;
       S.box([shx,6.4,1.42],[3.4,0.1,0.36],0,rgb(30,0.35,0.3));
       for(let k=0;k<14;k++){ const x=shx-1.55+k*0.22+hs(k)*0.04, h=0.5+hs(k*2.1)*0.12, lean=k>11?0.25:0;
         S.box([x+lean*0.3,6.45+h/2,1.42],[0.05,h,0.32],lean,rgb(hs(k*5.3)*360,0.55,0.35+hs(k)*0.2)); }
     }
-    // rug, cables
+    // rug, and the consoles on it: low-poly stand-ins for a Super Famicom, a
+    // Mega Drive and a PlayStation, each with its pad.
     S.face([[-X0-1.4,0.006,-3.2],[X0+1.4,0.006,-3.2],[X0+1.4,0.006,0.9],[-X0-1.4,0.006,0.9]],rgb(hu+150,0.35,0.2),{n:[0,1,0],bias:1e4-2});
     S.face([[-X0-1.1,0.008,-2.9],[X0+1.1,0.008,-2.9],[X0+1.1,0.008,0.6],[-X0-1.1,0.008,0.6]],rgb(hu+150,0.3,0.27),{n:[0,1,0],bias:1e4-3});
-    for(let k=0;k<5;k++){ const x0=(k/4-0.5)*wallW*0.8, pts=[]; for(let j=0;j<=6;j++){ const u=j/6; pts.push([x0+Math.sin(u*3+k)*0.5*u, -u*2.6]); }
-      for(let j=0;j<6;j++){ const [xa,za]=pts[j],[xb,zb]=pts[j+1]; S.face([[xa-0.025,0.012,za],[xa+0.025,0.012,za],[xb+0.025,0.012,zb],[xb-0.025,0.012,zb]],[14,14,16],{n:[0,1,0],bias:1e4-4}); } }
+    { const fy=0.008, disc=(B,k,uc,vc,r,col,off,n)=>{ if(!B[k]) return; const pts=[]; for(let i=0;i<(n||10);i++){ const a=i/(n||10)*6.2832, u=uc+Math.cos(a)*r, v=vc+Math.sin(a)*r; pts.push(B.on(k,u,v,u,v,off)[0]); } S.decal(B[k],pts,col); };
+      const pad=(x,z,yaw,col,btn)=>{ const B=S.box([x,fy+0.03,z],[0.42,0.06,0.19],yaw,col);
+        if(B.py){ S.decal(B.py,B.on('py',0.1,0.3,0.32,0.7,0.005),[40,40,46]); for(let i=0;i<btn.length;i++) disc(B,'py',0.66+(i%2)*0.12,0.35+(i>>1)*0.3,0.05,btn[i],0.006,6); } };
+      const sx=Math.min(X0,2.4);
+      // Super Famicom: pale grey, a darker ridge, the cartridge standing in its
+      // slot, the four colours on the lid.
+      { const x=-sx, z=-1.5, yw=0.18, B=S.box([x,fy+0.1,z],[1.0,0.2,0.74],yw,[192,190,198]);
+        S.box([x+Math.sin(yw)*0.22,fy+0.23,z+Math.cos(yw)*0.22],[0.98,0.06,0.28],yw,[160,158,170]);
+        S.box([x,fy+0.23,z],[0.56,0.06,0.26],yw,[90,88,100]);
+        S.box([x,fy+0.36,z],[0.5,0.3,0.08],yw,[130,128,140]);
+        if(B.py){ const C4=[[230,60,60],[240,200,60],[80,190,90],[70,110,220]]; for(let i=0;i<4;i++) disc(B,'py',0.12+i*0.06,0.22,0.022,C4[i],0.006,6);
+          S.decal(B.py,B.on('py',0.62,0.12,0.72,0.3,0.006),[150,120,190]); S.decal(B.py,B.on('py',0.78,0.12,0.88,0.3,0.006),[150,120,190]); }
+        pad(x-0.1,z-0.85,yw-0.2,[192,190,198],[[230,60,60],[240,200,60],[80,190,90],[70,110,220]]); }
+      // Mega Drive: black, the round disc on top, the red stripe.
+      { const x=0, z=-1.7, yw=-0.08, B=S.box([x,fy+0.1,z],[1.04,0.2,0.8],yw,[26,26,30]);
+        S.box([x-0.12,fy+0.225,z+0.06],[0.48,0.05,0.48],yw+0.3927,[44,44,50]); S.box([x-0.12,fy+0.26,z+0.06],[0.3,0.03,0.3],yw+0.3927,[60,60,68]);
+        if(B.py){ S.decal(B.py,B.on('py',0.66,0.08,0.95,0.18,0.006),[210,40,40]); S.decal(B.py,B.on('py',0.7,0.6,0.92,0.68,0.006),[70,70,80]); }
+        if(B.nz) S.decal(B.nz,B.on('nz',0.08,0.35,0.3,0.65,0.006),[200,40,40],{emit:1});
+        pad(x+0.15,z-0.8,yw+0.15,[30,30,34],[[60,60,70],[60,60,70],[60,60,70]]); }
+      // PlayStation: light grey, the round lid, the coloured logo.
+      { const x=sx, z=-1.5, yw=-0.2, B=S.box([x,fy+0.085,z],[1.0,0.17,0.72],yw,[200,200,206]);
+        if(B.py){ disc(B,'py',0.38,0.55,0.3,[150,150,160],0.006,12); disc(B,'py',0.38,0.55,0.08,[120,120,130],0.008,8);
+          S.decal(B.py,B.on('py',0.78,0.7,0.84,0.82,0.006),[230,60,60]); S.decal(B.py,B.on('py',0.84,0.7,0.9,0.82,0.006),[240,200,60]);
+          S.decal(B.py,B.on('py',0.78,0.58,0.84,0.7,0.006),[70,110,220]); S.decal(B.py,B.on('py',0.84,0.58,0.9,0.7,0.006),[80,190,90]);
+          for(const u of [0.74,0.88]) S.decal(B.py,B.on('py',u-0.04,0.12,u+0.04,0.22,0.006),[120,120,130]); }
+        pad(x+0.05,z-0.85,yw+0.25,[175,175,182],[[80,190,90],[230,60,60],[70,110,220],[230,130,200]]); } }
     // floor lamp
     { const lx=-(X0+1.7), lz=-0.6;
       S.box([lx,0.04,lz],[0.6,0.08,0.6],0,[40,38,44]); S.box([lx,1.7,lz],[0.06,3.3,0.06],0,[60,58,66]);
       S.box([lx,3.55,lz],[0.9,0.6,0.9],0,[255,214,150],{taper:[0.55,0.55],emit:1});
       glo.push([[lx,3.4,lz],[255,200,130],0.35,2.4]); }
-    // plant
-    { const px=X0+1.8, pz=-0.9;
-      S.box([px,0.35,pz],[0.7,0.7,0.7],0,[150,80,55],{taper:[1.15,1.15]});
+    // plant: a hollow planter (four walls, soil a little below the rim) with
+    // the leaves rooted in the soil and kept inside the walls.
+    { const px=X0+1.8, pz=-0.9, pw=0.7, th=0.06, ph=0.7, pc=[150,80,55], ins=pw/2-th;
+      for(const [dx,dz,w,d] of [[0,-(pw-th)/2,pw,th],[0,(pw-th)/2,pw,th],[-(pw-th)/2,0,th,pw-th*2],[(pw-th)/2,0,th,pw-th*2]])
+        S.box([px+dx,ph/2,pz+dz],[w,ph,d],0,pc);
+      S.face([[px-ins,ph-0.08,pz-ins],[px+ins,ph-0.08,pz-ins],[px+ins,ph-0.08,pz+ins],[px-ins,ph-0.08,pz+ins]],[52,36,28],{n:[0,1,0]});
       for(let k=0;k<9;k++){ const a=k/9*6.283, h=1.1+hs(k*3.3)*0.9;
-        S.box([px+Math.cos(a)*0.25,0.7+h/2,pz+Math.sin(a)*0.25],[0.22,h,0.06],a,rgb(110+hs(k)*30,0.5,0.28+hs(k+1)*0.12),{taper:[0.15,0.4],topShift:(hs(k*7)-0.5)*0.8}); } }
+        S.box([px+Math.cos(a)*0.13,ph-0.08+h/2,pz+Math.sin(a)*0.13],[0.18,h,0.05],a,rgb(110+hs(k)*30,0.5,0.28+hs(k+1)*0.12),{taper:[0.15,0.4],topShift:(hs(k*7)-0.5)*0.8}); } }
     if((A.beat||0)>0.6 && !M.tvB){ M.tvB=1; M.tvSeed=(M.tvSeed||0)+1; } else if((A.beat||0)<0.3) M.tvB=0;
     let N=M.tvN; if(!N){ N=M.tvN=document.createElement('canvas'); N.width=96; N.height=54; }
     if(tick%3===0){ const nx=N.getContext('2d'), id=nx.createImageData(96,54); for(let i=0;i<id.data.length;i+=4){ const v=Math.random()*255; id.data[i]=id.data[i+1]=id.data[i+2]=v; id.data[i+3]=255; } nx.putImageData(id,0,0); }
@@ -6168,7 +6231,7 @@ class Component extends DCLogic {
     // little off each face (Depth), rimmed in light, over their own shadow.
     const sw=5.6*(0.75+(e.detail??0.5)*0.5), sh=sw*9/16, sd=sw*0.6;
     const stone=rgb(40,0.22,0.72), stoneD=rgb(38,0.2,0.6), stoneL=rgb(42,0.25,0.8), teal=rgb(180,0.45,0.42), rock=rgb(28,0.3,0.42), sand=rgb(32,0.35,0.5), grass=rgb(115,0.5,0.38);
-    const fl=0.65, PH=2.04, SB=sh+0.6, CH=PH+SB+0.9, TW=sw+5, hw=TW/2, ci=sw/2+0.75, fy=fl+0.11;
+    const fl=0.65, PH=2.04, SB=sh+0.6, CH=PH+SB+0.9, TW=sw+5, hw=TW/2, ci=sw/2+0.75, fy=fl;
     // island
     S.box([0,-0.5,Z],[TW+9,1.2,TW+9],0.04,sand,{taper:[0.92,0.92]});
     S.box([0,-1.4,Z],[TW+12,1.0,TW+12],0.1,rock,{taper:[0.9,0.9]});
@@ -6346,7 +6409,9 @@ class Component extends DCLogic {
       for(let i=0;i<NM;i++){ const a0=i/NM*6.2832, a1=(i+1)/NM*6.2832, am=(a0+a1)/2;
         const r0=RG-2, rp=RG+16+hs(i*2.7)*14, hp=10+hs(i*5.1)*22+Math.sin(i*0.7)*5;
         const b0=[Math.cos(a0)*r0,0,Math.sin(a0)*r0], b1=[Math.cos(a1)*r0,0,Math.sin(a1)*r0], pk=[Math.cos(am)*rp,hp,Math.sin(am)*rp];
-        const k0=[Math.cos(a0)*(RG+30),hp*0.55*(0.6+hs(i)*0.5),Math.sin(a0)*(RG+30)], k1=[Math.cos(a1)*(RG+30),hp*0.55*(0.6+hs(i+1)*0.5),Math.sin(a1)*(RG+30)];
+        // The back slopes come down to the ground too, so seen from above or
+        // through a gap no mountain stands on air.
+        const k0=[Math.cos(a0)*(RG+30),0,Math.sin(a0)*(RG+30)], k1=[Math.cos(a1)*(RG+30),0,Math.sin(a1)*(RG+30)];
         S.face([b0,pk,b1],i%2?mtA:mtB,{bias:9e4,fogMul:0.6});
         S.face([b0,k0,pk],mtB.map(v=>v*0.85),{bias:9.1e4,fogMul:0.6});
         S.face([pk,k1,b1],mtA.map(v=>v*0.9),{bias:9.1e4,fogMul:0.6});
@@ -6391,18 +6456,17 @@ class Component extends DCLogic {
         const mc=[(q[0][0]+q[2][0])/2,(q[0][1]+q[2][1])/2,(q[0][2]+q[2][2])/2];
         const nn=[mc[0],(mc[1]-cy0)/ySc,mc[2]], nl=Math.hypot(nn[0],nn[1],nn[2]); nn[0]/=nl; nn[1]/=nl; nn[2]/=nl;
         if(nn[0]*(cam.x-mc[0])+nn[1]*(cam.y-mc[1])+nn[2]*(cam.z-mc[2])<=0) continue;
-        // Each screen spans half the longitudes: u runs across it left to
-        // right, v from the crown down to the ring.
-        const u0=(lo%half)/half, u1=u0+1/half;
+        // The picture runs across one half of the dome and back mirrored across
+        // the other, so both places the halves meet join edge to edge with no
+        // seam. v runs from the crown down to the ring.
+        const k=lo%half, back=lo>=half, u0=back?1-(k+1)/half:k/half, u1=u0+1/half;
         const v0=Math.max(0,vAt(p1)), v1=Math.min(1,vAt(p0));
         const Fc=S.face(q,[20,20,26],{n:nn});
         if(!Fc) continue;
-        S.vid(Fc,q,Vd,{n:1,crop:{sx:C.sx+u0*C.sw,sy:C.sy+v0*C.sh,sw:Math.max(1,(u1-u0)*C.sw),sh:Math.max(1,(v1-v0)*C.sh)}});
+        S.vid(Fc,q,back?Object.assign({},Vd,{flip:!Vd.flip}):Vd,{n:1,crop:{sx:C.sx+u0*C.sw,sy:C.sy+v0*C.sh,sw:Math.max(1,(u1-u0)*C.sw),sh:Math.max(1,(v1-v0)*C.sh)}});
         const lit=Math.max(0,nn[0]*0.5+nn[1]*0.6+nn[2]*-0.3);
         S.decal(Fc,q,null,{raw:'rgba(0,0,0,'+(0.32-lit*0.3).toFixed(3)+')',alpha:1,noFog:1});
         S.decal(Fc,q,null,{raw:'rgba(255,255,255,0.05)',alpha:1,comp:'lighter',noFog:1});
-        // A dark rib where one screen meets the other.
-        if(lo%half===0){ const lr=(A,B,k)=>A.map((c,j)=>c+(B[j]-c)*k); S.decal(Fc,[q[0],lr(q[0],q[1],0.08),lr(q[3],q[2],0.08),q[3]],[12,12,16]); }
       }
     }
     // Ferris wheel: a low-poly 3D build on its own plaza, after the reference
@@ -6416,12 +6480,10 @@ class Component extends DCLogic {
       for(let i=0;i<10;i++) for(const sd of [-1,1]){ const p=P(-9.5+i*2.1,1.8,sd*7.6); S.box(p,[0.12,1.1,0.12],wa,legC); }
       for(const sd of [-1,1]){ const p=P(0,2.3,sd*7.6); S.box(p,[19,0.1,0.1],wa,legC); }
       const bth=S.box(P(-6,2.2,-4),[2.4,2,1.8],wa,rgb(hu+330,0.4,0.55)); S.box(P(-6,3.35,-4.2),[2.8,0.3,2.3],wa,roofC);
-      for(const v of [-1.6,1.6]){
-        S.face([P(-6.5,1.3,v-0.25),P(-0.4,WY,v-0.25),P(-0.4,WY,v+0.25),P(-6.5,1.3,v+0.25)],legC);
-        S.face([P(6.5,1.3,v-0.25),P(0.4,WY,v-0.25),P(0.4,WY,v+0.25),P(6.5,1.3,v+0.25)],legC);
-        S.face([P(-6.5,1.3,v),P(0.4,WY,v),P(-0.4,WY,v),P(-7.3,1.3,v)],legC.map(c=>c*0.9));
-        S.face([P(6.5,1.3,v),P(-0.4,WY,v),P(0.4,WY,v),P(7.3,1.3,v)],legC.map(c=>c*0.9));
-      }
+      // A-frame legs as solid beams from the plaza to the hub's sides. They
+      // used to be flat strips that cut through each other, and the sort
+      // flipped between them as the view turned: the fluttering.
+      for(const v of [-1.6,1.6]) for(const sd of [-1,1]) S.beam(P(sd*6.8,1.3,v),P(sd*0.95,WY-0.45,v),0.42,legC);
       S.box(P(0,WY,0),[1.6,1.6,3.6],wa,rimC);
       const N=28, ringAt=(a,r,v)=>P(Math.cos(a)*r, WY+Math.sin(a)*r, v), lights=[];
       for(let i=0;i<N;i++){ const a0=rot+i/N*6.2832, a1=rot+(i+1)/N*6.2832;
@@ -10247,7 +10309,7 @@ class Component extends DCLogic {
         // Panels dragged by a header handle move their PARENT; the diagnostics
         // block is its own handle and moves itself.
         (this.pDragEl || (this.pDragEl = {}))[key] =
-          key === 'diag' ? e.currentTarget : (e.currentTarget.parentElement || e.currentTarget);
+          key === 'diag' || key === 'ar' ? e.currentTarget : (e.currentTarget.parentElement || e.currentTarget);
         const p = pos();
         D[key].o = {x: e.clientX - p.x, y: e.clientY - p.y};
         try{ e.currentTarget.setPointerCapture(e.pointerId); }catch(err){}
@@ -13919,8 +13981,8 @@ class Component extends DCLogic {
         {k:'Mouse move', d:'Shorebreak: the surfer follows the pointer — left climbs the wave’s face, right runs out onto the shoulder, up and down take him along the wave'},
         {k:'Idle 10s', d:'Controls fade out on their own'},
         {k:'Menu tabs (Deck)', d:'The deck shows one group at a time: Scenes, Video, Cues, Slots, Params, Look, System. Minimal’s Menu button opens the deck; System has the layout buttons to go back'},
-        {k:'AR (camera)', d:'Pick a mode in the AR menu beside Camera in the Video tab; it starts the camera itself. HANDS: pinch thumb and index to grab, move your hand to turn the scene like a mouse drag, open your hand to let go (a flick keeps it spinning); pinch with both hands and spread or close them to zoom. HEAD: the screen becomes a window — move your head and the view follows, lean in to zoom. MOTION: any movement turns the view toward its side. The preview bottom right shows what the tracker sees. Hands and Head load their tracking from the internet the first time; the camera image never leaves the computer'},
-        {k:'MOT / MOX / MOY sources', d:'Camera control as automation sources, in the tag beside any value. With AR hands: MOX and MOY are where your hand is, MOT how open it is (0 pinched, 1 open). With AR head: where your head is, and MOT how close you lean. With AR motion or AR off: where the movement is and how much. Needs video on and Auto on'},
+        {k:'AR (camera)', d:'Pick a mode in the AR menu beside Camera in the Video tab; it starts the camera itself. HANDS: pinch thumb and index to grab, move your hand to turn the scene like a mouse drag, relax your hand to let go (a flick keeps it spinning); an open palm pans; a fist moves Morph (up and down) and Speed (sideways); pinch with both hands and spread or close them to zoom, twist them to turn the hue; in Fly or Surface, point to aim a target and hold still to go; a peace sign is the next scene. HEAD: the screen becomes a window — move your head and the view follows, lean in to zoom, tilt to roll, nod to tap the beat. MOTION: any movement turns the view toward its side, and a sudden burst of movement hits like a beat. The preview bottom right shows what the tracker sees; drag it anywhere, double-click to put it back. Hands and Head load their tracking from the internet the first time; the camera image never leaves the computer'},
+        {k:'MOT / MOX / MOY / MOR sources', d:'Camera control as automation sources, in the tag beside any value. With AR hands: MOX and MOY are where your hand is, MOT how open it is (0 pinched, 1 open), MOR how far it is turned. With AR head: where your head is, MOT how close you lean, MOR how far you tilt. With AR motion or AR off: where the movement is, how much, and MOR how fast it sweeps sideways. Needs video on and Auto on'},
         {k:'Morph fader (Slots)', d:'Eases toward where you put it, so even a click on the far end morphs over about a second. Between two different scenes the swap happens at the middle and the dissolve follows the fader'},
         {k:'Video change', d:'Auto steps the clip list, In order / Random its order, Link scene changes clip with the scene, FX cycle picks a new video look each clip, Tx the transition, Drift moves the video trail'},
         {k:'Several screens (TV Wall, Billboard City, Frame Corridor)', d:'Each screen plays the clip at its own delay, up to two seconds behind, so they never all show the same frame. Sphere keeps one picture wrapped round its dome'},
@@ -13960,6 +14022,7 @@ class Component extends DCLogic {
     if(src==='mot') return this.mo.e;
     if(src==='motx') return this.mo.x;
     if(src==='moty') return this.mo.y;
+    if(src==='motr') return this.mo.r;
     // RF / RFP / RFF used to live here as three more modulation sources. They
     // read a wifi-sensing module that was never built, so every parameter they
     // were assigned to sat at zero — three dead entries in every source menu in
@@ -15521,11 +15584,18 @@ class Component extends DCLogic {
     this._moP=this._moP||new Float32Array(W*H); this._moP.set(this._moQ);
     if(!p) return;
     const amt=Math.min(1,n/(W*H)*6), k=1-Math.exp(-dt*12);
+    // A sudden burst of movement (a jump, a sweep of the arm) lands as a beat
+    // in AR motion mode, so the strobe, bloom and everything else on the beat
+    // hit with it.
+    if((vd.ar===true || vd.ar==='motion') && amt>0.18 && amt>mo.e*2.2 && performance.now()-(this._moHit||0)>250){ this._moHit=performance.now(); this.a.beat=1; this.bpm.phase=0; }
     mo.e+=(amt-mo.e)*k;
     if(n>12){ let wsum=0; for(let i=0;i<W*H;i++) wsum+=g[i];
       let cx=sx/wsum/(W-1)*2-1, cy=1-sy/wsum/(H-1)*2;
       cx=-cx;   // as you see yourself: moving right reads as right, whatever Mirror shows
+      // MOR: the sideways sweep, how fast the movement is crossing the frame.
+      mo.r+=(Math.max(-1,Math.min(1,(cx-mo.x)*8))-mo.r)*k;
       mo.x+=(cx-mo.x)*k; mo.y+=(cy-mo.y)*k; }
+    else mo.r*=Math.exp(-dt*3);
     if(this.arMeterRef.current) this.arMeterRef.current.style.width = Math.round(Math.min(1,mo.e*3)*100) + '%';
     if(this.arDotRef.current){ this.arDotRef.current.style.left = Math.round((mo.x*0.5+0.5)*100) + '%'; this.arDotRef.current.style.opacity = mo.e>0.02 ? '1' : '0'; }
     if((vd.ar===true || vd.ar==='motion') && mo.e>0.02){
@@ -15586,22 +15656,45 @@ class Component extends DCLogic {
     if(kind==='hand') this.handStep(res, now); else this.headStep(res, v);
   }
   handStep(res, now){
-    const H = this._hand || (this._hand = {p:[], grab:null, two:null});
+    const H = this._hand || (this._hand = {p:[], grab:null, two:null, fist:null});
     const cv = this.canvasRef.current, r = cv ? cv.getBoundingClientRect() : {left:0, top:0, width:1, height:1};
     const pts = ((res && res.landmarks) || []).map((L, i) => {
       const d = (a, b) => Math.hypot(a.x-b.x, a.y-b.y);
       const pin = d(L[4], L[8]) / Math.max(1e-3, d(L[0], L[9]));
-      // x flipped: you see yourself mirrored, so moving right reads as right
-      const x = 1-(L[4].x+L[8].x)/2, y = (L[4].y+L[8].y)/2, o = H.p[i];
-      return {L, pin, on: (o && o.on) ? pin < 0.5 : pin < 0.32,
-        sx: o ? o.sx+(x-o.sx)*0.55 : x, sy: o ? o.sy+(y-o.sy)*0.55 : y};
+      // A finger is out when its tip is well past its middle joint from the
+      // wrist. Four out and the thumb clear of the index is an open palm; none
+      // out is a fist. Either has to hold for a few frames before it counts,
+      // so the hand passing through a shape on its way to another does nothing.
+      // A fist is checked before the pinch: folded, the thumb lies against the
+      // index and would read as one. In a fist the index tip is curled back to
+      // its own knuckle; in a pinch it reaches out to meet the thumb.
+      const fo = [[8,6],[12,10],[16,14],[20,18]].map(([t,p]) => d(L[0],L[t]) > d(L[0],L[p])*1.12), ext = fo.filter(Boolean).length;
+      const fist = ext === 0 && d(L[8],L[5]) < d(L[0],L[5])*0.55;
+      const o = H.p[i];
+      const on = !fist && ((o && o.on) ? pin < 0.5 : pin < 0.32);
+      // Pointing: the index alone out. The peace sign: index and middle out,
+      // ring and little finger folded.
+      const shape = fist ? 'fist' : on ? 'pinch' : ext >= 4 && pin > 0.6 ? 'open'
+        : fo[0] && !fo[1] && !fo[2] && !fo[3] ? 'point' : fo[0] && fo[1] && !fo[2] && !fo[3] ? 'peace' : 'rest';
+      const run = o && o.shape === shape ? o.run+1 : 1;
+      // x flipped: you see yourself mirrored, so moving right reads as right.
+      // The pinch steers from between thumb and index, the other shapes from
+      // the middle of the palm.
+      const x = shape === 'pinch' ? 1-(L[4].x+L[8].x)/2 : shape === 'point' ? 1-L[8].x : 1-(L[0].x+L[9].x)/2;
+      const y = shape === 'pinch' ? (L[4].y+L[8].y)/2 : shape === 'point' ? L[8].y : (L[0].y+L[9].y)/2;
+      const jump = !o || o.shape !== shape;
+      // Roll of the hand, wrist to middle knuckle: 0 upright, +-1 a quarter turn.
+      const roll = Math.max(-1, Math.min(1, Math.atan2(-(L[9].x-L[0].x), -(L[9].y-L[0].y)) / 1.5708));
+      return {L, pin, on, shape, run, roll, held: shape === 'pinch' || run >= 6,
+        sx: o && !jump ? o.sx+(x-o.sx)*0.55 : x, sy: o && !jump ? o.sy+(y-o.sy)*0.55 : y};
     });
     const on = pts.filter(p => p.on), mo = this.mo;
-    if(pts[0]){ mo.x = pts[0].sx*2-1; mo.y = 1-pts[0].sy*2; mo.e = Math.min(1, Math.max(0, (pts[0].pin-0.25)/0.9)); } else mo.e *= 0.9;
+    if(pts[0]){ mo.x = pts[0].sx*2-1; mo.y = 1-pts[0].sy*2; mo.e = Math.min(1, Math.max(0, (pts[0].pin-0.25)/0.9)); mo.r += (pts[0].roll-mo.r)*0.4; }
+    else { mo.e *= 0.9; mo.r *= 0.9; }
     const toScreen = p => ({clientX: r.left + (H.grab.x0 + (p.sx-H.grab.x0)*1.6)*r.width, clientY: r.top + (H.grab.y0 + (p.sy-H.grab.y0)*1.6)*r.height});
     const release = () => {
       const g = H.grab; if(!g) return;
-      const orb = !(this.state.camView > 0) && !this.is2D() && !this.isCanvasScene();
+      const orb = g.kind === 'pinch' && !(this.state.camView > 0) && !this.is2D() && !this.isCanvasScene();
       if(orb && now - g.t < 120 && Math.hypot(g.vx, g.vy) > 0.4){
         const cap = v => Math.max(-6, Math.min(6, v));
         this.fling = {vy: cap(-g.vx*3.4*1.6), vp: cap(g.vy*2.4*1.6)};
@@ -15609,49 +15702,106 @@ class Component extends DCLogic {
       if(this.onMUp) this.onMUp();
       H.grab = null;
     };
-    if(on.length >= 2){
-      release();
-      const dd = Math.hypot(on[0].sx-on[1].sx, on[0].sy-on[1].sy);
-      if(!H.two) H.two = {d0: dd, z0: this.state.p.zoom ?? 0.5};
-      else this.setP('zoom', H.two.z0 + (dd-H.two.d0)*1.6);
-    } else if(on.length === 1){
-      H.two = null;
-      const p = on[0];
+    // Grab with the pinch (turn, as a left drag) or the open palm (pan: the
+    // modified drag on the 3D scenes, the plain drag on the 2D and canvas
+    // scenes, where that already moves the frame).
+    const grab = (p, kind) => {
+      if(H.grab && H.grab.kind !== kind) release();
       if(!H.grab){
-        H.grab = {x0: p.sx, y0: p.sy, x: p.sx, y: p.sy, t: now, vx: 0, vy: 0};
+        H.grab = {kind, x0: p.sx, y0: p.sy, x: p.sx, y: p.sy, t: now, vx: 0, vy: 0};
         this.fling = null; if(this.cancelHome) this.cancelHome();
-        this.md = {x: r.left + p.sx*r.width, y: r.top + p.sy*r.height, yaw: this.cam.yaw, pitch: this.cam.pitch, px: this.pan.x, py: this.pan.y, alt: false};
-        if(this.pivGrab) this.pivGrab();
+        const alt = kind === 'open' && !this.is2D() && !this.isCanvasScene();
+        this.md = {x: r.left + p.sx*r.width, y: r.top + p.sy*r.height, yaw: this.cam.yaw, pitch: this.cam.pitch, px: this.pan.x, py: this.pan.y, alt};
+        if(!alt && this.pivGrab) this.pivGrab();
       } else {
         const g = H.grab, dts = Math.max(1, now-g.t)/1000;
         g.vx = g.vx*0.5 + (p.sx-g.x)/dts*0.5; g.vy = g.vy*0.5 + (p.sy-g.y)/dts*0.5;
         g.x = p.sx; g.y = p.sy; g.t = now;
         if(this.md && this.onMMove) this.onMMove(toScreen(p));
       }
-    } else { release(); H.two = null; }
+    };
+    const P = this.state.p;
+    if(on.length >= 2){
+      release(); H.fist = null;
+      // Two pinches: spread or close to zoom, twist the pair to turn the hue.
+      const dd = Math.hypot(on[0].sx-on[1].sx, on[0].sy-on[1].sy);
+      const a = Math.atan2(on[1].sy-on[0].sy, on[1].sx-on[0].sx);
+      if(!H.two) H.two = {d0: dd, z0: P.zoom ?? 0.5, a0: a, h0: P.hue ?? 0.5};
+      else {
+        this.setP('zoom', H.two.z0 + (dd-H.two.d0)*1.6);
+        let da = a-H.two.a0; da = Math.atan2(Math.sin(da), Math.cos(da));
+        this.setP('hue', ((H.two.h0 + da/6.2832) % 1 + 1) % 1);
+      }
+    } else {
+      H.two = null;
+      const p = on[0] || pts.find(q => q.held && q.shape !== 'rest');
+      if(!p || p.shape !== 'point') H.pt = null;
+      if(!p || p.shape !== 'peace') H.peace = false;
+      if(p && (p.shape === 'pinch' || p.shape === 'open')){ H.fist = null; grab(p, p.shape); }
+      else if(p && p.shape === 'point'){
+        // Point, in Fly or Surface: the fingertip aims a target where it
+        // points, and holding still on it for a moment sets off.
+        release(); H.fist = null;
+        const F = this.camFly, W = r.width, Hh = r.height;
+        if(F && this.state.camView > 0){
+          const fx = p.sx*W, fy = p.sy*Hh;
+          if(!H.pt || Math.hypot(fx-H.pt.x, fy-H.pt.y) > Math.max(60, Math.min(W,Hh)*0.09)){
+            if(!H.pt || now-H.pt.t > 250){ F.aim = null; F.tap(fx, fy, W, Hh); H.pt = {x: fx, y: fy, t: now, t0: now, sent: false}; }
+          } else if(!H.pt.sent && now-H.pt.t0 > 900 && F.aim){ F.confirm(); H.pt.sent = true; }
+        }
+      }
+      else if(p && p.shape === 'peace'){
+        // Peace sign: next scene, once per sign; drop it or change shape to
+        // go again.
+        release(); H.fist = null;
+        if(!H.peace){ H.peace = true; this.stepScene(1); }
+      }
+      else if(p && p.shape === 'fist'){
+        // Fist: a parameter grip. Up and down sets Morph, left and right Speed,
+        // relative to where the fist closed.
+        release();
+        if(!H.fist) H.fist = {x0: p.sx, y0: p.sy, m0: P.morph ?? 0.5, s0: P.speed ?? 0.5};
+        else { this.setP('morph', H.fist.m0 + (H.fist.y0-p.sy)*1.8); this.setP('speed', H.fist.s0 + (p.sx-H.fist.x0)*1.4); }
+      } else { release(); H.fist = null; }
+    }
     H.p = pts;
-    if(this.arMeterRef.current) this.arMeterRef.current.style.width = (on.length ? 100 : pts.length ? 35 : 0) + '%';
+    const act = on.length || H.grab || H.fist;
+    if(this.arMeterRef.current) this.arMeterRef.current.style.width = (act ? 100 : pts.length ? 35 : 0) + '%';
     if(this.arDotRef.current){ this.arDotRef.current.style.opacity = pts.length ? '1' : '0'; if(pts[0]) this.arDotRef.current.style.left = Math.round(pts[0].sx*100) + '%'; }
     this.arPreview(pts, 'hand');
   }
   headStep(res, v){
-    const H = this._head || (this._head = {applied:{x:0, y:0, z:0}});
+    const H = this._head || (this._head = {applied:{x:0, y:0, z:0, r:0}});
     const d = res && res.detections && res.detections[0], mo = this.mo;
     if(d && d.boundingBox){
       const b = d.boundingBox, vw = v.videoWidth, vh = v.videoHeight;
       const hx = 1-(b.originX+b.width/2)/vw, hy = (b.originY+b.height/2)/vh, hw = b.width/vw;
+      // Tilt, from the line through the eyes (keypoints 0 and 1), mirrored.
+      const kp = d.keypoints || [];
+      const ex = kp[0] && kp[1] ? -(kp[1].x-kp[0].x)*vw : 0, tilt = ex ? Math.atan((kp[1].y-kp[0].y)*vh/ex) : (H.t || 0);
       const k = H.x == null ? 1 : 0.3;
       H.x = H.x == null ? hx : H.x+(hx-H.x)*k; H.y = H.y == null ? hy : H.y+(hy-H.y)*k; H.w = H.w == null ? hw : H.w+(hw-H.w)*k;
-      if(H.w0 == null) H.w0 = H.w;
+      H.t = H.t == null ? tilt : H.t+(tilt-H.t)*k;
+      if(H.w0 == null){ H.w0 = H.w; H.t0 = H.t; }
       mo.x = H.x*2-1; mo.y = 1-H.y*2; mo.e = Math.min(1, Math.max(0, (H.w/H.w0-0.7)/0.6));
+      mo.r = Math.max(-1, Math.min(1, (H.t-H.t0)/0.6));
+      // Nod: the head dips and comes back up within half a second. Each nod
+      // lands as a beat, and nodding along sets the tempo.
+      { const now = performance.now(), N = H.nod || (H.nod = {base: hy, low: null});
+        N.base += (hy-N.base)*0.05;
+        const dip = (hy-N.base)/Math.max(0.05, hw);
+        if(N.low == null && dip > 0.12) N.low = now;
+        else if(N.low != null && dip < 0.04){ if(now-N.low < 500) this.beatTap(now); N.low = null; }
+        else if(N.low != null && now-N.low > 700) N.low = null; }
       // The screen as a window: offsets from where the head started, applied
-      // as changes so the view comes back when the head does.
-      const ox = H.x-0.5, oy = 0.5-H.y, oz = Math.log(H.w/H.w0), a = H.applied;
-      if(this.isCanvasScene && this.isCanvasScene()) this.scnYaw = (this.scnYaw||0) + (ox-a.x)*1.2;
-      else if(this.is2D()){ this.manual2D = true; this.pan.x += (ox-a.x)*0.8; this.pan.y += (oy-a.y)*0.8; }
-      else { this.cam.yaw += (ox-a.x)*1.4; this.cam.pitch += (oy-a.y)*1.0; }
+      // as changes so the view comes back when the head does. Tipping the head
+      // rolls the view with it.
+      const ox = H.x-0.5, oy = 0.5-H.y, oz = Math.log(H.w/H.w0), orr = H.t-H.t0, a = H.applied;
+      if(this.isCanvasScene && this.isCanvasScene()){ this.scnYaw = (this.scnYaw||0) + (ox-a.x)*1.2; this.scnRoll = Math.max(-0.52, Math.min(0.52, (this.scnRoll||0) + (orr-a.r)*0.8)); }
+      else if(this.is2D()){ this.manual2D = true; this.pan.x += (ox-a.x)*0.8; this.pan.y += (oy-a.y)*0.8; this.cam.roll = (this.cam.roll||0) + (orr-a.r)*0.8; }
+      else { this.cam.yaw += (ox-a.x)*1.4; this.cam.pitch += (oy-a.y)*1.0; this.cam.roll = (this.cam.roll||0) + (orr-a.r)*0.8; }
       this.setP('zoom', (this.state.p.zoom ?? 0.5) + (oz-a.z)*0.35);
-      H.applied = {x: ox, y: oy, z: oz};
+      H.applied = {x: ox, y: oy, z: oz, r: orr};
     }
     if(this.arMeterRef.current) this.arMeterRef.current.style.width = (d ? 100 : 0) + '%';
     this.arPreview(d ? [d] : [], 'head');
@@ -15669,13 +15819,21 @@ class Component extends DCLogic {
         x.strokeStyle = p.on ? acc : 'rgba(242,243,240,0.9)'; x.lineWidth = p.on ? 3 : 1.5;
         x.beginPath(); x.arc(p.sx*W, p.sy*H, p.on ? 9 : 6, 0, 6.2832); x.stroke();
       }
-      if(!msg) msg = !data.length ? 'Show a hand to the camera' : data.some(p => p.on) ? (data.filter(p => p.on).length > 1 ? 'Two hands: spread to zoom' : 'Grabbed — move to turn') : 'Pinch thumb and index to grab';
+      const Hh = this._hand || {};
+      if(!msg) msg = !data.length ? 'Show a hand to the camera'
+        : data.filter(p => p.on).length > 1 ? 'Two hands: spread to zoom, twist for hue'
+        : Hh.grab && Hh.grab.kind === 'pinch' ? 'Grabbed — move to turn'
+        : Hh.grab && Hh.grab.kind === 'open' ? 'Open hand — move to pan'
+        : Hh.fist ? 'Fist — up/down Morph, sideways Speed'
+        : Hh.pt ? (this.state.camView > 0 ? 'Pointing — hold still to fly there' : 'Pointing aims in Fly or Surface view')
+        : Hh.peace ? 'Next scene — change shape to go again'
+        : 'Pinch turn · palm pan · fist Morph · point aim · ✌ next';
     } else if(kind==='head' && data){
       const v2 = this.video;
       for(const d of data){ const b = d.boundingBox; if(!b || !v2) continue;
         x.strokeStyle = acc; x.lineWidth = 2;
         x.strokeRect((1-(b.originX+b.width)/v2.videoWidth)*W, b.originY/v2.videoHeight*H, b.width/v2.videoWidth*W, b.height/v2.videoHeight*H); }
-      if(!msg) msg = data.length ? 'Move your head to look around; lean in to zoom' : 'Face the camera';
+      if(!msg) msg = data.length ? 'Move to look around · lean in to zoom · tilt to roll' : 'Face the camera';
     }
     if(msg){
       x.fillStyle = 'rgba(8,9,10,0.75)'; x.fillRect(0, H-20, W, 20);
@@ -15942,8 +16100,8 @@ class Component extends DCLogic {
       hidBtnBorder: s.hid==='on' ? accent : (s.hid==='unsupported' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.14)'),
       hidBtnBg: s.hid==='on' ? this.accA(0.14) : (s.hid==='error' ? 'rgba(255,77,46,0.12)' : 'rgba(8,9,10,0.34)'),
       hidBtnFg: s.hid==='on' ? accent : (s.hid==='unsupported' ? 'rgba(242,243,240,0.28)' : (s.hid==='error' ? '#FF8A6E' : 'rgba(242,243,240,0.55)')),
-      fxShift: this.panelShift('fx'), diagShift: this.panelShift('diag'), txtShift: this.panelShift('txt'),
-      fxDrag: this.panelDrag('fx'), diagDrag: this.panelDrag('diag'), txtDrag: this.panelDrag('txt'),
+      fxShift: this.panelShift('fx'), diagShift: this.panelShift('diag'), txtShift: this.panelShift('txt'), arShift: this.panelShift('ar'),
+      fxDrag: this.panelDrag('fx'), diagDrag: this.panelDrag('diag'), txtDrag: this.panelDrag('txt'), arDrag: this.panelDrag('ar'),
       fxDisplay: s.formula ? 'flex' : 'none',
       fxColor: s.formula ? accent : 'rgba(242,243,240,0.34)',
       fxDot: s.formula ? 'currentColor' : 'transparent',
@@ -16671,9 +16829,9 @@ class Component extends DCLogic {
       arPrevDisp: (s.vid.on && (s.vid.ar === 'hand' || s.vid.ar === 'head')) ? 'block' : 'none',
       arHintDisp: s.vid.ar ? 'block' : 'none',
       arHint: (this.arStat ? this.arStat + ' ' : '') + ({
-        hand: 'AR hands: pinch your thumb and index finger to grab, move your hand to turn the scene, open your hand to let go (a quick flick keeps it spinning). Pinch with both hands and spread them apart or together to zoom. The preview bottom right shows what the camera sees.',
-        head: 'AR head: the screen becomes a window. Move your head left, right, up or down and the view follows; lean in to zoom, lean back to pull out. Sit centred in front of the camera when you switch it on.',
-        motion: 'AR motion: any movement in front of the camera turns the view toward its side. Works without internet but reacts to everything that moves; a still background helps.'
+        hand: 'AR hands: pinch your thumb and index finger to grab and move your hand to turn the scene; relax your hand to let go (a quick flick keeps it spinning). Hold up an open palm and move it to pan. Close a fist and move it up or down for Morph, sideways for Speed. Pinch with both hands: spread or close them to zoom, twist the pair to turn the hue. In Fly or Surface view, point with your index finger to aim a target and hold still to fly there. A peace sign goes to the next scene. The preview shows what the camera sees; drag it anywhere.',
+        head: 'AR head: the screen becomes a window. Move your head left, right, up or down and the view follows; lean in to zoom, lean back to pull out; tilt your head and the view rolls with it; nod along to the music and each nod lands as a beat and sets the tempo. Sit centred in front of the camera when you switch it on.',
+        motion: 'AR motion: any movement in front of the camera turns the view toward its side, and a sudden burst of movement hits like a beat (strobe, bloom and the beat-driven controls fire with it). Works without internet but reacts to everything that moves; a still background helps.'
       })[this.arModeOf()] || '',
       vidRevDisplay: s.vid.src==='file' ? 'block' : 'none',
       vidRevLabel: s.vid.rev ? '\u25C0 Rev' : 'Rev',
