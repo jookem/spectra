@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<script src="./support.js?v=b25"></script>
+<script src="./support.js?v=b26"></script>
 <meta name="ext-resource-dependency" content="./csi.js" data-resource-id="csiJs">
 </head>
 <body>
@@ -30,12 +30,12 @@
   @keyframes vjspin{to{transform:rotate(360deg)}}
   @keyframes vjscan{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
 </style>
-<script src="vj-engine.js?v=b25"></script>
-<script src="deep-zoom.js?v=b25"></script>
-<script src="cam-fly.js?v=b25"></script>
-<script src="wave-mesh.js?v=b25"></script>
-<script src="wave-gl.js?v=b25"></script>
-<script src="scene-thumbs.js?v=b25"></script>
+<script src="vj-engine.js?v=b26"></script>
+<script src="deep-zoom.js?v=b26"></script>
+<script src="cam-fly.js?v=b26"></script>
+<script src="wave-mesh.js?v=b26"></script>
+<script src="wave-gl.js?v=b26"></script>
+<script src="scene-thumbs.js?v=b26"></script>
 </helmet>
 <template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#08090A"/><circle cx="50" cy="50" r="22" fill="none" stroke="#C8FF2E" stroke-width="3"/><circle cx="50" cy="50" r="11" fill="none" stroke="#C8FF2E" stroke-width="2" opacity="0.6"/><circle cx="50" cy="50" r="3.5" fill="#C8FF2E"/></svg></template>
 <div style="position:relative;width:100vw;height:100dvh;overflow:hidden;background:#08090A;font-family:'JetBrains Mono',ui-monospace,monospace;color:#F2F3F0;user-select:none;-webkit-user-select:none;">
@@ -98,7 +98,7 @@
           <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.42);">A SWRV Systems production</div>
           <div style="width:18px;height:1px;background:rgba(242,243,240,0.25);"></div>
         </div>
-        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 25 · 18 Oct 2026</div>
+        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 26 · 18 Oct 2026</div>
       </div>
       <div style="max-width:420px;text-align:center;font-size:12.5px;line-height:1.7;color:rgba(242,243,240,0.55);">The visuals are driven entirely by what the microphone hears. Nothing is recorded or sent anywhere.</div>
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,230px));gap:10px;width:100%;max-width:470px;justify-content:center;">
@@ -157,7 +157,7 @@
     <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
       <div style="font-family:Archivo,sans-serif;font-weight:700;font-size:54px;letter-spacing:-0.03em;line-height:1;">SPECTRA</div>
       <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.36);">A SWRV Systems production</div>
-      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 25 · 18 Oct 2026</div>
+      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 26 · 18 Oct 2026</div>
     </div>
     <div ref="{{ warmWrapRef }}" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
       <div style="width:260px;height:2px;background:rgba(255,255,255,0.1);">
@@ -480,40 +480,36 @@
         <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.3);">SWRV Systems</div>
       </div>
       <div style="width:1px;height:14px;background:rgba(255,255,255,0.18);"></div>
-      <div style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;white-space:nowrap;color:var(--acc);">{{ modeName }}</div>
+      <div style="font-size:14px;letter-spacing:0.16em;text-transform:uppercase;white-space:nowrap;color:var(--acc);">{{ modeName }}</div>
     </div>
-    <div style="display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:7px 11px;flex:1 1 auto;min-width:0;text-shadow:0 0 3px rgba(8,9,10,0.95),0 0 7px rgba(8,9,10,0.85),0 1px 2px rgba(8,9,10,0.9);font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.4);">
-      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;flex:0 1 auto;min-width:0;opacity:{{ metersOpacity }};transition:opacity .35s;">
+    <!-- The readouts sit on one even grid: every meter, chip and value its own
+         cell of the same width, at the size of the title beside them. -->
+    <div style="display:grid;grid-template-columns:{{ topCols }};align-items:center;justify-items:start;gap:8px 16px;flex:1 1 600px;min-width:0;text-shadow:0 0 3px rgba(8,9,10,0.95),0 0 7px rgba(8,9,10,0.85),0 1px 2px rgba(8,9,10,0.9);font-size:14px;letter-spacing:0.1em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">
+      <div style="display:contents;">
         <sc-for list="{{ bands }}" as="band" hint-placeholder-count="4">
-          <div style="display:flex;align-items:center;gap:4px;flex:0 0 auto;">
-            <span style="font-size:8px;letter-spacing:0.08em;color:rgba(242,243,240,0.38);">{{ band.label }}</span>
-            <div style="position:relative;width:26px;height:3px;background:rgba(255,255,255,0.10);">
+          <div style="display:flex;align-items:center;gap:8px;min-width:0;width:100%;opacity:{{ metersOpacity }};transition:opacity .35s;">
+            <span style="font-size:13px;letter-spacing:0.08em;color:rgba(242,243,240,0.45);flex:0 0 auto;">{{ band.label }}</span>
+            <div style="position:relative;flex:1 1 auto;min-width:24px;height:4px;background:rgba(255,255,255,0.10);">
               <div ref="{{ band.ref }}" style="position:absolute;left:0;top:0;bottom:0;width:0%;background:var(--acc);"></div>
             </div>
           </div>
         </sc-for>
       </div>
       <div style="display:flex;align-items:center;gap:7px;">
-        <div style="width:6px;height:6px;border-radius:50%;background:var(--acc);animation:vjblink 1.6s infinite;"></div>
+        <div style="width:8px;height:8px;border-radius:50%;background:var(--acc);animation:vjblink 1.6s infinite;"></div>
         <span onClick="{{ audioSwap }}" title="{{ audioSwapTitle }}" style="cursor:pointer;">{{ micLabel }}</span>
       </div>
       <div ref="{{ padRef }}" style="display:none;align-items:center;gap:7px;color:var(--acc);">
         <div style="width:6px;height:6px;border-radius:50%;background:var(--acc);"></div><span>pad</span>
       </div>
-      <button onClick="{{ hidClick }}" onContextMenu="{{ diagToggle }}" onPointerDown="{{ hidHold.down }}" onPointerUp="{{ hidHold.up }}" onPointerLeave="{{ hidHold.up }}" onPointerCancel="{{ hidHold.up }}" title="{{ hidTitle }}" style="font-family:'JetBrains Mono',monospace;display:flex;align-items:center;gap:7px;background:transparent;border:0;padding:0;cursor:pointer;pointer-events:auto;font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;color:{{ hidColor }};">
-        <div style="width:6px;height:6px;border-radius:50%;border:1px solid {{ hidColor }};background:{{ hidDot }};"></div><span>{{ hidLabel }}</span>
-      </button>
-      <button onClick="{{ fxToggle }}" title="Show the iterated map behind this scene (X)" style="font-family:'JetBrains Mono',monospace;display:flex;align-items:center;gap:7px;background:transparent;border:0;padding:0;cursor:pointer;pointer-events:auto;font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;color:{{ fxColor }};">
-        <div style="width:6px;height:6px;border-radius:50%;border:1px solid {{ fxColor }};background:{{ fxDot }};"></div><span>math</span>
-      </button>
       <div style="display:flex;align-items:center;gap:7px;">
-        <div ref="{{ beatRef }}" style="width:7px;height:7px;background:var(--acc);opacity:0.18;transition:opacity .08s,transform .08s;"></div>
+        <div ref="{{ beatRef }}" style="width:9px;height:9px;background:var(--acc);opacity:0.18;transition:opacity .08s,transform .08s;"></div>
         <span ref="{{ bpmRef }}" style="white-space:nowrap;">-- bpm</span>
       </div>
       <div ref="{{ noteRef }}" style="white-space:nowrap;">—</div>
       <div ref="{{ magRef }}" style="white-space:nowrap;color:var(--acc);">×1</div>
       <div ref="{{ fpsRef }}" style="white-space:nowrap;">-- fps</div>
-      <div style="display:{{ strobeOffDisplay }};white-space:nowrap;padding:2px 6px;background:#FF4D2E;color:#08090A;font-weight:700;letter-spacing:0.14em;text-shadow:none;">NO STROBE</div>
+      <div style="display:{{ strobeOffDisplay }};white-space:nowrap;padding:3px 8px;background:#FF4D2E;color:#08090A;font-weight:700;letter-spacing:0.14em;text-shadow:none;">NO STROBE</div>
     </div>
   </div>
 
@@ -537,7 +533,7 @@
   <canvas ref="{{ meshCanvasRef }}" style="position:absolute;inset:0;width:100%;height:100%;z-index:12;display:{{ canvasDisplay }};pointer-events:none;background:#08090A;visibility:{{ localVis }};"></canvas>
 
   <sc-if value="{{ isDeck }}" hint-placeholder-val="{{ true }}">
-    <div style="position:absolute;left:0;right:0;top:{{ deckTop }};bottom:0;overflow:hidden;z-index:25;display:flex;flex-direction:column;justify-content:flex-end;pointer-events:none;">
+    <div style="position:absolute;left:0;right:0;top:{{ deckTop }};bottom:0;overflow:hidden;z-index:25;display:flex;flex-direction:column;justify-content:flex-start;pointer-events:none;">
     <div ref="{{ deckScrollRef }}" onScroll="{{ deckScrolled }}" style="max-height:100%;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:var(--acc30) transparent;padding:{{ deckPad }};box-sizing:border-box;display:flex;flex-direction:column;gap:{{ deckGap }};opacity:{{ chromeOpacity }};pointer-events:{{ chromePE }};transition:opacity .35s;">
       <!-- Panel menu: one panel group at a time instead of the whole deck
            stacked. Sticky, so it stays in reach when a panel scrolls. -->
@@ -604,11 +600,12 @@
         <button onClick="{{ vidRevT }}" style="display:{{ vidRevDisplay }};font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid {{ vidRevBorder }};background:{{ vidRevBg }};color:{{ vidRevFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ vidRevLabel }}</button>
         <button onClick="{{ vidPauseT }}" style="display:{{ vidRevDisplay }};font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid {{ vidPauseBorder }};background:{{ vidPauseBg }};color:{{ vidPauseFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ vidPauseLabel }}</button>
         <button onClick="{{ vidHideT }}" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid {{ vidHideBorder }};background:{{ vidHideBg }};color:{{ vidHideFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ vidHideLabel }}</button>
-        <button onClick="{{ vidArT }}" title="AR: movement in front of the camera steers the view. Motion also feeds the MOT / MOX / MOY automation sources" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid {{ vidArBorder }};background:{{ vidArBg }};color:{{ vidArFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ vidArLabel }}</button>
+        <button onClick="{{ vidArT }}" title="AR: movement in front of the camera steers the view. Motion also feeds the MOT / MOX / MOY automation sources" style="position:relative;font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid {{ vidArBorder }};background:{{ vidArBg }};color:{{ vidArFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);"><span style="position:relative;">{{ vidArLabel }}</span><span ref="{{ arMeterRef }}" style="position:absolute;left:0;bottom:0;height:3px;width:0%;background:var(--acc);pointer-events:none;"></span><span ref="{{ arDotRef }}" style="position:absolute;bottom:0;left:50%;width:4px;height:7px;margin-left:-2px;background:#F2F3F0;opacity:0;pointer-events:none;"></span></button>
         <sc-for list="{{ vidDevices }}" as="d" hint-placeholder-count="1">
           <button onClick="{{ d.select }}" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-overflow:ellipsis;text-align:center;min-width:0;border:1px solid {{ d.border }};background:{{ d.bg }};color:{{ d.fg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ d.label }}</button>
         </sc-for>
         </div>
+        <div style="display:{{ arHintDisp }};font-size:9.5px;line-height:1.5;letter-spacing:0.04em;color:rgba(242,243,240,0.75);border-left:2px solid var(--acc);padding-left:8px;">{{ arHint }}</div>
         <div style="display:flex;align-items:center;gap:10px;min-width:0;">
           <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);flex:0 0 auto;min-width:56px;">Mix</span>
           <div onPointerDown="{{ vidMixDrag.down }}" onPointerMove="{{ vidMixDrag.move }}" onPointerUp="{{ vidMixDrag.up }}" style="position:relative;flex:1;min-width:0;height:{{ ctlHitH }};display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
@@ -982,6 +979,9 @@
               <button onClick="{{ hidClick }}" onContextMenu="{{ diagToggle }}" onPointerDown="{{ hidHold.down }}" onPointerUp="{{ hidHold.up }}" onPointerLeave="{{ hidHold.up }}" onPointerCancel="{{ hidHold.up }}" title="{{ hidTitle }}" style="display:flex;align-items:center;justify-content:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;white-space:nowrap;border:1px solid {{ hidBtnBorder }};background:{{ hidBtnBg }};color:{{ hidBtnFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);"><span style="width:6px;height:6px;border-radius:50%;border:1px solid currentColor;background:{{ hidDot }};"></span>{{ hidLabel }}</button>
               <button onClick="{{ outToggle }}" title="Clean image in a second window for the projector (O)" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid {{ outBorder }};background:{{ outBg }};color:{{ outFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ outLabel }}</button>
               <button onClick="{{ hideChrome }}" title="Hide the menu (U). Double-tap or double-click the scene to bring it back" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid rgba(255,255,255,0.16);background:rgba(8,9,10,0.34);color:#F2F3F0;">Hide</button>
+              <button onClick="{{ gyroTap }}" title="Tilt the device to steer the fractal" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid {{ gyroBorder }};background:{{ gyroBg }};color:{{ gyroFg }};">{{ gyroTag }}</button>
+              <button onClick="{{ gyroLevel }}" title="Make how you hold it now the new level" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid rgba(255,255,255,0.16);background:rgba(8,9,10,0.34);color:#F2F3F0;">Level</button>
+              <sc-if value="{{ gyroMsgOn }}" hint-placeholder-val="{{ false }}"><div onClick="{{ gyroMsgClose }}" style="grid-column:1/-1;padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.5;color:#F2F3F0;background:rgba(8,9,10,0.82);border:1px solid rgba(255,77,46,0.6);cursor:pointer;">{{ gyroMsg }}</div></sc-if>
               <button onClick="{{ helpToggle }}" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 0 auto;min-width:22px;text-align:center;border:1px solid {{ helpBorder }};background:{{ helpBg }};color:{{ helpFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">?</button>
               </div>
             </div>
@@ -1416,42 +1416,10 @@
         <span style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">{{ palTag }}</span>
       </button>
       <button onClick="{{ toggleAuto }}" style="height:46px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;border:1px solid {{ autoBorder }};background:{{ autoBg }};color:{{ autoFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Auto</button>
-      <button onClick="{{ touchMoreToggle }}" style="height:46px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;border:1px solid {{ touchMoreBorder }};background:{{ touchMoreBg }};color:{{ touchMoreFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ touchMoreTag }}</button>
+      <button onClick="{{ openDeck }}" title="The full menu" style="height:46px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;border:1px solid rgba(255,255,255,0.16);background:rgba(8,9,10,0.34);color:#F2F3F0;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Menu</button>
     </div>
-    <div style="display:{{ touchMoreDisplay }};flex-direction:column;gap:8px;">
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:8px;">
-        <button onClick="{{ fxCycle }}" style="height:44px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;border:1px solid {{ fxBorder }};background:{{ fxBg }};color:{{ fxFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ fxTag }}</button>
-        <button onClick="{{ qualCycle }}" title="{{ qualTitle }}" style="height:44px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;border:1px solid {{ qualBorder }};background:{{ qualBg }};color:{{ qualFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ qualTag }}</button>
-        <button onClick="{{ rateCycle }}" title="Frame-rate cap — leaves GPU time for other apps" style="height:44px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;border:1px solid {{ rateBorder }};background:{{ rateBg }};color:{{ rateFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ rateTag }}</button>
-        <button onClick="{{ spinCycle }}" title="{{ spinTitle }}" style="display:{{ spinDisp }};height:44px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;border:1px solid {{ spinBorder }};background:{{ spinBg }};color:{{ spinFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ spinTag }}</button>
-        <button onClick="{{ vspinCycle }}" title="{{ rollTitle }}" style="display:{{ rollDisp }};height:44px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;border:1px solid {{ vspinBorder }};background:{{ vspinBg }};color:{{ vspinFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ vspinTag }}</button>
-        <button onClick="{{ fxToggle }}" style="height:44px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;border:1px solid {{ fxPanelBorder }};background:{{ fxPanelBg }};color:{{ fxPanelFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Math</button>
-        <button onClick="{{ enableMic }}" style="height:44px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;border:1px solid rgba(255,255,255,0.16);background:rgba(8,9,10,0.34);color:#F2F3F0;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Mic</button>
-        <button onClick="{{ gyroTap }}" title="Tilt the device to steer the fractal" style="height:44px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;border:1px solid {{ gyroBorder }};background:{{ gyroBg }};color:{{ gyroFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ gyroTag }}</button>
-        <button onClick="{{ gyroLevel }}" title="Make how you hold it now the new level" style="height:44px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;border:1px solid rgba(255,255,255,0.16);background:rgba(8,9,10,0.34);color:#F2F3F0;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Level</button>
-        <button onClick="{{ hidClick }}" title="{{ hidTitle }}" style="height:44px;display:flex;align-items:center;justify-content:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;border:1px solid rgba(255,255,255,0.16);background:rgba(8,9,10,0.34);color:{{ hidColor }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
-          <span style="width:6px;height:6px;border-radius:50%;border:1px solid {{ hidColor }};background:{{ hidDot }};"></span><span>{{ hidLabel }}</span>
-        </button>
-        <button onClick="{{ layoutCycle }}" style="height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:'JetBrains Mono',monospace;cursor:pointer;border:1px solid rgba(255,255,255,0.16);background:rgba(8,9,10,0.34);color:#F2F3F0;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
-          <span style="font-size:8px;letter-spacing:0.14em;opacity:0.5;">LAYOUT</span>
-          <span style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">{{ layoutName }}</span>
-        </button>
-        <button onClick="{{ helpToggle }}" title="Shortcuts and controls (H)" style="height:44px;min-width:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:'JetBrains Mono',monospace;cursor:pointer;border:1px solid {{ helpBorder }};background:{{ helpBg }};color:{{ helpFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
-          <span style="font-size:8px;letter-spacing:0.14em;opacity:0.5;">HELP</span>
-          <span style="font-size:13px;font-weight:700;line-height:1;">?</span>
-        </button>
-      </div>
-      <sc-if value="{{ gyroMsgOn }}" hint-placeholder-val="{{ false }}"><div onClick="{{ gyroMsgClose }}" style="grid-column:1/-1;padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.5;color:#F2F3F0;background:rgba(8,9,10,0.82);border:1px solid rgba(255,77,46,0.6);cursor:pointer;">{{ gyroMsg }}</div></sc-if>
-      <div style="display:flex;align-items:center;gap:6px;">
-        <span style="flex:0 0 auto;font-size:8.5px;letter-spacing:0.16em;text-transform:uppercase;color:rgba(242,243,240,0.55);text-shadow:0 0 3px rgba(8,9,10,0.95),0 0 7px rgba(8,9,10,0.85),0 1px 2px rgba(8,9,10,0.9);">Slots</span>
-        <div style="flex:1 1 auto;min-width:0;display:grid;grid-template-columns:{{ minSlotCols }};gap:5px;">
-          <sc-for list="{{ slots }}" as="sl" hint-placeholder-count="8">
-            <button onClick="{{ sl.tap }}" draggable="false" onDragOver="{{ sl.dragOver }}" onDragLeave="{{ sl.dragLeave }}" onDrop="{{ sl.drop }}" style="position:relative;height:44px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;cursor:pointer;border:1px solid {{ sl.border }};background:{{ sl.bg }};color:{{ sl.fg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ sl.n }}<span role="button" title="Clear slot" onClick="{{ sl.clear }}" style="position:absolute;top:0;right:0;display:{{ sl.xDisp }};align-items:center;justify-content:center;width:18px;height:18px;font-size:10px;line-height:1;color:rgba(242,243,240,0.7);cursor:pointer;" style-hover="color:#F2F3F0;background:rgba(255,255,255,0.12);">×</span></button>
-          </sc-for>
-        </div>
-      </div>
-      <div style="font-size:9px;line-height:1.5;letter-spacing:0.04em;color:rgba(242,243,240,0.55);text-shadow:0 0 3px rgba(8,9,10,0.95),0 0 7px rgba(8,9,10,0.85),0 1px 2px rgba(8,9,10,0.9);">One finger: drag ↕ {{ touchParamLabel }}, ↔ colour · two fingers: drag to move the view (same as a mouse drag), pinch zoom, twist turn · three fingers: pan · double-tap: hide chrome</div>
-    </div>
+    <!-- The expanded panel that was here is gone: Menu opens the full deck,
+         whose tabs hold all of it (gyro steering moved to System). -->
   </div>
 
   <div style="position:absolute;right:22px;bottom:20px;z-index:30;display:{{ overlaySwitcherDisplay }};gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100vw - 44px);opacity:{{ chromeOpacity }};pointer-events:{{ chromePE }};transition:opacity .35s;">
@@ -1591,6 +1559,7 @@ class Component extends DCLogic {
     this.state.glMsg = '';
     this.state.tutOn = false; this.state.tutStep = 0;
     this.diagRef = React.createRef();
+    this.arMeterRef = React.createRef(); this.arDotRef = React.createRef();
     this.topBarRef = React.createRef();
     this.deckScrollRef = React.createRef();
     this.state.mesh=true;
@@ -2281,7 +2250,10 @@ class Component extends DCLogic {
   // pushing the button grid — the row an operator actually reaches for — off
   // the bottom of the screen. Park it at the end instead, unless the operator
   // has scrolled up to read something, in which case leave their position be.
+  // The deck now hangs from the top bar, so its first rows are the ones in
+  // view and nothing needs parking at the end any more.
   pinDeck(){
+    return;
     const el = this.deckScrollRef.current; if(!el) return;
     const over = el.scrollHeight - el.clientHeight;
     if(over <= 1) return;
@@ -13740,7 +13712,20 @@ class Component extends DCLogic {
         {k:'Spin button', d:'Ambient rotation — clockwise, off, counter-clockwise. Off freezes the drift on every scene so a pattern holds still while you zoom'},
         {k:'HID chip (top bar)', d:'Connect the DS4 over HID to unlock the touchpad surface and motion sensors — Chromium browsers only'},
         {k:'Mouse move', d:'Shorebreak: the surfer follows the pointer — left climbs the wave’s face, right runs out onto the shoulder, up and down take him along the wave'},
-        {k:'Idle 10s', d:'Controls fade out on their own'}
+        {k:'Idle 10s', d:'Controls fade out on their own'},
+        {k:'Menu tabs (Deck)', d:'The deck shows one group at a time: Scenes, Video, Cues, Slots, Params, Look, System. Minimal’s Menu button opens the deck; System has the layout buttons to go back'},
+        {k:'AR steer (camera)', d:'Video tab → Camera, then AR steer in Video look (it also starts the camera itself). Move a hand left or right in front of the camera and the view turns that way — orbit on 3D, swing round on the canvas scenes, travel on 2D. The bar on the button shows how much movement it sees, the white mark where. A still background works best; Hide keeps the camera image out of the picture'},
+        {k:'MOT / MOX / MOY sources', d:'Camera movement as automation sources, in the tag beside any value: MOT is how much is moving (0 still, 1 a lot), MOX and MOY where it is across and up. Needs video on and Auto on; the AMT bar sets how far it moves the parameter'},
+        {k:'Morph fader (Slots)', d:'Eases toward where you put it, so even a click on the far end morphs over about a second. Between two different scenes the swap happens at the middle and the dissolve follows the fader'},
+        {k:'Video change', d:'Auto steps the clip list, In order / Random its order, Link scene changes clip with the scene, FX cycle picks a new video look each clip, Tx the transition, Drift moves the video trail'},
+        {k:'Several screens (TV Wall, Billboard City, Frame Corridor)', d:'Each screen plays the clip at its own delay, up to two seconds behind, so they never all show the same frame. Sphere keeps one picture wrapped round its dome'},
+        {k:'Two-finger twist (Scenes)', d:'On the canvas scenes a twist turns the scene about its vertical axis — round its subject on Drive-in, TV Wall, Sphere, Reflection Pool and Starfield Warp, on the spot in the streets and corridors'},
+        {k:'Fields framing', d:'The 2D escape-time scenes put their detailed anchor on the golden spiral’s eye rather than dead centre, and turn each view by a multiple of the golden angle (137.5°), so the arms sweep round the frame'},
+        {k:'DNA', d:'An endless field of double helices to fly through. Twist sets the pitch, Groove the gap between strands, Spacing how dense the field is, Grain the surface texture, Pairs the rungs per turn, Thickness the strands'},
+        {k:'Romanesco', d:'One golden-angle spiral of florets wrapped round the head, each floret a smaller head with its own spiral. Florets sets their size, Profile pointed to domed, Tilt how they lean, Grow drifts them out from the tips, Detail adds a level'},
+        {k:'Cathedral', d:'The Mandelbox at negative scale: arcades of arches and ogee windows. Scale, Inner R, Fold and Twist reshape it; zoom in to dive into the arcades'},
+        {k:'Touch gestures', d:'One finger: drag up/down for the chosen parameter, left/right for colour. Two fingers: drag to move the view, pinch to zoom, twist to turn — each touch does one of the three, picked by how the fingers first move. Three fingers: pan. Double-tap: hide or show the controls'},
+        {k:'Diagnostics (J)', d:'Live controller, timing and render values. Drag it anywhere, double-click to put it back, × or J to close'}
       ]
     };
   }
@@ -15336,6 +15321,8 @@ class Component extends DCLogic {
       let cx=sx/wsum/(W-1)*2-1, cy=1-sy/wsum/(H-1)*2;
       if(vd.flip) cx=-cx;   // Mirror on: the picture is a mirror, so is the control
       mo.x+=(cx-mo.x)*k; mo.y+=(cy-mo.y)*k; }
+    if(this.arMeterRef.current) this.arMeterRef.current.style.width = Math.round(Math.min(1,mo.e*3)*100) + '%';
+    if(this.arDotRef.current){ this.arDotRef.current.style.left = Math.round((mo.x*0.5+0.5)*100) + '%'; this.arDotRef.current.style.opacity = mo.e>0.02 ? '1' : '0'; }
     if(vd.ar && mo.e>0.02){
       const s=mo.e*0.12;
       if(this.isCanvasScene && this.isCanvasScene()) this.scnYaw=(this.scnYaw||0)+mo.x*s;
@@ -16092,7 +16079,10 @@ class Component extends DCLogic {
       deckTailDisp:        'contents',
       deckSysN:     s.narrow ? 5 : 7,
       deckSysBasis: s.narrow ? '320px' : '520px',
-      deckSysCols:  s.narrow ? 'repeat(5,minmax(0,1fr))' : 'repeat(7,minmax(0,1fr))',
+      // Top bar readouts: meters and the audio source on one row, tempo, note,
+      // zoom, frame rate and the strobe tag on the next.
+      topCols: s.narrow ? 'repeat(3,minmax(0,1fr))' : 'repeat(5,minmax(0,1fr))',
+      deckSysCols:  s.narrow ? 'repeat(4,minmax(0,1fr))' : 'repeat(9,minmax(0,1fr))',
       deckHelpSpan:        'auto',
       deckCtlCols: s.narrow ? 'repeat(2,minmax(0,1fr))' : 'repeat(auto-fill,minmax(168px,1fr))',
       // The other two rows sized for a laptop: a 132px trim cell and a 240px
@@ -16131,6 +16121,7 @@ class Component extends DCLogic {
       touchMoreDisplay: s.touchMore ? 'flex' : 'none',
       touchMoreTag: s.touchMore ? 'Less' : 'More',
       touchMoreToggle: () => this.setState(st=>({touchMore:!st.touchMore})),
+      openDeck: () => this.setState({layout:'deck', chrome:true}),
       layoutName: s.layout,
       layoutCycle: () => {
         const o=['minimal','deck','rail'], i=o.indexOf(s.layout);
@@ -16306,7 +16297,10 @@ class Component extends DCLogic {
       vidHideT: () => this.setVid({hide:!s.vid.hide}),
       vidArLabel: s.vid.ar ? 'AR steer on' : 'AR steer',
       vidArBg: chip(!!s.vid.ar).bg, vidArFg: chip(!!s.vid.ar).fg, vidArBorder: chip(!!s.vid.ar).border,
-      vidArT: () => this.setVid({ar:!s.vid.ar}),
+      vidArT: () => { if(!s.vid.ar && !s.vid.on) this.enableVideo(s.vid.deviceId); this.setVid({ar:!s.vid.ar}); },
+      arMeterRef: this.arMeterRef, arDotRef: this.arDotRef,
+      arHintDisp: s.vid.ar ? 'block' : 'none',
+      arHint: 'AR steer is on. Move a hand left or right in front of the camera to turn the view (up and down tips it); the bar on the button shows how much movement it sees and the white mark where. Keep the background still. Hide keeps the camera out of the picture; Mirror flips the direction. For any parameter, set its source tag to MOT (amount), MOX or MOY (where) to drive it by movement.',
       vidRevDisplay: s.vid.src==='file' ? 'block' : 'none',
       vidRevLabel: s.vid.rev ? '\u25C0 Rev' : 'Rev',
       vidRevBg: chip(s.vid.rev).bg, vidRevFg: chip(s.vid.rev).fg, vidRevBorder: chip(s.vid.rev).border,
