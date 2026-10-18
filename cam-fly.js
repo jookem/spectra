@@ -84,7 +84,7 @@ class CamFly{
     // popped the fog/glow scale and snapped the pitch.
     const carry=keep?{vs:this.vs||0,scale:this.scale,tilt:this.tilt||0,t:this.t||0,ns:this.ns}:null;
     this.w=keep?(this.w??1):0;this.ret=false;this.needPush=!keep&&!!seed;
-    this.key=mode+':'+scene;this.scene=scene;this.mode=mode;this.t=0;this.dfar0=dfar;this.sp=null;this.dS=null;this.tilt=0;this.d0=null;this.aim=null;this.go=null;this.tapReq=null;this.pTap=null;this.insp=null;
+    this.key=mode+':'+scene;this.scene=scene;this.mode=mode;this.t=0;this.dfar0=dfar;this.sp=null;this.dS=null;this.tilt=0;this.d0=null;this.aim=null;this.go=null;this.tapReq=null;this.pTap=null;this.insp=null;this.safe=null;this.pPos=null;
     const s=cur||seed||{p:[0,0,-dfar],f:[0,0,1],up:[0,1,0]};
     this.p=s.p.slice();this.f=V.nrm(s.f);this.up=V.nrm(s.up);
     this.scale=dfar*0.12;this.alt=dfar*0.05;this.altMax=dfar*0.05;this.altDir=-1;
@@ -125,10 +125,48 @@ class CamFly{
       }
     }
     this.data={d:v[0],n:V.nrm([v[1]-v[2],v[3]-v[4],v[5]-v[6]]),free:v.slice(7,24),dirs:this.pDirs,e};
+    // The distance at the probed eye bounds a ball of empty space around it;
+    // _guard keeps the rendered eye inside that ball (Surface only).
+    if(this.pPos){ this.safe={P:this.pPos,dR:v[0]*0.6,n:this.data.n,need:null}; this.pPos=null; }
     // Pixel 25 is the scene's target colour (see tgtCol in render3).
     if(this.px[25*4+3]>127)this.sceneC=[this.px[100]/255,this.px[101]/255,this.px[102]/255];
   }
   update(o){
+    this._update(o);
+    this._guard(Math.min(0.1,Math.max(0,o.dt||0)));
+  }
+  // Surface collision guard. The rendered eye (sp) trails the raw pose (p) by
+  // about a second, so on a curved surface it cut the chord through the form,
+  // and the clearance was measured at sp while corrections went to p, so ground
+  // rising ahead was only seen once the eye was already in it. The probe's
+  // distance is a sphere-tracing bound: nothing lies within it of the probed
+  // point. The eye is held inside that ball less a floor, and pushed straight
+  // out along the normal when it is already nearer than the floor.
+  _guard(dt){
+    const s=this.safe;
+    // Not during the entry blend (w<1): the probe then reads at the host's
+    // offset eye, ahead of the one the shader's own clearance push renders,
+    // and that push already keeps the view clear.
+    if(!s||this.mode!==2||!this.sp||this.ret||(this.w??1)<1)return;
+    const F=this.dfar0||5;
+    const fl=this.insp?F*0.0014:this.go?F*0.0008:Math.max(F*0.001,(this.lo||F*0.02)*0.35);
+    const off=this.off||[0,0,0], R=s.dR-fl;
+    if(R<=0){
+      if(s.need==null)s.need=-R;
+      const k=s.dR<fl*0.5?1:Math.min(1,dt*10), push=s.need*k;
+      if(push>0){ this.sp=V.add(this.sp,V.sc(s.n,push)); this.p=V.add(this.p,V.sc(s.n,push)); s.need-=push; }
+      return;
+    }
+    const q=V.add(this.sp,off), v=V.sub(q,s.P), L=V.len(v);
+    if(L>R){
+      this.sp=V.sub(V.add(s.P,V.sc(v,R/L)),off);
+      // While the eye is held, the raw pose may not run on ahead into
+      // geometry the probe has not seen yet.
+      const lead=V.sub(this.p,this.sp), ll=V.len(lead);
+      if(ll>R)this.p=V.add(this.sp,V.sc(lead,R/ll));
+    }
+  }
+  _update(o){
     const key=o.mode+':'+o.scene;
     { const uc=o.gl&&o.gl.__uc, z=uc&&o.u&&o.u.uZoom?uc.get(o.u.uZoom):0; this.zoom=Math.min(1,Math.max(0,+z||0));
       const rp=uc&&o.u&&o.u.uRep?uc.get(o.u.uRep):0; this.rep=+rp||0; }
@@ -246,7 +284,7 @@ class CamFly{
       this.tilt=Math.min(1,(this.tilt||0)+dt/6);
       // Surface skim: hold an altitude over the surface, glide along it, and
       // drift the altitude slowly between a high and a low pass.
-      const hi=F*0.2,lo=Math.min(F*0.09,this.d0*0.9);
+      const hi=F*0.2,lo=Math.min(F*0.09,this.d0*0.9); this.lo=lo;
       if(this.altS==null){this.alt=Math.max(lo,d);this.altDir=-1;}
       if(this.alt>hi)this.alt=Math.max(hi,this.alt*Math.exp(-dt*0.12));
       if(this.alt<lo*0.5)this.alt=lo;
@@ -267,7 +305,10 @@ class CamFly{
       this.f=V.nrm(V.add(this.f,V.sc(V.sub(ft,this.f),ease(0.5))));
       this.up=V.nrm(V.add(this.up,V.sc(V.sub(N,this.up),ease(0.25))));
       this.up=V.nrm(V.sub(this.up,V.sc(this.f,V.dot(this.up,this.f))));
-      const vt=spd*ramp*Math.min(this.altS,d)*0.7;
+      // Ease off as the way ahead closes, so a rising wall is climbed rather
+      // than run into while the heading is still pitching up.
+      const ahead=Math.min(1,Math.max(0.2,(D.free[0]*0.6-this.altS)/(this.altS*3)));
+      const vt=spd*ramp*Math.min(this.altS,d)*0.7*ahead;
       this.vs+=(vt-this.vs)*ease(0.8);
       this.p=V.add(this.p,V.sc(this.f,this.vs*dt));
       this.scale+=(Math.min(F*0.3,this.altS)-this.scale)*ease(0.7);
@@ -513,7 +554,7 @@ class CamFly{
     const f=tiltF(F0,U0,this.tilt);
     const r=V.nrm(V.cross(U0,f)),uu=V.cross(f,r);
     const B={f,r,u:uu,P,fl:1.7*Math.pow(2,(this.zoom||0)*2.6*we)};
-    this.B=B;
+    this.B=B; this.off=V.sub(P,this.sp||this.p);
     if(B.r.some(x=>!isFinite(x))||V.len(B.r)<0.5)return;
     gl.uniform1f(u.uCamMode,1+Math.max(0.0001,we));
     gl.uniform3f(u.uCamPos,P[0],P[1],P[2]);
@@ -559,6 +600,8 @@ class CamFly{
         if(q.P){ this._tapPos=P0; this._tapSc=sc; }
       }
     }
+    // Pixel 0 of a chained tap round is measured at the tap origin, not the eye.
+    this.pPos=this._tapPos?null:((this.B&&this.B.P)||this.sp||this.p).slice();
     if(this._tapPos){ gl.uniform3f(u.uCamPos,this._tapPos[0],this._tapPos[1],this._tapPos[2]); gl.uniform1f(u.uCamScale,this._tapSc); this._tapPos=null; }
     gl.uniform1f(u.uCamProbe,1);if(u.uRes)gl.uniform2f(u.uRes,32,1);
     gl.bindFramebuffer(gl.FRAMEBUFFER,this.fb);gl.viewport(0,0,32,1);
