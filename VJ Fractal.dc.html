@@ -178,7 +178,7 @@
     <div style="position:absolute;left:20px;top:74px;width:274px;max-height:calc(100% - 150px);overflow-y:auto;box-sizing:border-box;z-index:35;padding:16px 18px 18px;display:flex;flex-direction:column;gap:14px;background:rgba(8,9,10,0.34);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.11);transform:{{ txtShift }};">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:grab;touch-action:none;" onPointerDown="{{ txtDrag.down }}" onPointerMove="{{ txtDrag.move }}" onPointerUp="{{ txtDrag.up }}" onPointerCancel="{{ txtDrag.up }}" onDoubleClick="{{ txtDrag.reset }}" title="Drag to move · double-click to put it back">
         <div style="font-size:9.5px;letter-spacing:0.24em;text-transform:uppercase;color:rgba(242,243,240,0.55);">Text in scene</div>
-        <button onClick="{{ txtPanelClose }}" title="Close (Y)" style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1;padding:3px 7px;cursor:pointer;border:1px solid rgba(255,255,255,0.12);background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.45);">×</button>
+        <button onClick="{{ txtPanelClose }}" title="Close (Y)" style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1;padding:3px 7px;cursor:pointer;border:1px solid rgba(255,255,255,0.12);background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.45);" style-hover="color:#F2F3F0;border-color:rgba(255,255,255,0.3);">×</button>
       </div>
     <div style="display:flex;flex-direction:column;gap:6px;">
       <div style="display:flex;gap:4px;">
@@ -217,7 +217,7 @@
     <div style="display:flex;flex-direction:column;gap:24px;width:min(560px,calc(100% - 48px));box-sizing:border-box;padding:30px 32px 26px;border:1px solid var(--acc28);background:rgba(12,13,14,0.96);">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;">
         <div style="font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:0.22em;text-transform:uppercase;color:rgba(242,243,240,0.4);">Controller walkthrough · {{ tutNum }} / {{ tutTotal }}</div>
-        <button onClick="{{ tutClose }}" style="display:flex;align-items:center;height:44px;font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:0.16em;text-transform:uppercase;padding:0 14px;cursor:pointer;border:1px solid rgba(255,255,255,0.16);background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.7);">Close</button>
+        <button onClick="{{ tutClose }}" title="Close the walkthrough" style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1;padding:3px 7px;cursor:pointer;border:1px solid rgba(255,255,255,0.12);background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.45);" style-hover="color:#F2F3F0;border-color:rgba(255,255,255,0.3);">×</button>
       </div>
       <div style="display:flex;flex-direction:column;gap:12px;">
         <div style="align-self:flex-start;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;padding:8px 12px;border:1px solid var(--acc);background:var(--acc12);color:var(--acc);">{{ tutGlyph }}</div>
@@ -271,7 +271,7 @@
           <div style="font-family:Archivo,sans-serif;font-weight:700;font-size:22px;letter-spacing:-0.01em;">Controls</div>
           <div style="font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--acc);">{{ stickNote }}</div>
         </div>
-        <button onClick="{{ helpToggle }}" style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;padding:9px 14px;cursor:pointer;border:1px solid rgba(255,255,255,0.16);background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.8);">Close</button>
+        <button onClick="{{ helpToggle }}" title="Close (H)" style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1;padding:3px 7px;cursor:pointer;border:1px solid rgba(255,255,255,0.12);background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.45);" style-hover="color:#F2F3F0;border-color:rgba(255,255,255,0.3);">×</button>
       </div>
       <button onClick="{{ tutOpen }}" style="display:flex;align-items:center;justify-content:space-between;gap:20px;text-align:left;font-family:'JetBrains Mono',monospace;padding:14px 16px;cursor:pointer;border:1px solid var(--acc30);background:rgba(8,9,10,0.34);color:#F2F3F0;">
         <span style="display:flex;flex-direction:column;gap:5px;">
@@ -473,18 +473,19 @@
     </div>
   </div>
 
-  <div ref="{{ topBarRef }}" style="position:absolute;top:0;left:0;right:0;display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px 18px;padding:20px 22px;z-index:20;pointer-events:none;opacity:{{ chromeOpacity }};transition:opacity .35s;">
-    <div style="display:flex;align-items:baseline;gap:14px;flex:0 1 auto;min-width:0;text-shadow:0 0 3px rgba(8,9,10,0.95),0 0 7px rgba(8,9,10,0.85),0 1px 2px rgba(8,9,10,0.9);">
-      <div style="display:flex;flex-direction:column;gap:2px;min-width:0;">
-        <div style="font-family:Archivo,sans-serif;font-weight:700;font-size:15px;letter-spacing:0.02em;line-height:1;">SPECTRA</div>
-        <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.3);">SWRV Systems</div>
+  <div ref="{{ topBarRef }}" style="position:absolute;top:0;left:0;right:0;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px 28px;padding:16px 22px 6px;z-index:20;pointer-events:none;opacity:{{ chromeOpacity }};transition:opacity .35s;">
+    <!-- Two lines, the same height and gap as the readout rows beside it:
+         the title and its maker, then the scene. -->
+    <div style="display:flex;flex-direction:column;gap:8px;flex:0 1 auto;min-width:0;text-shadow:0 0 3px rgba(8,9,10,0.95),0 0 7px rgba(8,9,10,0.85),0 1px 2px rgba(8,9,10,0.9);">
+      <div style="display:flex;align-items:baseline;gap:10px;height:20px;line-height:20px;white-space:nowrap;">
+        <span style="font-family:Archivo,sans-serif;font-weight:700;font-size:15px;letter-spacing:0.02em;">SPECTRA</span>
+        <span style="font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.35);">SWRV Systems</span>
       </div>
-      <div style="width:1px;height:14px;background:rgba(255,255,255,0.18);align-self:center;"></div>
-      <div style="font-size:14px;letter-spacing:0.16em;text-transform:uppercase;white-space:nowrap;color:var(--acc);">{{ modeName }}</div>
+      <div style="height:20px;line-height:20px;font-size:14px;letter-spacing:0.16em;text-transform:uppercase;white-space:nowrap;color:var(--acc);">{{ modeName }}</div>
     </div>
     <!-- The readouts sit on one even grid: every meter, chip and value its own
          cell of the same width, at the size of the title beside them. -->
-    <div style="display:grid;grid-template-columns:{{ topCols }};align-items:baseline;justify-items:start;gap:8px 16px;flex:1 1 600px;min-width:0;text-shadow:0 0 3px rgba(8,9,10,0.95),0 0 7px rgba(8,9,10,0.85),0 1px 2px rgba(8,9,10,0.9);font-size:14px;letter-spacing:0.1em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">
+    <div style="display:grid;grid-template-columns:{{ topCols }};align-items:center;justify-items:start;grid-auto-rows:20px;line-height:20px;gap:8px 16px;flex:1 1 600px;min-width:0;text-shadow:0 0 3px rgba(8,9,10,0.95),0 0 7px rgba(8,9,10,0.85),0 1px 2px rgba(8,9,10,0.9);font-size:14px;letter-spacing:0.1em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">
       <div style="display:contents;">
         <sc-for list="{{ bands }}" as="band" hint-placeholder-count="4">
           <div style="display:flex;align-items:center;gap:8px;min-width:0;width:100%;opacity:{{ metersOpacity }};transition:opacity .35s;">
@@ -638,7 +639,7 @@
               <div style="display:{{ sl.thumbDisp }};position:absolute;inset:0;background-image:{{ sl.thumbBg }};background-size:cover;background-position:center;opacity:{{ sl.thumbOp }};pointer-events:none;"></div>
               <span style="position:relative;font-size:8px;letter-spacing:0.14em;opacity:0.6;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);">{{ sl.num }}</span>
               <span style="position:relative;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);font-size:9px;letter-spacing:0.06em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">{{ sl.label }}</span>
-              <span role="button" title="Clear slot" onClick="{{ sl.clear }}" style="position:absolute;top:0;right:0;display:{{ sl.xDisp }};align-items:center;justify-content:center;width:18px;height:18px;font-size:10px;line-height:1;color:rgba(242,243,240,0.7);cursor:pointer;" style-hover="color:#F2F3F0;background:rgba(255,255,255,0.12);">×</span>
+              <span role="button" title="Clear slot" onClick="{{ sl.clear }}" style="position:absolute;top:0;right:0;display:{{ sl.xDisp }};align-items:center;justify-content:center;width:18px;height:18px;font-size:10px;line-height:1;color:rgba(242,243,240,0.8);cursor:pointer;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);" style-hover="color:#F2F3F0;background:rgba(255,255,255,0.12);">×</span>
             </button>
           </sc-for>
         </div>
@@ -1004,7 +1005,7 @@
               <div style="display:{{ sl.thumbDisp }};position:absolute;inset:0;background-image:{{ sl.thumbBg }};background-size:cover;background-position:center;opacity:{{ sl.thumbOp }};pointer-events:none;"></div>
               <span style="position:relative;font-size:8px;letter-spacing:0.14em;opacity:0.6;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);">{{ sl.num }}</span>
               <span style="position:relative;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);font-size:8.5px;letter-spacing:0.04em;text-transform:uppercase;white-space:nowrap;">{{ sl.label }}</span>
-              <span role="button" title="Clear slot" onClick="{{ sl.clear }}" style="position:absolute;top:0;right:0;display:{{ sl.xDisp }};align-items:center;justify-content:center;width:18px;height:18px;font-size:10px;line-height:1;color:rgba(242,243,240,0.7);cursor:pointer;" style-hover="color:#F2F3F0;background:rgba(255,255,255,0.12);">×</span>
+              <span role="button" title="Clear slot" onClick="{{ sl.clear }}" style="position:absolute;top:0;right:0;display:{{ sl.xDisp }};align-items:center;justify-content:center;width:18px;height:18px;font-size:10px;line-height:1;color:rgba(242,243,240,0.8);cursor:pointer;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);" style-hover="color:#F2F3F0;background:rgba(255,255,255,0.12);">×</span>
             </button>
           </sc-for>
         </div>
@@ -1043,7 +1044,7 @@
               <span style="position:relative;font-size:8px;letter-spacing:0.14em;opacity:0.6;flex:0 0 auto;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);">{{ c.n }}</span>
               <span style="position:relative;font-size:9px;letter-spacing:0.04em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1 1 auto;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);">{{ c.name }}</span>
               <span style="position:relative;font-size:8px;letter-spacing:0.08em;opacity:0.5;flex:0 0 auto;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);">{{ c.len }}</span>
-              <span role="button" title="Remove cue" onClick="{{ c.clear }}" style="position:absolute;top:0;right:0;display:flex;align-items:center;justify-content:center;width:18px;height:18px;font-size:10px;line-height:1;color:rgba(242,243,240,0.7);cursor:pointer;" style-hover="color:#F2F3F0;background:rgba(255,255,255,0.12);">×</span>
+              <span role="button" title="Remove cue" onClick="{{ c.clear }}" style="position:absolute;top:0;right:0;display:flex;align-items:center;justify-content:center;width:18px;height:18px;font-size:10px;line-height:1;color:rgba(242,243,240,0.8);cursor:pointer;text-shadow:0 0 3px rgba(8,9,10,0.95),0 1px 2px rgba(8,9,10,0.9);" style-hover="color:#F2F3F0;background:rgba(255,255,255,0.12);">×</span>
             </button>
           </sc-for>
         </div>
@@ -1388,7 +1389,7 @@
   <!-- The text is rewritten four times a second into the inner box, so the
        close button lives on the outer one, which also carries the drag. -->
   <div style="position:absolute;right:22px;bottom:20px;z-index:44;display:{{ diagDisplay }};font-family:'JetBrains Mono',monospace;font-size:10px;line-height:1.55;letter-spacing:0.02em;white-space:pre;color:rgba(242,243,240,0.72);background:rgba(8,9,10,0.34);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.11);padding:13px 15px;box-sizing:border-box;max-height:calc(100vh - 40px);overflow-y:auto;overscroll-behavior:contain;transform:{{ diagShift }};cursor:grab;touch-action:none;pointer-events:auto;" onPointerDown="{{ diagDrag.down }}" onPointerMove="{{ diagDrag.move }}" onPointerUp="{{ diagDrag.up }}" onPointerCancel="{{ diagDrag.up }}" onDoubleClick="{{ diagDrag.reset }}" title="Drag to move · double-click to put it back">
-    <span role="button" title="Close diagnostics (J)" onClick="{{ diagClose }}" onPointerDown="{{ stopEv }}" style="position:absolute;top:0;right:0;display:flex;align-items:center;justify-content:center;width:22px;height:22px;font-size:13px;line-height:1;color:rgba(242,243,240,0.7);cursor:pointer;" style-hover="color:#F2F3F0;background:rgba(255,255,255,0.12);">×</span>
+    <button onClick="{{ diagClose }}" onPointerDown="{{ stopEv }}" title="Close diagnostics (J)" style="position:absolute;top:10px;right:10px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1;padding:3px 7px;cursor:pointer;border:1px solid rgba(255,255,255,0.12);background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.45);" style-hover="color:#F2F3F0;border-color:rgba(255,255,255,0.3);">×</button>
     <div id="vj-diag" ref="{{ diagRef }}" style="white-space:pre;"></div>
   </div>
 
@@ -16012,7 +16013,7 @@ class Component extends DCLogic {
       // its box exactly, which pushed the first row up under the wordmark and
       // the scene readout — the same collision the narrow path already avoided.
       // Measured, not a second constant, so it tracks a bar that wraps.
-      deckTop: ((s.topBarH||0) + 4) + 'px',
+      deckTop: ((s.topBarH||0) + 2) + 'px',
       // A second scroller inside the deck trapped the wheel and the finger over
       // the scene grid (a large share of the deck). On phones the grid now flows
       // in the deck's own scroll; on desktop it keeps a cap but hands scroll back
@@ -16020,7 +16021,7 @@ class Component extends DCLogic {
       sceneGridMaxH: s.narrow ? 'none' : '30vh',
       deckPad: s.narrow
         ? '10px 10px calc(10px + env(safe-area-inset-bottom))'
-        : '14px 22px 14px',
+        : '4px 22px 14px',
       deckGap: s.narrow ? '7px' : '10px',
       // Slots: an even 4-across grid on a phone rather than eight nowrap buttons
       // tail-ending a flex row they share with the Trail fader — which is what
