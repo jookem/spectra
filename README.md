@@ -1,8 +1,7 @@
 # SPECTRA
 
 Generative fractal VJ instrument. Runs in a browser, driven by live microphone
-or system audio, with optional DualShock 4 control over HID and an optional
-WiFi-sensing input from an ESP32.
+or system audio, with optional DualShock 4 control over HID.
 
 **Live:** https://jookem.github.io/spectra/ — installable as an app (PWA) and
 works offline after the first load.
@@ -16,7 +15,7 @@ works offline after the first load.
 | `cam-fly.js` | Fly-through and Surface camera views for the 3D scenes. |
 | `deep-zoom.js` | Perturbation deep zoom for the Mandelbrot field (to ~1e-30). |
 | `wave-gl.js`, `wave-mesh.js` | Shorebreak wave scene: renderer and mesh data. |
-| `csi.js` | WiFi CSI feature source (motion, presence, flow). |
+| `csi.js` | WiFi CSI feature source (motion, presence, flow); not wired in yet. |
 | `support.js` | Component runtime (generated; do not edit). |
 | `index.html`, `manifest.webmanifest`, `sw.js`, `icon-*.png` | PWA shell. |
 | `SPECTRA-standalone.html` | Single-file build of all of the above. |
@@ -94,12 +93,13 @@ entirely fragment shading, so it scales with pixel count rather than with
 machine power: a phone at 0.4 megapixels outruns a desktop at 4. Drop to Low,
 Eco or Min on a struggling machine before changing anything else.
 
-## RF input (optional)
+## RF input (not active)
 
 `firmware/esp32-csi/` streams WiFi channel state information from an ESP32
-over a websocket. The app reduces it to three modulation sources — RF
-(motion), RFP (presence), RFF (flow) — assignable to any parameter. See the
-firmware README for hardware, placement and connection.
+over a websocket, and `csi.js` reduces it to motion, presence and flow.
+**Currently not wired in:** the RF modulation sources were removed and the
+Spectrum Mesh scene reads audio only (`meshSource()` in `VJ Fractal.dc.html`).
+The firmware and `csi.js` are kept for when the module is built.
 
 ## Performance notes
 

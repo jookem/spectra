@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<script src="./support.js?v=b12"></script>
+<script src="./support.js?v=b13"></script>
 <meta name="ext-resource-dependency" content="./csi.js" data-resource-id="csiJs">
 </head>
 <body>
@@ -30,11 +30,11 @@
   @keyframes vjspin{to{transform:rotate(360deg)}}
   @keyframes vjscan{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
 </style>
-<script src="vj-engine.js?v=b12"></script>
-<script src="deep-zoom.js?v=b12"></script>
-<script src="cam-fly.js?v=b12"></script>
-<script src="wave-mesh.js?v=b12"></script>
-<script src="wave-gl.js?v=b12"></script>
+<script src="vj-engine.js?v=b13"></script>
+<script src="deep-zoom.js?v=b13"></script>
+<script src="cam-fly.js?v=b13"></script>
+<script src="wave-mesh.js?v=b13"></script>
+<script src="wave-gl.js?v=b13"></script>
 </helmet>
 <template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#08090A"/><circle cx="50" cy="50" r="22" fill="none" stroke="#C8FF2E" stroke-width="3"/><circle cx="50" cy="50" r="11" fill="none" stroke="#C8FF2E" stroke-width="2" opacity="0.6"/><circle cx="50" cy="50" r="3.5" fill="#C8FF2E"/></svg></template>
 <div style="position:relative;width:100vw;height:100dvh;overflow:hidden;background:#08090A;font-family:'JetBrains Mono',ui-monospace,monospace;color:#F2F3F0;user-select:none;-webkit-user-select:none;">
@@ -97,7 +97,7 @@
           <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.42);">A SWRV Systems production</div>
           <div style="width:18px;height:1px;background:rgba(242,243,240,0.25);"></div>
         </div>
-        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 12 · 18 Oct 2026</div>
+        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 13 · 18 Oct 2026</div>
       </div>
       <div style="max-width:420px;text-align:center;font-size:12.5px;line-height:1.7;color:rgba(242,243,240,0.55);">The visuals are driven entirely by what the microphone hears. Nothing is recorded or sent anywhere.</div>
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,230px));gap:10px;width:100%;max-width:470px;justify-content:center;">
@@ -156,7 +156,7 @@
     <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
       <div style="font-family:Archivo,sans-serif;font-weight:700;font-size:54px;letter-spacing:-0.03em;line-height:1;">SPECTRA</div>
       <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.36);">A SWRV Systems production</div>
-      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 12 · 18 Oct 2026</div>
+      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 13 · 18 Oct 2026</div>
     </div>
     <div ref="{{ warmWrapRef }}" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
       <div style="width:260px;height:2px;background:rgba(255,255,255,0.1);">
@@ -13348,6 +13348,14 @@ class Component extends DCLogic {
         {k:'B', d:'Strobe kill — stops all beat flashing and hard cuts; motion and colour keep running'},
         {k:'R', d:'Cycle spin direction — Shift-R cycles the vertical roll (forward, off, backward) on 3D scenes'},
         {k:'U', d:'Show / hide all controls — showing with U pins them open, so the 10-second idle fade stops until you press U again'},
+        {k:'Esc', d:'Hide the controls straight away instead of waiting for the idle fade'},
+        {k:'L', d:'Cycle the layout — Deck, Rail, Minimal. Minimal keeps only the essentials; the camera, depth and repeat menus live in Deck and Rail'},
+        {k:'O', d:'Open the clean output window for the projector — the image only, no controls. Drag it to the second screen and press F there'},
+        {k:'C', d:'Add the live look as a new cue'},
+        {k:'Space / Shift + Space', d:'Next / previous cue'},
+        {k:'M', d:'Macro on / off — one fader morphs between two saved slots'},
+        {k:'V', d:'Zoom levels on / off (2D escape-time sets). On the Mandelbrot it also switches on deep zoom, which keeps descending far past where ordinary precision turns to blocks'},
+        {k:', / .', d:'Roll the frame left / right about the view direction'},
         {k:'F', d:'Fullscreen'},
         {k:'H', d:'This panel'},
         {k:'G', d:'Gyro control on / off — tilt pans the 3D camera and tips the plane the 2D scenes are drawn on'},
@@ -13371,7 +13379,6 @@ class Component extends DCLogic {
         {k:'L1 + left / right stick', d:'5. React \u2195, 6. Hue \u2194 / 7. Iter \u2195, 8. Cst A \u2194'},
         {k:'R1 + left / right stick', d:'9. Cst B \u2195, 10. Cst C \u2194 / 11. Spin \u2195, 12. Light \u2194'},
         {k:'Gyro tilt (G)', d: twoD ? 'Lean left-right and forward-back to tilt the plane' : 'Lean left-right to orbit around, tip forward-back to orbit over the top. Level stops it'},
-        {k:'V', d:'Zoom levels on-off, on by default and 2D escape-time sets only. Running the Zoom slider off either end wraps the bar and jumps the scene to a matching part of the set; off, the slider just stops at each end'},
         {k:'△ + left stick', d:'Move the message anywhere in the frame — and on a 3D scene, out past its edges'},
         {k:'△ + right stick', d:'Left-right turns the message; up-down drives it through Z, behind the fractal or out in front of it'},
         {k:'R2 / L2', d:'Video trail up / down — the harder you squeeze, the faster it moves. L1 with a trigger is fine control'},
@@ -13411,7 +13418,20 @@ class Component extends DCLogic {
         {k:'Roll (3rd axis)', d:'L1 + left stick left/right, or , and . on the keyboard, rolls the frame about the view direction. Yaw and pitch alone tumble about the screen\u2019s horizontal and vertical; rolled a quarter turn, the same stick push tumbles the object about a diagonal \u2014 top-left/bottom-right or top-right/bottom-left. Home resets it with the rest of the view'},
         {k:'Smth', d:'Noise reduction. Past the midpoint it also runs a speckle filter on the finished frame (strongest at the top). Relaxes the raymarch hit test to one pixel width and filters 2D detail finer than a pixel — up kills speckle and crawling edges, down restores the razor-thin original look'},
         {k:'Trim row', d:'Fine trim on any palette — Sat, Gam (gamma), Span (ramp width), Warm (R/B tilt). Double-click a track to reset it'},
-        {k:'Depth', d:'Gives the 2D scenes a third dimension, read from brightness. Relief lights the image as a carved surface, Parallax slides it apart in layers, Terrain flies over it as a landscape. Pick the kind in Look; the gyro steers it'},
+        {k:'Depth', d:'Gives the 2D scenes a third dimension, read from brightness. Relief lights the image as a carved surface, Parallax slides it apart in layers, Terrain flies over it as a landscape. Pick the kind in Look; the Depth trim sets how tall it gets and the gyro steers it'},
+        {k:'Depth Terrain', d:'Bright parts of the frame become hills, dark parts valleys and water, and the camera flies over them while the fractal keeps animating underneath. Auto moves the flight; the DOF trim hazes the distance. For gentler hills, lower Depth or pick a scene with broad areas of colour rather than fine filigree'},
+        {k:'View: Orbit / Fly / Surface', d:'3D scenes only. Orbit circles the whole object. Fly steers itself through the open space between forms. Surface skims low over the surface and keeps a safe height above it'},
+        {k:'Click / tap (Fly, Surface)', d:'Travel one step toward that point. Hold longer to go farther — one more step for each second held, up to 8. A ring shows where you will stop. Double-click cancels'},
+        {k:'Click a piece (Surface)', d:'Fly to the piece you clicked and circle it, looking down at it, until you pick something else or change view'},
+        {k:'Repeat Tight / Loose', d:'3D scenes: tile the fractal into an endless lattice of copies. Its settings set the smallest copy, the spacing, and how much each copy turns, varies and drifts'},
+        {k:'Lines (vector)', d:'Draw the 3D fractal as vector lines — edges, depth contours or points — on their own or over the shaded image, for every scene or just this one'},
+        {k:'DOF trim', d:'Depth of field on the 3D scenes, focused on the orbit centre. On Depth Terrain it hazes the distance instead'},
+        {k:'Device audio', d:'Listen to what this computer is playing instead of the room microphone. In the share picker choose Entire screen and tick “Also share system audio”. Desktop Chrome / Edge only'},
+        {k:'Video', d:'Play a video file or a folder of videos in place of the camera, with its own clip advance, transition and trail'},
+        {k:'Output window (O)', d:'Clean image for the projector in its own window — controls stay on this one'},
+        {k:'Cues', d:'C stores the live look; Space steps forward, Shift+Space back. Click a cue to go to it, right-click to remove it'},
+        {k:'Macro (M)', d:'Pick a slot for each end, then one fader morphs every parameter between them'},
+        {k:'Strobe settings', d:'Beat flashes: on/off, strength, how long each flash fades, and which beats may flash. B kills them all for photosensitive rooms'},
         {k:'FX button', d:'Bloom, chromatic aberration, grain, scanlines — bloom pulses with the music'},
         {k:'Spin button', d:'Ambient rotation — clockwise, off, counter-clockwise. Off freezes the drift on every scene so a pattern holds still while you zoom'},
         {k:'HID chip (top bar)', d:'Connect the DS4 over HID to unlock the touchpad surface and motion sensors — Chromium browsers only'},

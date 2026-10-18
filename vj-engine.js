@@ -47,14 +47,17 @@ float Lb(vec2 p){ return dot(textureLod(uScene,p,5.0).rgb, vec3(0.2126,0.7152,0.
 float TH(vec2 xz){
   vec2 c=xz*0.9+0.5; const float r=0.03;
   float base=(Lb(MR(c))*2.0+Lb(MR(c+vec2(r,r)))+Lb(MR(c-vec2(r,r)))+Lb(MR(c+vec2(r,-r)))+Lb(MR(c+vec2(-r,r))))/6.0;
-  // Detail follows complexity: where the fine and coarse reads disagree the
-  // frame is busy (filaments, spirals), so finer levels are let through there
-  // and those regions grow real ridges; flat regions stay rolling.
-  float mid=Lt(MR(c)), fine=Lf(MR(c));
+  // Detail follows complexity: where the mid and coarse reads disagree the
+  // frame is busy (filaments, spirals), so a little more of the mid level is
+  // let through there; flat regions stay rolling. The fine (mip 1.5) level
+  // used to come through as well, and a filament a few pixels wide became a
+  // needle-thin peak: the terrain read as a forest of spikes.
+  float mid=Lt(MR(c));
   float busy=smoothstep(0.02,0.14,abs(mid-base));
-  float a=base+(mid-base)*mix(0.22,0.55,busy)+(fine-mid)*0.32*busy;
-  a=clamp(a,0.0,1.0);
-  return a*a*(3.0-2.0*a);
+  float a=clamp(base+(mid-base)*mix(0.18,0.38,busy),0.0,1.0);
+  // Half a smoothstep: plateaus still round over, but slopes are not
+  // steepened as much as a full one did.
+  return mix(a,a*a*(3.0-2.0*a),0.5);
 }
 // Parallax height: continuous, from a mip-2/3 blend of the frame.
 float PH(vec2 p){ vec2 m=MR(p); float a=mix(dot(textureLod(uScene,m,2.0).rgb,vec3(0.2126,0.7152,0.0722)),dot(textureLod(uScene,m,3.5).rgb,vec3(0.2126,0.7152,0.0722)),0.5); return a*a*(3.0-2.0*a); }
@@ -115,7 +118,7 @@ void main(){
       vec3 p=ro+rd*t;
       float h=max(TH(p.xz)*Hh,wl);
       if(p.y<h){ hit=true; break; }
-      tp=t; t+=max(0.0025+t*0.0015,(p.y-h)*0.42); if(t>9.0) break;
+      tp=t; t+=max(0.0025+t*0.0015,(p.y-h)*0.36); if(t>9.0) break;
     }
     float dofk=clamp(uTerrFog,0.0,1.0);
     vec3 voidc=vec3(0.004,0.005,0.008);
@@ -124,7 +127,7 @@ void main(){
     vec3 sky=mix(tint*(0.18+0.25*uLoud)+avg*0.6, voidc, smoothstep(0.0,0.35,hz));
     vec3 ld=normalize(vec3(0.55,0.42,0.35));
     if(hit){
-      for(int k=0;k<6;k++){ float tm=0.5*(tp+t); vec3 p=ro+rd*tm; if(p.y<max(TH(p.xz)*Hh,wl)) t=tm; else tp=tm; }
+      for(int k=0;k<8;k++){ float tm=0.5*(tp+t); vec3 p=ro+rd*tm; if(p.y<max(TH(p.xz)*Hh,wl)) t=tm; else tp=tm; }
       wat = t>=tw-0.002;
       vec3 p=ro+rd*t;
       vec3 c;
@@ -144,7 +147,11 @@ void main(){
         float hx=(TH(p.xz+vec2(ex,0.0))-TH(p.xz-vec2(ex,0.0)))*Hh;
         float hz2=(TH(p.xz+vec2(0.0,ex))-TH(p.xz-vec2(0.0,ex)))*Hh;
         vec3 n=normalize(vec3(-hx,2.0*ex,-hz2));
-        float lod=clamp((t-0.5)*dofk*2.4,0.0,7.0);
+        // The scene is projected straight down onto the ground, so on a steep
+        // face one texel is stretched down the whole slope and fine detail
+        // smeared into vertical streaks. Steep faces read a blurrier level.
+        float steep=smoothstep(0.55,0.15,n.y);
+        float lod=clamp((t-0.5)*dofk*2.4+steep*3.0,0.0,7.0);
         vec3 alb=textureLod(uScene,tc,lod).rgb;
         // Height ramp: wet dark valleys, lit ridges, scene texture on top.
         float hN=clamp(h0,0.0,1.0);
