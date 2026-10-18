@@ -60,7 +60,8 @@ then open `http://localhost:<port>/`.
 1. Edit the sources.
 2. Bump `B` in `sw.js` and the `?v=` on every `<script>` in
    `VJ Fractal.dc.html` to the same new value, so installed copies pick up
-   the new files instead of serving cached ones.
+   the new files instead of serving cached ones. Update the "Build N · date"
+   label in `VJ Fractal.dc.html` too (it appears twice).
 3. Rebuild the single-file build: `node tools/build-standalone.js`
 4. Commit and push; GitHub Pages redeploys from `main`.
 

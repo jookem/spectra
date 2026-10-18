@@ -2,7 +2,7 @@
 // HTML is network-first (picks up new builds), everything else cache-first.
 //
 // Releasing: bump B here AND the ?v= on every <script> in VJ Fractal.dc.html
-// to the same value. A new B drops every older cache, so a script that changed
+// to the same value, and the "Build N" label there (twice). A new B drops every older cache, so a script that changed
 // can never be served stale from here; the query keeps the browser's own HTTP
 // cache from handing back the old file while the new cache fills.
 const B='b12', V='spectra-'+B;
