@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<script src="./support.js?v=b14"></script>
+<script src="./support.js?v=b15"></script>
 <meta name="ext-resource-dependency" content="./csi.js" data-resource-id="csiJs">
 </head>
 <body>
@@ -30,11 +30,11 @@
   @keyframes vjspin{to{transform:rotate(360deg)}}
   @keyframes vjscan{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
 </style>
-<script src="vj-engine.js?v=b14"></script>
-<script src="deep-zoom.js?v=b14"></script>
-<script src="cam-fly.js?v=b14"></script>
-<script src="wave-mesh.js?v=b14"></script>
-<script src="wave-gl.js?v=b14"></script>
+<script src="vj-engine.js?v=b15"></script>
+<script src="deep-zoom.js?v=b15"></script>
+<script src="cam-fly.js?v=b15"></script>
+<script src="wave-mesh.js?v=b15"></script>
+<script src="wave-gl.js?v=b15"></script>
 </helmet>
 <template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#08090A"/><circle cx="50" cy="50" r="22" fill="none" stroke="#C8FF2E" stroke-width="3"/><circle cx="50" cy="50" r="11" fill="none" stroke="#C8FF2E" stroke-width="2" opacity="0.6"/><circle cx="50" cy="50" r="3.5" fill="#C8FF2E"/></svg></template>
 <div style="position:relative;width:100vw;height:100dvh;overflow:hidden;background:#08090A;font-family:'JetBrains Mono',ui-monospace,monospace;color:#F2F3F0;user-select:none;-webkit-user-select:none;">
@@ -97,7 +97,7 @@
           <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.42);">A SWRV Systems production</div>
           <div style="width:18px;height:1px;background:rgba(242,243,240,0.25);"></div>
         </div>
-        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 14 · 18 Oct 2026</div>
+        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 15 · 18 Oct 2026</div>
       </div>
       <div style="max-width:420px;text-align:center;font-size:12.5px;line-height:1.7;color:rgba(242,243,240,0.55);">The visuals are driven entirely by what the microphone hears. Nothing is recorded or sent anywhere.</div>
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,230px));gap:10px;width:100%;max-width:470px;justify-content:center;">
@@ -156,7 +156,7 @@
     <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
       <div style="font-family:Archivo,sans-serif;font-weight:700;font-size:54px;letter-spacing:-0.03em;line-height:1;">SPECTRA</div>
       <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.36);">A SWRV Systems production</div>
-      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 14 · 18 Oct 2026</div>
+      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 15 · 18 Oct 2026</div>
     </div>
     <div ref="{{ warmWrapRef }}" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
       <div style="width:260px;height:2px;background:rgba(255,255,255,0.1);">
@@ -656,7 +656,10 @@
         <span style="font-size:9px;color:var(--acc);flex:0 0 auto;min-width:30px;text-align:right;">{{ macroRead }}</span>
         <span style="font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(242,243,240,0.6);flex:0 0 auto;">{{ macroHint }}</span>
       </div>
-      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;">
+      <!-- Cue and Scene change share one row, half each; below ~700px they
+           stack. -->
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;">
+      <div style="display:flex;align-items:center;align-content:center;gap:6px;flex-wrap:wrap;flex:1 1 340px;min-width:0;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;">
         <span style="font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:rgba(242,243,240,0.6);flex:0 0 auto;min-width:56px;">Cue {{ cueTag }}</span>
         <button onClick="{{ cueBack }}" title="Previous cue (Shift+Space)" style="display:flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:62px;min-height:40px;padding:4px 8px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:16px;line-height:1;cursor:pointer;flex:0 0 auto;border:1px solid rgba(255,255,255,0.11);background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.7);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">◂</button>
         <button onClick="{{ cueGo }}" title="Next cue (Space)" style="display:flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:62px;min-height:40px;padding:4px 8px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:16px;line-height:1;cursor:pointer;flex:0 0 auto;border:1px solid var(--acc);background:var(--acc14);color:var(--acc);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">▸</button>
@@ -670,22 +673,31 @@
           </button>
         </sc-for>
       </div>
-      <div style="display:{{ outErrDisplay }};font-size:9px;line-height:1.5;letter-spacing:0.04em;color:rgba(242,243,240,0.6);">{{ outErr }}</div>
-      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;">
-        <span style="font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:rgba(242,243,240,0.6);flex:0 0 auto;">Trim</span>
-        <sc-for list="{{ trims }}" as="c" hint-placeholder-count="4">
-          <div style="display:flex;align-items:center;gap:7px;min-width:0;flex:1 1 {{ deckTrimBasis }};">
-            <span style="font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(242,243,240,0.6);flex:0 0 auto;">{{ c.label }}</span>
-            <div onPointerDown="{{ c.drag.down }}" onPointerMove="{{ c.drag.move }}" onPointerUp="{{ c.drag.up }}" onDoubleClick="{{ c.reset }}" title="Double-click to reset" style="position:relative;flex:1 1 auto;min-width:0;height:{{ ctlHitH }};display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
-              <div style="position:relative;width:100%;height:{{ ctlTrackH }};background:rgba(255,255,255,0.13);">
-                <div style="position:absolute;left:0;top:0;bottom:0;width:{{ c.pct }};background:var(--acc);"></div>
-                <div style="position:absolute;top:-2px;bottom:-2px;width:1px;left:{{ c.mid }};background:rgba(255,255,255,0.3);"></div>
-              </div>
-            </div>
-            <span style="font-size:9px;color:var(--acc);flex:0 0 auto;">{{ c.read }}</span>
-          </div>
-        </sc-for>
+      <div title="Auto advance and how one scene hands over to the next" style="display:flex;flex-direction:column;gap:6px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;flex:1 1 340px;min-width:0;">
+        <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);">Scene change</span>
+        <span style="display:{{ sceneHeldDisplay }};font-size:8.5px;letter-spacing:0.06em;color:var(--acc);">{{ sceneHeld }}</span>
+        <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:{{ deckBtnGap }};align-items:stretch;">
+        <button onClick="{{ toggleAuto }}" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid {{ autoBorder }};background:{{ autoBg }};color:{{ autoFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Auto</button>
+        <button onClick="{{ xfadeToggle }}" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid {{ xfadeBorder }};background:{{ xfadeBg }};color:{{ xfadeFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Fade</button>
+        <select value="{{ xfSel }}" onChange="{{ setXf }}" title="Transition used when the scene changes" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid var(--acc30);background:rgba(8,9,10,0.34);color:var(--acc);appearance:none;-webkit-appearance:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+          <sc-for list="{{ xfOptions }}" as="o" hint-placeholder-count="6">
+            <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
+          </sc-for>
+        </select>
+        <select value="{{ xfQSel }}" onChange="{{ setXfQ }}" title="Hold the change until the next beat or bar" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;appearance:none;flex:0 1 auto;min-width:0;box-sizing:border-box;border:1px solid rgba(255,255,255,0.11);background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.78);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+          <sc-for list="{{ xfQOptions }}" as="o" hint-placeholder-count="3">
+            <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
+          </sc-for>
+        </select>
+        <select value="{{ xfLenSel }}" onChange="{{ setXfLen }}" title="How long the transition runs" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid var(--acc30);background:rgba(8,9,10,0.34);color:var(--acc);appearance:none;-webkit-appearance:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+          <sc-for list="{{ xfLenOptions }}" as="o" hint-placeholder-count="4">
+            <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
+          </sc-for>
+        </select>
+        </div>
       </div>
+      </div>
+      <div style="display:{{ outErrDisplay }};font-size:9px;line-height:1.5;letter-spacing:0.04em;color:rgba(242,243,240,0.6);">{{ outErr }}</div>
       <div style="display:flex;flex-direction:column;gap:8px;flex:0 0 auto;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;">
       <div style="display:flex;align-items:center;gap:6px;flex:0 0 auto;flex-wrap:wrap;">
         <span style="font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:rgba(242,243,240,0.6);">Scenes</span>
@@ -711,6 +723,27 @@
           </div>
         </sc-for>
       </div>
+      </div>
+      <!-- Trim, styled like the parameter grid below it: name and value on
+           one line, the track under them with the same fill and thumb. The
+           thin tick marks each trim's neutral point. -->
+      <div style="display:grid;grid-template-columns:{{ deckCtlCols }};gap:12px 14px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);box-sizing:border-box;padding:12px 14px;">
+        <span style="grid-column:1/-1;font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);">Trim</span>
+        <sc-for list="{{ trims }}" as="c" hint-placeholder-count="7">
+          <div style="display:flex;flex-direction:column;gap:4px;min-width:0;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0;font-size:9.5px;letter-spacing:0.13em;text-transform:uppercase;color:rgba(242,243,240,0.6);">
+              <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1 1 auto;min-width:0;">{{ c.label }}</span>
+              <span style="color:var(--acc);flex:0 0 auto;">{{ c.read }}</span>
+            </div>
+            <div onPointerDown="{{ c.drag.down }}" onPointerMove="{{ c.drag.move }}" onPointerUp="{{ c.drag.up }}" onDoubleClick="{{ c.reset }}" title="Double-click to reset" style="position:relative;flex:1 1 auto;min-width:0;height:{{ ctlHitH }};display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
+              <div style="position:relative;width:100%;height:{{ ctlTrackH }};background:rgba(255,255,255,0.13);">
+                <div style="position:absolute;left:0;top:0;bottom:0;width:{{ c.pct }};background:var(--acc45);"></div>
+                <div style="position:absolute;top:-4px;bottom:-4px;width:1px;left:{{ c.mid }};background:rgba(255,255,255,0.35);"></div>
+                <div style="position:absolute;top:{{ ctlThumbTop }};left:{{ c.pct }};width:{{ ctlThumbW }};height:{{ ctlThumbH }};margin-left:{{ ctlThumbML }};background:var(--acc);"></div>
+              </div>
+            </div>
+          </div>
+        </sc-for>
       </div>
       <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;flex:0 0 auto;">
         <div style="flex:1 1 100%;display:grid;grid-template-columns:{{ deckCtlCols }};gap:12px 14px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;padding:12px 14px;">
@@ -772,29 +805,6 @@
               </div>
             </div>
             </sc-if>
-            <div title="Auto advance and how one scene hands over to the next" style="display:flex;flex-direction:column;gap:6px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;flex:5 1 360px;min-width:0;">
-              <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);">Scene change</span>
-              <span style="display:{{ sceneHeldDisplay }};font-size:8.5px;letter-spacing:0.06em;color:var(--acc);">{{ sceneHeld }}</span>
-              <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:{{ deckBtnGap }};align-items:stretch;">
-              <button onClick="{{ toggleAuto }}" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid {{ autoBorder }};background:{{ autoBg }};color:{{ autoFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Auto</button>
-              <button onClick="{{ xfadeToggle }}" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid {{ xfadeBorder }};background:{{ xfadeBg }};color:{{ xfadeFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Fade</button>
-              <select value="{{ xfSel }}" onChange="{{ setXf }}" title="Transition used when the scene changes" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid var(--acc30);background:rgba(8,9,10,0.34);color:var(--acc);appearance:none;-webkit-appearance:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
-                <sc-for list="{{ xfOptions }}" as="o" hint-placeholder-count="6">
-                  <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
-                </sc-for>
-              </select>
-              <select value="{{ xfQSel }}" onChange="{{ setXfQ }}" title="Hold the change until the next beat or bar" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;appearance:none;flex:0 1 auto;min-width:0;box-sizing:border-box;border:1px solid rgba(255,255,255,0.11);background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.78);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
-                <sc-for list="{{ xfQOptions }}" as="o" hint-placeholder-count="3">
-                  <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
-                </sc-for>
-              </select>
-              <select value="{{ xfLenSel }}" onChange="{{ setXfLen }}" title="How long the transition runs" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid var(--acc30);background:rgba(8,9,10,0.34);color:var(--acc);appearance:none;-webkit-appearance:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
-                <sc-for list="{{ xfLenOptions }}" as="o" hint-placeholder-count="4">
-                  <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
-                </sc-for>
-              </select>
-              </div>
-            </div>
             <div title="Colour palette and post FX" style="display:flex;flex-direction:column;gap:6px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;flex:{{ lookFlex }};min-width:0;">
               <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);">Look</span>
               <div style="display:grid;grid-template-columns:{{ lookCols }};gap:{{ deckBtnGap }};align-items:stretch;">
@@ -15678,7 +15688,6 @@ class Component extends DCLogic {
       // The other two rows sized for a laptop: a 132px trim cell and a 240px
       // macro fader both force a second line at phone widths. Full width each on
       // narrow, so they stack once by intent rather than wrapping raggedly.
-      deckTrimBasis: s.narrow ? '100%' : '132px',
       deckMacroBasis: s.narrow ? '100%' : '240px',
       deckGroupBasis: s.narrow ? '100%' : '460px',
       minSlotCols: s.narrow ? 'repeat(4,1fr)' : 'repeat(auto-fit,minmax(44px,1fr))',
