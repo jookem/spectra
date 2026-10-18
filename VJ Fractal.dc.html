@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<script src="./support.js?v=b16"></script>
+<script src="./support.js?v=b17"></script>
 <meta name="ext-resource-dependency" content="./csi.js" data-resource-id="csiJs">
 </head>
 <body>
@@ -30,11 +30,11 @@
   @keyframes vjspin{to{transform:rotate(360deg)}}
   @keyframes vjscan{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
 </style>
-<script src="vj-engine.js?v=b16"></script>
-<script src="deep-zoom.js?v=b16"></script>
-<script src="cam-fly.js?v=b16"></script>
-<script src="wave-mesh.js?v=b16"></script>
-<script src="wave-gl.js?v=b16"></script>
+<script src="vj-engine.js?v=b17"></script>
+<script src="deep-zoom.js?v=b17"></script>
+<script src="cam-fly.js?v=b17"></script>
+<script src="wave-mesh.js?v=b17"></script>
+<script src="wave-gl.js?v=b17"></script>
 </helmet>
 <template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#08090A"/><circle cx="50" cy="50" r="22" fill="none" stroke="#C8FF2E" stroke-width="3"/><circle cx="50" cy="50" r="11" fill="none" stroke="#C8FF2E" stroke-width="2" opacity="0.6"/><circle cx="50" cy="50" r="3.5" fill="#C8FF2E"/></svg></template>
 <div style="position:relative;width:100vw;height:100dvh;overflow:hidden;background:#08090A;font-family:'JetBrains Mono',ui-monospace,monospace;color:#F2F3F0;user-select:none;-webkit-user-select:none;">
@@ -97,7 +97,7 @@
           <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.42);">A SWRV Systems production</div>
           <div style="width:18px;height:1px;background:rgba(242,243,240,0.25);"></div>
         </div>
-        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 16 · 18 Oct 2026</div>
+        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 17 · 18 Oct 2026</div>
       </div>
       <div style="max-width:420px;text-align:center;font-size:12.5px;line-height:1.7;color:rgba(242,243,240,0.55);">The visuals are driven entirely by what the microphone hears. Nothing is recorded or sent anywhere.</div>
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,230px));gap:10px;width:100%;max-width:470px;justify-content:center;">
@@ -156,7 +156,7 @@
     <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
       <div style="font-family:Archivo,sans-serif;font-weight:700;font-size:54px;letter-spacing:-0.03em;line-height:1;">SPECTRA</div>
       <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.36);">A SWRV Systems production</div>
-      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 16 · 18 Oct 2026</div>
+      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 17 · 18 Oct 2026</div>
     </div>
     <div ref="{{ warmWrapRef }}" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
       <div style="width:260px;height:2px;background:rgba(255,255,255,0.1);">
@@ -610,19 +610,13 @@
           </div>
           </sc-if>
         </div>
-        <div title="{{ trailTitle }}" style="display:{{ trailDisp }};align-items:center;gap:10px;flex:1 1 260px;min-width:120px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;">
-          <button onClick="{{ driftToggle }}" style="display:flex;flex-direction:column;align-items:flex-start;justify-content:center;box-sizing:border-box;width:78px;min-height:40px;padding:6px 8px;text-align:left;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;flex:0 0 auto;border:1px solid {{ driftBorder }};background:{{ driftBg }};color:{{ driftFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Drift</button>
-          <span style="font-size:9px;letter-spacing:0.08em;text-transform:uppercase;color:rgba(242,243,240,0.6);flex:0 0 auto;">Trail</span>
-          <div onPointerDown="{{ trailDrag.down }}" onPointerMove="{{ trailDrag.move }}" onPointerUp="{{ trailDrag.up }}" style="position:relative;flex:1 1 auto;min-width:70px;height:{{ ctlHitH }};display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
-            <div style="position:relative;width:100%;height:{{ ctlTrackH }};background:rgba(255,255,255,0.13);">
-              <div style="position:absolute;left:0;top:0;bottom:0;width:{{ trailPct }};background:var(--acc);"></div>
-            </div>
-          </div>
-          <span style="font-size:9px;color:var(--acc);">{{ trailRead }}</span>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;flex:{{ deckSlotFlex }};min-width:0;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;">
-        <span style="font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:rgba(242,243,240,0.6);flex:0 0 auto;">Slots</span>
-        <div style="display:{{ deckSlotDisp }};grid-template-columns:{{ deckSlotCols }};flex-wrap:wrap;justify-content:flex-end;gap:5px;flex:1 1 auto;min-width:0;">
+      </div>
+      <!-- Slots and Morph together: Morph fades between two slots. -->
+      <div style="display:flex;flex-direction:column;gap:8px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;">
+        <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+        <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);flex:0 0 auto;" title="Click an empty slot to store the live look, a filled one to recall it">Slots</span>
+        <div style="display:{{ deckSlotDisp }};grid-template-columns:{{ deckSlotCols }};flex-wrap:wrap;justify-content:flex-start;gap:5px;flex:1 1 auto;min-width:0;">
           <sc-for list="{{ slots }}" as="sl" hint-placeholder-count="8">
             <button onClick="{{ sl.click }}" onContextMenu="{{ sl.ctx }}" draggable="false" onDragOver="{{ sl.dragOver }}" onDragLeave="{{ sl.dragLeave }}" onDrop="{{ sl.drop }}" style="position:relative;display:flex;flex-direction:column;align-items:{{ deckSlotAlign }};gap:2px;flex:0 0 auto;min-width:{{ deckSlotMin }};width:{{ deckSlotW }};min-height:{{ deckBtnH }};justify-content:center;box-sizing:border-box;padding:6px 8px;cursor:pointer;font-family:'JetBrains Mono',monospace;text-align:{{ deckSlotText }};border:1px solid {{ sl.border }};background:{{ sl.bg }};color:{{ sl.fg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);overflow:hidden;">
               <span style="font-size:8px;letter-spacing:0.14em;opacity:0.6;">{{ sl.num }}</span>
@@ -632,9 +626,7 @@
           </sc-for>
         </div>
         </div>
-        </div>
-      </div>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,0.08);padding-top:8px;">
         <button onClick="{{ macroToggle }}" title="Morph between two slots on one fader (M)" style="display:flex;flex-direction:column;align-items:flex-start;justify-content:center;box-sizing:border-box;width:78px;min-height:40px;padding:6px 8px;text-align:left;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;flex:0 0 auto;border:1px solid {{ macroBorder }};background:{{ macroBg }};color:{{ macroFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Morph</button>
         <select value="{{ macroASel }}" onChange="{{ setMacroA }}" title="Slot at the left end" style="box-sizing:border-box;width:78px;min-height:40px;padding:6px 8px;text-align:left;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;flex:0 0 auto;appearance:none;-webkit-appearance:none;border:1px solid var(--acc30);background:rgba(8,9,10,0.34);color:var(--acc);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
           <sc-for list="{{ macroAOptions }}" as="o" hint-placeholder-count="8">
@@ -655,37 +647,49 @@
         </select>
         <span style="font-size:9px;color:var(--acc);flex:0 0 auto;min-width:30px;text-align:right;">{{ macroRead }}</span>
         <span style="font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(242,243,240,0.6);flex:0 0 auto;">{{ macroHint }}</span>
+        </div>
       </div>
       <!-- Cue and Scene change share one row, half each; below ~700px they
            stack. -->
       <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;">
-      <div style="display:flex;align-items:center;align-content:center;gap:6px;flex-wrap:wrap;flex:1 1 340px;min-width:0;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;">
-        <span style="font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:rgba(242,243,240,0.6);flex:0 0 auto;min-width:56px;">Cue {{ cueTag }}</span>
+      <div title="An ordered run of looks. Each cue keeps the transition and length it was added with" style="display:flex;flex-direction:column;gap:8px;flex:1 1 340px;min-width:0;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);flex:0 0 auto;min-width:56px;">Cues {{ cueTag }}</span>
         <button onClick="{{ cueBack }}" title="Previous cue (Shift+Space)" style="display:flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:62px;min-height:40px;padding:4px 8px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:16px;line-height:1;cursor:pointer;flex:0 0 auto;border:1px solid rgba(255,255,255,0.11);background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.7);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">◂</button>
         <button onClick="{{ cueGo }}" title="Next cue (Space)" style="display:flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:62px;min-height:40px;padding:4px 8px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:16px;line-height:1;cursor:pointer;flex:0 0 auto;border:1px solid var(--acc);background:var(--acc14);color:var(--acc);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">▸</button>
         <button onClick="{{ cueAdd }}" title="Add the live look as a new cue (C)" style="display:flex;flex-direction:column;align-items:flex-start;justify-content:center;box-sizing:border-box;min-width:62px;min-height:40px;padding:6px 8px;text-align:left;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;flex:0 0 auto;border:1px solid rgba(255,255,255,0.11);background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.7);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">+ Cue</button>
         <span style="display:{{ armDisplay }};font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--acc);animation:vjblink 0.6s infinite;flex:0 0 auto;">armed</span>
-        <sc-for list="{{ cueRows }}" as="c" hint-placeholder-count="0">
-          <button onClick="{{ c.go }}" onContextMenu="{{ c.del }}" title="Click to go · right-click to remove" style="display:flex;align-items:center;gap:8px;padding:6px 8px;min-height:40px;box-sizing:border-box;cursor:pointer;font-family:'JetBrains Mono',monospace;text-align:left;max-width:200px;border:1px solid {{ c.border }};background:{{ c.bg }};color:{{ c.fg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
-            <span style="font-size:8px;letter-spacing:0.14em;opacity:0.6;flex:0 0 auto;">{{ c.n }}</span>
-            <span style="font-size:9px;letter-spacing:0.04em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1 1 auto;">{{ c.name }}</span>
-            <span style="font-size:8px;letter-spacing:0.08em;opacity:0.5;flex:0 0 auto;">{{ c.len }}</span>
-          </button>
-        </sc-for>
+        </div>
+        <span style="display:{{ cueEmptyDisp }};font-size:9px;letter-spacing:0.06em;color:rgba(242,243,240,0.45);">No cues yet — + Cue (or C) adds the live look.</span>
+        <div ref="{{ cueStripRef }}" style="display:{{ cueStripDisp }};width:100%;min-width:0;gap:4px;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;touch-action:pan-x;padding-bottom:5px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.22) transparent;">
+          <sc-for list="{{ cueRows }}" as="c" hint-placeholder-count="0">
+            <button onClick="{{ c.go }}" onContextMenu="{{ c.del }}" data-cue="{{ c.i }}" title="Click to go · × or right-click to remove" style="position:relative;flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:6px 26px 6px 8px;min-height:40px;max-width:200px;box-sizing:border-box;cursor:pointer;font-family:'JetBrains Mono',monospace;text-align:left;border:1px solid {{ c.border }};background:{{ c.bg }};color:{{ c.fg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+              <span style="font-size:8px;letter-spacing:0.14em;opacity:0.6;flex:0 0 auto;">{{ c.n }}</span>
+              <span style="font-size:9px;letter-spacing:0.04em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1 1 auto;">{{ c.name }}</span>
+              <span style="font-size:8px;letter-spacing:0.08em;opacity:0.5;flex:0 0 auto;">{{ c.len }}</span>
+              <span role="button" title="Remove cue" onClick="{{ c.clear }}" style="position:absolute;top:0;right:0;display:flex;align-items:center;justify-content:center;width:18px;height:18px;font-size:10px;line-height:1;color:rgba(242,243,240,0.7);cursor:pointer;" style-hover="color:#F2F3F0;background:rgba(255,255,255,0.12);">×</span>
+            </button>
+          </sc-for>
+        </div>
       </div>
-      <div title="Auto advance and how one scene hands over to the next" style="display:flex;flex-direction:column;gap:6px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;flex:1 1 340px;min-width:0;">
+      <div title="When the look moves on, and how one scene hands over to the next" style="display:flex;flex-direction:column;gap:6px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;flex:1 1 340px;min-width:0;">
         <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);">Scene change</span>
         <span style="display:{{ sceneHeldDisplay }};font-size:8.5px;letter-spacing:0.06em;color:var(--acc);">{{ sceneHeld }}</span>
-        <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:{{ deckBtnGap }};align-items:stretch;">
-        <button onClick="{{ toggleAuto }}" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid {{ autoBorder }};background:{{ autoBg }};color:{{ autoFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Auto</button>
-        <button onClick="{{ xfadeToggle }}" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid {{ xfadeBorder }};background:{{ xfadeBg }};color:{{ xfadeFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Fade</button>
-        <select value="{{ xfSel }}" onChange="{{ setXf }}" title="Transition used when the scene changes" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid var(--acc30);background:rgba(8,9,10,0.34);color:var(--acc);appearance:none;-webkit-appearance:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
-          <sc-for list="{{ xfOptions }}" as="o" hint-placeholder-count="6">
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:{{ deckBtnGap }};align-items:stretch;">
+        <button onClick="{{ advanceToggle }}" title="{{ advTitle }}" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid {{ advBorder }};background:{{ advBg }};color:{{ advFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Advance</button>
+        <select value="{{ advBarsSel }}" onChange="{{ setAdvBars }}" title="How often Advance steps" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid var(--acc30);background:rgba(8,9,10,0.34);color:var(--acc);appearance:none;-webkit-appearance:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+          <sc-for list="{{ advBarsOptions }}" as="o" hint-placeholder-count="5">
             <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
           </sc-for>
         </select>
         <select value="{{ xfQSel }}" onChange="{{ setXfQ }}" title="Hold the change until the next beat or bar" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;appearance:none;flex:0 1 auto;min-width:0;box-sizing:border-box;border:1px solid rgba(255,255,255,0.11);background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.78);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
           <sc-for list="{{ xfQOptions }}" as="o" hint-placeholder-count="3">
+            <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
+          </sc-for>
+        </select>
+        <button onClick="{{ xfadeToggle }}" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid {{ xfadeBorder }};background:{{ xfadeBg }};color:{{ xfadeFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Fade</button>
+        <select value="{{ xfSel }}" onChange="{{ setXf }}" title="Transition used when the scene changes" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid var(--acc30);background:rgba(8,9,10,0.34);color:var(--acc);appearance:none;-webkit-appearance:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+          <sc-for list="{{ xfOptions }}" as="o" hint-placeholder-count="6">
             <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
           </sc-for>
         </select>
@@ -805,6 +809,16 @@
               </div>
             </div>
             </sc-if>
+            <div title="{{ trailTitle }}" style="display:{{ trailDisp }};align-items:center;gap:10px;flex:1 1 260px;min-width:200px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;">
+              <button onClick="{{ driftToggle }}" style="display:flex;flex-direction:column;align-items:flex-start;justify-content:center;box-sizing:border-box;width:78px;min-height:40px;padding:6px 8px;text-align:left;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;flex:0 0 auto;border:1px solid {{ driftBorder }};background:{{ driftBg }};color:{{ driftFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Drift</button>
+              <span style="font-size:9px;letter-spacing:0.08em;text-transform:uppercase;color:rgba(242,243,240,0.6);flex:0 0 auto;">Trail</span>
+              <div onPointerDown="{{ trailDrag.down }}" onPointerMove="{{ trailDrag.move }}" onPointerUp="{{ trailDrag.up }}" style="position:relative;flex:1 1 auto;min-width:70px;height:{{ ctlHitH }};display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
+                <div style="position:relative;width:100%;height:{{ ctlTrackH }};background:rgba(255,255,255,0.13);">
+                  <div style="position:absolute;left:0;top:0;bottom:0;width:{{ trailPct }};background:var(--acc);"></div>
+                </div>
+              </div>
+              <span style="font-size:9px;color:var(--acc);">{{ trailRead }}</span>
+            </div>
             <div title="Colour palette and post FX" style="display:flex;flex-direction:column;gap:6px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;flex:{{ lookFlex }};min-width:0;">
               <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);">Look</span>
               <div style="display:grid;grid-template-columns:{{ lookCols }};gap:{{ deckBtnGap }};align-items:stretch;">
@@ -875,6 +889,7 @@
             <div title="Ambient camera motion and the default LFO length" style="display:flex;flex-direction:column;gap:6px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;flex:3 1 216px;min-width:0;">
               <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);">Motion</span>
               <div style="display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:{{ deckBtnGap }};align-items:stretch;">
+              <button onClick="{{ toggleAuto }}" title="Automation (A): camera drift, scene motion and the canvas scenes' animation. Off holds everything still" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid {{ autoBorder }};background:{{ autoBg }};color:{{ autoFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Auto</button>
               <select value="{{ spinSel }}" onChange="{{ setSpin }}" title="{{ spinTitle }}" style="display:{{ spinDisp }};font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid {{ spinSelBorder }};background:rgba(8,9,10,0.34);color:{{ spinSelFg }};appearance:none;-webkit-appearance:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
                 <sc-for list="{{ spinOptions }}" as="o" hint-placeholder-count="3">
                   <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
@@ -994,16 +1009,25 @@
         </div>
         <div style="display:flex;flex-direction:column;gap:3px;">
           <sc-for list="{{ cueRows }}" as="c" hint-placeholder-count="0">
-            <button onClick="{{ c.go }}" onContextMenu="{{ c.del }}" title="Click to go · right-click to remove" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 8px;cursor:pointer;font-family:'JetBrains Mono',monospace;text-align:left;border:1px solid {{ c.border }};background:{{ c.bg }};color:{{ c.fg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+            <button onClick="{{ c.go }}" onContextMenu="{{ c.del }}" title="Click to go · × or right-click to remove" style="position:relative;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 26px 6px 8px;cursor:pointer;font-family:'JetBrains Mono',monospace;text-align:left;border:1px solid {{ c.border }};background:{{ c.bg }};color:{{ c.fg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
               <span style="font-size:8px;letter-spacing:0.14em;opacity:0.6;flex:0 0 auto;">{{ c.n }}</span>
               <span style="font-size:9px;letter-spacing:0.04em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1 1 auto;">{{ c.name }}</span>
               <span style="font-size:8px;letter-spacing:0.08em;opacity:0.5;flex:0 0 auto;">{{ c.len }}</span>
+              <span role="button" title="Remove cue" onClick="{{ c.clear }}" style="position:absolute;top:0;right:0;display:flex;align-items:center;justify-content:center;width:18px;height:18px;font-size:10px;line-height:1;color:rgba(242,243,240,0.7);cursor:pointer;" style-hover="color:#F2F3F0;background:rgba(255,255,255,0.12);">×</span>
             </button>
           </sc-for>
         </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:6px;">
         <div style="font-size:9.5px;letter-spacing:0.24em;text-transform:uppercase;color:rgba(242,243,240,0.55);text-shadow:0 0 3px rgba(8,9,10,0.95),0 0 7px rgba(8,9,10,0.85),0 1px 2px rgba(8,9,10,0.9);">Scene change</div>
+        <div style="display:flex;gap:4px;">
+          <button onClick="{{ advanceToggle }}" title="{{ advTitle }}" style="flex:1 1 0;min-width:0;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.07em;text-transform:uppercase;padding:8px 4px;min-height:{{ selH }};box-sizing:border-box;cursor:pointer;border:1px solid {{ advBorder }};background:{{ advBg }};color:{{ advFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Advance</button>
+          <select value="{{ advBarsSel }}" onChange="{{ setAdvBars }}" title="How often Advance steps" style="flex:2 1 0;min-width:0;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;padding:8px 4px;min-height:{{ selH }};box-sizing:border-box;cursor:pointer;appearance:none;-webkit-appearance:none;text-align:center;border:1px solid var(--acc30);color:var(--acc);background:rgba(8,9,10,0.34);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+            <sc-for list="{{ advBarsOptions }}" as="o" hint-placeholder-count="5">
+              <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
+            </sc-for>
+          </select>
+        </div>
         <div style="display:flex;gap:4px;">
           <button onClick="{{ xfadeToggle }}" style="flex:1 1 0;min-width:0;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.07em;text-transform:uppercase;padding:8px 4px;min-height:{{ selH }};box-sizing:border-box;cursor:pointer;border:1px solid {{ xfadeBorder }};background:{{ xfadeBg }};color:{{ xfadeFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Fade</button>
           <select value="{{ xfSel }}" onChange="{{ setXf }}" title="Transition used when the scene changes" style="flex:1 1 0;min-width:0;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;padding:8px 4px;min-height:{{ selH }};box-sizing:border-box;cursor:pointer;appearance:none;-webkit-appearance:none;text-align:center;border:1px solid var(--acc30);color:var(--acc);background:rgba(8,9,10,0.34);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
@@ -1550,6 +1574,8 @@ class Component extends DCLogic {
     this.state.xfQ=0;
     this.state.macro={on:false,a:0,b:1,v:0};
     this.state.cues=[]; this.state.cueIdx=-1; this.state.cutArmed=false;
+    // Auto advance always starts off; its length (in bars) is remembered.
+    this.state.advance=false; this.state.advBars=16;
     this.state.lfoDiv=4;
     this.state.vspin=0;
     this.state.out=false; this.state.outErr='';
@@ -1574,7 +1600,7 @@ class Component extends DCLogic {
   SLOW_BUILD_MS = 400;
 
   SETTINGS_KEYS = ['vecDen','qual','rate','layout','pal','fx','spin','vspin','accentSel',
-                   'lfoDiv','strobeAmt','strobeLen','strobeRate','xfadeOn','xfSeen','xfMode','xfLen','xfQ','imu','mesh','meshSrc','rfUrl','auto','qMinSeen','dmode','repSize','repTurn','repVar','repDrift','repGap','vecG','vecScene',
+                   'lfoDiv','strobeAmt','strobeLen','strobeRate','xfadeOn','xfSeen','xfMode','xfLen','xfQ','advBars','imu','mesh','meshSrc','rfUrl','auto','qMinSeen','dmode','repSize','repTurn','repVar','repDrift','repGap','vecG','vecScene',
                    'strobe','fieldFx','lineFx','camView','camRep','levels','touchParam'];
 
   // Accent is a theme value, so it lives in CSS custom properties rather than in
@@ -3945,6 +3971,25 @@ class Component extends DCLogic {
     if(i === this.vidIdx && this.state.vid.on && this.state.vid.src === 'file') return;
     if(this.state.vid.on && (this.state.xfQ||0) > 0 && this.bpm && this.bpm.period > 0){ this.queueCut(() => this.playVidIdx(i)); return; }
     this.playVidIdx(i);
+  }
+  // Cue strip: same sideways wheel as the video strip, and it keeps the live
+  // cue in view as the list is stepped.
+  cueStripRef = (el) => {
+    this._cStrips = this._cStrips || new Set();
+    if(!el){ this._cStrips.forEach(x => { if(!x.isConnected) this._cStrips.delete(x); }); return; }
+    this._cStrips.add(el);
+    if(el._cw) return; el._cw = true;
+    el.addEventListener('wheel', e => {
+      if(Math.abs(e.deltaY) > Math.abs(e.deltaX) && el.scrollWidth > el.clientWidth){ el.scrollLeft += e.deltaY; e.preventDefault(); }
+    }, {passive:false});
+  };
+  cueStripFollow(i){
+    (this._cStrips || []).forEach(el => {
+      const b = el.querySelector('[data-cue="'+i+'"]'); if(!b) return;
+      const l = b.offsetLeft - el.offsetLeft, r = l + b.offsetWidth;
+      if(l < el.scrollLeft) el.scrollLeft = l - 4;
+      else if(r > el.scrollLeft + el.clientWidth) el.scrollLeft = r - el.clientWidth + 4;
+    });
   }
   vidStripRef = (el) => {
     this._vStrips = this._vStrips || new Set();
@@ -13349,7 +13394,7 @@ class Component extends DCLogic {
       keys: [
         {k:'1 – 9, Q W E', d:'Jump to scenes 1–12 (D-pad reaches all 40)'},
         {k:'[  ]', d:'Shift hue'},
-        {k:'A', d:'Automation on / off'},
+        {k:'A', d:'Automation on / off — camera drift, scene motion and the canvas scenes’ animation. The same switch is the Auto button in Motion'},
         {k:'0', d:'Reset the view — pan back to centre, camera level. Zoom is left where you set it'},
         {k:'← / →', d:'Previous / next scene'},
         {k:'↑ / ↓', d:'Step through the colour palettes — ↑ back, ↓ forward, wrapping either way'},
@@ -13443,7 +13488,8 @@ class Component extends DCLogic {
         {k:'Device audio', d:'Listen to what this computer is playing instead of the room microphone. In the share picker choose Entire screen and tick “Also share system audio”. Desktop Chrome / Edge only'},
         {k:'Video', d:'Play a video file or a folder of videos in place of the camera, with its own clip advance, transition and trail'},
         {k:'Output window (O)', d:'Clean image for the projector in its own window — controls stay on this one'},
-        {k:'Cues', d:'C stores the live look; Space steps forward, Shift+Space back. Click a cue to go to it, right-click to remove it'},
+        {k:'Cues', d:'C stores the live look; Space steps forward, Shift+Space back. Click a cue to go to it; its × (or right-click) removes it. A long list scrolls sideways'},
+        {k:'Advance (Scene change)', d:'Moves the show on by itself every 4, 8, 16, 32 or 64 bars — to the next cue when there are cues, otherwise to the next scene. It counts bars from the detected tempo (120 BPM until one is found) and cuts on the bar line. Morph holds it'},
         {k:'Macro (M)', d:'Pick a slot for each end, then one fader morphs every parameter between them'},
         {k:'Strobe settings', d:'Beat flashes: on/off, strength, how long each flash fades, and which beats may flash. B kills them all for photosensitive rooms'},
         {k:'FX button', d:'Bloom, chromatic aberration, grain, scanlines — bloom pulses with the music'},
@@ -13580,7 +13626,35 @@ class Component extends DCLogic {
     this.pendBy=performance.now()+2400;
     if(!this.state.cutArmed) this.setState({cutArmed:true});
   }
+  // Auto advance: every N bars, step to the next cue when the cue list has
+  // any, otherwise to the next scene. Counted on the musical clock (this.mus,
+  // in beats), so with a tempo it lands on a bar line, and with none it falls
+  // back to 120 BPM — 16 bars is 32 s. It fires on the bar itself, so it does
+  // not wait again for Fire Now / On Beat / On Bar. Held while Morph is on,
+  // since the fader owns the scene then.
+  advTarget(){
+    const s=this.state, cues=s.cues||[];
+    if(cues.length) return {cue:(((s.cueIdx ?? -1)+1)%cues.length+cues.length)%cues.length};
+    const w=this.sceneWalk(), n=w.length; if(!n) return null;
+    let at=w.indexOf(s.preset); if(at<0) at=0;
+    return {scene:w[(at+1)%n]};
+  }
+  autoAdvance(){
+    const s=this.state;
+    if(!s.advance || (s.macro && s.macro.on) || this.scan){ this._advAt=null; return; }
+    const m=this.mus||0, span=(s.advBars||16)*4;
+    if(this._advAt==null || this._advAt-m>span+4){ this._advAt=Math.ceil(m/4)*4+span; this._advHeat=false; }
+    // A bar ahead, start building the incoming scene so the cut does not stall.
+    if(!this._advHeat && m>=this._advAt-4){ this._advHeat=true; const t=this.advTarget(); if(t && t.scene!=null) this.preheat(t.scene, true); }
+    if(m<this._advAt) return;
+    this._advAt+=span; this._advHeat=false;
+    if(this._advAt<=m) this._advAt=Math.ceil(m/4)*4+span;
+    const t=this.advTarget(); if(!t) return;
+    if(t.cue!=null) this.goCue(t.cue, true);
+    else this.selectPreset(t.scene, true);
+  }
   runQueued(){
+    this.autoAdvance();
     if(!this.pendCut) return;
     if((this.mus||0)>=this.pendAt || performance.now()>this.pendBy){
       const f=this.pendCut; this.pendCut=null;
@@ -13669,21 +13743,22 @@ class Component extends DCLogic {
   persistCues(cues){ try{ localStorage.setItem('spectra.cues', JSON.stringify(cues)); }catch(e){} }
   addCue(){
     const cues=(this.state.cues||[]).concat([{snap:this.snapNow(), len:this.state.xfLen ?? 1.6, mode:this.state.xfMode||0}]);
-    this.persistCues(cues); this.setState({cues});
+    this.persistCues(cues); this.setState({cues}, ()=>this.cueStripFollow(cues.length-1));
   }
   delCue(i){
     const cues=(this.state.cues||[]).slice(); cues.splice(i,1);
     this.persistCues(cues);
     this.setState(st=>({cues, cueIdx:Math.min(st.cueIdx, cues.length-1)}));
   }
-  goCue(i){
+  goCue(i, now){
     const cues=this.state.cues||[]; if(!cues.length) return;
     const n=((i%cues.length)+cues.length)%cues.length;
-    this.queueCut(()=>{
+    const run=()=>{
       const c=(this.state.cues||[])[n]; if(!c) return;
       this.applySnap(c.snap, c.len, c.mode);
-      this.setState({cueIdx:n});
-    });
+      this.setState({cueIdx:n}, ()=>this.cueStripFollow(n));
+    };
+    if(now) run(); else this.queueCut(run);
   }
   cueStep(d){ this.goCue((this.state.cueIdx ?? -1)+d); }
 
@@ -15434,9 +15509,15 @@ class Component extends DCLogic {
         n:(i+1<10?'0':'')+(i+1),
         name:(c.snap&&c.snap.name)||'cue',
         len:((c.len ?? 1.6)+'s'),
+        i,
         go:()=>this.goCue(i),
-        del:(ev)=>{ if(ev && ev.preventDefault) ev.preventDefault(); this.delCue(i); }
+        del:(ev)=>{ if(ev && ev.preventDefault) ev.preventDefault(); this.delCue(i); },
+        // The × sits inside the cue button, so it must not also fire the cue.
+        clear:(ev)=>{ if(ev){ ev.stopPropagation && ev.stopPropagation(); ev.preventDefault && ev.preventDefault(); } this.delCue(i); }
       }, chip(i===s.cueIdx))),
+      cueStripRef: this.cueStripRef,
+      cueStripDisp: (s.cues||[]).length ? 'flex' : 'none',
+      cueEmptyDisp: (s.cues||[]).length ? 'none' : 'block',
       setXfLen: (e)=>this.setState({xfLen: parseFloat(e.target.value)||1.6}),
       trimH: s.touch ? '30px' : '16px',
       trims: this.TRIM.map(d=>{
@@ -15927,6 +16008,12 @@ class Component extends DCLogic {
       driftToggle: () => this.setVid({drift:!s.vid.drift}),
       layouts: ['deck','rail','minimal'].map(l=>Object.assign({name:l, select:()=>this.setState({layout:l})}, chip(l===s.layout))),
       toggleAuto: ()=>this.setState(st=>({auto:!st.auto})),
+      advanceToggle: ()=>{ this._advAt=null; this.setState(st=>({advance:!st.advance})); },
+      advBg: chip(!!s.advance).bg, advFg: chip(!!s.advance).fg, advBorder: chip(!!s.advance).border,
+      advTitle: 'Auto advance: every N bars, step to the next cue — or the next scene when there are no cues' + ((s.cues||[]).length ? ' (stepping cues)' : ' (stepping scenes)'),
+      advBarsSel: String(s.advBars || 16),
+      advBarsOptions: [4,8,16,32,64].map(b=>({v:String(b), tag:'Every '+b+' bars'})),
+      setAdvBars: (e)=>{ this._advAt=null; this.setState({advBars: parseInt(e.target.value,10)||16}); },
       autoBg: chip(s.auto).bg, autoFg: chip(s.auto).fg, autoBorder: chip(s.auto).border
     };
   }
