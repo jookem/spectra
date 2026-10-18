@@ -60,6 +60,9 @@ function orbitPose(gl,prog,u,md,dfar){
   return {p:ro,f,up:uu};
 }
 const sm=x=>{x=Math.min(1,Math.max(0,x||0));return x*x*(3-2*x);};
+// How far short of an aimed point travel stops: a surface hit leaves room to
+// look at it, open space is flown right into.
+const stopOf=(a,F)=>a.hit?Math.min(Math.max(a.L*0.12,F*0.004),F*0.08):F*0.01;
 const tiltF=(f,up,t)=>t>1e-4?V.nrm(V.sub(f,V.sc(up,0.45*sm(t)))):f;
 class CamFly{
   constructor(gl){
@@ -105,6 +108,9 @@ class CamFly{
     gl.bindBuffer(gl.PIXEL_PACK_BUFFER,this.pbo);gl.getBufferSubData(gl.PIXEL_PACK_BUFFER,0,this.px);gl.bindBuffer(gl.PIXEL_PACK_BUFFER,null);
     const v=[];for(let i=0;i<25;i++){const q=(this.px[i*4]*256+this.px[i*4+1])/65535;let x=Math.pow(2,q*64-40);if(this.px[i*4+2]>127)x=-x;v.push(x);}
     const e=this.pScale*0.15;
+    // A route-planning round: its readings are from a waypoint, not the eye,
+    // so they lay the next ring and never steer the camera.
+    if(this.pPlan){ const q=this.pPlan; this.pPlan=null; this._planStep(q,v); return; }
     if(this.skip>0){this.skip--;this.data=null;return;}
     if(this.pTap){
       // Tapped ray came back: a hit lands on the surface, a miss (nothing
@@ -173,6 +179,7 @@ class CamFly{
     if(key!==this.key)this.reset(o.mode,o.scene,o.dfar,o.gl&&o.prog?orbitPose(o.gl,o.prog,o.u,o.md,o.dfar):null);
     this._collect();
     if(this.chg&&this.chg.P&&!this.chg.done)this._chgAim();
+    if(this.aim)this._plan(this.aim); else if(!this.go)this.plan=null;
     let dt=Math.min(0.1,Math.max(0,o.dt||0));
     this.ret=false; this.wasRet=false;
     // The orbit view includes render3's clearance push (eye backed off along
@@ -395,7 +402,15 @@ class CamFly{
     if(L<g.stop*0.25||g.t>40){ this.arr={P:g.P,hit:g.hit,R:g.R,Rg:g.Rg,n:g.n||0,t0:performance.now()};
       // Surface: the piece you landed on stays marked while you look at it.
       if(this.mode===2&&g.Rg)this.insp={P:g.P,R:g.R,Rg:g.Rg,dir:V.nrm(V.sub(g.P,g.S)),t0:performance.now()}; this.go=null; this.tf=this.f; this.altS=null; this.d0=Math.max(F*0.004,d); this.t=Math.min(this.t,4); return; }
-    let tf=V.nrm(to);
+    // Fly through the planned rings in order: aim at the next one, and count
+    // it passed once it is close or already behind the camera.
+    const pl=g.plan, pts=pl&&pl.pts;
+    let W=g.S;
+    if(pts){ g.k=g.k||1;
+      while(g.k<pts.length-1){ const Q=pts[g.k], A=pts[g.k-1], dq=V.sub(Q,this.p);
+        if(V.len(dq)<Math.max(pl.u*0.35,g.stop)||V.dot(dq,V.sub(Q,A))<0)g.k++; else break; }
+      if(g.k<pts.length-1)W=pts[g.k]; }
+    let tf=V.nrm(V.sub(W,this.p));
     // Geometry between camera and destination: bend toward the open heading
     // that still points most at the target, then straighten once it clears.
     if(D.free&&D.dirs){ const reach=Math.min(L,F*0.12), f0=D.free[0];
@@ -474,15 +489,59 @@ class CamFly{
       this.tf=this.f.slice(); this.tilt=0;
     }
     {
-      const a=this.aim, F=this.dfar0||5, stop=a.hit?Math.min(Math.max(a.L*0.12,F*0.004),F*0.08):F*0.01;
+      const a=this.aim, F=this.dfar0||5, stop=stopOf(a,F);
       // Re-targeting mid-flight keeps the speed ramp already built up, so the
       // camera banks onto the new heading instead of stalling and restarting.
       const was=this.go;
       this.insp=null;
-      this.go={n:a.n||0,Rg:a.hit?Math.min(F*0.3,Math.max(F*0.01,a.L*0.3)):0,R:a.R,t1:performance.now(),P:a.P,S:V.sub(a.P,V.sc(a.dir,stop)),stop,hit:a.hit,t:was?Math.max(1.5,Math.min(was.t||0,1.5)):0,L0:Math.max(1e-6,V.len(V.sub(V.sub(a.P,V.sc(a.dir,stop)),this.sp)))};this.aim=null;this.arr=null;return 'go';
+      this.go={plan:this.plan,k:1,n:a.n||0,Rg:a.hit?Math.min(F*0.3,Math.max(F*0.01,a.L*0.3)):0,R:a.R,t1:performance.now(),P:a.P,S:V.sub(a.P,V.sc(a.dir,stop)),stop,hit:a.hit,t:was?Math.max(1.5,Math.min(was.t||0,1.5)):0,L0:Math.max(1e-6,V.len(V.sub(V.sub(a.P,V.sc(a.dir,stop)),this.sp)))};this.aim=null;this.arr=null;return 'go';
     }
   }
-  cancelTap(){this.insp=null;this.chg=null;this.autoT=null;this.autoGo=false;this.aim=null;this.go=null;this.tapReq=null;this.arr=null;}
+  // Route to an aimed point, as a chain of rings one step apart. Each step is
+  // probed from the last ring looking at the destination: clear ahead, the
+  // next ring goes straight on; geometry in the way, it goes down the
+  // candidate heading that keeps a step's clearance while turning least from
+  // the destination, so the route bends round solid forms. One step per
+  // probe, on alternate frames, so the camera's own steering keeps its
+  // readings.
+  _plan(a){
+    const F=this.dfar0||5, T=V.sub(a.P,V.sc(a.dir,stopOf(a,F))), pl=this.plan;
+    if(pl&&pl.n===(a.n||0)&&V.len(V.sub(pl.T,T))<pl.u*0.05)return;
+    const P0=(this.B&&this.B.P)||this.sp||this.p, L=V.len(V.sub(T,P0));
+    // one ring per chosen step when held; a tap gets 3 to 10 by length
+    const u=L/(this.chg&&a.n>0?a.n:Math.min(10,Math.max(3,Math.ceil(L/(F*0.04)))));
+    this.plan={id:(pl?pl.id:0)+1,n:a.n||0,T,pts:[P0],u:Math.max(u,1e-6),sc:Math.max(this.scale||F*0.1,1e-6),max:24,done:false};
+  }
+  _planProbe(){
+    const pl=this.plan; if(!pl||pl.done||this.pTap||this.tapReq)return null;
+    this._plFlip=!this._plFlip; if(!this._plFlip&&this.data)return null;
+    const P=pl.pts[pl.pts.length-1], to=V.sub(pl.T,P), L=V.len(to);
+    return {id:pl.id,P,f:V.nrm(to),L,sc:pl.sc};
+  }
+  _planStep(q,v){
+    const pl=this.plan; if(!pl||pl.id!==q.id||pl.done)return;
+    const st=pl.u, F=this.dfar0||5, last=pl.pts.length-1;
+    // A ring too near the surface is pushed straight off it and measured
+    // again, so the route arcs round a form instead of skimming it.
+    const keep=Math.min(st*0.35,F*0.03), d=v[0];
+    if(last>0&&d<keep&&(pl.nudge||0)<3){ pl.nudge=(pl.nudge||0)+1;
+      const n=V.nrm([v[1]-v[2],v[3]-v[4],v[5]-v[6]]); pl.pts[last]=V.add(q.P,V.sc(n,keep-d)); return; }
+    pl.nudge=0;
+    if(q.L<=st||pl.pts.length>=pl.max){ pl.pts.push(pl.T); pl.done=true; return; }
+    // Pixel 24 is the reach toward the destination (negative: nothing hit).
+    // Clear for the next two steps: one step straight on.
+    if(v[24]<0||Math.abs(v[24])>=Math.min(q.L,st*2)*0.98){ pl.pts.push(V.add(q.P,V.sc(q.f,st))); return; }
+    // Blocked: the candidate heading that keeps a step's clearance while
+    // turning least from the destination; boxed in, the most open one.
+    let bi=-1,bs=0;
+    for(let i=0;i<17;i++){ const c=V.dot(q.dirs[i],q.f), fr=Math.abs(v[7+i]);
+      if(c<0.05||fr<st*0.5)continue; const sc=Math.min(fr,st*2)*c*c; if(sc>bs){bs=sc;bi=i;} }
+    if(bi<0)for(let i=0;i<17;i++){ const fr=Math.abs(v[7+i]); if(fr>bs){bs=fr;bi=i;} }
+    const len=bi<0?0:Math.min(st,Math.abs(v[7+bi])*0.6);
+    if(len<st*0.15){ pl.pts.push(pl.T); pl.done=true; return; }
+    pl.pts.push(V.add(q.P,V.sc(q.dirs[bi],len)));
+  }
+  cancelTap(){this.plan=null;this.insp=null;this.chg=null;this.autoT=null;this.autoGo=false;this.aim=null;this.go=null;this.tapReq=null;this.arr=null;}
   // Marker for the host overlay: screen position of the aimed or travelled-to point.
   mark(W,H){
     if(!this.go&&!this.aim&&this.arr&&this.B){
@@ -503,7 +562,11 @@ class CamFly{
     const B=this.B, v=V.sub(a.P,B.P), z=V.dot(v,B.f); if(z<=1e-6)return null;
     const x=V.dot(v,B.r)/z*B.fl, y=V.dot(v,B.u)/z*B.fl;
     const prog=(!this.aim&&this.go)?Math.min(1,Math.max(0,1-V.len(V.sub(this.go.S,B.P))/this.go.L0)):0;
-    return {x:(x*H+W)/2, y:(H-y*H)/2, state:this.aim?'aim':'go', hit:a.hit, prog, goAge:this.go?(performance.now()-(this.go.t1||0))/1000:99, age:this.aim&&!this.aim.chg?(performance.now()-this.aim.t0)/5000:0, chg:!!(this.aim&&this.aim.chg), n:(this.aim?this.aim.n:this.go&&this.go.n)||0, cap:!!(this.aim&&this.aim.cap), stepAge:this.chg?(performance.now()-this.chg.nT)/1000:9};
+    // The rings still ahead on the route (the last one is the marker itself).
+    const pl=this.aim?this.plan:this.go&&this.go.plan, path=[];
+    if(pl)for(let i=this.aim?1:(this.go.k||1);i<pl.pts.length-1;i++){ const q=V.sub(pl.pts[i],B.P), qz=V.dot(q,B.f); if(qz<=1e-6)continue;
+      path.push({x:(V.dot(q,B.r)/qz*B.fl*H+W)/2, y:(H-V.dot(q,B.u)/qz*B.fl*H)/2, r:pl.u*0.22/qz*B.fl*H/2}); }
+    return {path, x:(x*H+W)/2, y:(H-y*H)/2, state:this.aim?'aim':'go', hit:a.hit, prog, goAge:this.go?(performance.now()-(this.go.t1||0))/1000:99, age:this.aim&&!this.aim.chg?(performance.now()-this.aim.t0)/5000:0, chg:!!(this.aim&&this.aim.chg), n:(this.aim?this.aim.n:this.go&&this.go.n)||0, cap:!!(this.aim&&this.aim.cap), stepAge:this.chg?(performance.now()-this.chg.nT)/1000:9};
   }
   // Leaving Fly/Surface for Orbit: glide from the current pose to the orbit
   // eye while the blend falls back to 0. Returns false once it has arrived.
@@ -585,6 +648,17 @@ class CamFly{
     if(this.fence||!u.uCamProbe)return;
     const fb=gl.getParameter(gl.FRAMEBUFFER_BINDING),vp=gl.getParameter(gl.VIEWPORT);
     const res=u.uRes?gl.getUniform(prog,u.uRes):null;
+    const pl=this._planProbe();
+    if(pl){
+      // Planning round: from the last ring, headings around the destination,
+      // the reach ray (pixel 24) straight at it.
+      const f=pl.f, up=Math.abs(V.dot(this.up,f))<0.95?this.up:[1,0,0], r=V.nrm(V.cross(up,f)), uu=V.cross(f,r);
+      gl.uniform3f(u.uCamF,f[0],f[1],f[2]);gl.uniform3f(u.uCamR,r[0],r[1],r[2]);gl.uniform3f(u.uCamU,uu[0],uu[1],uu[2]);
+      pl.dirs=candDirs(f,r,uu); this.pPlan=pl;
+      if(u.uCamTap)gl.uniform3f(u.uCamTap,f[0],f[1],f[2]);
+      gl.uniform3f(u.uCamPos,pl.P[0],pl.P[1],pl.P[2]); gl.uniform1f(u.uCamScale,pl.sc);
+      this._probeDraw(gl,u,fb,vp,res); return;
+    }
     // the probe's headings are around the steering direction, not the
     // looked-down view of Surface mode
     const f=this.f,r=V.nrm(V.cross(this.up,f)),uu=V.cross(f,r);
@@ -603,6 +677,9 @@ class CamFly{
     // Pixel 0 of a chained tap round is measured at the tap origin, not the eye.
     this.pPos=this._tapPos?null:((this.B&&this.B.P)||this.sp||this.p).slice();
     if(this._tapPos){ gl.uniform3f(u.uCamPos,this._tapPos[0],this._tapPos[1],this._tapPos[2]); gl.uniform1f(u.uCamScale,this._tapSc); this._tapPos=null; }
+    this._probeDraw(gl,u,fb,vp,res);
+  }
+  _probeDraw(gl,u,fb,vp,res){
     gl.uniform1f(u.uCamProbe,1);if(u.uRes)gl.uniform2f(u.uRes,32,1);
     gl.bindFramebuffer(gl.FRAMEBUFFER,this.fb);gl.viewport(0,0,32,1);
     gl.drawArrays(gl.TRIANGLES,0,3);

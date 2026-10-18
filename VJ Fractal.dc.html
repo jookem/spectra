@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<script src="./support.js?v=b27"></script>
+<script src="./support.js?v=b28"></script>
 <meta name="ext-resource-dependency" content="./csi.js" data-resource-id="csiJs">
 </head>
 <body>
@@ -30,12 +30,12 @@
   @keyframes vjspin{to{transform:rotate(360deg)}}
   @keyframes vjscan{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
 </style>
-<script src="vj-engine.js?v=b27"></script>
-<script src="deep-zoom.js?v=b27"></script>
-<script src="cam-fly.js?v=b27"></script>
-<script src="wave-mesh.js?v=b27"></script>
-<script src="wave-gl.js?v=b27"></script>
-<script src="scene-thumbs.js?v=b27"></script>
+<script src="vj-engine.js?v=b28"></script>
+<script src="deep-zoom.js?v=b28"></script>
+<script src="cam-fly.js?v=b28"></script>
+<script src="wave-mesh.js?v=b28"></script>
+<script src="wave-gl.js?v=b28"></script>
+<script src="scene-thumbs.js?v=b28"></script>
 </helmet>
 <template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#08090A"/><circle cx="50" cy="50" r="22" fill="none" stroke="#C8FF2E" stroke-width="3"/><circle cx="50" cy="50" r="11" fill="none" stroke="#C8FF2E" stroke-width="2" opacity="0.6"/><circle cx="50" cy="50" r="3.5" fill="#C8FF2E"/></svg></template>
 <div style="position:relative;width:100vw;height:100dvh;overflow:hidden;background:#08090A;font-family:'JetBrains Mono',ui-monospace,monospace;color:#F2F3F0;user-select:none;-webkit-user-select:none;">
@@ -98,7 +98,7 @@
           <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.42);">A SWRV Systems production</div>
           <div style="width:18px;height:1px;background:rgba(242,243,240,0.25);"></div>
         </div>
-        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 27 · 18 Oct 2026</div>
+        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 28 · 19 Oct 2026</div>
       </div>
       <div style="max-width:420px;text-align:center;font-size:12.5px;line-height:1.7;color:rgba(242,243,240,0.55);">The visuals are driven entirely by what the microphone hears. Nothing is recorded or sent anywhere.</div>
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,230px));gap:10px;width:100%;max-width:470px;justify-content:center;">
@@ -157,7 +157,7 @@
     <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
       <div style="font-family:Archivo,sans-serif;font-weight:700;font-size:54px;letter-spacing:-0.03em;line-height:1;">SPECTRA</div>
       <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.36);">A SWRV Systems production</div>
-      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 27 · 18 Oct 2026</div>
+      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 28 · 19 Oct 2026</div>
     </div>
     <div ref="{{ warmWrapRef }}" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
       <div style="width:260px;height:2px;background:rgba(255,255,255,0.1);">
@@ -175,7 +175,7 @@
 
 
   <sc-if value="{{ txtPanelOn }}" hint-placeholder-val="{{ true }}">
-    <div style="position:absolute;left:20px;top:74px;width:274px;max-height:calc(100% - 150px);overflow-y:auto;box-sizing:border-box;z-index:35;padding:16px 18px 18px;display:flex;flex-direction:column;gap:14px;background:rgba(8,9,10,0.34);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.11);transform:{{ txtShift }};">
+    <div style="position:absolute;left:20px;top:74px;width:274px;max-height:calc(100% - 150px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--acc30) transparent;box-sizing:border-box;z-index:35;padding:16px 18px 18px;display:flex;flex-direction:column;gap:14px;background:rgba(8,9,10,0.34);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.11);transform:{{ txtShift }};">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:grab;touch-action:none;" onPointerDown="{{ txtDrag.down }}" onPointerMove="{{ txtDrag.move }}" onPointerUp="{{ txtDrag.up }}" onPointerCancel="{{ txtDrag.up }}" onDoubleClick="{{ txtDrag.reset }}" title="Drag to move · double-click to put it back">
         <div style="font-size:9.5px;letter-spacing:0.24em;text-transform:uppercase;color:rgba(242,243,240,0.55);">Text in scene</div>
         <button onClick="{{ txtPanelClose }}" title="Close (Y)" style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1;padding:3px 7px;cursor:pointer;border:1px solid rgba(255,255,255,0.12);background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.45);" style-hover="color:#F2F3F0;border-color:rgba(255,255,255,0.3);">×</button>
@@ -198,7 +198,25 @@
           <button onClick="{{ ft.pick }}" title="{{ ft.name }}" style="font-family:{{ ft.css }};font-weight:700;font-size:12px;padding:7px 0;cursor:pointer;border:1px solid {{ ft.border }};background:{{ ft.bg }};color:{{ ft.fg }};">Aa</button>
         </sc-for>
       </div>
-      <sc-for list="{{ txtSliders }}" as="ts" hint-placeholder-count="6">
+      <sc-for list="{{ txtSliders }}" as="ts" hint-placeholder-count="11">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:44px;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(242,243,240,0.45);">{{ ts.label }}</div>
+          <div onPointerDown="{{ ts.drag.down }}" onPointerMove="{{ ts.drag.move }}" onPointerUp="{{ ts.drag.up }}" style="position:relative;flex:1 1 auto;min-width:0;height:{{ ctlHitH }};display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
+            <div style="position:relative;width:100%;height:{{ ctlTrackH }};background:rgba(255,255,255,0.13);">
+              <div style="position:absolute;left:0;top:0;bottom:0;width:{{ ts.pct }};background:var(--acc45);"></div>
+              <div style="position:absolute;top:{{ ctlThumbTop }};left:{{ ts.pct }};width:{{ ctlThumbW }};height:{{ ctlThumbH }};margin-left:{{ ctlThumbML }};background:var(--acc);"></div>
+            </div>
+          </div>
+          <div style="width:26px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(242,243,240,0.4);">{{ ts.read }}</div>
+        </div>
+      </sc-for>
+      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(242,243,240,0.45);margin-top:6px;">Motion</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:3px;">
+        <sc-for list="{{ txtAnims }}" as="ta" hint-placeholder-count="8">
+          <button onClick="{{ ta.pick }}" title="{{ ta.tip }}" style="font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:0.06em;text-transform:uppercase;padding:7px 0;cursor:pointer;border:1px solid {{ ta.border }};background:{{ ta.bg }};color:{{ ta.fg }};">{{ ta.name }}</button>
+        </sc-for>
+      </div>
+      <sc-for list="{{ txtAnimSliders }}" as="ts" hint-placeholder-count="2">
         <div style="display:flex;align-items:center;gap:8px;">
           <div style="width:44px;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(242,243,240,0.45);">{{ ts.label }}</div>
           <div onPointerDown="{{ ts.drag.down }}" onPointerMove="{{ ts.drag.move }}" onPointerUp="{{ ts.drag.up }}" style="position:relative;flex:1 1 auto;min-width:0;height:{{ ctlHitH }};display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
@@ -1526,8 +1544,8 @@ class Component extends DCLogic {
       // look settings persist so a rig comes back up with the venue name ready.
       txtOn:false, txtList:[], txtIdx:0,
       txtPanel:false,
-      txtFont:'Archivo', txtSize:0.5, txtY:0.5, txtX:0.5, txtZ:0, txtRot:0, txtDepth:0.4,
-      txtWarp:0.6, txtInk:0.55, txtReact:0.5
+      txtFont:'Archivo', txtSize:0.5, txtY:0.5, txtX:0.5, txtZ:0, txtRot:0, txtRotX:0, txtRotY:0, txtDepth:0.4,
+      txtWarp:0.6, txtInk:0.55, txtReact:0.5, txtAnim:'off', txtAnimSpd:0.4, txtAnimAmt:0.6
     };
     Object.assign(this.state, this.loadText() || {});
     this.tapMarkRef=React.createRef(); this.canvasRef=React.createRef(); this.fpsRef=React.createRef(); this.padRef=React.createRef(); this.magRef=React.createRef(); this.bpmRef=React.createRef(); this.noteRef=React.createRef(); this.beatRef=React.createRef();
@@ -2341,6 +2359,7 @@ class Component extends DCLogic {
           op = t<0.12 ? 1 : Math.max(0, 1-(t-0.12)/0.88); glow = Math.max(0,1-t*1.6);
         }
         el.style.opacity = String(op);
+        this.drawFlyPath(m.path, op);
         const ring=el.querySelector('[data-ring]'), lbl=el.querySelector('[data-lbl]');
         // Travelling: the ring closes in on the dot as the camera nears the point.
 
@@ -2367,7 +2386,24 @@ class Component extends DCLogic {
         this._tapVis=true; return;
       }
     }
-    if(this._tapVis){ el.style.display='none'; this._tapVis=false; }
+    if(this._tapVis){ el.style.display='none'; this._tapVis=false; this.drawFlyPath(null); }
+  }
+  // The route to the aimed point: a ring at each step the flight will pass
+  // through, nearer rings larger and stronger, in the target's colour. The
+  // route bends where the probe found the fractal in the way.
+  drawFlyPath(path, op){
+    const host=this.tapMarkRef && this.tapMarkRef.current; if(!host || !host.parentNode) return;
+    let box=this._pathBox;
+    if(!box){ box=this._pathBox=document.createElement('div'); box.style.cssText='position:absolute;left:0;top:0;width:0;height:0;z-index:13;pointer-events:none;'; host.parentNode.insertBefore(box,host); }
+    const P=path||[], kids=box.children;
+    if(this._tgtCss) box.style.setProperty('--tgt', this._tgtCss);
+    while(kids.length<P.length){ const d=document.createElement('div'); d.style.cssText='position:absolute;box-sizing:border-box;border:1.5px solid var(--tgt,#F2F3F0);border-radius:50%;transform:translate(-50%,-50%);'; box.appendChild(d); }
+    for(let i=0;i<kids.length;i++){ const d=kids[i], p=P[i];
+      if(!p){ if(d.style.display!=='none') d.style.display='none'; continue; }
+      const sz=Math.round(Math.min(160,Math.max(10,p.r*2)));
+      d.style.display='block'; d.style.left=p.x+'px'; d.style.top=p.y+'px'; d.style.width=sz+'px'; d.style.height=sz+'px';
+      d.style.opacity=String((op==null?1:op)*(0.9-0.55*i/Math.max(1,P.length)));
+    }
   }
   componentDidUpdate(){
     const pc=this._lastChrome; this._lastChrome=this.state.chrome;
@@ -3472,7 +3508,7 @@ class Component extends DCLogic {
      'uTex','uVidMix','uHasTex','uVidFlip','uVidFlipV','uVidMode','uPrev','uFeed','uDrift','uCamYaw','uCamPitch','uCamAuto','uPan','uOrbit','uCA','uCB','uCC','uIter','uXfade','uXfMode','uCtr','uFocus','uPalSel','uSpec',
      'uRepV','uSceneOff','uLook','uZX','uZLoop','uZAnc','uZRat','uZRot','uZBase','uIOR','uZIter','uTravel','uStrobe','uSat','uGam','uSpan','uWarm','uFill','uField','uLine','uDOF','uBump','uCoCOut','uSpin','uSmooth','uChroma','uNote','uNoteConf','uTonal','uChordChg','uBeatPh','uCtr3','uDepthOut','uCamRoll',
      'uGly',
-     'uTxt','uTxtOn','uTxtDepth','uTxtScale','uTxtY','uTxtX','uTxtZ','uTxtRot','uTxtHue','uTxtWeight','uTxtWarp','uTxtInk','uTxtLit','uTxtJit','uTxtAsp','uPlane','uDeep','uDeepPix','uDeepBase','uDeepShade','uDeepMax','uRefLen','uDeepOff','uOrb','uCamMode','uCamScale','uRep','uCamProbe','uCamPos','uCamF','uCamR','uCamU','uCamTap','uTgt','uTgtK','uTgtC','uCamFog'];
+     'uTxt','uTxtOn','uTxtDepth','uTxtScale','uTxtY','uTxtX','uTxtZ','uTxtRot','uTxtRx','uTxtRy','uTxtHue','uTxtWeight','uTxtWarp','uTxtInk','uTxtLit','uTxtJit','uTxtAsp','uPlane','uDeep','uDeepPix','uDeepBase','uDeepShade','uDeepMax','uRefLen','uDeepOff','uOrb','uCamMode','uCamScale','uRep','uCamProbe','uCamPos','uCamF','uCamR','uCamU','uCamTap','uTgt','uTgtK','uTgtC','uCamFog'];
     // A canvas scene has no shader family — compile mode 0 so the GL path is
     // still initialised for whenever the user switches back to a fractal.
     // Safe start on weak GPUs (integrated / software). Compiling a raymarch
@@ -4590,7 +4626,7 @@ class Component extends DCLogic {
     if(mode===111) return {ca:'Static', detail:'Screens'};
     if(mode===112) return {morph:'Horizon', ca:'Shimmer'};
     if(mode===113) return {morph:'Width', ca:'Spacing'};
-    if(mode===114) return {morph:'Horizon', ca:'Ripple', detail:'Screen'};
+    if(mode===114) return {morph:'Horizon', ca:'Ripple', cb:'Depth', detail:'Screen'};
     if(mode===115) return {morph:'Screen', cb:'Streaks', detail:'Stars'};
     if(mode===116) return {morph:'Height', ca:'Spin'};
     if(mode===111) return {ca:'Static', detail:'Screens'};
@@ -5168,6 +5204,10 @@ class Component extends DCLogic {
     // Sized to the frame, then fitted to the message so a long line never runs
     // off the edges.
     let px=H*(0.10+size*0.34)*(1+A.beat*0.10*rk);
+    // Z has no depth to move through on a flat canvas, so it reads as
+    // distance: positive (away) shrinks the type, negative brings it closer.
+    const ta2=this.txtAnimAt();
+    px*=Math.pow(0.82,Math.max(-3.2,Math.min(3.2,(s.txtZ||0)+((this.txtNudge&&this.txtNudge.z)||0)+ta2.z)));
     ctx.save();
     ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.font='700 '+px.toFixed(1)+'px '+this.txtFont();
@@ -5177,10 +5217,12 @@ class Component extends DCLogic {
     // X and rotation were missing here, so on the canvas scenes the message
     // ignored two of its own controls and sat centred whatever the panel said.
     const tn2=this.txtNudge||{x:0,y:0,rot:0};
-    const tX2=Math.max(0,Math.min(1,(s.txtX==null?0.5:s.txtX)+(tn2.x||0)));
-    const cx=W*0.5+(tX2-0.5)*0.8*H, cy=H*(1-(s.txtY==null?0.5:s.txtY));
-    const rot2=(s.txtRot||0)+(tn2.rot||0);
-    if(rot2){ ctx.translate(cx,cy); ctx.rotate(rot2); ctx.translate(-cx,-cy); }
+    const tX2=Math.max(0,Math.min(1,(s.txtX==null?0.5:s.txtX)+(tn2.x||0)+ta2.x));
+    const cx=W*0.5+(tX2-0.5)*0.8*H, cy=H*(1-Math.max(0,Math.min(1,(s.txtY==null?0.5:s.txtY)+ta2.y)));
+    const rot2=(s.txtRot||0)+(tn2.rot||0)+ta2.rz;
+    // Yaw and pitch foreshorten on the flat canvas, as on the 2D shader scenes.
+    const fx2=Math.cos((s.txtRotY||0)+ta2.ry), fy2=Math.cos((s.txtRotX||0)+ta2.rx);
+    if(rot2 || fx2<0.9999 || fy2<0.9999){ ctx.translate(cx,cy); ctx.rotate(rot2); ctx.scale(fx2,fy2); ctx.translate(-cx,-cy); }
     // Bass thickens the strokes, the same weight cue the shader path uses.
     const wt=A.bass*rk*px*0.035;
     // Colour tracks the detected key when the reading is confident.
@@ -5492,12 +5534,48 @@ class Component extends DCLogic {
       const cs=clip(pts.map(toC)); if(cs.length<3) return null;
       let d=0; for(const c of cs) d+=c[2]; d/=cs.length;
       if(!n){ n=normOf(pts); const A=pts[0]; if(n[0]*(cam.x-A[0])+n[1]*(cam.y-A[1])+n[2]*(cam.z-A[2])<0) n=[-n[0],-n[1],-n[2]]; }
-      return {d:d+(o.bias||0), p:cs.map(pj), fill:o.raw||(rgb?shade(rgb,n,o,d):'#000'), a:o.alpha, comp:o.comp, edge:!o.alpha&&!o.comp&&!o.noEdge, kids:null, n};
+      return {d:d+(o.bias||0), p:cs.map(pj), fill:o.raw||(rgb?shade(rgb,n,o,d):'#000'), a:o.alpha, comp:o.comp, edge:!o.alpha&&!o.comp&&!o.noEdge, kids:null, n, w:pts};
     };
     // Box faces, corners ordered BL, TL, TR, BR as seen from outside.
     const BF={pz:[[.5,-.5,.5],[.5,.5,.5],[-.5,.5,.5],[-.5,-.5,.5]], nz:[[-.5,-.5,-.5],[-.5,.5,-.5],[.5,.5,-.5],[.5,-.5,-.5]],
               px:[[.5,-.5,-.5],[.5,.5,-.5],[.5,.5,.5],[.5,-.5,.5]], nx:[[-.5,-.5,.5],[-.5,.5,.5],[-.5,.5,-.5],[-.5,-.5,-.5]],
               py:[[-.5,.5,-.5],[-.5,.5,.5],[.5,.5,.5],[.5,.5,-.5]], ny:[[-.5,-.5,.5],[-.5,-.5,-.5],[.5,-.5,-.5],[.5,-.5,.5]]};
+    // Sorting by centre depth fails wherever a big face meets small ones: a
+    // soffit's centre lies behind the column tops it roofs, a ceiling's past
+    // the frames hung under it, so the big face painted over them. After the
+    // sort, each big face is checked against the faces that overlap it on
+    // screen. A face wholly on the camera's side of its plane must paint after
+    // it, one wholly behind the plane before it; the big face moves the least
+    // distance that satisfies both. Faces that straddle the plane say nothing,
+    // and a conflict (a cycle no plane can break) leaves the face where it is.
+    const resolve=()=>{
+      const N=faces.length; if(N<2) return;
+      const bb=f=>{ let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+        const P=f.p||(f.q?f.q.map(q=>pj(toC(q))):[]);
+        for(const v of P){ if(v[0]<x0) x0=v[0]; if(v[0]>x1) x1=v[0]; if(v[1]<y0) y0=v[1]; if(v[1]>y1) y1=v[1]; }
+        return f.bb=[x0,y0,x1,y1]; };
+      const big=[], minA=OX*OY*4*0.004;
+      for(const f of faces){ const b=bb(f); f.ar=(b[2]-b[0])*(b[3]-b[1]); if(f.w && f.n && f.ar>minA) big.push(f); }
+      big.sort((a,b)=>b.ar-a.ar); if(big.length>96) big.length=96;
+      const eps=2e-3;
+      for(const B of big){
+        const n=B.n, P0=B.w[0], sc=n[0]*(cam.x-P0[0])+n[1]*(cam.y-P0[1])+n[2]*(cam.z-P0[2]);
+        if(Math.abs(sc)<1e-6) continue;
+        const sg=sc>0?1:-1, b=B.bb;
+        let lastBehind=-1, firstFront=Infinity, cur=-1;
+        for(let i=0;i<faces.length;i++){ const X=faces[i];
+          if(X===B){ cur=i; continue; }
+          const x=X.bb; if(!X.w || x[2]<b[0] || x[0]>b[2] || x[3]<b[1] || x[1]>b[3]) continue;
+          let mn=Infinity, mx=-Infinity;
+          for(const v of X.w){ const s=(n[0]*(v[0]-P0[0])+n[1]*(v[1]-P0[1])+n[2]*(v[2]-P0[2]))*sg; if(s<mn) mn=s; if(s>mx) mx=s; }
+          if(mn>-eps && mx>eps){ if(i<firstFront) firstFront=i; }
+          else if(mx<eps && mn<-eps) lastBehind=i;
+        }
+        if(lastBehind>=firstFront || (cur>lastBehind && cur<firstFront)) continue;
+        faces.splice(cur,1);
+        faces.splice(cur>=firstFront?firstFront:lastBehind,0,B);
+      }
+    };
     const api={
       toC, pj, near,
       P(p){ const c=toC(p); return c[2]>near?[OX+F*c[0]/c[2], OY-F*c[1]/c[2], c[2]]:null; },
@@ -5522,7 +5600,7 @@ class Component extends DCLogic {
           if(q.some(p=>toC(p)[2]<near)) return null;
         }
         let d=0; for(const p of q) d+=toC(p)[2]; d/=4;
-        const r={d:d+(o.bias||0), vid:V, q, q0:pts, sub, o, kids:null, n:par?par.n:null};
+        const r={d:d+(o.bias||0), vid:V, q, q0:pts, sub, o, kids:null, n:par?par.n:null, w:q};
         if(par) (par.kids||(par.kids=[])).push(r); else faces.push(r);
         return r;
       },
@@ -5553,6 +5631,7 @@ class Component extends DCLogic {
       },
       paint(ctx){
         faces.sort((p,q)=>q.d-p.d);
+        resolve();
         ctx.lineJoin='round';
         const tri=(img,A,B,C,u0,v0,u1,v1,u2,v2)=>{
           const den=u0*(v1-v2)+u1*(v2-v0)+u2*(v0-v1); if(Math.abs(den)<1e-9) return;
@@ -6008,86 +6087,170 @@ class Component extends DCLogic {
     ctx.restore();
   }
 
+  // People cut out of the clip, for the Reflection Pool. MediaPipe's selfie
+  // segmenter loads from the CDN the first time the scene shows real video
+  // (as the AR tracking does) and runs about 15 times a second on a small copy
+  // of the frame. It hands back the people with a rim of light round them, and
+  // their silhouette as a soft shadow, so the scene can lift them off the
+  // screen in front of their own background.
+  async segLoad(){
+    const S=this._seg||(this._seg={}); if(S.busy||S.task||S.fail) return; S.busy=true;
+    try{
+      const V='https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
+      const mp=this._mp||(this._mp=await import(V+'/vision_bundle.mjs'));
+      const files=this._mpFiles||(this._mpFiles=await mp.FilesetResolver.forVisionTasks(V+'/wasm'));
+      S.task=await mp.ImageSegmenter.createFromOptions(files,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/1/selfie_segmenter.tflite',delegate:'CPU'},
+        runningMode:'VIDEO',outputConfidenceMasks:true,outputCategoryMask:false});
+    }catch(e){ S.fail=true; }
+    S.busy=false;
+  }
+  segMatte(V,rim){
+    const M=this.MESH;
+    if(!V || V.src===M.sigCv) return null;
+    const S=this._seg||(this._seg={});
+    if(!S.task){ this.segLoad(); return null; }
+    const mk=()=>document.createElement('canvas');
+    const w=192, h=Math.max(2,Math.round(w*V.h/Math.max(1,V.w))), W2=480, H2=Math.max(2,Math.round(W2*V.h/Math.max(1,V.w)));
+    if(!S.inp){ S.inp=mk(); S.msk=mk(); S.out=mk(); S.sh=mk(); }
+    if(S.inp.width!==w||S.inp.height!==h){ S.inp.width=w; S.inp.height=h; S.ok=false; }
+    if(S.out.width!==W2||S.out.height!==H2){ S.out.width=S.sh.width=W2; S.out.height=S.sh.height=H2; }
+    const now=performance.now();
+    if(now-(S.t||0)>=66){
+      S.t=now;
+      try{
+        S.inp.getContext('2d').drawImage(V.src,0,0,w,h);
+        S.task.segmentForVideo(S.inp,now,r=>{
+          const m=r && r.confidenceMasks && r.confidenceMasks[0]; if(!m) return;
+          const a=m.getAsFloat32Array();
+          if(S.msk.width!==m.width||S.msk.height!==m.height){ S.msk.width=m.width; S.msk.height=m.height; }
+          const mx=S.msk.getContext('2d'), id=mx.createImageData(m.width,m.height), d=id.data;
+          for(let i=0;i<a.length;i++){ const k=Math.max(0,Math.min(1,(a[i]-0.3)/0.4)); d[i*4]=d[i*4+1]=d[i*4+2]=255; d[i*4+3]=k*k*(3-2*k)*255; }
+          mx.putImageData(id,0,0); S.ok=true;
+        });
+      }catch(e){ S.fail=true; S.task=null; return null; }
+      if(S.ok){
+        // shadow: the silhouette, black and soft
+        const sx=S.sh.getContext('2d'); sx.clearRect(0,0,W2,H2);
+        sx.filter='blur(6px)'; sx.drawImage(S.msk,0,0,W2,H2); sx.filter='none';
+        sx.globalCompositeOperation='source-in'; sx.fillStyle='#000'; sx.fillRect(0,0,W2,H2); sx.globalCompositeOperation='source-over';
+        // cut-out: the frame through the mask, then a rim glow behind it
+        const ox=S.out.getContext('2d'); ox.globalCompositeOperation='source-over'; ox.clearRect(0,0,W2,H2);
+        ox.drawImage(V.src,0,0,W2,H2);
+        ox.globalCompositeOperation='destination-in'; ox.drawImage(S.msk,0,0,W2,H2);
+        ox.globalCompositeOperation='destination-over';
+        ox.shadowColor='rgb('+rim.map(v=>v|0).join(',')+')'; ox.shadowBlur=12;
+        ox.drawImage(S.out,0,0); ox.drawImage(S.out,0,0); ox.drawImage(S.out,0,0);
+        ox.shadowBlur=0; ox.globalCompositeOperation='source-over';
+      }
+    }
+    if(!S.ok) return null;
+    const o={w:W2,h:H2,flip:V.flip,flipV:V.flipV,mix:V.mix};
+    return {cut:Object.assign({src:S.out},o), shade:Object.assign({src:S.sh},o)};
+  }
   drawPool(ctx,W,H,tick){
     const M=this.MESH, e=this.eff||{}, A=this.a||{}, Vw=this.canvasView(W,H), t=(M.mtick||0)/60, rgb=(h,s,l)=>this.hrgb(h,s,l), hs=k=>this.hsh1(k);
-    const hu=(e.hue??0.55)*360, V=this.sceneSig(), vc=this.vidAvg(V);
-    const cam=this.yawOrbit({x:Math.sin(t*0.06)*1.5, y:1.3+((e.morph??0.5)-0.5)*1.6, z:0, yaw:Math.sin(t*0.05)*0.04, pitch:-0.03},19);
-    const F=H*1.0*Vw.sc, OX=W/2, OY=H*0.5; this.vpAim(cam,F,Vw); this.vpReport(OX-F*Math.tan(cam.yaw)/Math.cos(cam.pitch), OY-F*Math.tan(cam.pitch)); const hz=OY-F*Math.tan(cam.pitch);
+    const hu=(e.hue??0.55)*360, V=this.sceneSig();
+    // The temple stands alone in the pool and the camera circles it slowly
+    // (Twist adds to the orbit), so it is built the same from every side.
+    const Z=19, orb=t*0.035+(this.scnYaw||0), cy=1.3+((e.morph??0.5)-0.5)*1.6;
+    const R=25, cam=this.lookAt(Math.sin(orb)*R, cy, Z-Math.cos(orb)*R, 0, cy+2.2, Z);
+    const F=H*1.0*Vw.sc, OX=W/2, OY=H*0.5; this.vpAim(cam,F,Vw); this.vpReport(OX+Vw.ox, OY+Vw.oy); const hz=OY-F*Math.tan(cam.pitch);
     this.skyGrad(ctx,W,hz,'hsl('+hu+',40%,4%)','hsl('+(hu+20)+',45%,13%)');
     this.octx=ctx; this.outrunStars(W,H,hz,t);
     this.lpRidge(ctx,W,hz,H*0.09,21,'hsl('+hu+',30%,8%)','hsl('+hu+',28%,11%)',-cam.yaw*F);
-    const S=this.lp3(Object.assign(cam,{f:F,cx:OX,cy:OY,L1:[-0.4,0.7,-0.5],C1:[0.28,0.3,0.45],amb:[0.2,0.2,0.3],L2:[0,0.3,-1],C2:[vc[0]*0.9,vc[1]*0.9,vc[2]*0.9],fogC:rgb(hu+20,0.45,0.12),fogK:0.02}));
+    const S=this.lp3(Object.assign(cam,{f:F,cx:OX,cy:OY,L1:[-0.4,0.7,-0.5],C1:[0.28,0.3,0.45],amb:[0.2,0.2,0.3],fogC:rgb(hu+20,0.45,0.12),fogK:0.02}));
     ctx.fillStyle='hsl('+hu+',25%,6%)'; ctx.fillRect(0,hz,W,H-hz);
-    // A ruined Doric temple on a rocky island at the far shore: stepped
-    // stylobate, fluted columns built from drums with capitals, an entablature
-    // with a teal-panelled frieze and a pediment. The clip plays on the cella
-    // wall between the columns. One corner has fallen: a toppled drum, a
-    // missing column, broken paving and rocks with grass in the cracks.
-    // The screen is the back wall of the cella, deep under the roof, so the
-    // whole temple stands in front of it.
-    const sw=7*(0.75+(e.detail??0.5)*0.5), sh=sw*9/16, Z=19;
+    // A Doric temple on a rocky island, columns on all four sides under a
+    // gabled roof. In the middle of the floor stands a pedestal (stepped
+    // plinth, fluted drum, a capital of leaves and corner volutes, a square
+    // abacus) and on it the screen: a stone-framed block with the clip on all
+    // four faces, so it reads from any side. The people in the clip float a
+    // little off each face (Depth), rimmed in light, over their own shadow.
+    const sw=5.6*(0.75+(e.detail??0.5)*0.5), sh=sw*9/16, sd=sw*0.6;
     const stone=rgb(40,0.22,0.72), stoneD=rgb(38,0.2,0.6), stoneL=rgb(42,0.25,0.8), teal=rgb(180,0.45,0.42), rock=rgb(28,0.3,0.42), sand=rgb(32,0.35,0.5), grass=rgb(115,0.5,0.38);
-    const NC=6, TW=sw+3.2, TD=7.2, xs=i=>(i/(NC-1)-0.5)*TW, zf=Z-TD/2+0.6, zb=Z+TD/2-0.6, CH=sh+1.6;
+    const fl=0.65, PH=2.04, SB=sh+0.6, CH=PH+SB+0.9, TW=sw+5, hw=TW/2, ci=sw/2+0.75, fy=fl+0.11;
     // island
-    S.box([0,-0.5,Z],[TW+9,1.2,TD+8],0.04,sand,{taper:[0.92,0.9]});
-    S.box([1.5,-1.4,Z+0.5],[TW+12,1.0,TD+10],0.1,rock,{taper:[0.9,0.85]});
+    S.box([0,-0.5,Z],[TW+9,1.2,TW+9],0.04,sand,{taper:[0.92,0.92]});
+    S.box([0,-1.4,Z],[TW+12,1.0,TW+12],0.1,rock,{taper:[0.9,0.9]});
     // stylobate steps
-    for(let k=0;k<3;k++){ const g=(2-k)*0.55; S.box([0,0.1+k*0.22,Z],[TW+1.6+g*2,0.22,TD+1.2+g*2],0,k%2?stone:stoneD); }
-    const fy=0.76;
-    // cella back wall with the screen, just in front of the back colonnade
-    // Painted first (bias): everything else stands in front of it, and a
-    // depth sort of its big faces against small column faces let columns
-    // bleed through the screen.
-    const cel=S.box([0,fy+CH/2,zb-0.45],[TW-2.6,CH,0.4],0,stoneD,{bias:40});
-    if(cel.nz){ S.decal(cel.nz,cel.on('nz',0.06,0.08,0.94,0.92,0.01),[14,13,16],{emit:1}); S.vid(cel.nz,cel.on('nz',0.075,0.1,0.925,0.9,0.02),V,{alpha:0.97}); }
-    const col=(x,z,hgt,broken)=>{
-      S.box([x,fy+0.12,z],[0.95,0.24,0.95],0,stoneL);
-      const nd=3, dh=(hgt-0.6)/nd;
-      for(let d=0;d<(broken?2:nd);d++){
-        const B=S.box([x,fy+0.24+dh*(d+0.5),z],[0.64,dh-0.03,0.64],0.3927,stone,{taper:[0.94,0.94]});
-        for(const k of ['nz','px','nx','pz']) if(B[k]) for(let u=0;u<3;u++) S.decal(B[k],B.on(k,0.14+u*0.29,0.02,0.2+u*0.29,0.98,0.005),stoneD);
-      }
-      if(!broken){ S.box([x,fy+hgt-0.27,z],[0.8,0.14,0.8],0,stoneL,{taper:[1.2,1.2]}); S.box([x,fy+hgt-0.1,z],[0.98,0.2,0.98],0,stoneL); }
+    for(let k=0;k<3;k++){ const g=(2-k)*0.55; S.box([0,0.1+k*0.22,Z],[TW+1.6+g*2,0.22,TW+1.6+g*2],0,k%2?stone:stoneD); }
+    const flute=(B,n,c)=>{ for(const k of ['nz','px','nx','pz']) if(B[k]) for(let u=0;u<n;u++){ const m=(u+0.5)/n; S.decal(B[k],B.on(k,m-0.03,0.04,m+0.03,0.96,0.005),c); } };
+    const col=(x,z)=>{
+      S.box([x,fy+0.12,Z+z],[0.95,0.24,0.95],0,stoneL);
+      const nd=3, dh=(CH-0.6)/nd;
+      for(let d=0;d<nd;d++) flute(S.box([x,fy+0.24+dh*(d+0.5),Z+z],[0.64,dh-0.03,0.64],0.3927,stone,{taper:[0.94,0.94]}),3,stoneD);
+      S.box([x,fy+CH-0.27,Z+z],[0.8,0.14,0.8],0,stoneL,{taper:[1.2,1.2]}); S.box([x,fy+CH-0.1,Z+z],[0.98,0.2,0.98],0,stoneL);
     };
-    // Columns flank the screen: the outer pair at the front, the side rows
-    // and the back row stand clear of the picture; the front-centre span is
-    // left open so nothing stands in front of the video.
-    // Both sides hold the roof up: a full column at each front corner and
-    // each side row. The ruined corner is now a fallen column lying on the
-    // paving beside the temple, clear of the roof line.
-    for(const i of [0,NC-1]) col(xs(i),zf,CH+0.2,false);
-    for(const z of [Z-0.8,Z+0.9]){ col(xs(0),z,CH+0.2,false); col(xs(NC-1),z,CH+0.2,false); }
-    col(xs(NC-1)+2.3,zf+0.4,CH*0.55,true);
-    // Back row: only the corners; the rest stood hidden behind the screen wall.
-    for(const i of [0,NC-1]) col(xs(i),zb+0.55,CH+0.2,false);
-    // entablature over the standing part
-    const ey=fy+CH+0.2, eL=xs(0)-0.55, eR=xs(NC-1)+0.55, eW=eR-eL, ex=(eL+eR)/2;
-    // The roof is painted last (negative bias): the columns all stand under
-    // it, and its big faces lost the depth sort to the column tops.
-    const RB={bias:-40};
-    S.box([ex,ey+0.18,Z],[eW,0.36,TD-0.6],0,stone,RB);
-    const fr=S.box([ex,ey+0.6,Z],[eW,0.48,TD-0.7],0,stoneL,RB);
-    if(fr.nz){ const nm=7; for(let m=0;m<nm;m++){ const u0=(m+0.18)/nm, u1=(m+0.82)/nm; S.decal(fr.nz,fr.on('nz',u0,0.18,u1,0.82,0.01),stone); S.decal(fr.nz,fr.on('nz',u0+0.03,0.3,u1-0.03,0.7,0.02),teal);
-      S.decal(fr.nz,fr.on('nz',(m+0.9)/nm,0.1,(m+0.98)/nm,0.9,0.01),stoneD); } }
-    S.box([ex,ey+0.96,Z],[eW+0.3,0.22,TD-0.3],0,stoneL,RB);
-    // pediment: front triangle and two roof slopes
-    const py0=ey+1.07, pk=1.25, zF=Z-(TD-0.3)/2, zB=Z+(TD-0.3)/2, L0=ex-(eW+0.3)/2, R0=ex+(eW+0.3)/2;
-    const tri=S.face([[L0,py0,zF-0.01],[ex,py0+pk,zF-0.01],[R0,py0,zF-0.01]],stone,{n:[0,0,-1],bias:-41});
-    S.decal(tri,[[L0+0.6,py0+0.12,zF-0.03],[ex,py0+pk-0.3,zF-0.03],[R0-0.6,py0+0.12,zF-0.03]],stoneD);
-    S.face([[L0-0.1,py0,zF-0.1],[ex,py0+pk+0.05,zF-0.1],[ex,py0+pk+0.05,zB+0.1],[L0-0.1,py0,zB+0.1]],stoneL,RB);
-    S.face([[ex,py0+pk+0.05,zF-0.1],[R0+0.1,py0,zF-0.1],[R0+0.1,py0,zB+0.1],[ex,py0+pk+0.05,zB+0.1]],stoneL,RB);
-    // fallen pieces, slabs, rocks, grass
-    const fx=xs(NC-1)+1.4;
-    S.box([fx,fy+0.32,zf-1.5],[CH*0.38,0.64,0.64],0.5,stone);
-    S.box([fx-1.1,fy+0.25,zf-2.6],[0.9,0.5,0.9],0.9,stone,{taper:[0.85,0.85]});
-    for(let i=0;i<10;i++){ const x=(hs(i*3.1)-0.5)*(TW+5), z=Z-TD/2-1.6-hs(i*5.3)*2.2, s=0.5+hs(i*7.7)*0.9;
-      S.box([x,0.02+s*0.06,z],[s*1.3,s*0.12,s],hs(i)*1.5,i%3?stoneD:stone); }
-    for(let i=0;i<9;i++){ const sd=i%2?1:-1, x=sd*(TW/2+2.2+hs(i*2.3)*3), z=Z-2+hs(i*4.1)*6, s=0.7+hs(i*6.7)*1.6;
-      S.box([x,s*0.32,z],[s*1.3,s*0.8,s],hs(i*5)*3,rock,{taper:[0.5,0.6],topShift:(hs(i*9)-0.5)*0.4}); }
-    for(let i=0;i<14;i++){ const x=(hs(i*8.3)-0.5)*(TW+7), z=Z-TD/2-0.4+hs(i*2.9)*(TD+1.5), s=0.2+hs(i)*0.25;
-      S.box([x,s*1.1,z],[s*0.5,s*2.2,s*0.5],hs(i*3)*3,grass,{taper:[0.1,0.1]}); }
+    // Four a side: the corners and an inner pair set wide, so the middle
+    // span frames the screen when the camera faces a side square on.
+    for(const a of [-hw,-ci,ci,hw]){ col(a,-hw); col(a,hw); }
+    for(const a of [-ci,ci]){ col(-hw,a); col(hw,a); }
+    // pedestal, built up tier by tier from the floor
+    let y=fl;
+    const tier=(w,d,h,c,o)=>{ const B=S.box([0,y+h/2,Z],[w,h,d],(o&&o.yaw)||0,c,o); y+=h; return B; };
+    const pw=sw*0.46;
+    tier(pw*1.55,pw*1.55,0.2,stoneD); tier(pw*1.4,pw*1.4,0.16,stone); tier(pw*1.26,pw*1.26,0.1,stoneL);
+    tier(pw*0.98,pw*0.98,0.12,stoneL,{yaw:0.3927});
+    flute(tier(pw*0.84,pw*0.84,0.9,stone,{yaw:0.3927}),5,stoneD);
+    tier(pw*0.94,pw*0.94,0.08,stoneL,{yaw:0.3927});
+    // capital: flaring bell with a ring of pointed leaves
+    const cap=tier(pw*0.86,pw*0.86,0.34,stone,{taper:[1.32,1.32]});
+    for(const k of ['nz','px','nx','pz']) if(cap[k]) for(let i=0;i<5;i++){ const c=(i+0.5)/5, r=cap.on(k,c-0.085,0.04,c+0.085,0.86,0.01);
+      S.decal(cap[k],[r[3],[(r[0][0]+r[1][0])/2,(r[0][1]+r[1][1])/2,(r[0][2]+r[1][2])/2],r[2]],i%2?stoneL:stoneD); }
+    tier(pw*1.18,pw*1.18,0.14,stoneL);
+    const ytop=y;
+    // volutes under the abacus corners: a scroll on each outward face
+    const va=pw*0.5, vs=0.3;
+    for(const sx of [-1,1]) for(const sz of [-1,1]){
+      const VB=S.box([sx*va,ytop-0.14-vs/2,Z+sz*va],[vs,vs,vs],0,stoneL);
+      for(const k of [sx>0?'px':'nx', sz>0?'pz':'nz']) if(VB[k]) for(const [r,c] of [[0.42,stoneD],[0.3,stoneL],[0.16,stoneD]]){
+        const pts=[]; for(let i=0;i<10;i++){ const a=i/10*6.2832, u=0.5+Math.cos(a)*r, v=0.5+Math.sin(a)*r; pts.push(VB.on(k,u,v,u,v,0.01+(0.42-r)*0.02)[0]); }
+        S.decal(VB[k],pts,c); }
+    }
+    // the screen block
+    tier(sw+0.24,sd+0.24,0.12,stoneL);
+    const body=tier(sw,sd,sh+0.24,stoneD), mt=this.segMatte(V,this.hrgb(hu+180,0.9,0.75)), dep=0.15+(e.cb??0.5)*1.2;
+    for(const k of ['nz','pz','nx','px']){ if(!body[k]) continue;
+      const wd=(k==='nz'||k==='pz')?sw:sd, mu=0.12/wd, mv=0.12/(sh+0.24);
+      S.decal(body[k],body.on(k,mu*0.4,mv*0.4,1-mu*0.4,1-mv*0.4,0.01),[14,13,16],{emit:1});
+      const pnl=off=>body.on(k,mu,mv,1-mu,1-mv,off);
+      S.vid(body[k],pnl(0.02),V,{alpha:0.97});
+      if(mt){ S.vid(body[k],pnl(0.03),mt.shade,{alpha:0.6}); S.vid(body[k],pnl(dep),mt.cut,{alpha:1}); }
+    }
+    const fz=tier(sw+0.1,sd+0.1,0.24,stone);
+    for(const k of ['nz','pz','nx','px']) if(fz[k]){ const nm=(k==='nz'||k==='pz')?7:4; for(let m=0;m<nm;m++){ const u0=(m+0.2)/nm, u1=(m+0.8)/nm; S.decal(fz[k],fz.on(k,u0,0.2,u1,0.8,0.01),teal); } }
+    tier(sw+0.36,sd+0.36,0.12,stoneL);
+    // entablature, all round
+    const ey=fy+CH, eW=TW+1.1;
+    S.box([0,ey+0.18,Z],[eW,0.36,eW],0,stone);
+    const fr=S.box([0,ey+0.6,Z],[eW-0.1,0.48,eW-0.1],0,stoneL);
+    for(const k of ['nz','pz','nx','px']) if(fr[k]){ const nm=9; for(let m=0;m<nm;m++){ const u0=(m+0.18)/nm, u1=(m+0.82)/nm;
+      S.decal(fr[k],fr.on(k,u0,0.18,u1,0.82,0.01),stone); S.decal(fr[k],fr.on(k,u0+0.03,0.3,u1-0.03,0.7,0.02),teal); S.decal(fr[k],fr.on(k,(m+0.9)/nm,0.1,(m+0.98)/nm,0.9,0.01),stoneD); } }
+    S.box([0,ey+0.96,Z],[eW+0.3,0.22,eW+0.3],0,stoneL);
+    // gabled roof: a pediment at each end and the two slopes, each face drawn
+    // only from its outer side
+    const wf=(pts,c,n)=>{ const p=pts[0]; return n[0]*(cam.x-p[0])+n[1]*(cam.y-p[1])+n[2]*(cam.z-p[2])>0 ? S.face(pts,c,{n}) : null; };
+    const py0=ey+1.07, pk=1.6, zF=Z-(eW+0.3)/2, zB=Z+(eW+0.3)/2, R0=(eW+0.3)/2, L0=-R0, sl=Math.hypot(R0,pk);
+    for(const [zz,s] of [[zF,-1],[zB,1]]){
+      const tri=wf([[L0,py0,zz+s*0.01],[0,py0+pk,zz+s*0.01],[R0,py0,zz+s*0.01]],stone,[0,0,s]);
+      if(tri) S.decal(tri,[[L0+0.7,py0+0.13,zz+s*0.03],[0,py0+pk-0.32,zz+s*0.03],[R0-0.7,py0+0.13,zz+s*0.03]],stoneD);
+    }
+    wf([[L0-0.1,py0,zF-0.1],[0,py0+pk+0.05,zF-0.1],[0,py0+pk+0.05,zB+0.1],[L0-0.1,py0,zB+0.1]],stoneL,[-pk/sl,R0/sl,0]);
+    wf([[0,py0+pk+0.05,zF-0.1],[R0+0.1,py0,zF-0.1],[R0+0.1,py0,zB+0.1],[0,py0+pk+0.05,zB+0.1]],stoneL,[pk/sl,R0/sl,0]);
+    // a fallen column on the island, slabs, rocks and grass all round
+    S.box([hw+2.6,0.42,Z-hw+1.2],[CH*0.38,0.64,0.64],0.5,stone);
+    S.box([hw+1.9,0.35,Z-hw-0.6],[0.9,0.5,0.9],0.9,stone,{taper:[0.85,0.85]});
+    const isle=(TW+9)/2;
+    for(let i=0;i<12;i++){ const a=hs(i*3.1)*6.2832, r=hw+1.6+hs(i*5.3)*1.6, s=0.5+hs(i*7.7)*0.9;
+      S.box([Math.sin(a)*r,0.1+s*0.05,Z+Math.cos(a)*r],[s*1.3,s*0.12,s],hs(i)*1.5,i%3?stoneD:stone); }
+    for(let i=0;i<12;i++){ const a=(i+hs(i*2.3))/12*6.2832, r=isle-0.4+hs(i*4.1)*1.2, s=0.5+hs(i*6.7)*0.8;
+      S.box([Math.sin(a)*r,s*0.32,Z+Math.cos(a)*r],[s*1.3,s*0.8,s],hs(i*5)*3,rock,{taper:[0.5,0.6],topShift:(hs(i*9)-0.5)*0.4}); }
+    for(let i=0;i<18;i++){ const a=hs(i*8.3)*6.2832, r=hw+1.2+hs(i*2.9)*(isle-hw-1.6), s=0.2+hs(i)*0.25;
+      S.box([Math.sin(a)*r,0.1+s*1.1,Z+Math.cos(a)*r],[s*0.5,s*2.2,s*0.5],hs(i*3)*3,grass,{taper:[0.1,0.1]}); }
     S.paint(ctx);
-    const wl=S.P([0,-0.3,Z-(TD+8)/2]), hz2=wl?Math.max(hz,wl[1]):hz;
+    // The waterline is the island's edge nearest the camera.
+    const dx=cam.x, dz=cam.z-Z, dl=Math.hypot(dx,dz)||1, ux=dx/dl, uz=dz/dl, ir=isle/Math.max(Math.abs(ux),Math.abs(uz));
+    const wl=S.P([ux*ir,-0.3,Z+uz*ir]), hz2=wl?Math.max(hz,wl[1]):hz;
     const n=Math.max(40,Math.round((H-hz2)/4)), amp=W*(0.002+(e.ca??0.5)*0.006+(A.bass||0)*0.008), spd=0.6+(e.speed??0.6)*3;
     ctx.fillStyle='hsl('+hu+',30%,3%)'; ctx.fillRect(0,hz2,W,H-hz2);
     if((A.beat||0)>0.6 && !M.plB){ M.plB=1; (M.rings||(M.rings=[])).push({x:0.3+Math.random()*0.4,r:0,a:1}); if(M.rings.length>8) M.rings.shift(); } else if((A.beat||0)<0.3) M.plB=0;
@@ -12222,12 +12385,15 @@ class Component extends DCLogic {
     // screen-space overlay, still stop at the edge.
     const wide = !this.is2D() && !this.isCanvasScene();
     const TLO = wide ? -1.1 : 0, THI = wide ? 2.1 : 1;
-    const tY = Math.max(TLO, Math.min(THI, (s.txtY == null ? 0.5 : s.txtY) + tn.y));
-    const tX = Math.max(TLO, Math.min(THI, (s.txtX == null ? 0.5 : s.txtX) + tn.x));
+    const ta = this.txtAnimAt();
+    const tY = Math.max(TLO, Math.min(THI, (s.txtY == null ? 0.5 : s.txtY) + tn.y + ta.y));
+    const tX = Math.max(TLO, Math.min(THI, (s.txtX == null ? 0.5 : s.txtX) + tn.x + ta.x));
     gl.uniform1f(u.uTxtY, (0.5 - tY) * 1.6);
     gl.uniform1f(u.uTxtX, (tX - 0.5) * 1.6);
-    gl.uniform1f(u.uTxtZ, Math.max(-3.2, Math.min(3.2, (s.txtZ || 0) + (tn.z || 0))));
-    gl.uniform1f(u.uTxtRot, (s.txtRot || 0) + tn.rot);
+    gl.uniform1f(u.uTxtZ, Math.max(-3.2, Math.min(3.2, (s.txtZ || 0) + (tn.z || 0) + ta.z)));
+    gl.uniform1f(u.uTxtRot, (s.txtRot || 0) + tn.rot + ta.rz);
+    gl.uniform1f(u.uTxtRx, (s.txtRotX || 0) + ta.rx);
+    gl.uniform1f(u.uTxtRy, (s.txtRotY || 0) + ta.ry);
     gl.uniform1f(u.uTxtDepth, 0.04 + (s.txtDepth == null ? 0.4 : s.txtDepth)*0.5);
     // Negative weight dilates the field, so bass literally thickens the strokes.
     gl.uniform1f(u.uTxtWeight, -A.bass*0.05*rk);
@@ -12981,12 +13147,37 @@ class Component extends DCLogic {
     });
   }
 
+  // Text motion: a preset drives offsets on top of the panel's placement and
+  // rotation. Its phase runs on its own clock, so changing Speed changes the
+  // pace without a jump, and loudness pushes it on (scaled by React).
+  TXT_ANIMS = [['off','Off','No motion'],['spin','Spin','Turns about its upright axis'],['sway','Sway','Rocks gently on all three axes'],
+               ['tumble','Tumble','Turns over on all three axes'],['flip','Flip','Rolls over top to bottom'],
+               ['float','Float','Drifts and bobs, in and out of depth'],['orbit','Orbit','Circles the centre, near and far'],
+               ['beat','Beat','Kicks on the beat']];
+  txtAnimAt(){
+    const s=this.state, m=s.txtAnim||'off', o={x:0,y:0,z:0,rx:0,ry:0,rz:0};
+    if(m==='off') return o;
+    const A=this.a||{}, now=performance.now()/1000, dt=Math.min(0.1,Math.max(0,now-(this._txtAT||now))); this._txtAT=now;
+    const sp=0.15+(s.txtAnimSpd??0.4)*2.4, k=s.txtAnimAmt??0.6;
+    const p=this._txtPh=(this._txtPh||0)+dt*sp*(1+(A.loud||0)*0.8*(s.txtReact??0.5)), S=Math.sin, C=Math.cos;
+    if(m==='spin'){ o.ry=p*1.6; o.rx=S(p*0.4)*0.25*k; }
+    else if(m==='sway'){ o.ry=S(p)*0.9*k; o.rx=S(p*0.71+1)*0.35*k; o.rz=S(p*0.53+2)*0.15*k; }
+    else if(m==='tumble'){ o.rx=p*1.1; o.ry=p*1.7; o.rz=p*0.6; }
+    else if(m==='flip'){ o.rx=p*1.8; }
+    else if(m==='float'){ o.y=S(p)*0.06*k; o.x=S(p*0.6+1)*0.05*k; o.z=S(p*0.45)*1.2*k; o.rz=S(p*0.8)*0.1*k; o.ry=S(p*0.37)*0.3*k; }
+    else if(m==='orbit'){ o.x=S(p)*0.3*k; o.z=C(p)*1.8*k; o.ry=-S(p)*0.7*k; }
+    else if(m==='beat'){ const b=A.beat||0;
+      o.y=b*0.05*k; o.z=-b*0.8*k; o.rx=-b*0.35*k; o.rz=S(p*2)*0.06*k; }
+    return o;
+  }
+
   saveText(){
     try{
       const s=this.state;
       localStorage.setItem('spectra.text', JSON.stringify({
         list:s.txtList, idx:s.txtIdx, font:s.txtFont, size:s.txtSize, y:s.txtY, x:s.txtX, z:s.txtZ, rot:s.txtRot,
-        depth:s.txtDepth, warp:s.txtWarp, ink:s.txtInk, react:s.txtReact
+        rotX:s.txtRotX, rotY:s.txtRotY, depth:s.txtDepth, warp:s.txtWarp, ink:s.txtInk, react:s.txtReact,
+        anim:s.txtAnim, animSpd:s.txtAnimSpd, animAmt:s.txtAnimAmt
       }));
     }catch(err){}
   }
@@ -12997,8 +13188,9 @@ class Component extends DCLogic {
       if(!raw) return null;
       const d=JSON.parse(raw);
       return {txtList:d.list||[], txtIdx:d.idx||0, txtFont:d.font||'Archivo',
-              txtSize:d.size, txtY:d.y, txtX:d.x, txtZ:d.z||0, txtRot:d.rot, txtDepth:d.depth, txtWarp:d.warp,
-              txtInk:d.ink, txtReact:d.react};
+              txtSize:d.size, txtY:d.y, txtX:d.x, txtZ:d.z||0, txtRot:d.rot, txtRotX:d.rotX||0, txtRotY:d.rotY||0,
+              txtDepth:d.depth, txtWarp:d.warp, txtInk:d.ink, txtReact:d.react,
+              txtAnim:d.anim||'off', txtAnimSpd:d.animSpd??0.4, txtAnimAmt:d.animAmt??0.6};
     }catch(err){ return null; }
   }
 
@@ -13021,8 +13213,8 @@ class Component extends DCLogic {
     // return to centre; the message and its look settings are untouched.
     this.txtNudge = {x:0, y:0, z:0, rot:0};
     const st=this.state;
-    if(st.txtX!==0.5 || st.txtY!==0.5 || st.txtZ || st.txtRot)
-      this.setState({txtX:0.5, txtY:0.5, txtZ:0, txtRot:0});
+    if(st.txtX!==0.5 || st.txtY!==0.5 || st.txtZ || st.txtRot || st.txtRotX || st.txtRotY)
+      this.setState({txtX:0.5, txtY:0.5, txtZ:0, txtRot:0, txtRotX:0, txtRotY:0});
     this.manual2D=false;    // hand back to the auto centre search on 2D scenes
     this.ctrScene=null;     // and force a re-solve of the centre next frame
     // Levels are part of the pose the reset recovers: they are carried in the
@@ -15847,13 +16039,28 @@ class Component extends DCLogic {
         bg: s.txtFont===name ? this.accA(0.1) : 'rgba(8,9,10,0.34)',
         fg: s.txtFont===name ? accent : 'rgba(242,243,240,0.5)'
       })),
-      txtSliders: [['Size','txtSize',0.5],['Y','txtY',0.5],['Depth','txtDepth',0.4],
-                   ['Warp','txtWarp',0.6],['Ink','txtInk',0.55],['React','txtReact',0.5]]
-        .map(([label,key,def])=>{
-          const v = s[key]==null ? def : s[key];
+      // Z is stored in scene units (-3.2 toward the camera .. 3.2 away), the
+      // rest as 0..1; lo/hi map the slider's 0..1 onto the stored range.
+      txtSliders: [['Size','txtSize',0.5],['X','txtX',0.5],['Y','txtY',0.5],['Z','txtZ',0,-3.2,3.2],
+                   ['Rot X','txtRotX',0,-Math.PI,Math.PI],['Rot Y','txtRotY',0,-Math.PI,Math.PI],['Rot Z','txtRot',0,-Math.PI,Math.PI],
+                   ['Depth','txtDepth',0.4],['Warp','txtWarp',0.6],['Ink','txtInk',0.55],['React','txtReact',0.5]]
+        .map(([label,key,def,lo=0,hi=1])=>{
+          const v = Math.max(0, Math.min(1, ((s[key]==null ? def : s[key]) - lo) / (hi - lo)));
           return {label, value:v, read:Math.round(v*100), pct:(v*100).toFixed(1)+'%',
-                  drag: this.drag(nv=>this.setState({[key]:nv}, ()=>this.saveText()))};
+                  drag: this.drag(nv=>this.setState({[key]:lo+nv*(hi-lo)}, ()=>this.saveText()))};
         }),
+      txtAnims: this.TXT_ANIMS.map(([id,name,tip])=>({
+        name, tip,
+        pick: ()=>this.setState({txtAnim:id}, ()=>this.saveText()),
+        border: (s.txtAnim||'off')===id ? accent : 'rgba(255,255,255,0.1)',
+        bg: (s.txtAnim||'off')===id ? this.accA(0.1) : 'rgba(8,9,10,0.34)',
+        fg: (s.txtAnim||'off')===id ? accent : 'rgba(242,243,240,0.5)'
+      })),
+      txtAnimSliders: [['Speed','txtAnimSpd',0.4],['Amount','txtAnimAmt',0.6]].map(([label,key,def])=>{
+        const v = s[key]==null ? def : s[key];
+        return {label, value:v, read:Math.round(v*100), pct:(v*100).toFixed(1)+'%',
+                drag: this.drag(nv=>this.setState({[key]:nv}, ()=>this.saveText()))};
+      }),
       warmSkipNow: () => { this.warmNote = 'started early by operator'; this.dismissLoader(); },
       warmBarRef: this.warmBarRef, warmTxtRef: this.warmTxtRef, warmWrapRef: this.warmWrapRef, warmNowRef: this.warmNowRef, warmSecRef: this.warmSecRef, warmListRef: this.warmListRef, loadRef: this.loadRef,
       strobeOffDisplay: s.strobe === false ? 'block' : 'none',

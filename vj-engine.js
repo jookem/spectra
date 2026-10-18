@@ -444,7 +444,7 @@ uniform float uTxtOn,uTxtDepth,uTxtScale,uTxtY,uTxtHue,uTxtWeight,uTxtWarp,uTxtI
 // own centre, so the transform is the same one at every sampling site — the 3D
 // SDF, the ghost plane, the per-letter lookup and the 2D field all apply
 // translate-then-rotate and therefore agree on where a given letter is.
-uniform float uTxtX,uTxtRot,uTxtZ;
+uniform float uTxtX,uTxtRot,uTxtZ,uTxtRx,uTxtRy;
 // Harmony inputs. uChroma is the 12-bin pitch class profile (which notes are
 // sounding, octave-folded); uTonal is that profile projected onto the circle of
 // fifths, so its angle is the key centre and its length is tonal clarity.
@@ -951,6 +951,8 @@ float sdText3(vec3 p){
   // or back behind it — and because the offset is applied after the yaw
   // rotation it stays "toward the camera" as the scene turns.
   q.z-=uTxtZ*gTxtK;
+  // Turn about the message's own centre: yaw, then pitch, then the roll below.
+  q.xz*=rot(uTxtRy); q.yz*=rot(uTxtRx);
   float sc=max(uTxtScale,0.02)*gTxtK;
   q/=sc;
   q.xy*=rot(uTxtRot);
@@ -2175,6 +2177,9 @@ vec3 render3(vec2 uv){
     mat2 rx=rot(-ayx);
     vec3 rot0=vec3(ro.x,ro.y,ro.z); rot0.xz*=rx; rot0.y-=uTxtY*gTxtK; rot0.x-=uTxtX*gTxtK; rot0.z-=uTxtZ*gTxtK;
     vec3 rdt=rd; rdt.xz*=rx;
+    // Into the message's turned frame, so the plane test meets the slab as tilted.
+    mat2 ry_=rot(uTxtRy), rp_=rot(uTxtRx);
+    rot0.xz*=ry_; rot0.yz*=rp_; rdt.xz*=ry_; rdt.yz*=rp_;
     if(abs(rdt.z)>1e-4){
       float tp=-rot0.z/rdt.z;
       if(tp>0.05){
@@ -2220,7 +2225,7 @@ vec3 render3(vec2 uv){
     // time on the beat.
     if(trap<-0.5){
       float ay2=uTime*uSpeed*0.16*uCamAuto*uSpin+uJump+uCamYaw;
-      vec3 q2=p; q2.xz*=rot(-ay2); q2.y-=uTxtY*gTxtK; q2.x-=uTxtX*gTxtK; q2.z-=uTxtZ*gTxtK; q2/=(max(uTxtScale,0.02)*gTxtK); q2.xy*=rot(uTxtRot);
+      vec3 q2=p; q2.xz*=rot(-ay2); q2.y-=uTxtY*gTxtK; q2.x-=uTxtX*gTxtK; q2.z-=uTxtZ*gTxtK; q2.xz*=rot(uTxtRy); q2.yz*=rot(uTxtRx); q2/=(max(uTxtScale,0.02)*gTxtK); q2.xy*=rot(uTxtRot);
       float li=txtLetter(q2.xy);
       float onLit=1.0-smoothstep(0.0,0.9,abs(li-uTxtLit));
       base=gP[4]*(1.25+onLit*1.5);
@@ -3631,7 +3636,8 @@ void main(){
   vec2 tq=vec2(0.0);
   float tS=1e9;
   if(uTxtOn>0.5 && !is3){
-    tq=(uv-vec2(uTxtX,uTxtY))/max(uTxtScale,0.02); tq*=rot(uTxtRot);
+    // Flat scenes have no depth to turn through: yaw and pitch foreshorten.
+    tq=(uv-vec2(uTxtX,uTxtY))/max(uTxtScale,0.02); tq/=max(abs(vec2(cos(uTxtRy),cos(uTxtRx))),vec2(0.08)); tq*=rot(uTxtRot);
     tS=txtSD(tq);
     if(uTxtWarp>0.001){
       float hh=0.012;
