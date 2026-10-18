@@ -333,6 +333,13 @@ class CamFly{
       this.su=V.nrm(V.add(this.su,V.sc(V.sub(this.up,this.su),ease(2))));
       this.su=V.nrm(V.sub(this.su,V.sc(this.sf,V.dot(this.su,this.sf))));
     }
+    // The rendered eye (sp) eases after p, and while p circles the centre the
+    // eased point cuts the chord — inside the orbit sphere, which is what cut
+    // through the surface. Hold it on (or outside) the sphere, and never let
+    // it sit closer to the surface than the floor.
+    if(this.sp){ const so=V.sub(this.sp,I.C), sl=V.len(so);
+      if(sl<r && sl>1e-9) this.sp=V.add(I.C,V.sc(so,r/sl));
+      if(dR<clr*0.6) this.sp=V.add(this.sp,V.sc(V.nrm(V.sub(this.sp,I.C)),clr*0.6-dR)); }
     this.tilt=Math.max(0,(this.tilt||0)-dt/1.5);
     this.scale+=(Math.min(F*0.3,Math.max(r-I.Rg,F*0.004))-this.scale)*ease(0.7);
     this.altS=null;
