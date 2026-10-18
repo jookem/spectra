@@ -473,18 +473,18 @@
     </div>
   </div>
 
-  <div ref="{{ topBarRef }}" style="position:absolute;top:0;left:0;right:0;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px 18px;padding:20px 22px;z-index:20;pointer-events:none;opacity:{{ chromeOpacity }};transition:opacity .35s;">
-    <div style="display:flex;align-items:center;gap:14px;flex:0 1 auto;min-width:0;text-shadow:0 0 3px rgba(8,9,10,0.95),0 0 7px rgba(8,9,10,0.85),0 1px 2px rgba(8,9,10,0.9);">
+  <div ref="{{ topBarRef }}" style="position:absolute;top:0;left:0;right:0;display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px 18px;padding:20px 22px;z-index:20;pointer-events:none;opacity:{{ chromeOpacity }};transition:opacity .35s;">
+    <div style="display:flex;align-items:baseline;gap:14px;flex:0 1 auto;min-width:0;text-shadow:0 0 3px rgba(8,9,10,0.95),0 0 7px rgba(8,9,10,0.85),0 1px 2px rgba(8,9,10,0.9);">
       <div style="display:flex;flex-direction:column;gap:2px;min-width:0;">
         <div style="font-family:Archivo,sans-serif;font-weight:700;font-size:15px;letter-spacing:0.02em;line-height:1;">SPECTRA</div>
         <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.3);">SWRV Systems</div>
       </div>
-      <div style="width:1px;height:14px;background:rgba(255,255,255,0.18);"></div>
+      <div style="width:1px;height:14px;background:rgba(255,255,255,0.18);align-self:center;"></div>
       <div style="font-size:14px;letter-spacing:0.16em;text-transform:uppercase;white-space:nowrap;color:var(--acc);">{{ modeName }}</div>
     </div>
     <!-- The readouts sit on one even grid: every meter, chip and value its own
          cell of the same width, at the size of the title beside them. -->
-    <div style="display:grid;grid-template-columns:{{ topCols }};align-items:center;justify-items:start;gap:8px 16px;flex:1 1 600px;min-width:0;text-shadow:0 0 3px rgba(8,9,10,0.95),0 0 7px rgba(8,9,10,0.85),0 1px 2px rgba(8,9,10,0.9);font-size:14px;letter-spacing:0.1em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">
+    <div style="display:grid;grid-template-columns:{{ topCols }};align-items:baseline;justify-items:start;gap:8px 16px;flex:1 1 600px;min-width:0;text-shadow:0 0 3px rgba(8,9,10,0.95),0 0 7px rgba(8,9,10,0.85),0 1px 2px rgba(8,9,10,0.9);font-size:14px;letter-spacing:0.1em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">
       <div style="display:contents;">
         <sc-for list="{{ bands }}" as="band" hint-placeholder-count="4">
           <div style="display:flex;align-items:center;gap:8px;min-width:0;width:100%;opacity:{{ metersOpacity }};transition:opacity .35s;">
