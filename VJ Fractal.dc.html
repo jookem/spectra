@@ -17,7 +17,7 @@
 <meta name="apple-mobile-web-app-title" content="SPECTRA">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
-<script>if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){ addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }</script>
+<script>if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){ const reg=()=>navigator.serviceWorker.register('sw.js').catch(()=>{}); if(document.readyState==='complete') reg(); else addEventListener('load',reg); }</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -32,7 +32,7 @@
 </style>
 <script src="vj-engine.js?v=terr3"></script>
 <script src="deep-zoom.js"></script>
-<script src="cam-fly.js?v=sel5"></script>
+<script src="cam-fly.js?v=grav6"></script>
 <script src="wave-mesh.js"></script>
 <script src="wave-gl.js"></script>
 </helmet>

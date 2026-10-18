@@ -301,10 +301,19 @@ class CamFly{
     I.ax=V.nrm(V.sub(I.ax,V.sc(rad0,V.dot(I.ax,rad0))));
     const ramp=(x=>x*x*(3-2*x))(Math.min(1,I.T/3)), w=0.2*Math.max(0.2,spd)*ramp;
     I.rad=V.nrm(rotAround(rad0,I.ax,w*dt));
-    const clr=Math.max(F*0.003,I.r0*0.12);
-    if(dR<clr)I.rOff+=(clr-dR)*ease(3); else I.rOff*=Math.exp(-dt*0.15);
-    // Settle out to a framing distance that shows the whole piece.
-    I.r0+=(Math.max(I.Rg*2.2,F*0.02)-I.r0)*ease(0.25);
+    // Gravity: the orbit holds a fixed low altitude over the piece's own
+    // surface. dR is the distance to the nearest surface, so the radius is
+    // pulled in wherever the eye has more clearance than that and eased out
+    // where it has less; it can never creep outward over time. A collision
+    // push-out still exists but decays in about a second, and the radius is
+    // bounded to the piece so the camera stays in its pull.
+    if(I.rMax==null){ I.rMax=Math.max(I.Rg*1.6, I.r0*1.05); I.rMin=Math.max(F*0.002, I.Rg*0.35); }
+    const alt=Math.max(F*0.0035, I.Rg*0.22);
+    I.r0+=(alt-dR)*ease(dR>alt?0.9:2.4);
+    I.r0=Math.min(I.rMax, Math.max(I.rMin, I.r0));
+    const clr=alt*0.45;
+    if(dR<clr)I.rOff+=(clr-dR)*ease(4); else I.rOff*=Math.exp(-dt*1.2);
+    I.rOff=Math.min(I.rOff, I.r0*0.4);
     const r=I.r0+I.rOff, np=V.add(I.C,V.sc(I.rad,r));
     this.vs=V.len(V.sub(np,this.p))/Math.max(dt,1e-4);
     this.p=np;
