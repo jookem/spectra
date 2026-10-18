@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<script src="./support.js?v=b21"></script>
+<script src="./support.js?v=b22"></script>
 <meta name="ext-resource-dependency" content="./csi.js" data-resource-id="csiJs">
 </head>
 <body>
@@ -30,11 +30,11 @@
   @keyframes vjspin{to{transform:rotate(360deg)}}
   @keyframes vjscan{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
 </style>
-<script src="vj-engine.js?v=b21"></script>
-<script src="deep-zoom.js?v=b21"></script>
-<script src="cam-fly.js?v=b21"></script>
-<script src="wave-mesh.js?v=b21"></script>
-<script src="wave-gl.js?v=b21"></script>
+<script src="vj-engine.js?v=b22"></script>
+<script src="deep-zoom.js?v=b22"></script>
+<script src="cam-fly.js?v=b22"></script>
+<script src="wave-mesh.js?v=b22"></script>
+<script src="wave-gl.js?v=b22"></script>
 </helmet>
 <template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#08090A"/><circle cx="50" cy="50" r="22" fill="none" stroke="#C8FF2E" stroke-width="3"/><circle cx="50" cy="50" r="11" fill="none" stroke="#C8FF2E" stroke-width="2" opacity="0.6"/><circle cx="50" cy="50" r="3.5" fill="#C8FF2E"/></svg></template>
 <div style="position:relative;width:100vw;height:100dvh;overflow:hidden;background:#08090A;font-family:'JetBrains Mono',ui-monospace,monospace;color:#F2F3F0;user-select:none;-webkit-user-select:none;">
@@ -97,7 +97,7 @@
           <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.42);">A SWRV Systems production</div>
           <div style="width:18px;height:1px;background:rgba(242,243,240,0.25);"></div>
         </div>
-        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 21 · 18 Oct 2026</div>
+        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 22 · 18 Oct 2026</div>
       </div>
       <div style="max-width:420px;text-align:center;font-size:12.5px;line-height:1.7;color:rgba(242,243,240,0.55);">The visuals are driven entirely by what the microphone hears. Nothing is recorded or sent anywhere.</div>
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,230px));gap:10px;width:100%;max-width:470px;justify-content:center;">
@@ -156,7 +156,7 @@
     <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
       <div style="font-family:Archivo,sans-serif;font-weight:700;font-size:54px;letter-spacing:-0.03em;line-height:1;">SPECTRA</div>
       <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.36);">A SWRV Systems production</div>
-      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 21 · 18 Oct 2026</div>
+      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 22 · 18 Oct 2026</div>
     </div>
     <div ref="{{ warmWrapRef }}" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
       <div style="width:260px;height:2px;background:rgba(255,255,255,0.1);">
@@ -2060,15 +2060,14 @@ class Component extends DCLogic {
           // Twist is measured against the state captured here, so it composes
           // with the pinch instead of fighting it.
           T.a0=Math.atan2(b.clientY-a.clientY, b.clientX-a.clientX);
-          T.yaw0=this.cam.yaw;
+          T.yaw0=this.cam.yaw; T.mode2=null;
           // The pair's midpoint drives the view exactly as one finger used to:
           // orbit on 3D, and elsewhere the mouse's own plain-drag handler.
           const cx=(a.clientX+b.clientX)/2, cy=(a.clientY+b.clientY)/2;
           this.cancelHome && this.cancelHome();
           if(orb3()) T.rot={x:cx,y:cy,yaw:this.cam.yaw,pitch:this.cam.pitch,lx:cx,ly:cy,lt:performance.now(),vx:0,vy:0};
           else if(!T.drag){ T.drag=true;
-            this.md={x:cx, y:cy, yaw:this.cam.yaw, pitch:this.cam.pitch, px:this.pan.x, py:this.pan.y, alt:false};
-            if(this.isCanvasScene && this.isCanvasScene()) this.onMMove({clientX:cx, clientY:cy}); }
+            this.md={x:cx, y:cy, yaw:this.cam.yaw, pitch:this.cam.pitch, px:this.pan.x, py:this.pan.y, alt:false}; }
           this.pivGrab();
         }
         this.onActivity();
@@ -2097,9 +2096,40 @@ class Component extends DCLogic {
           const a=e.touches[0], b=e.touches[1];
           const cx=(a.clientX+b.clientX)/2, cy=(a.clientY+b.clientY)/2;
           const d=Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY);
-          this.setP('zoom', T.z0 + (d-T.d0)/Math.max(W,H)*1.5);
+          // Twist: the signed angle between the current finger line and the one
+          // at touch-down, unwrapped so a turn past ±180° keeps going instead of
+          // snapping back.
+          let da=Math.atan2(b.clientY-a.clientY, b.clientX-a.clientX) - T.a0;
+          while(da>Math.PI) da-=Math.PI*2;
+          while(da<-Math.PI) da+=Math.PI*2;
+          // One gesture per touch. A real pinch is lopsided — one finger often
+          // stays put — so its midpoint walks, and with the drag live that
+          // swung the view and buried the zoom. Nothing moves until the fingers
+          // have travelled ~14px; then the largest of spread, twist (as arc
+          // length) and midpoint travel picks pinch, twist or drag, and that
+          // holds until the fingers lift. Each starts from where the fingers
+          // are at that moment, so nothing jumps.
+          if(!T.mode2){
+            const R=T.rot, D=this.md, ox=R ? R.x : D ? D.x : cx, oy=R ? R.y : D ? D.y : cy;
+            const spread=Math.abs(d-T.d0), turn=Math.abs(da)*T.d0/2, move=Math.hypot(cx-ox, cy-oy);
+            if(Math.max(spread, turn, move) < 14) return;
+            T.mode2 = (spread>=turn && spread>=move) ? 'pinch' : (turn>=move ? 'twist' : 'drag');
+            T.d0=d; T.z0=this.state.p.zoom ?? 0.5;
+            T.a0+=da; da=0; T.roll0=this.cam.roll||0; T.sr0=this.scnRoll||0; T.yaw0=this.cam.yaw;
+            if(R){ R.x=R.lx=cx; R.y=R.ly=cy; R.yaw=this.cam.yaw; R.pitch=this.cam.pitch; R.lt=performance.now(); R.vx=R.vy=0; }
+            if(D){ D.x=cx; D.y=cy; D.yaw=this.cam.yaw; D.pitch=this.cam.pitch; D.px=this.pan.x; D.py=this.pan.y; }
+            // Only a drag moves the view, so a pinch or twist releases it now.
+            if(T.mode2!=='drag'){ T.rot=null; if(T.drag){ T.drag=false; this.md=null; this.onMUp && this.onMUp(); } }
+          }
           this.cancelHome();
-          if(T.rot){
+          if(T.mode2==='pinch') this.setP('zoom', T.z0 + (d-T.d0)/Math.max(W,H)*1.5);
+          else if(T.mode2==='twist'){
+            // Orbit on 3D: twist rolls the fractal with the fingers. 2D scenes
+            // turn (yaw). Fly and Surface have no twist; their drag looks around.
+            if(orb3()){ let nr=(T.roll0||0)-da; if(nr>Math.PI) nr-=Math.PI*2; else if(nr<-Math.PI) nr+=Math.PI*2; this.cam.roll=nr; }
+            else if(this.isCanvasScene && this.isCanvasScene()) this.scnRoll=Math.max(-0.52,Math.min(0.52,(T.sr0||0)+da));
+            else if(this.is2D()) this.cam.yaw = T.yaw0 - da*1.6;
+          } else if(T.rot){
             const R=T.rot;
             this.cam.yaw=R.yaw-(cx-R.x)/W*3.4;
             let np=R.pitch+(cy-R.y)/H*2.4;
@@ -2109,18 +2139,6 @@ class Component extends DCLogic {
             R.vx=R.vx*0.6+((cx-R.lx)/dtt)*0.4; R.vy=R.vy*0.6+((cy-R.ly)/dtt)*0.4;
             R.lx=cx; R.ly=cy; R.lt=nt;
           } else if(T.drag && this.md) this.onMMove({clientX:cx, clientY:cy});
-          // Twist: the signed angle between the current finger line and the one
-          // at touch-down, unwrapped so a turn past ±180° keeps going instead of
-          // snapping back. Turning the fingers clockwise turns the scene
-          // clockwise.
-          let da=Math.atan2(b.clientY-a.clientY, b.clientX-a.clientX) - T.a0;
-          while(da>Math.PI) da-=Math.PI*2;
-          while(da<-Math.PI) da+=Math.PI*2;
-          // Orbit on 3D: twist rolls the fractal with the fingers. 2D scenes
-          // turn (yaw). Fly and Surface leave yaw to the drag's look-around.
-          if(orb3()){ let nr=(T.roll0||0)-da; if(nr>Math.PI) nr-=Math.PI*2; else if(nr<-Math.PI) nr+=Math.PI*2; this.cam.roll=nr; }
-          else if(this.isCanvasScene && this.isCanvasScene()) this.scnRoll=Math.max(-0.52,Math.min(0.52,(T.sr0||0)+da));
-          else if(this.is2D()) this.cam.yaw = T.yaw0 - da*1.6;
         }
       }, {passive:false});
       cv0.addEventListener('touchend', (e)=>{
