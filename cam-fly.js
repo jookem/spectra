@@ -312,8 +312,8 @@ class CamFly{
     // bounded to the piece so the camera stays in its pull.
     // Altitude is fixed in scene units, not tied to the piece's size, and the
     // radius can only shrink below the arrival radius: the pull is inward.
-    const alt=F*0.004;
-    if(I.rMax==null){ I.r0=V.len(V.sub(this.sp||this.p,I.C)); I.rMax=I.r0*1.08; if(this.rep>0) I.rMax=Math.min(I.rMax,this.rep*0.7); I.rMin=alt; }
+    const alt=F*0.002;
+    if(I.rMax==null){ I.r0=V.len(V.sub(this.sp||this.p,I.C)); I.rMax=I.r0*1.08; if(this.rep>0) I.rMax=Math.min(I.rMax,this.rep*0.7); I.rMin=alt*0.5; }
     I.r0+=(alt-dR)*ease(dR>alt?2.2:4.5);
     I.r0=Math.min(I.rMax, Math.max(I.rMin, I.r0));
     const clr=alt*0.5;
