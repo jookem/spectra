@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<script src="./support.js?v=b29"></script>
+<script src="./support.js?v=b30"></script>
 <meta name="ext-resource-dependency" content="./csi.js" data-resource-id="csiJs">
 </head>
 <body>
@@ -30,12 +30,12 @@
   @keyframes vjspin{to{transform:rotate(360deg)}}
   @keyframes vjscan{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
 </style>
-<script src="vj-engine.js?v=b29"></script>
-<script src="deep-zoom.js?v=b29"></script>
-<script src="cam-fly.js?v=b29"></script>
-<script src="wave-mesh.js?v=b29"></script>
-<script src="wave-gl.js?v=b29"></script>
-<script src="scene-thumbs.js?v=b29"></script>
+<script src="vj-engine.js?v=b30"></script>
+<script src="deep-zoom.js?v=b30"></script>
+<script src="cam-fly.js?v=b30"></script>
+<script src="wave-mesh.js?v=b30"></script>
+<script src="wave-gl.js?v=b30"></script>
+<script src="scene-thumbs.js?v=b30"></script>
 </helmet>
 <template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#08090A"/><circle cx="50" cy="50" r="22" fill="none" stroke="#C8FF2E" stroke-width="3"/><circle cx="50" cy="50" r="11" fill="none" stroke="#C8FF2E" stroke-width="2" opacity="0.6"/><circle cx="50" cy="50" r="3.5" fill="#C8FF2E"/></svg></template>
 <div style="position:relative;width:100vw;height:100dvh;overflow:hidden;background:#08090A;font-family:'JetBrains Mono',ui-monospace,monospace;color:#F2F3F0;user-select:none;-webkit-user-select:none;">
@@ -98,7 +98,7 @@
           <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.42);">A SWRV Systems production</div>
           <div style="width:18px;height:1px;background:rgba(242,243,240,0.25);"></div>
         </div>
-        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 29 · 19 Oct 2026</div>
+        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 30 · 19 Oct 2026</div>
       </div>
       <div style="max-width:420px;text-align:center;font-size:12.5px;line-height:1.7;color:rgba(242,243,240,0.55);">The visuals are driven entirely by what the microphone hears. Nothing is recorded or sent anywhere.</div>
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,230px));gap:10px;width:100%;max-width:470px;justify-content:center;">
@@ -157,7 +157,7 @@
     <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
       <div style="font-family:Archivo,sans-serif;font-weight:700;font-size:54px;letter-spacing:-0.03em;line-height:1;">SPECTRA</div>
       <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.36);">A SWRV Systems production</div>
-      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 29 · 19 Oct 2026</div>
+      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 30 · 19 Oct 2026</div>
     </div>
     <div ref="{{ warmWrapRef }}" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
       <div style="width:260px;height:2px;background:rgba(255,255,255,0.1);">
@@ -1530,6 +1530,7 @@ class Component extends DCLogic {
       // shader, so the 2D sets look exactly as they did.
       {key:'dof',  label:'DOF',  min:0,    max:1,   def:0,   fmt:v=>Math.round(v*100).toString()},
       // Depth for the 2D scenes; the Look menu picks Relief, Parallax or Terrain.
+      // On the 3D scenes the same slider is Rim (a silhouette light).
       {key:'dpth', label:'Depth', min:0,   max:1,   def:0,   fmt:v=>Math.round(v*100).toString()}
     ];
     this.state = {
@@ -3512,7 +3513,7 @@ class Component extends DCLogic {
     this.progs = {}; this.us = {};
     this.UNAMES = ['uRes','uTime','uBass','uMid','uHigh','uLoud','uBeat','uJump','uHue','uMorph','uDetail','uZoom','uReact','uSpeed','uMode',
      'uTex','uVidMix','uHasTex','uVidFlip','uVidFlipV','uVidMode','uPrev','uFeed','uDrift','uCamYaw','uCamPitch','uCamAuto','uPan','uOrbit','uCA','uCB','uCC','uIter','uXfade','uXfMode','uCtr','uFocus','uPalSel','uSpec',
-     'uRepV','uSceneOff','uLook','uZX','uZLoop','uZAnc','uZRat','uZRot','uZBase','uIOR','uZIter','uTravel','uStrobe','uSat','uGam','uSpan','uWarm','uFill','uField','uLine','uDOF','uBump','uCoCOut','uSpin','uSmooth','uChroma','uNote','uNoteConf','uTonal','uChordChg','uBeatPh','uCtr3','uDepthOut','uCamRoll',
+     'uRepV','uSceneOff','uLook','uZX','uZLoop','uZAnc','uZRat','uZRot','uZBase','uIOR','uZIter','uTravel','uStrobe','uSat','uGam','uSpan','uWarm','uFill','uField','uLine','uDOF','uRim','uCoCOut','uSpin','uSmooth','uChroma','uNote','uNoteConf','uTonal','uChordChg','uBeatPh','uCtr3','uDepthOut','uCamRoll',
      'uGly',
      'uTxt','uTxtOn','uTxtDepth','uTxtScale','uTxtY','uTxtX','uTxtZ','uTxtRot','uTxtRx','uTxtRy','uTxtHue','uTxtWeight','uTxtWarp','uTxtInk','uTxtLit','uTxtJit','uTxtAsp','uPlane','uDeep','uDeepPix','uDeepBase','uDeepShade','uDeepMax','uRefLen','uDeepOff','uOrb','uCamMode','uCamScale','uRep','uCamProbe','uCamPos','uCamF','uCamR','uCamU','uCamTap','uTgt','uTgtK','uTgtC','uCamFog'];
     // A canvas scene has no shader family — compile mode 0 so the GL path is
@@ -14199,7 +14200,7 @@ class Component extends DCLogic {
         {k:'Roll (3rd axis)', d:'L1 + left stick left/right, or , and . on the keyboard, rolls the frame about the view direction. Yaw and pitch alone tumble about the screen\u2019s horizontal and vertical; rolled a quarter turn, the same stick push tumbles the object about a diagonal \u2014 top-left/bottom-right or top-right/bottom-left. Home resets it with the rest of the view'},
         {k:'Smth', d:'Noise reduction. Past the midpoint it also runs a speckle filter on the finished frame (strongest at the top). Relaxes the raymarch hit test to one pixel width and filters 2D detail finer than a pixel — up kills speckle and crawling edges, down restores the razor-thin original look'},
         {k:'Trim row', d:'Fine trim on any palette — Sat, Gam (gamma), Span (ramp width), Warm (R/B tilt). Double-click a track to reset it'},
-        {k:'Depth', d:'Gives the 2D scenes a third dimension, read from brightness. Relief lights the image as a carved surface, Parallax slides it apart in layers, Terrain flies over it as a landscape. Pick the kind in Look; the Depth trim sets how tall it gets and the gyro steers it. On the 3D scenes the same trim adds Relief instead'},
+        {k:'Depth / Rim', d:'On 3D scenes this slider is Rim: it lights the silhouette edges in the palette's bright tone so the form stands off the background. On 2D scenes it is Depth, which gives them a third dimension, read from brightness. Relief lights the image as a carved surface, Parallax slides it apart in layers, Terrain flies over it as a landscape. Pick the kind in Look; the Depth trim sets how tall it gets and the gyro steers it. On the 3D scenes the same trim adds Relief instead'},
         {k:'Relief (Depth on 3D)', d:'A bump map on the 3D surface — fine raised and sunken detail fixed to the geometry, so it rides the form as the camera moves and catches the light. Depth sets how strong it is; 0 is the smooth surface. The setting is shared with 2D Depth'},
         {k:'Depth Terrain', d:'Bright parts of the frame become hills, dark parts valleys and water, and the camera flies over them while the fractal keeps animating underneath. Auto moves the flight; the DOF trim hazes the distance. The ground carries a fine rock relief that grows with Depth. For gentler hills, lower Depth or pick a scene with broad areas of colour rather than fine filigree'},
         {k:'View: Orbit / Fly / Surface', d:'3D scenes only. Orbit circles the whole object. Fly steers itself through the open space between forms. Surface skims low over the surface and keeps a safe height above it'},
@@ -15644,7 +15645,7 @@ class Component extends DCLogic {
     gl.uniform1f(u.uSmooth, Math.min(1, tm.smth ?? 0.55));
     // Depth on a 3D scene is surface relief (a bump map); on 2D it is the
     // post pass's Relief / Parallax / Terrain, and the scene shader ignores it.
-    if(u.uBump) gl.uniform1f(u.uBump, (!this.is2D() && !this.isCanvasScene()) ? (tm.dpth ?? 0) : 0);
+    if(u.uRim) gl.uniform1f(u.uRim, (!this.is2D() && !this.isCanvasScene()) ? (tm.dpth ?? 0) : 0);
     // Engraving is no longer on the strip, so it is pinned at the default it
     // shipped with — the 2D interiors keep the look they had.
     gl.uniform1f(u.uFill, 0.7);
@@ -16743,7 +16744,7 @@ class Component extends DCLogic {
         const v = s.trim[d.key];
         const n = (v - d.min) / (d.max - d.min);
         return {
-          label: d.label,
+          label: d.key==='dpth' && !this.is2D() && !this.isCanvasScene() ? 'Rim' : d.label,
           pct: (n*100).toFixed(1)+'%',
           mid: (((d.def - d.min)/(d.max - d.min))*100).toFixed(1)+'%',
           read: d.fmt(v),

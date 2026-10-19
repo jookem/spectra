@@ -56,7 +56,7 @@ float TH(vec2 xz){
   a=clamp(a,0.0,1.0);
   return a*a*(3.0-2.0*a);
 }
-// Terrain relief: the same object-fixed bump map the 3D scenes use, on the
+// Terrain relief: an object-fixed bump map (value noise), on the
 // ground's lighting normal only, so it adds rock detail without making the
 // height field (and the march) any more expensive. Octaves finer than a pixel
 // fade out.
@@ -431,9 +431,9 @@ uniform float uLine;
 float gPx=1e-3;   // world size of one render pixel, set by each escape path
 // Aperture, 0..1. Zero is the pinhole camera every scene used to be.
 uniform float uDOF;
-// Relief on the 3D families, 0..1: a bump map on the lit surface, from the
-// Depth trim (which shapes the 2D scenes and was otherwise idle on 3D).
-uniform float uBump;
+// Rim light on the 3D families, 0..1, from the Depth trim (which shapes the 2D
+// scenes). It replaced a bump map there that the fractals' own detail drowned.
+uniform float uRim;
 // Scene text. The message is baked to a signed distance field on the CPU (R =
 // distance, G = letter index) so the shader can treat it as real geometry
 // instead of a sprite: extruded in 3D it unions into the raymarch and occludes
@@ -1856,28 +1856,6 @@ vec3 rayCol(vec3 ro,vec3 rd,float far,int budget){
 // Tap target colour, taken from the scene's own palette (the slot its glow
 // uses) at full brightness, so the highlight reads as part of the scene.
 vec3 tgtCol(){ vec3 c=pal(0.15); c=c/max(max(c.r,c.g),max(c.b,0.05)); return mix(c,vec3(1.0),0.15); }
-// Relief: object-space value noise, so the bumps are fixed to the geometry
-// and ride it as the camera moves. Only the normal is tilted (no extra map()
-// calls), so it costs a few hashes per lit pixel. Octaves finer than a pixel
-// fade out instead of sparkling. The hash is arithmetic, not sin(), so it
-// holds up at the large coordinates a deep Fly view reaches.
-float bH(vec3 p){ p=fract(p*0.1031); p+=dot(p,p.zyx+31.32); return fract((p.x+p.y)*p.z); }
-float bN(vec3 p){ vec3 i=floor(p),f=fract(p); f=f*f*(3.0-2.0*f);
-  return mix(mix(mix(bH(i),bH(i+vec3(1,0,0)),f.x),mix(bH(i+vec3(0,1,0)),bH(i+vec3(1,1,0)),f.x),f.y),
-             mix(mix(bH(i+vec3(0,0,1)),bH(i+vec3(1,0,1)),f.x),mix(bH(i+vec3(0,1,1)),bH(i+vec3(1,1,1)),f.x),f.y),f.z); }
-float bF(vec3 q,float fp){ float v=0.0,a=0.5;
-  for(int i=0;i<3;i++){ v+=a*bN(q)*(1.0-smoothstep(0.2,0.6,fp)); q=q*2.07+vec3(1.7,9.2,3.1); fp*=2.07; a*=0.5; }
-  return v; }
-// n: surface normal, p: hit point, wl: world wavelength of the broadest
-// octave, px: world size of one pixel at the hit. xyz = tilted normal,
-// w = relief height 0..~1 for a little cavity shading.
-vec4 bump3(vec3 n,vec3 p,float wl,float px){
-  vec3 q=p/wl; float fp=px/wl; const float e=0.07;
-  float h0=bF(q,fp);
-  vec3 g=vec3(bF(q+vec3(e,0,0),fp),bF(q+vec3(0,e,0),fp),bF(q+vec3(0,0,e),fp))-h0;
-  g/=e; g-=n*dot(g,n);
-  return vec4(normalize(n-g*uBump*0.4),h0);
-}
 vec3 render3(vec2 uv){
   if(uCamProbe>0.5){
     if(int(gl_FragCoord.x)==25){ gProbeC=vec4(tgtCol(),1.0); return vec3(0.0); }
@@ -2245,18 +2223,10 @@ vec3 render3(vec2 uv){
 #else
     vec3 n=nrm(p);
 #endif
-    // Relief. The broadest octave is sized like the contour lines: fixed in
-    // Orbit, following the camera's framing scale in Fly / Surface.
-    float bumpH=0.5;
-    if(uBump>0.001 && trap>-0.5){
-      vec4 bb=bump3(n,p,fc?mix(0.1,uCamScale*0.35,cw):0.1,pxw*d);
-      n=bb.xyz; bumpH=bb.w;
-    }
     vec3 l=normalize(vec3(0.7,0.9,-0.6));
     float dif=clamp(dot(n,l),0.0,1.0);
     float fre=pow(1.0-clamp(dot(n,-rd),0.0,1.0),3.0);
     float ao=clamp(1.0-d*0.16/max(dist,1.0),0.15,1.0);
-    ao*=mix(1.0,0.65+0.7*bumpH,uBump*0.5);
     vec3 base=pal(trap*2.6+d*0.14+uHigh*0.25);
     vec3 emis=vec3(0.0);
     // trap = -1 is the flag map() sets when the text solid was the nearest
@@ -2403,6 +2373,13 @@ vec3 render3(vec2 uv){
       } else {
         col=solid;
       }
+    }
+    // Rim: the silhouette lit from behind in the palette's bright tone, so the
+    // form separates from the background. Grazing angles only, and the text
+    // keeps its flat face.
+    if(uRim>0.001 && trap>-0.5){
+      float rim=pow(1.0-clamp(dot(n,-rd),0.0,1.0),2.5);
+      col+=gP[7]*rim*uRim*(1.6+uHigh*uReact*1.2)*cov;
     }
   }
   // Inside-the-fractal views fade to an atmosphere scaled to the corridor, so
