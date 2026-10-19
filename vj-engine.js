@@ -1200,81 +1200,112 @@ float hybrid(vec3 p,out float trap){
   return length(z)/abs(dr);
 }
 
-// Tesseract Glass (41). A hypercube FRAME — outer cube, the inner cube its 4D
-// rotation projects to, and the eight struts joining their corners — recursed
-// into its own corners, so every corner of every cube holds a smaller cube.
-// The inner scale is driven by the projection: as the tesseract turns through
-// the fourth axis the inner cell swells toward the outer one and shrinks back,
-// which is the only honest way to read a 4D rotation on a 3D screen.
-float bframe(vec3 p,float b,float e){
-  p=abs(p)-b;
-  vec3 q=abs(p+e)-e;
-  return min(min(
-    length(max(vec3(p.x,q.y,q.z),0.0))+min(max(p.x,max(q.y,q.z)),0.0),
-    length(max(vec3(q.x,p.y,q.z),0.0))+min(max(q.x,max(p.y,q.z)),0.0)),
-    length(max(vec3(q.x,q.y,p.z),0.0))+min(max(q.x,max(q.y,p.z)),0.0));
-}
-float strut(vec3 p,vec3 a,vec3 b,float r){
+// Tesseract (41). The real hypercube: its 16 vertices are the corners
+// (±1,±1,±1,±1) of 4-space, two vertices are joined by an edge when they differ
+// in exactly one coordinate (32 edges), and four vertices span a square face
+// when they differ in exactly two (24 faces). The whole object is turned by a
+// true 4D rotation — a product of plane rotations, each a cos/sin block in two
+// of the four axes — and then projected to 3D the way a camera projects 3D to
+// 2D, with w in place of depth: x' = x·d/(d−w). A straight 4D edge projects to
+// a straight 3D line and a flat face to a flat quad, so the projection is exact
+// geometry, not an impression of it. Rotation in the xw, yw and zw planes is
+// what carries the far cell (small, inside) out through the near one (large,
+// outside) and back: the "turning inside out" is the w-perspective at work,
+// and no cube in the projection ever scales on its own.
+//   morph  perspective (d: weak → strong, i.e. how small the far cell gets)
+//   ca     4D phase      cb  glaze (how many face orientations carry glass)
+//   cc     edge radius   iter rotation: xw only → xw+yz double rotation → all six planes
+// Edges are tapered by the same d/(d−w) factor as their endpoints, so a tube of
+// fixed 4D thickness reads thicker on the near cell and thinner on the far one,
+// and trap carries the w depth of the nearest feature into the palette.
+float tessSeg(vec3 p,vec3 a,vec3 b,float ra,float rb,out float h){
   vec3 pa=p-a, ba=b-a;
-  float h=clamp(dot(pa,ba)/dot(ba,ba),0.0,1.0);
-  return length(pa-ba*h)-r;
+  h=clamp(dot(pa,ba)/dot(ba,ba),0.0,1.0);
+  return length(pa-ba*h)-mix(ra,rb,h);
 }
-// One cell. The struts are drawn once in the positive octant and the abs()
-// fold gives the other seven, so eight capsules cost one.
-float tessCell(vec3 p,float s,float e){
-  float d=bframe(p,1.0,e);
-  d=min(d,bframe(p/s,1.0,e/s)*s);
-  d=min(d,strut(abs(p),vec3(1.0),vec3(s),e*0.8));
-  return d;
-}
-// Face panes. Three of the six faces per cell only — a closed glass box shows
-// nothing but its own reflections, and the open faces are what let the eye into
-// the lattice while the glazed ones catch the room.
-float sdb(vec3 p,vec3 b){vec3 q=abs(p)-b;return length(max(q,0.0))+min(max(q.x,max(q.y,q.z)),0.0);}
-float pane(vec3 p,float t){
-  float d=sdb(p-vec3(1.0,0.0,0.0),vec3(t,1.0,1.0));
-  d=min(d,sdb(p-vec3(0.0,1.0,0.0),vec3(1.0,t,1.0)));
-  d=min(d,sdb(p-vec3(0.0,0.0,1.0),vec3(1.0,1.0,t)));
-  return d;
+// Unsigned distance to a planar quad a-b-c-d (iq's udQuad).
+float tessQuad(vec3 p,vec3 a,vec3 b,vec3 c,vec3 d){
+  vec3 ba=b-a, pa=p-a, cb=c-b, pb=p-b, dc=d-c, pc=p-c, ad=a-d, pd=p-d;
+  vec3 nor=cross(ba,ad);
+  if(sign(dot(cross(ba,nor),pa))+sign(dot(cross(cb,nor),pb))+sign(dot(cross(dc,nor),pc))+sign(dot(cross(ad,nor),pd))<3.0){
+    vec3 e0=ba*clamp(dot(ba,pa)/dot(ba,ba),0.0,1.0)-pa;
+    vec3 e1=cb*clamp(dot(cb,pb)/dot(cb,cb),0.0,1.0)-pb;
+    vec3 e2=dc*clamp(dot(dc,pc)/dot(dc,dc),0.0,1.0)-pc;
+    vec3 e3=ad*clamp(dot(ad,pd)/dot(ad,ad),0.0,1.0)-pd;
+    return sqrt(min(min(dot(e0,e0),dot(e1,e1)),min(dot(e2,e2),dot(e3,e3))));
+  }
+  return abs(dot(nor,pa))/length(nor);
 }
 float tessFrac(vec3 p,out float trap){
   float ph=uTime*0.11*uSpeed*uSpin+(uCA-0.5)*6.28318;
-  float e=0.012+uCC*0.05;
-  // Inner cube and corner cubes are ONE size, not two. The 4D phase drives the
-  // inner cube's half-extent, and the corner children are then defined as that
-  // same extent — k is derived from s rather than set beside it. So the struts
-  // leaving the outer cube's vertices land exactly on the corner cubes'
-  // vertices, which land exactly on the inner cube's, and the whole lattice
-  // breathes as one object when 4D phase is turned. Previously k was fixed and
-  // only the inner cube moved, so the joints drifted apart mid-sweep.
-  // Bounds: below ~0.23 the eight children stop touching and the frame reads as
-  // loose debris; above ~0.46 they overlap each other and the cell fills in.
-  // Morph biases the fit inside that window instead of setting it outright.
-  float s=clamp(mix(0.245,0.45,0.5+0.5*sin(ph))*(0.88+uMorph*0.26)+uMid*uReact*0.02,0.23,0.46);
-  float k=1.0/s;
-  // Glaze (Cst B). How much of the lattice is glazed, from a bare frame at 0 to
-  // panes carried several levels down at 1. It replaced a finish dial that ran
-  // to mirror: mirrored panes turned the outer cell into a box and hid every
-  // cube inside it, which is the one thing this scene exists to show.
-  float gz=clamp(uCB,0.0,1.0);
-  int lvl=int(clamp(2.6*fi()+clamp(uZoom,0.0,1.0)*1.6,2.0,6.0));
-  float d=1e9, sc=1.0, tr=1.0;
-  vec3 z=p;
-  for(int i=0;i<6;i++){
-    if(i>=lvl) break;
-    d=min(d,tessCell(z,s,e)/sc);
-    if(gz>0.02 && i>=1 && float(i)<1.0+gz*(2.0+clamp(uZoom,0.0,1.0)*3.0)) d=min(d,pane(z,e*0.30*(0.55+gz*0.45))/sc);
-    z=abs(z);
-    if(z.x<z.y) z.xy=z.yx;
-    if(z.x<z.z) z.xz=z.zx;
-    if(z.y<z.z) z.yz=z.zy;
-    z=z*k-vec3(k-1.0);
-    sc*=k;
-    tr=min(tr,length(z)*0.22);
-    if(dot(z,z)>2500.0) break;
+  // Projection distance from the 4D eye to the hypercube's centre. Must stay
+  // above the largest |w| a vertex can reach (2, the vertex radius) or a corner
+  // passes behind the eye.
+  float D=mix(4.6,2.45,clamp(uMorph,0.0,1.0));
+  // Size normaliser: the largest projected radius any vertex can take at this
+  // d, over w in [0,2) with |xyz|²+w²=4. Dividing by it keeps the object the
+  // same size as Perspective is turned, rather than ballooning as d shrinks.
+  float rmax=0.0;
+  for(int i=0;i<8;i++){
+    float w=float(i)*0.25;
+    rmax=max(rmax,sqrt(4.0-w*w)*D/(D-w));
   }
-  trap=clamp(0.30+0.55*tr,0.0,1.0);
-  return d;
+  float N=1.55/rmax;
+  float e=(0.014+uCC*0.05)*(1.0+uMid*uReact*0.25);
+  // Cheap reject: nothing lies outside the bounding sphere.
+  float bs=length(p)-1.55-e*3.0;
+  if(bs>0.3){ trap=0.5; return bs; }
+  // The rotation, applied to the four basis vectors: the rotated vertex is then
+  // just ±c0 ±c1 ±c2 ±c3, sixteen sums instead of sixteen matrix products.
+  // xw is always on; yz at the golden ratio of it is the classic double
+  // rotation (two orthogonal planes at incommensurate rates, so the motion never
+  // repeats); the remaining four planes come in at the top of the dial.
+  float k1=smoothstep(0.2,0.5,uIter), k2=smoothstep(0.55,0.95,uIter);
+  vec4 c0=vec4(1.0,0.0,0.0,0.0), c1=vec4(0.0,1.0,0.0,0.0), c2=vec4(0.0,0.0,1.0,0.0), c3=vec4(0.0,0.0,0.0,1.0);
+  mat2 r;
+  r=rot(ph);                      c0.xw*=r; c1.xw*=r; c2.xw*=r; c3.xw*=r;
+  r=rot(ph*0.618034*k1);          c0.yz*=r; c1.yz*=r; c2.yz*=r; c3.yz*=r;
+  r=rot((ph*0.414+0.7)*k2);       c0.yw*=r; c1.yw*=r; c2.yw*=r; c3.yw*=r;
+  r=rot((ph*0.293+1.9)*k2);       c0.zw*=r; c1.zw*=r; c2.zw*=r; c3.zw*=r;
+  r=rot((ph*0.237)*k2);           c0.xy*=r; c1.xy*=r; c2.xy*=r; c3.xy*=r;
+  vec3 P[16]; float W[16], S[16];
+  for(int i=0;i<16;i++){
+    vec4 v=c0*((i&1)!=0?1.0:-1.0)+c1*((i&2)!=0?1.0:-1.0)+c2*((i&4)!=0?1.0:-1.0)+c3*((i&8)!=0?1.0:-1.0);
+    float s=D/(D-v.w)*N;
+    P[i]=v.xyz*s; W[i]=v.w; S[i]=s;
+  }
+  float d=1e9, tw=0.0, h;
+  for(int i=0;i<16;i++){
+    for(int j=0;j<4;j++){
+      int b=1<<j;
+      if((i&b)!=0) continue;
+      int k=i|b;
+      float de=tessSeg(p,P[i],P[k],e*S[i],e*S[k],h);
+      if(de<d){ d=de; tw=mix(W[i],W[k],h); }
+    }
+  }
+  // Glaze. The 24 faces come in six orientations, one per pair of axes, four
+  // faces each. Glaze adds orientations one at a time, starting with the three
+  // that contain w — the frustum walls joining the inner cell to the outer one —
+  // so the cells themselves stay open and the eye can still get inside.
+  float gz=clamp(uCB,0.0,1.0);
+  int nOr=int(ceil(gz*6.0-0.1));
+  float t=e*0.30*(0.55+gz*0.45);
+  for(int o=0;o<6;o++){
+    if(o>=nOr) break;
+    int A = o==0?1:(o==1?2:(o==2?4:(o==3?1:(o==4?1:2))));
+    int B = o<3?8:(o==3?2:4);
+    int m=15&~(A|B), lo=m&(-m), hi=m^lo;
+    for(int q=0;q<4;q++){
+      int base = q==0?0:(q==1?lo:(q==2?hi:m));
+      int i0=base, i1=base|A, i2=base|A|B, i3=base|B;
+      float dq=tessQuad(p,P[i0],P[i1],P[i2],P[i3])-t;
+      if(dq<d){ d=dq; tw=0.25*(W[i0]+W[i1]+W[i2]+W[i3]); }
+    }
+  }
+  // w runs -2..2: far cell at one end of the palette, near cell at the other.
+  trap=clamp(0.5+0.25*tw,0.0,1.0);
+  return d*0.9;
 }
 
 // DNA (43). An endless field of double helices to fly through, like the

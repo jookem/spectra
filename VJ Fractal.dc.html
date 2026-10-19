@@ -4598,7 +4598,7 @@ class Component extends DCLogic {
       36:{morph:T.morph, ca:'Slice z', cb:'Slice w', cc:T.cc, detail:'Fog', spinr:'Glow', iter:'Iterations'},
       // 41 keeps Detail: it is the one 3D scene excluded from the refraction
       // swap, so the slider really is march detail there.
-      41:{morph:'Nest', ca:'4D phase', cb:'Glaze', cc:'Edge', iter:'Iterations'},
+      41:{morph:'Perspective', ca:'4D phase', cb:'Glaze', cc:'Edge', iter:'Rotation'},
       42:{morph:'Block', ca:'Sweep', cb:'Bands', cc:'Axis', detail:'Fog', spinr:'Glow', iter:'Iterations'},
       // 2D escape-time — shared shading
       6:{morph:'Orbit', ca:'c re', cb:'c im', cc:'Stripe'},
@@ -4653,7 +4653,7 @@ class Component extends DCLogic {
     // mandatory from the same condition the swap itself uses.
     const p3 = this.E && this.E.PRESETS.find(p => p.mode === mode);
     if(p3 && p3.kind === '3D')
-      return mode === 41 ? {iter:'Iterations'} : {detail:'Fog', spinr:'Glow', iter:'Iterations'};
+      return mode === 41 ? {iter:'Rotation'} : {detail:'Fog', spinr:'Glow', iter:'Iterations'};
     return null;
   }
 
@@ -4666,7 +4666,7 @@ class Component extends DCLogic {
       3:['Apollonian gasket','p ← p/|p|² after box fold','sphere inversion, recursed'],
       4:['Quaternion Julia','q ← q² + c,  q ∈ ℍ','4D Julia sliced to ℝ³'],
       5:['Sierpinski tetra','p ← 2p − v,  nearest vertex v','tetrahedral IFS'],
-      41:['Tesseract frame','p ← |p| sorted,  ×k − (k−1)','hypercube frame recursed into its corners'],
+      41:['Tesseract','v ∈ {±1}⁴,  v ← R₄(θ)·v,  x ← x·d/(d − w)','16 vertices, 32 edges, 24 faces turned in 4D, then w-perspective to ℝ³'],
       42:['HexKochMosely','p ← hex cell of 3ⁱp,  tube + 3 slots subtracted','Menger on a hexagonal prism lattice, gradient swept per cell'],
       12:['Mandelbox','p ← s·ballFold(boxFold(p)) + p₀','clamp then conditional inversion'],
       13:['Kleinian','p ← boxFold(p),  p/|p|²','limit set of a Kleinian group'],
