@@ -2078,7 +2078,9 @@ vec3 render3(vec2 uv){
     ro-=f*clr*1.4*k*k*(3.0-2.0*k)*(1.0-cw);
   }
   float d=0.0,trap=0.0,glow=0.0; bool hit=false; vec3 p=ro;
-  int steps=int(clamp(mix(64.0,236.0,uDetail)+ex*13.0, 56.0, (uMode==41)?110.0:252.0));
+  // The tesseract's thin tubes cost steps on every near miss, so it keeps a low
+  // cap — raised under Repeat, where the copies sit behind the home cell.
+  int steps=int(clamp(mix(64.0,236.0,uDetail)+ex*13.0, 56.0, (uMode==41)?((uRep>0.0)?210.0:110.0):252.0));
   // The spherical wrap's estimate is a bounded approximation, not exact, so it
   // marches with the same caution as the Apollonian.
   // Inside views see far down corridors, which takes more steps than a framed
@@ -2114,7 +2116,9 @@ vec3 render3(vec2 uv){
     if(rt<minr){ minr=rt; mind=d; mtrap=trap; }
     if(h<eps){ hit=true; hp=p; htrap=trap; hd=d; break; }
     d+=h*relax;
-    if(d>(fc?mix(dist0+7.0,max(uCamScale*60.0,uCamFog*40.0),cw):dist+7.0)) break;
+    // Orbit stops 7 units past the camera. The tesseract's camera sits inside
+    // the home cell, so under Repeat that cut off every neighbour.
+    if(d>(fc?mix(dist0+7.0,max(uCamScale*60.0,uCamFog*40.0),cw):dist+((uMode==41)?max(7.0,uRep*2.5):7.0))) break;
   }
   // Shade the FIRST surface the ray met, not wherever the walk ended up.
   if(hit){ p=hp; trap=htrap; d=hd; }
