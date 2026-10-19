@@ -575,10 +575,11 @@
         <button onClick="{{ vidDirPick }}" title="Pick a folder of videos to cycle through" style="display:flex;flex-direction:column;align-items:flex-start;justify-content:center;box-sizing:border-box;min-width:62px;min-height:40px;padding:6px 8px;text-align:left;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;flex:0 0 auto;border:1px solid rgba(255,255,255,0.11);background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.7);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">+ Folder</button>
         <button onClick="{{ vidToggle }}" title="Use the camera as the video source" style="display:flex;flex-direction:column;align-items:flex-start;justify-content:center;box-sizing:border-box;min-width:62px;min-height:40px;padding:6px 8px;text-align:left;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;flex:0 0 auto;border:1px solid {{ vidBtnBorder }};background:{{ vidBtnBg }};color:{{ vidBtnFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ vidBtnLabel }}</button>
         <div style="position:relative;display:flex;flex:0 0 auto;">
-          <select value="{{ arModeSel }}" onChange="{{ setArMode }}" title="AR: control the scene with your hands or head through the camera" style="box-sizing:border-box;min-width:96px;min-height:40px;padding:6px 8px;text-align:left;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;appearance:none;-webkit-appearance:none;border:1px solid {{ vidArBorder }};background:{{ vidArBg }};color:{{ vidArFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+          <select value="{{ arModeSel }}" onChange="{{ setArMode }}" title="AR: control the scene with your hands, head or body through the camera" style="box-sizing:border-box;min-width:96px;min-height:40px;padding:6px 8px;text-align:left;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;appearance:none;-webkit-appearance:none;border:1px solid {{ vidArBorder }};background:{{ vidArBg }};color:{{ vidArFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
             <option value="off" style="background:#08090A;color:#F2F3F0;">AR off</option>
             <option value="hand" style="background:#08090A;color:#F2F3F0;">AR hands</option>
             <option value="head" style="background:#08090A;color:#F2F3F0;">AR head</option>
+            <option value="body" style="background:#08090A;color:#F2F3F0;">AR body</option>
             <option value="motion" style="background:#08090A;color:#F2F3F0;">AR motion</option>
           </select>
           <span ref="{{ arMeterRef }}" style="position:absolute;left:0;bottom:0;height:3px;width:0%;background:var(--acc);pointer-events:none;"></span>
@@ -1499,10 +1500,12 @@ class Component extends DCLogic {
       {id:'24',   tag:'24',   fps:24}
     ];
     this.SRC = [{id:'off',tag:'—'},{id:'lfo',tag:'LFO'},{id:'bass',tag:'BAS'},{id:'mid',tag:'MID'},{id:'high',tag:'HGH'},{id:'lvl',tag:'LVL'},{id:'beat',tag:'BEA'},{id:'bpm',tag:'SAW'},
-      {id:'note',tag:'NTE'},{id:'ton',tag:'TON'},{id:'chd',tag:'CHD'},{id:'mot',tag:'MOT'},{id:'motx',tag:'MOX'},{id:'moty',tag:'MOY'},{id:'motr',tag:'MOR'}];
+      {id:'note',tag:'NTE'},{id:'ton',tag:'TON'},{id:'chd',tag:'CHD'},{id:'mot',tag:'MOT'},{id:'motx',tag:'MOX'},{id:'moty',tag:'MOY'},{id:'motr',tag:'MOR'},
+      {id:'motz',tag:'MOZ'},{id:'mo2t',tag:'M2T'},{id:'mo2x',tag:'M2X'},{id:'mo2y',tag:'M2Y'}];
     // Camera motion (AR, step one): how much is moving in the live picture and
-    // where. Filled by motionStep while video is on.
-    this.mo = {e:0, x:0, y:0, r:0};
+    // where. Filled by motionStep while video is on. z is depth (-1 far, +1
+    // near); e2/x2/y2 are the second hand, or the left arm in body mode.
+    this.mo = {e:0, x:0, y:0, r:0, z:0, e2:0, x2:0, y2:0};
     this.csi = null;
     this.bpm = {flux:[], prev:null, ioi:[], value:0, conf:0, phase:0, period:0, beatCount:0, lastAt:0};
     // Harmony state. chroma is the smoothed 12-bin pitch class profile; slow is a
@@ -14218,8 +14221,8 @@ class Component extends DCLogic {
         {k:'Mouse move', d:'Shorebreak: the surfer follows the pointer — left climbs the wave’s face, right runs out onto the shoulder, up and down take him along the wave'},
         {k:'Idle 10s', d:'Controls fade out on their own'},
         {k:'Menu tabs (Deck)', d:'The deck shows one group at a time: Scenes, Video, Cues, Slots, Params, Look, System. Minimal’s Menu button opens the deck; System has the layout buttons to go back'},
-        {k:'AR (camera)', d:'Pick a mode in the AR menu beside Camera in the Video tab; it starts the camera itself. HANDS: pinch thumb and index to grab, move your hand to turn the scene like a mouse drag, relax your hand to let go (a flick keeps it spinning); an open palm pans; a fist moves Morph (up and down) and Speed (sideways); pinch with both hands and spread or close them to zoom, twist them to turn the hue; in Fly or Surface, point to aim a target and hold still to go; a peace sign is the next scene. HEAD: the screen becomes a window — move your head and the view follows, lean in to zoom, tilt to roll, nod to tap the beat. MOTION: any movement turns the view toward its side, and a sudden burst of movement hits like a beat. The preview bottom right shows what the tracker sees; drag it anywhere, double-click to put it back. Hands and Head load their tracking from the internet the first time; the camera image never leaves the computer'},
-        {k:'MOT / MOX / MOY / MOR sources', d:'Camera control as automation sources, in the tag beside any value. With AR hands: MOX and MOY are where your hand is, MOT how open it is (0 pinched, 1 open), MOR how far it is turned. With AR head: where your head is, MOT how close you lean, MOR how far you tilt. With AR motion or AR off: where the movement is, how much, and MOR how fast it sweeps sideways. Needs video on and Auto on'},
+        {k:'AR (camera)', d:'Pick a mode in the AR menu beside Camera in the Video tab; it starts the camera itself. HANDS: pinch thumb and index to grab, move your hand to turn the scene like a mouse drag, push it toward or away from the camera to zoom, twist it like a dial to roll, relax your hand to let go (a flick keeps it spinning); an open palm pans; a fist moves Morph (up and down) and Hue (sideways), twisting it sets Saturation and pushing it in or out sets Speed; pinch with both hands and spread or close them to zoom, twist them to turn the hue; in Fly or Surface, point to aim a target and hold still to go; a peace sign is the next scene. HEAD: the screen becomes a window — move your head and the view follows, lean in to zoom, tilt to roll, nod to tap the beat. BODY: for a stage — sway to turn, step in to zoom, tip the shoulders to roll; raise the right hand above the shoulder for Morph (higher) and Hue (out), the left for Speed and Saturation; clap to tap the tempo, jump for a beat. MOTION: any movement turns the view toward its side, and a sudden burst of movement hits like a beat. The preview bottom right shows what the tracker sees; drag it anywhere, double-click to put it back. Hands, Head and Body load their tracking from the internet the first time; the camera image never leaves the computer'},
+        {k:'MOT / MOX / MOY / MOR / MOZ / M2T / M2X / M2Y sources', d:'Camera control as automation sources, in the tag beside any value. With AR hands: MOX and MOY are where your hand is, MOT how open it is (0 pinched, 1 open), MOR how far it is turned, MOZ how close it is to the camera; M2T, M2X and M2Y the same for a second hand. With AR head: where your head is, MOT and MOZ how close you lean, MOR how far you tilt. With AR body: MOX/MOY your right hand, M2X/M2Y your left, MOT how wide your arms are, M2T how high, MOR your shoulder tilt, MOZ how far you have stepped in. With AR motion or AR off: where the movement is, how much, and MOR how fast it sweeps sideways. Needs video on and Auto on'},
         {k:'Morph fader (Slots)', d:'Eases toward where you put it, so even a click on the far end morphs over about a second. Between two different scenes the swap happens at the middle and the dissolve follows the fader'},
         {k:'Video change', d:'Auto steps the clip list, In order / Random its order, Link scene changes clip with the scene, FX cycle picks a new video look each clip, Tx the transition, Drift moves the video trail'},
         {k:'Several screens (TV Wall, Billboard City, Frame Corridor)', d:'Each screen plays the clip at its own delay, up to two seconds behind, so they never all show the same frame. Sphere keeps one picture wrapped round its dome'},
@@ -14260,6 +14263,10 @@ class Component extends DCLogic {
     if(src==='motx') return this.mo.x;
     if(src==='moty') return this.mo.y;
     if(src==='motr') return this.mo.r;
+    if(src==='motz') return this.mo.z;
+    if(src==='mo2t') return this.mo.e2;
+    if(src==='mo2x') return this.mo.x2;
+    if(src==='mo2y') return this.mo.y2;
     // RF / RFP / RFF used to live here as three more modulation sources. They
     // read a wifi-sensing module that was never built, so every parameter they
     // were assigned to sat at zero — three dead entries in every source menu in
@@ -15805,6 +15812,9 @@ class Component extends DCLogic {
   motionStep(dt){
     const v=this.video, vd=this.state.vid, mo=this.mo;
     const live=vd && vd.on && v && v.videoWidth>0 && !v.paused;
+    // Motion has no depth and no second hand; let what hands, head or body
+    // left behind settle back to rest.
+    { const k=Math.exp(-dt*3); mo.z*=k; mo.e2*=k; mo.x2*=k; mo.y2*=k; }
     if(!live){ mo.e*=Math.exp(-dt*3); return; }
     this._moT=(this._moT||0)+dt; if(this._moT<1/30) return; this._moT=0;
     const W=64, H=36;
@@ -15859,26 +15869,28 @@ class Component extends DCLogic {
     this._ar = this._ar || {}; this._arBusy = this._arBusy || {};
     if(this._ar[kind] || this._arBusy[kind]) return;
     this._arBusy[kind] = true;
-    this.arStat = 'Loading ' + (kind==='hand' ? 'hand' : 'head') + ' tracking…';
+    this.arStat = 'Loading ' + kind + ' tracking…';
     this.forceUpdate();
     try{
       const V = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
       const mp = this._mp || (this._mp = await import(V + '/vision_bundle.mjs'));
       const files = this._mpFiles || (this._mpFiles = await mp.FilesetResolver.forVisionTasks(V + '/wasm'));
-      const make = (delegate) => kind==='hand'
+      const make = (delegate) => kind==='body'
+        ? mp.PoseLandmarker.createFromOptions(files, {baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task', delegate}, runningMode:'VIDEO', numPoses:1})
+        : kind==='hand'
         ? mp.HandLandmarker.createFromOptions(files, {baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task', delegate}, runningMode:'VIDEO', numHands:2})
         : mp.FaceDetector.createFromOptions(files, {baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite', delegate}, runningMode:'VIDEO'});
       let t; try{ t = await make('GPU'); }catch(e){ t = await make('CPU'); }
       this._ar[kind] = t; this.arStat = '';
     }catch(e){
-      this.arStat = 'Could not load ' + (kind==='hand' ? 'hand' : 'head') + ' tracking — it needs internet the first time. ' + ((e && e.message) || e);
+      this.arStat = 'Could not load ' + kind + ' tracking — it needs internet the first time. ' + ((e && e.message) || e);
     }
     this._arBusy[kind] = false;
     this.forceUpdate();
   }
   arStep(dt){
     const m = this.arModeOf();
-    if(m==='hand' || m==='head') this.trackStep(m);
+    if(m==='hand' || m==='head' || m==='body') this.trackStep(m);
     else this.motionStep(dt);
   }
   trackStep(kind){
@@ -15890,10 +15902,13 @@ class Component extends DCLogic {
     if(now - (this._arT || 0) < 33) return;
     this._arT = now;
     let res; try{ res = T.detectForVideo(v, now); }catch(e){ return; }
-    if(kind==='hand') this.handStep(res, now); else this.headStep(res, v);
+    if(kind==='hand') this.handStep(res, now); else if(kind==='body') this.bodyStep(res, now); else this.headStep(res, v);
   }
   handStep(res, now){
     const H = this._hand || (this._hand = {p:[], grab:null, two:null, fist:null});
+    // Past a small dead band, so the extra axes on a grip (twist, push) stay
+    // put while the hand is only steering the main two.
+    const dead = (v, b) => Math.sign(v)*Math.max(0, Math.abs(v)-b);
     const cv = this.canvasRef.current, r = cv ? cv.getBoundingClientRect() : {left:0, top:0, width:1, height:1};
     const pts = ((res && res.landmarks) || []).map((L, i) => {
       const d = (a, b) => Math.hypot(a.x-b.x, a.y-b.y);
@@ -15922,12 +15937,27 @@ class Component extends DCLogic {
       const jump = !o || o.shape !== shape;
       // Roll of the hand, wrist to middle knuckle: 0 upright, +-1 a quarter turn.
       const roll = Math.max(-1, Math.min(1, Math.atan2(-(L[9].x-L[0].x), -(L[9].y-L[0].y)) / 1.5708));
-      return {L, pin, on, shape, run, roll, held: shape === 'pinch' || run >= 6,
+      // Distance from the camera, read from how big the palm looks: the
+      // longest side of the wrist / index knuckle / little knuckle triangle,
+      // in square units. The longest side, because tipping the hand shortens
+      // one or two of them but rarely all three; the knuckles, because curling
+      // the fingers moves neither. Smoothed harder than x and y — it is noisier.
+      const ar = this.video && this.video.videoHeight ? this.video.videoWidth/this.video.videoHeight : 1.33;
+      const ds = (a, b) => Math.hypot((a.x-b.x)*ar, a.y-b.y);
+      const sz = Math.max(ds(L[0],L[5]), ds(L[0],L[17]), ds(L[5],L[17]));
+      return {L, pin, on, shape, run, roll: o ? o.roll+(roll-o.roll)*0.4 : roll, held: shape === 'pinch' || run >= 6,
+        sz: o && o.sz ? o.sz+(sz-o.sz)*0.25 : sz,
         sx: o && !jump ? o.sx+(x-o.sx)*0.55 : x, sy: o && !jump ? o.sy+(y-o.sy)*0.55 : y};
     });
     const on = pts.filter(p => p.on), mo = this.mo;
-    if(pts[0]){ mo.x = pts[0].sx*2-1; mo.y = 1-pts[0].sy*2; mo.e = Math.min(1, Math.max(0, (pts[0].pin-0.25)/0.9)); mo.r += (pts[0].roll-mo.r)*0.4; }
-    else { mo.e *= 0.9; mo.r *= 0.9; }
+    const opn = q => Math.min(1, Math.max(0, (q.pin-0.25)/0.9));
+    if(pts[0]){ mo.x = pts[0].sx*2-1; mo.y = 1-pts[0].sy*2; mo.e = opn(pts[0]); mo.r += (pts[0].roll-mo.r)*0.4;
+      // MOZ: a palm about a fifth of the frame tall (a relaxed arm's length)
+      // is 0; twice as close is about +1.
+      mo.z = Math.max(-1, Math.min(1, Math.log(pts[0].sz/0.2)/0.7)); }
+    else { mo.e *= 0.9; mo.r *= 0.9; mo.z *= 0.9; }
+    if(pts[1]){ mo.x2 = pts[1].sx*2-1; mo.y2 = 1-pts[1].sy*2; mo.e2 = opn(pts[1]); }
+    else { mo.e2 *= 0.9; mo.x2 *= 0.9; mo.y2 *= 0.9; }
     const toScreen = p => ({clientX: r.left + (H.grab.x0 + (p.sx-H.grab.x0)*1.6)*r.width, clientY: r.top + (H.grab.y0 + (p.sy-H.grab.y0)*1.6)*r.height});
     const release = () => {
       const g = H.grab; if(!g) return;
@@ -15945,7 +15975,8 @@ class Component extends DCLogic {
     const grab = (p, kind) => {
       if(H.grab && H.grab.kind !== kind) release();
       if(!H.grab){
-        H.grab = {kind, x0: p.sx, y0: p.sy, x: p.sx, y: p.sy, t: now, vx: 0, vy: 0};
+        H.grab = {kind, x0: p.sx, y0: p.sy, x: p.sx, y: p.sy, t: now, vx: 0, vy: 0, s0: p.sz, z0: this.state.p.zoom ?? 0.5,
+          r0: p.roll, cr0: this.cam.roll || 0, sr0: this.scnRoll || 0};
         this.fling = null; if(this.cancelHome) this.cancelHome();
         const alt = kind === 'open' && !this.is2D() && !this.isCanvasScene();
         this.md = {x: r.left + p.sx*r.width, y: r.top + p.sy*r.height, yaw: this.cam.yaw, pitch: this.cam.pitch, px: this.pan.x, py: this.pan.y, alt};
@@ -15955,6 +15986,19 @@ class Component extends DCLogic {
         g.vx = g.vx*0.5 + (p.sx-g.x)/dts*0.5; g.vy = g.vy*0.5 + (p.sy-g.y)/dts*0.5;
         g.x = p.sx; g.y = p.sy; g.t = now;
         if(this.md && this.onMMove) this.onMMove(toScreen(p));
+        // The pinch also carries depth: push the hand toward the camera to
+        // zoom in, draw it back to zoom out, relative to where it grabbed.
+        // Halving the distance is about +0.5 zoom. A small dead band keeps the
+        // wobble of a turning hand from breathing the zoom.
+        if(kind === 'pinch' && g.s0){
+          this.setP('zoom', g.z0 + dead(Math.log(p.sz/g.s0), 0.06)*0.75);
+          // And twist: turn the pinched hand like a dial and the view rolls
+          // with it, as the two-finger twist does on touch. Fly and Surface
+          // have no roll.
+          const dr = dead(p.roll-g.r0, 0.12)*1.5708;
+          if(this.isCanvasScene()) this.scnRoll = Math.max(-0.52, Math.min(0.52, g.sr0 - dr*0.5));
+          else if(!(this.state.camView > 0)) this.cam.roll = g.cr0 - dr;
+        }
       }
     };
     const P = this.state.p;
@@ -15994,11 +16038,21 @@ class Component extends DCLogic {
         if(!H.peace){ H.peace = true; this.stepScene(1); }
       }
       else if(p && p.shape === 'fist'){
-        // Fist: a parameter grip. Up and down sets Morph, left and right Speed,
+        // Fist: a parameter grip. Up and down sets Morph, left and right turns
+        // the hue (wrapping), twisting it like a dial sets Saturation, and
+        // pushing it toward the camera or pulling it back sets Speed — all
         // relative to where the fist closed.
         release();
-        if(!H.fist) H.fist = {x0: p.sx, y0: p.sy, m0: P.morph ?? 0.5, s0: P.speed ?? 0.5};
-        else { this.setP('morph', H.fist.m0 + (H.fist.y0-p.sy)*1.8); this.setP('speed', H.fist.s0 + (p.sx-H.fist.x0)*1.4); }
+        if(!H.fist) H.fist = {x0: p.sx, y0: p.sy, m0: P.morph ?? 0.5, h0: P.hue ?? 0.5,
+          r0: p.roll, sat0: this.state.trim.sat ?? 1, s0: p.sz, sp0: P.speed ?? 0.5};
+        else {
+          const F = H.fist;
+          this.setP('morph', F.m0 + (F.y0-p.sy)*1.8); this.setP('hue', ((F.h0 + (p.sx-F.x0)*1.4) % 1 + 1) % 1);
+          this.setP('speed', F.sp0 + dead(Math.log(p.sz/F.s0), 0.06)*0.75);
+          // Trim is plain state, so only write it when the dial has moved.
+          const sat = Math.max(0, Math.min(2, F.sat0 + dead(p.roll-F.r0, 0.1)*1.2));
+          if(Math.abs(sat-(this.state.trim.sat ?? 1)) > 0.01) this.setTrim('sat', sat);
+        }
       } else { release(); H.fist = null; }
     }
     H.p = pts;
@@ -16022,6 +16076,7 @@ class Component extends DCLogic {
       if(H.w0 == null){ H.w0 = H.w; H.t0 = H.t; }
       mo.x = H.x*2-1; mo.y = 1-H.y*2; mo.e = Math.min(1, Math.max(0, (H.w/H.w0-0.7)/0.6));
       mo.r = Math.max(-1, Math.min(1, (H.t-H.t0)/0.6));
+      mo.z = Math.max(-1, Math.min(1, Math.log(H.w/H.w0)/0.5)); mo.e2 *= 0.9; mo.x2 *= 0.9; mo.y2 *= 0.9;
       // Nod: the head dips and comes back up within half a second. Each nod
       // lands as a beat, and nodding along sets the tempo.
       { const now = performance.now(), N = H.nod || (H.nod = {base: hy, low: null});
@@ -16043,6 +16098,88 @@ class Component extends DCLogic {
     if(this.arMeterRef.current) this.arMeterRef.current.style.width = (d ? 100 : 0) + '%';
     this.arPreview(d ? [d] : [], 'head');
   }
+  // Body, through MediaPipe Pose: for a stage, where hands are too small in
+  // the frame to read. Everything is scaled by shoulder width, so it reads the
+  // same near or far.
+  //   lean and step: the screen as a window, as AR head does — sway to turn,
+  //           crouch to look down, step in to zoom, tip the shoulders to roll.
+  //   arms:   raise a hand above its shoulder to take hold; while it is up,
+  //           the right arm sets Morph (higher) and Hue (out to the side), the
+  //           left arm Speed (higher) and Saturation (out), relative to where
+  //           it came up. Drop it to let go.
+  //   clap:   hands together from wide apart taps the tempo, as a nod does.
+  //   jump:   lands a beat.
+  bodyStep(res, now){
+    const B = this._body || (this._body = {pt:{}, arm:{}, applied:{x:0, y:0, z:0, r:0}});
+    const L = res && res.landmarks && res.landmarks[0], mo = this.mo, P = this.state.p, v = this.video;
+    const ar = v && v.videoHeight ? v.videoWidth/v.videoHeight : 1.33;
+    const seen = i => !!(L && L[i] && (L[i].visibility ?? 1) > 0.5);
+    // Mirrored like the preview, and eased: pose points shiver more than hands.
+    const pt = i => { const o = B.pt[i], x = 1-L[i].x, y = L[i].y; return (B.pt[i] = o ? {x: o.x+(x-o.x)*0.5, y: o.y+(y-o.y)*0.5} : {x, y}); };
+    const dist = (a, b) => Math.hypot((a.x-b.x)*ar, a.y-b.y);
+    if(!(seen(11) && seen(12))){
+      B.pt = {}; B.arm = {}; B.msg = '';
+      mo.e *= 0.9; mo.e2 *= 0.9; mo.r *= 0.9; mo.z *= 0.9;
+      if(this.arMeterRef.current) this.arMeterRef.current.style.width = '0%';
+      this.arPreview(L ? [L] : [], 'body');
+      return;
+    }
+    // 11 is the left shoulder; mirrored, it is on the left of the screen.
+    const sL = pt(11), sR = pt(12), sw = Math.max(0.02, dist(sL, sR));
+    const cx = (sL.x+sR.x)/2, cy = (sL.y+sR.y)/2, tilt = Math.atan2(sR.y-sL.y, (sR.x-sL.x)*ar);
+    if(B.w0 == null){ B.w0 = sw; B.x0 = cx; B.y0 = cy; B.t0 = tilt; }
+    const ox = cx-B.x0, oy = B.y0-cy, oz = Math.log(sw/B.w0), orr = tilt-B.t0, a = B.applied;
+    if(this.isCanvasScene()){ this.scnYaw = (this.scnYaw||0) + (ox-a.x)*1.0; this.scnRoll = Math.max(-0.52, Math.min(0.52, (this.scnRoll||0) + (orr-a.r)*0.8)); }
+    else if(this.is2D()){ this.manual2D = true; this.pan.x += (ox-a.x)*0.6; this.pan.y += (oy-a.y)*0.6; this.cam.roll = (this.cam.roll||0) + (orr-a.r)*0.8; }
+    else { this.cam.yaw += (ox-a.x)*1.0; this.cam.pitch = Math.max(-1.4, Math.min(1.4, this.cam.pitch + (oy-a.y)*0.8)); this.cam.roll = (this.cam.roll||0) + (orr-a.r)*0.8; }
+    this.setP('zoom', (P.zoom ?? 0.5) + (oz-a.z)*0.35);
+    B.applied = {x: ox, y: oy, z: oz, r: orr};
+    // Arms. Up is measured from where the hand came up, out is away from the
+    // body on that side, both in shoulder widths.
+    const msg = [];
+    const arm = (side, wi, sh) => {
+      if(!seen(wi)){ B.arm[side] = null; return null; }
+      const w = pt(wi), A = B.arm[side];
+      const up = A ? w.y < sh.y + sw*0.05 : w.y < sh.y - sw*0.1;
+      if(!up){ B.arm[side] = null; return w; }
+      if(!A){
+        B.arm[side] = side === 'r' ? {x0: w.x, y0: w.y, a0: P.morph ?? 0.5, b0: P.hue ?? 0.5}
+          : {x0: w.x, y0: w.y, a0: P.speed ?? 0.5, b0: this.state.trim.sat ?? 1};
+        return w;
+      }
+      const hi = (A.y0-w.y)/sw, out = (side === 'r' ? 1 : -1)*(w.x-A.x0)*ar/sw;
+      if(side === 'r'){ this.setP('morph', A.a0 + hi*0.5); this.setP('hue', ((A.b0 + out*0.35) % 1 + 1) % 1); msg.push('R ↕Morph ↔Hue'); }
+      else {
+        this.setP('speed', A.a0 + hi*0.5);
+        const sat = Math.max(0, Math.min(2, A.b0 + out*0.6));
+        if(Math.abs(sat-(this.state.trim.sat ?? 1)) > 0.01) this.setTrim('sat', sat);
+        msg.push('L ↕Speed ↔Sat');
+      }
+      return w;
+    };
+    const wR = arm('r', 16, sR), wL = arm('l', 15, sL);
+    // Clap: together, having been wide apart a moment ago.
+    if(wR && wL){
+      const dw = dist(wR, wL)/sw;
+      mo.e = Math.min(1, Math.max(0, (dw-0.5)/3.5));
+      if(dw > 1.5) B.wide = now;
+      if(dw < 0.6 && !B.clap && now-(B.wide||0) < 400){ B.clap = true; this.beatTap(now); B.clapAt = now; }
+      else if(dw > 1.0) B.clap = false;
+    } else mo.e *= 0.9;
+    // Jump: the shoulders rise fast against a slow baseline.
+    { const N = B.jump || (B.jump = {base: cy});
+      N.base += (cy-N.base)*0.05;
+      if((N.base-cy)/sw > 0.3 && now-(N.t||0) > 450){ N.t = now; this.a.beat = 1; this.bpm.phase = 0; } }
+    // Sources: MOX/MOY the right hand, M2X/M2Y the left, MOT how wide the
+    // arms are, M2T how high, MOR the shoulder tilt, MOZ the step in or out.
+    const R = wR || {x: cx, y: cy}, Lh = wL || {x: cx, y: cy};
+    mo.x = R.x*2-1; mo.y = 1-R.y*2; mo.x2 = Lh.x*2-1; mo.y2 = 1-Lh.y*2;
+    mo.e2 = Math.min(1, Math.max(0, 0.5 + ((cy-R.y) + (cy-Lh.y))/sw*0.25));
+    mo.r = Math.max(-1, Math.min(1, orr/0.4)); mo.z = Math.max(-1, Math.min(1, oz/0.5));
+    B.msg = now-(B.clapAt||0) < 600 ? 'Clap — tempo' : now-((B.jump && B.jump.t)||0) < 600 ? 'Jump — beat' : msg.join(' · ');
+    if(this.arMeterRef.current) this.arMeterRef.current.style.width = (msg.length ? 100 : 35) + '%';
+    this.arPreview([L], 'body');
+  }
   arPreview(data, kind){
     const c = this.arPrevRef.current; if(!c) return;
     const x = c.getContext('2d'), W = c.width, H = c.height, v = this.video, acc = this.state.accentSel || this.props.accent || '#C8FF2E';
@@ -16059,12 +16196,26 @@ class Component extends DCLogic {
       const Hh = this._hand || {};
       if(!msg) msg = !data.length ? 'Show a hand to the camera'
         : data.filter(p => p.on).length > 1 ? 'Two hands: spread to zoom, twist for hue'
-        : Hh.grab && Hh.grab.kind === 'pinch' ? 'Grabbed — move to turn'
+        : Hh.grab && Hh.grab.kind === 'pinch' ? 'Grabbed — move turn · push zoom · twist roll'
         : Hh.grab && Hh.grab.kind === 'open' ? 'Open hand — move to pan'
-        : Hh.fist ? 'Fist — up/down Morph, sideways Speed'
+        : Hh.fist ? 'Fist — ↕Morph ↔Hue · twist Sat · push Speed'
         : Hh.pt ? (this.state.camView > 0 ? 'Pointing — hold still to fly there' : 'Pointing aims in Fly or Surface view')
         : Hh.peace ? 'Next scene — change shape to go again'
         : 'Pinch turn · palm pan · fist Morph · point aim · ✌ next';
+    } else if(kind==='body' && data){
+      const bones = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[24,26]];
+      for(const L of data){
+        x.strokeStyle = 'rgba(242,243,240,0.85)'; x.lineWidth = 2; x.beginPath();
+        for(const [i, j] of bones){ const a = L[i], b = L[j]; if(!a || !b || (a.visibility ?? 1) < 0.5 || (b.visibility ?? 1) < 0.5) continue;
+          x.moveTo((1-a.x)*W, a.y*H); x.lineTo((1-b.x)*W, b.y*H); }
+        x.stroke();
+        const Bb = this._body || {arm:{}};
+        for(const [i, k] of [[16,'r'],[15,'l']]){ const l = L[i]; if(!l || (l.visibility ?? 1) < 0.5) continue;
+          const held = Bb.arm && Bb.arm[k]; x.strokeStyle = held ? acc : 'rgba(242,243,240,0.9)'; x.lineWidth = held ? 3 : 1.5;
+          x.beginPath(); x.arc((1-l.x)*W, l.y*H, held ? 9 : 6, 0, 6.2832); x.stroke(); }
+      }
+      if(!msg) msg = !data.length ? 'Step back until your shoulders show'
+        : (this._body && this._body.msg) || 'Sway turn · raise an arm · clap tempo · jump';
     } else if(kind==='head' && data){
       const v2 = this.video;
       for(const d of data){ const b = d.boundingBox; if(!b || !v2) continue;
@@ -17066,12 +17217,13 @@ class Component extends DCLogic {
       vidArBg: chip(!!s.vid.ar).bg, vidArFg: chip(!!s.vid.ar).fg, vidArBorder: chip(!!s.vid.ar).border,
       arModeSel: this.arModeOf(),
       setArMode: (e) => { const m = e.target.value; if(m !== 'off' && !s.vid.on) this.enableVideo(s.vid.deviceId);
-        if(m === 'hand' || m === 'head') this.arLoad(m); this._head = null; this._hand = null; this.setVid({ar: m === 'off' ? false : m}); },
+        if(m === 'hand' || m === 'head' || m === 'body') this.arLoad(m); this._head = null; this._hand = null; this._body = null; this.setVid({ar: m === 'off' ? false : m}); },
       arMeterRef: this.arMeterRef, arDotRef: this.arDotRef, arPrevRef: this.arPrevRef,
-      arPrevDisp: (s.vid.on && (s.vid.ar === 'hand' || s.vid.ar === 'head')) ? 'block' : 'none',
+      arPrevDisp: (s.vid.on && (s.vid.ar === 'hand' || s.vid.ar === 'head' || s.vid.ar === 'body')) ? 'block' : 'none',
       arHintDisp: s.vid.ar ? 'block' : 'none',
       arHint: (this.arStat ? this.arStat + ' ' : '') + ({
-        hand: 'AR hands: pinch your thumb and index finger to grab and move your hand to turn the scene; relax your hand to let go (a quick flick keeps it spinning). Hold up an open palm and move it to pan. Close a fist and move it up or down for Morph, sideways for Speed. Pinch with both hands: spread or close them to zoom, twist the pair to turn the hue. In Fly or Surface view, point with your index finger to aim a target and hold still to fly there. A peace sign goes to the next scene. The preview shows what the camera sees; drag it anywhere.',
+        hand: 'AR hands: pinch your thumb and index finger to grab and move your hand to turn the scene, bring it closer to the camera or pull it back to zoom, and twist it like a dial to roll; relax your hand to let go (a quick flick keeps it spinning). Hold up an open palm and move it to pan. Close a fist and move it up or down for Morph, sideways for Hue; twist it for Saturation, push it toward the camera or pull it back for Speed. Pinch with both hands: spread or close them to zoom, twist the pair to turn the hue. In Fly or Surface view, point with your index finger to aim a target and hold still to fly there. A peace sign goes to the next scene. The preview shows what the camera sees; drag it anywhere.',
+        body: 'AR body: for performing from across a room. Stand so the camera sees you from the waist up. Sway left or right to turn the view, crouch to look down, step toward the camera to zoom, tip your shoulders to roll. Raise your right hand above your shoulder to take hold: higher sets Morph, out to the side turns the Hue. Raise your left hand the same way for Speed (higher) and Saturation (out). Drop the arm to let go. Clap from wide apart to tap the tempo; jump to land a beat.',
         head: 'AR head: the screen becomes a window. Move your head left, right, up or down and the view follows; lean in to zoom, lean back to pull out; tilt your head and the view rolls with it; nod along to the music and each nod lands as a beat and sets the tempo. Sit centred in front of the camera when you switch it on.',
         motion: 'AR motion: any movement in front of the camera turns the view toward its side, and a sudden burst of movement hits like a beat (strobe, bloom and the beat-driven controls fire with it). Works without internet but reacts to everything that moves; a still background helps.'
       })[this.arModeOf()] || '',
