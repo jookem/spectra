@@ -5564,6 +5564,10 @@ class Component extends DCLogic {
             T.ver=src._ver!=null?src._ver:0; T.ct=isV?src.currentTime:-1; T.stamp=R.frame; }catch(e){ return null; } }
           return T.t; };
         R={frame:0, render(ctx,faces,K){
+          // keepDepth: a second pass over the same view (Drive-in's booth, drawn
+          // after the 2D beam) tests against the first pass's depth and frame
+          // range, and adds only what is not hidden.
+          const keep=!!(K.keepDepth && R.last && R.last.W===ctx.canvas.width && R.last.H===ctx.canvas.height);
           if(lost) return false;
           const W=ctx.canvas.width, H=ctx.canvas.height; if(!W||!H) return false;
           R.frame++;
@@ -5571,7 +5575,9 @@ class Component extends DCLogic {
           const {toC,F,OX,OY,near}=K;
           // far plane from what is actually in the frame
           let zmax=near*20; for(const f of faces){ if(f.w) for(const p of f.w){ const z=toC(p)[2]; if(z>zmax) zmax=z; } }
-          const far=zmax*1.05+1, A=(far+near)/(far-near), B=-2*far*near/(far-near), ax=2*OX/W-1, ay=1-2*OY/H, kx=2*F/W, ky=2*F/H;
+          const far=keep?R.last.far:zmax*1.05+1;
+          R.last={W,H,far};
+          const A=(far+near)/(far-near), B=-2*far*near/(far-near), ax=2*OX/W-1, ay=1-2*OY/H, kx=2*F/W, ky=2*F/H;
           const V=[], draws=[]; let cur=null;
           const state=(mode,blend,tex,zw,off)=>{ if(!cur||cur.mode!==mode||cur.blend!==blend||cur.tex!==tex||cur.zw!==zw||cur.off!==off){ cur={mode,blend,tex,zw,off,first:V.length/10,count:0}; draws.push(cur); } };
           const vert=(c,col,a,u,v)=>{ V.push(ax*c[2]+kx*c[0], ay*c[2]+ky*c[1], A*c[2]+B, c[2], col[0]/255,col[1]/255,col[2]/255,a, u,v); cur.count++; };
@@ -5603,7 +5609,7 @@ class Component extends DCLogic {
           // pass 3: see-through faces, far to near
           for(const f of glass){ const L2=look(f); state(L2.pat?2:0,L2.pat?'alpha':blendOf(f),null,false,false); poly(f.w,L2.col,L2.a); }
           // draw
-          gl.viewport(0,0,W,H); gl.clearColor(0,0,0,0); gl.clearDepth(1); gl.depthMask(true); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+          gl.viewport(0,0,W,H); gl.clearColor(0,0,0,0); gl.clearDepth(1); gl.depthMask(true); gl.clear(keep?gl.COLOR_BUFFER_BIT:gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
           if(V.length){
             gl.useProgram(pr); gl.bindBuffer(gl.ARRAY_BUFFER,buf); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(V),gl.STREAM_DRAW);
             gl.enableVertexAttribArray(L.pos); gl.vertexAttribPointer(L.pos,4,gl.FLOAT,false,40,0);
@@ -5808,7 +5814,7 @@ class Component extends DCLogic {
         // nothing can paint over something nearer whatever the sort. The 2D
         // painter below stays as the fallback where WebGL is unavailable.
         const R=self.lpGL();
-        if(R && R.render(ctx,faces,{toC,F,OX,OY,near})) return;
+        if(R && R.render(ctx,faces,{toC,F,OX,OY,near,keepDepth:cam.keepDepth})) return;
         resolve();
         ctx.lineJoin='round';
         const tri=(img,A,B,C,u0,v0,u1,v1,u2,v2)=>{
@@ -5914,7 +5920,10 @@ class Component extends DCLogic {
     // screen
     const swd=17*(0.8+(e.detail??0.5)*0.4), sht=swd*0.5;
     for(const sx of [-0.3,0.3]) S.box([sx*swd,2.4,22.6],[0.8,4.8,0.8],0,rgb(hu,0.3,0.32));
-    S.box([0,4.8+sht/2-0.1,23.4],[swd*0.92,sht*0.9,0.4],0,rgb(hu,0.3,0.2));
+    const bk=S.box([0,4.8+sht/2-0.1,23.4],[swd*0.92,sht*0.9,0.4],0,rgb(hu,0.3,0.2));
+    // From behind, the picture shows through mirrored, as a projection on a
+    // screen would.
+    if(bk.pz) S.vid(bk.pz,bk.on('pz',0.03,0.04,0.97,0.96,0.02),Object.assign({},V,{flip:!V.flip}),{alpha:0.85});
     const scr=S.box([0,4.8+sht/2,22.6],[swd+1.2,sht+1.0,0.8],0,rgb(hu+5,0.55,0.42));
     if(scr.nz){
       S.decal(scr.nz,scr.on('nz',0.03,0.05,0.97,0.95,0.01),[10,10,14],{emit:1});
@@ -5924,7 +5933,7 @@ class Component extends DCLogic {
     // booth
     // The booth is drawn in its own pass after the beam, so the light comes
     // out of the lens on the far face instead of washing over the box.
-    const SB=this.lp3(Object.assign({},cam,{f:F,cx:OX,cy:OY,L1:[-0.5,0.9,-0.4],C1:[0.36,0.36,0.55],amb:[0.3,0.27,0.42],L2:[0,0.6,1],C2:[vc[0]*0.9,vc[1]*0.9,vc[2]*0.9],fogC:rgb(hu,0.4,0.07),fogK:0.006,poi:null}));
+    const SB=this.lp3(Object.assign({},cam,{f:F,cx:OX,cy:OY,L1:[-0.5,0.9,-0.4],C1:[0.36,0.36,0.55],amb:[0.3,0.27,0.42],L2:[0,0.6,1],C2:[vc[0]*0.9,vc[1]*0.9,vc[2]*0.9],fogC:rgb(hu,0.4,0.07),fogK:0.006,poi:null,keepDepth:true}));
     const bth=SB.box([12,1.3,-4.6],[3,2.6,2.6],0.35,rgb(hu+330,0.35,0.42));
     SB.box([12,2.75,-4.6],[3.4,0.3,3],0.35,rgb(hu+330,0.3,0.3));
     if(bth.pz){ SB.decal(bth.pz,bth.on('pz',0.2,0.45,0.8,0.8,0.01),[40,36,44],{emit:1}); SB.decal(bth.pz,bth.on('pz',0.42,0.52,0.58,0.72,0.02),[255,240,210],{emit:1}); }
@@ -5977,8 +5986,11 @@ class Component extends DCLogic {
     // Beam: from the booth's lens to the picture area's actual corners on the
     // screen face, filled as the convex hull so it can't fold over itself.
     const hw=(swd+1.2)*0.455, y0s=4.3+(sht+1)*0.07, y1s=4.3+(sht+1)*0.93, zs=22.18;
+    // Seen from behind the screen the beam and the lens are both hidden by it,
+    // and these 2D layers have no depth test, so they are left out there.
+    const front=cam.z<zs;
     const bp=S.P([12.45,1.61,-3.3]), cs=[[-hw,y1s,zs],[hw,y1s,zs],[hw,y0s,zs],[-hw,y0s,zs]].map(p=>S.P(p));
-    if(bp&&cs.every(Boolean)){
+    if(front&&bp&&cs.every(Boolean)){
       const pts=[bp,...cs].map(p=>[p[0],p[1]]).sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
       const cr=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]), lo=[], up=[];
       for(const p of pts){ while(lo.length>1&&cr(lo[lo.length-2],lo[lo.length-1],p)<=0) lo.pop(); lo.push(p); }
@@ -5989,7 +6001,7 @@ class Component extends DCLogic {
       ctx.fillStyle=bg; ctx.beginPath(); hull.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])); ctx.closePath(); ctx.fill();
     }
     ctx.restore(); SB.paint(ctx); ctx.save(); ctx.globalCompositeOperation='lighter';
-    if(bp && bth.pz) this.glow2(ctx,bp[0],bp[1],F*1.2/bp[2],[255,240,210],0.5);
+    if(front && bp && bth.pz) this.glow2(ctx,bp[0],bp[1],F*1.2/bp[2],[255,240,210],0.5);
     { const sp=S.P([-13,7.6,-5]); if(sp && (sg.nz||sg.pz)) this.glow2(ctx,sp[0],sp[1],F*3.2/sp[2],this.hrgb(hu+300,1,0.7),0.18); }
     ctx.restore();
   }
@@ -6286,7 +6298,11 @@ class Component extends DCLogic {
     // off-screen, its edges feathered to nothing and softened, then laid in
     // with an inverted, broken reflection just below the horizon line — the
     // "water" band a real desert mirage shows.
-    const V=this.sceneSig(), mw=Math.round(W*0.66*Vw.sc), mh=Math.round(mw*9/16*0.5), mx=cx-mw/2;
+    // At the clip's own aspect, so nothing is squashed or cropped; it shrinks
+    // to fit between the horizon and the top of the frame.
+    const V=this.sceneSig(), ar=Math.max(0.3,(V.w||16)/Math.max(1,V.h||9));
+    let mw=W*0.66*Vw.sc, mh=mw/ar; if(mh>hz*0.9){ mh=Math.max(2,hz*0.9); mw=mh*ar; }
+    mw=Math.round(mw); mh=Math.round(mh); const mx=cx-mw/2;
     const C=this._vcrop(V,mw/mh), n=40, amp=mw*0.008*(1+(e.ca??0.5)*2+(A.mid||0)*2);
     let MC=M.mirCv; if(!MC){ MC=M.mirCv=document.createElement('canvas'); }
     if(MC.width!==mw||MC.height!==mh){ MC.width=Math.max(2,mw); MC.height=Math.max(2,mh); }
@@ -6300,7 +6316,7 @@ class Component extends DCLogic {
     mc.globalCompositeOperation='destination-in';
     const fx=mc.createLinearGradient(0,0,mw,0); fx.addColorStop(0,'rgba(0,0,0,0)'); fx.addColorStop(0.22,'rgba(0,0,0,1)'); fx.addColorStop(0.78,'rgba(0,0,0,1)'); fx.addColorStop(1,'rgba(0,0,0,0)');
     mc.fillStyle=fx; mc.fillRect(0,0,mw,mh);
-    const fy=mc.createLinearGradient(0,0,0,mh); fy.addColorStop(0,'rgba(0,0,0,0)'); fy.addColorStop(0.45,'rgba(0,0,0,0.85)'); fy.addColorStop(0.92,'rgba(0,0,0,1)'); fy.addColorStop(1,'rgba(0,0,0,0.6)');
+    const fy=mc.createLinearGradient(0,0,0,mh); fy.addColorStop(0,'rgba(0,0,0,0)'); fy.addColorStop(0.22,'rgba(0,0,0,0.85)'); fy.addColorStop(0.92,'rgba(0,0,0,1)'); fy.addColorStop(1,'rgba(0,0,0,0.6)');
     mc.fillStyle=fy; mc.fillRect(0,0,mw,mh);
     mc.globalCompositeOperation='source-over';
     const haze=rgb(hu+35,0.7,0.78);
@@ -6616,7 +6632,9 @@ class Component extends DCLogic {
     // The plain runs on far past the mountains and fades into the haze, so the
     // gaps between peaks show ground going away, not the dark under-horizon
     // fill that made the far range look as if it floated.
-    { const gq=[]; for(let i=0;i<NG;i++){ const a=i/NG*6.2832; gq.push([Math.cos(a)*1400,0,Math.sin(a)*1400]); } S.face(gq,rgb(hu-30,0.15,0.12),{n:[0,1,0],bias:2e5,noEdge:1}); }
+    // It sits a hair below the valley floor: two faces at exactly the same
+    // height fight in the depth buffer and the ground flickers.
+    { const gq=[]; for(let i=0;i<NG;i++){ const a=i/NG*6.2832; gq.push([Math.cos(a)*1400,-0.15,Math.sin(a)*1400]); } S.face(gq,rgb(hu-30,0.15,0.12),{n:[0,1,0],bias:2e5,noEdge:1}); }
     const gnd=S.face(gp,rgb(hu-30,0.15,0.12),{n:[0,1,0],bias:1e5});
     { const NM=48, mtA=rgb(hu-20,0.22,0.24), mtB=rgb(hu-20,0.2,0.3), sn=rgb(hu+20,0.15,0.5);
       for(let i=0;i<NM;i++){ const a0=i/NM*6.2832, a1=(i+1)/NM*6.2832, am=(a0+a1)/2;
