@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<script src="./support.js?v=b30"></script>
+<script src="./support.js?v=b32"></script>
 <meta name="ext-resource-dependency" content="./csi.js" data-resource-id="csiJs">
 </head>
 <body>
@@ -17,7 +17,11 @@
 <meta name="apple-mobile-web-app-title" content="SPECTRA">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
-<script>if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){ const reg=()=>navigator.serviceWorker.register('sw.js').catch(()=>{}); if(document.readyState==='complete') reg(); else addEventListener('load',reg); }</script>
+<script>if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){ const reg=()=>navigator.serviceWorker.register('sw.js').catch(()=>{}); if(document.readyState==='complete') reg(); else addEventListener('load',reg); }
+// Install prompt. Chrome fires this once, often before the app has mounted, so
+// it is caught here and kept for the splash's Install button.
+addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); window.__spInstall=e; dispatchEvent(new Event('sp-install')); });
+addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstalled=true; dispatchEvent(new Event('sp-install')); });</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Bebas+Neue&family=Monoton&family=Orbitron:wght@700&family=Pacifico&family=Press+Start+2P&display=swap" rel="stylesheet">
@@ -30,12 +34,12 @@
   @keyframes vjspin{to{transform:rotate(360deg)}}
   @keyframes vjscan{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
 </style>
-<script src="vj-engine.js?v=b30"></script>
-<script src="deep-zoom.js?v=b30"></script>
-<script src="cam-fly.js?v=b30"></script>
-<script src="wave-mesh.js?v=b30"></script>
-<script src="wave-gl.js?v=b30"></script>
-<script src="scene-thumbs.js?v=b30"></script>
+<script src="vj-engine.js?v=b32"></script>
+<script src="deep-zoom.js?v=b32"></script>
+<script src="cam-fly.js?v=b32"></script>
+<script src="wave-mesh.js?v=b32"></script>
+<script src="wave-gl.js?v=b32"></script>
+<script src="scene-thumbs.js?v=b32"></script>
 </helmet>
 <template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#08090A"/><circle cx="50" cy="50" r="22" fill="none" stroke="#C8FF2E" stroke-width="3"/><circle cx="50" cy="50" r="11" fill="none" stroke="#C8FF2E" stroke-width="2" opacity="0.6"/><circle cx="50" cy="50" r="3.5" fill="#C8FF2E"/></svg></template>
 <div style="position:relative;width:100vw;height:100dvh;overflow:hidden;background:#08090A;font-family:'JetBrains Mono',ui-monospace,monospace;color:#F2F3F0;user-select:none;-webkit-user-select:none;">
@@ -89,8 +93,12 @@
   </div>
 
   <sc-if value="{{ needsMic }}" hint-placeholder-val="{{ true }}">
-    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;background:rgba(8,9,10,0.86);backdrop-filter:blur(6px);z-index:40;">
-      <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+    <!-- Side gutter and its own scroll: on a portrait phone the buttons ran
+         edge to edge, and What's new plus Install can outgrow a short screen.
+         The auto margins on the first and last child centre the column when it
+         fits and let it scroll from the top when it does not. -->
+    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:26px;overflow-y:auto;overscroll-behavior:contain;padding:28px 20px calc(28px + env(safe-area-inset-bottom));box-sizing:border-box;background:rgba(8,9,10,0.86);backdrop-filter:blur(6px);z-index:40;">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:auto;">
         <div style="font-size:11px;letter-spacing:0.28em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.45);">Generative fractal VJ</div>
         <div style="font-family:Archivo,sans-serif;font-weight:700;font-size:54px;letter-spacing:-0.03em;line-height:1;">SPECTRA</div>
         <div style="display:flex;align-items:center;gap:9px;padding-top:4px;">
@@ -98,18 +106,33 @@
           <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.42);">A SWRV Systems production</div>
           <div style="width:18px;height:1px;background:rgba(242,243,240,0.25);"></div>
         </div>
-        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 30 · 19 Oct 2026</div>
+        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 32 · 21 Oct 2026</div>
       </div>
       <div style="max-width:420px;text-align:center;font-size:12.5px;line-height:1.7;color:rgba(242,243,240,0.55);">The visuals are driven entirely by what the microphone hears. Nothing is recorded or sent anywhere.</div>
-      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,230px));gap:10px;width:100%;max-width:470px;justify-content:center;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:10px;width:100%;max-width:470px;">
         <button onClick="{{ enableMic }}" style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;width:100%;height:52px;padding:0 16px;cursor:pointer;white-space:nowrap;box-sizing:border-box;font-weight:700;background:var(--acc);color:#08090A;border:1px solid var(--acc);">{{ micBtnLabel }}</button>
         <sc-if value="{{ canSys }}" hint-placeholder-val="{{ true }}">
           <button onClick="{{ enableSysAudio }}" title="Listen to what this computer is playing instead of the room" style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;width:100%;height:52px;padding:0 16px;cursor:pointer;white-space:nowrap;box-sizing:border-box;font-weight:700;background:rgba(8,9,10,0.34);color:var(--acc);border:1px solid var(--acc);">Device audio</button>
         </sc-if>
         <button onClick="{{ runSimulated }}" style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;width:100%;height:52px;padding:0 16px;cursor:pointer;white-space:nowrap;box-sizing:border-box;font-weight:500;background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.7);border:1px solid rgba(255,255,255,0.16);">Run simulated</button>
         <button onClick="{{ helpToggle }}" style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;width:100%;height:52px;padding:0 16px;cursor:pointer;white-space:nowrap;box-sizing:border-box;font-weight:500;background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.7);border:1px solid rgba(255,255,255,0.16);">Controls</button>
+        <!-- Install spans the full row under the audio buttons. -->
+        <button onClick="{{ installApp }}" title="Install SPECTRA as an app: its own icon, full screen, and it opens offline" style="grid-column:1/-1;display:{{ installDisplay }};align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;width:100%;height:52px;padding:0 16px;cursor:pointer;white-space:nowrap;box-sizing:border-box;font-weight:500;background:rgba(8,9,10,0.34);color:var(--acc);border:1px dashed var(--acc45);">Install as app</button>
+        <div style="grid-column:1/-1;display:{{ installMsgDisplay }};text-align:center;font-size:11px;line-height:1.6;color:rgba(242,243,240,0.5);">{{ installMsg }}</div>
       </div>
       <div style="max-width:440px;text-align:center;font-size:11px;line-height:1.6;color:rgba(242,243,240,0.38);">{{ micHint }}</div>
+      <div style="display:flex;flex-direction:column;gap:10px;width:100%;max-width:470px;box-sizing:border-box;padding:14px 16px;border:1px solid rgba(255,255,255,0.1);background:rgba(8,9,10,0.5);">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;">
+          <div style="font-size:9.5px;letter-spacing:0.24em;text-transform:uppercase;color:var(--acc);">What's new</div>
+          <div style="font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(242,243,240,0.4);">{{ newsTag }}</div>
+        </div>
+        <sc-for list="{{ newsItems }}" as="n" hint-placeholder-count="4">
+          <div style="display:flex;gap:9px;font-size:11px;line-height:1.55;color:rgba(242,243,240,0.62);text-wrap:pretty;">
+            <span style="flex:0 0 auto;color:var(--acc);">+</span><span>{{ n.d }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="flex:0 0 0;margin-top:-26px;margin-bottom:auto;"></div>
     </div>
   </sc-if>
 
@@ -157,7 +180,7 @@
     <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
       <div style="font-family:Archivo,sans-serif;font-weight:700;font-size:54px;letter-spacing:-0.03em;line-height:1;">SPECTRA</div>
       <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.36);">A SWRV Systems production</div>
-      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 30 · 19 Oct 2026</div>
+      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 32 · 21 Oct 2026</div>
     </div>
     <div ref="{{ warmWrapRef }}" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
       <div style="width:260px;height:2px;background:rgba(255,255,255,0.1);">
@@ -231,18 +254,26 @@
     </div>
     </div>
   </sc-if>
-  <div style="position:absolute;inset:0;z-index:46;display:{{ tutDisplay }};align-items:center;justify-content:center;background:rgba(8,9,10,0.72);backdrop-filter:blur(6px);">
-    <div style="display:flex;flex-direction:column;gap:24px;width:min(560px,calc(100% - 48px));box-sizing:border-box;padding:30px 32px 26px;border:1px solid var(--acc28);background:rgba(12,13,14,0.96);">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;">
-        <div style="font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:0.22em;text-transform:uppercase;color:rgba(242,243,240,0.4);">Controller walkthrough · {{ tutNum }} / {{ tutTotal }}</div>
-        <button onClick="{{ tutClose }}" title="Close the walkthrough" style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1;padding:3px 7px;cursor:pointer;border:1px solid rgba(255,255,255,0.12);background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.45);" style-hover="color:#F2F3F0;border-color:rgba(255,255,255,0.3);">×</button>
+  <!-- Tour. Intro and controller steps sit centred over a veil; the page steps
+       dock the card at the top (or bottom, for the top bar) with no veil, so the
+       page it is describing stays live and usable underneath. -->
+  <div style="position:absolute;inset:0;z-index:46;display:{{ tutDisplay }};flex-direction:column;align-items:center;justify-content:{{ tutJustify }};padding:{{ tutOuterPad }};box-sizing:border-box;background:{{ tutVeil }};backdrop-filter:{{ tutBlur }};-webkit-backdrop-filter:{{ tutBlur }};pointer-events:{{ tutOuterPE }};">
+    <div ref="{{ tutCardRef }}" style="pointer-events:auto;display:flex;flex-direction:column;gap:{{ tutGap }};width:min(620px,100%);max-height:{{ tutCardMaxH }};overflow-y:auto;overscroll-behavior:contain;box-sizing:border-box;padding:{{ tutPad }};border:1px solid var(--acc28);background:rgba(12,13,14,0.96);box-shadow:0 10px 40px rgba(0,0,0,0.5);">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:0.22em;text-transform:uppercase;color:rgba(242,243,240,0.4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Tour · {{ tutChapter }} · {{ tutNum }} / {{ tutTotal }}</div>
+        <button onClick="{{ tutClose }}" title="Close the tour (Esc)" style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1;padding:3px 7px;cursor:pointer;flex:0 0 auto;border:1px solid rgba(255,255,255,0.12);background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.45);" style-hover="color:#F2F3F0;border-color:rgba(255,255,255,0.3);">×</button>
       </div>
-      <div style="display:flex;flex-direction:column;gap:12px;">
-        <div style="align-self:flex-start;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;padding:8px 12px;border:1px solid var(--acc);background:var(--acc12);color:var(--acc);">{{ tutGlyph }}</div>
-        <div style="font-family:Archivo,sans-serif;font-weight:700;font-size:24px;line-height:1.15;letter-spacing:-0.015em;color:#F2F3F0;text-wrap:pretty;">{{ tutTitle }}</div>
-        <div style="font-size:13px;line-height:1.6;color:rgba(242,243,240,0.68);text-wrap:pretty;">{{ tutBody }}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;">
+        <sc-for list="{{ tutChapters }}" as="c" hint-placeholder-count="10">
+          <button onClick="{{ c.go }}" title="Jump to {{ c.label }}" style="font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:0.12em;text-transform:uppercase;padding:5px 8px;cursor:pointer;flex:0 0 auto;border:1px solid {{ c.border }};background:{{ c.bg }};color:{{ c.fg }};">{{ c.label }}</button>
+        </sc-for>
       </div>
-      <div style="display:flex;flex-direction:column;gap:12px;padding:16px;border:1px solid rgba(255,255,255,0.1);background:rgba(8,9,10,0.5);">
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div style="align-self:flex-start;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:0.16em;text-transform:uppercase;padding:6px 10px;border:1px solid var(--acc);background:var(--acc12);color:var(--acc);">{{ tutGlyph }}</div>
+        <div style="font-family:Archivo,sans-serif;font-weight:700;font-size:{{ tutTitleFs }};line-height:1.15;letter-spacing:-0.015em;color:#F2F3F0;text-wrap:pretty;">{{ tutTitle }}</div>
+        <div style="font-size:12.5px;line-height:1.6;color:rgba(242,243,240,0.68);text-wrap:pretty;">{{ tutBody }}</div>
+      </div>
+      <div style="display:{{ tutPadDisplay }};flex-direction:column;gap:12px;padding:14px;border:1px solid rgba(255,255,255,0.1);background:rgba(8,9,10,0.5);">
         <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;">
           <div style="display:flex;flex-direction:column;gap:5px;">
             <sc-for list="{{ tutKeysL }}" as="k" hint-placeholder-count="4">
@@ -266,18 +297,11 @@
           <span style="font-size:13px;color:#F2F3F0;">{{ tutFbVal }}</span>
         </div>
       </div>
-      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;width:100%;box-sizing:border-box;">
-        <sc-for list="{{ tutDots }}" as="d" hint-placeholder-count="9">
-          <button onClick="{{ d.go }}" style="display:flex;align-items:center;justify-content:center;flex:0 0 auto;width:26px;height:30px;padding:0;cursor:pointer;border:0;background:rgba(8,9,10,0.34);">
-            <span style="display:block;width:20px;height:4px;background:{{ d.bg }};"></span>
-          </button>
-        </sc-for>
-      </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-        <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(242,243,240,0.32);">✕ next · △ back · ○ close</div>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <button onClick="{{ tutBack }}" style="display:flex;align-items:center;height:44px;font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:0.14em;text-transform:uppercase;padding:0 16px;cursor:pointer;opacity:{{ tutBackOpacity }};border:1px solid rgba(255,255,255,0.18);background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.78);">Back</button>
-          <button onClick="{{ tutNext }}" style="display:flex;align-items:center;height:44px;font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;padding:0 20px;cursor:pointer;border:1px solid var(--acc);background:var(--acc);color:#08090A;">{{ tutNextLabel }}</button>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px 12px;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(242,243,240,0.32);">{{ tutHint }}</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
+          <button onClick="{{ tutBack }}" style="display:flex;align-items:center;height:42px;font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:0.14em;text-transform:uppercase;padding:0 16px;cursor:pointer;opacity:{{ tutBackOpacity }};border:1px solid rgba(255,255,255,0.18);background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.78);">Back</button>
+          <button onClick="{{ tutNext }}" style="display:flex;align-items:center;height:42px;font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;padding:0 20px;cursor:pointer;border:1px solid var(--acc);background:var(--acc);color:#08090A;">{{ tutNextLabel }}</button>
         </div>
       </div>
     </div>
@@ -293,8 +317,8 @@
       </div>
       <button onClick="{{ tutOpen }}" style="display:flex;align-items:center;justify-content:space-between;gap:20px;text-align:left;font-family:'JetBrains Mono',monospace;padding:14px 16px;cursor:pointer;border:1px solid var(--acc30);background:rgba(8,9,10,0.34);color:#F2F3F0;">
         <span style="display:flex;flex-direction:column;gap:5px;">
-          <span style="font-size:9.5px;letter-spacing:0.24em;text-transform:uppercase;color:var(--acc);">Walkthrough</span>
-          <span style="font-size:10.5px;line-height:1.5;color:rgba(242,243,240,0.6);">Nine steps through the controller, in the order you need them. Pages from the pad itself.</span>
+          <span style="font-size:9.5px;letter-spacing:0.24em;text-transform:uppercase;color:var(--acc);">Tour of the app</span>
+          <span style="font-size:10.5px;line-height:1.5;color:rgba(242,243,240,0.6);">Every page of the app in order — the screen, the touch bar, each menu page, the shortcuts — then the game controller. Each page opens behind the card so you can try it as you read.</span>
         </span>
         <span style="font-size:9.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--acc);flex:0 0 auto;">Start →</span>
       </button>
@@ -588,6 +612,12 @@
           <span ref="{{ arDotRef }}" style="position:absolute;bottom:0;left:50%;width:4px;height:7px;margin-left:-2px;background:#F2F3F0;opacity:0;pointer-events:none;"></span>
         </div>
         </div>
+        <!-- The cameras this device has: picking one is choosing the source. -->
+        <div style="display:{{ vidDevDisp }};flex-wrap:wrap;gap:4px;min-width:0;">
+          <sc-for list="{{ vidDevices }}" as="d" hint-placeholder-count="1">
+            <button onClick="{{ d.select }}" title="Use this camera" style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.04em;padding:6px 10px;min-height:40px;max-width:100%;box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-overflow:ellipsis;text-align:center;flex:1 1 150px;min-width:0;border:1px solid {{ d.border }};background:{{ d.bg }};color:{{ d.fg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ d.label }}</button>
+          </sc-for>
+        </div>
         <div style="display:{{ arHintDisp }};font-size:9.5px;line-height:1.5;letter-spacing:0.04em;color:rgba(242,243,240,0.75);border-left:2px solid var(--acc);padding-left:8px;">{{ arHint }}</div>
         <span style="display:{{ vidEmptyDisp }};font-size:9px;letter-spacing:0.06em;color:rgba(242,243,240,0.45);">No clips yet — + File or + Folder loads video.</span>
         <span style="display:{{ vidErrDisplay }};font-size:9px;letter-spacing:0.06em;color:rgba(242,243,240,0.6);">{{ vidErr }}</span>
@@ -618,30 +648,40 @@
         </div>
       </div>
       </div>
+      <!-- Playback: the transport for a file clip, its own row so the looks
+           grid holds looks only. -->
+      <div title="How the clip plays" style="display:{{ vidPlayDisplay }};flex-direction:column;gap:8px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;">
+        <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);">Playback</span>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:{{ deckBtnGap }};align-items:stretch;">
+          <sc-for list="{{ vidPlayModes }}" as="m" hint-placeholder-count="5">
+            <button onClick="{{ m.select }}" title="{{ m.title }}" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid {{ m.border }};background:{{ m.bg }};color:{{ m.fg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ m.label }}</button>
+          </sc-for>
+          <button onClick="{{ vidRateT }}" title="Playback speed: half, normal, double" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid {{ vidRateBorder }};background:{{ vidRateBg }};color:{{ vidRateFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ vidRateLabel }}</button>
+        </div>
+      </div>
       <div title="How the video sits over the scene" style="display:{{ vidRowDisplay }};flex-direction:column;gap:8px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;">
-        <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);">Video look</span>
-        <!-- An even grid: the 21 looks fill three rows of seven (seven rows of
-             three on a phone), so no row ends half empty. -->
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);">Video look</span>
+          <button onClick="{{ vidStackT }}" title="Stack: run up to two looks at once. Tap a look to add it, tap it again to take it off" style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:6px 12px;min-height:32px;box-sizing:border-box;cursor:pointer;flex:0 0 auto;border:1px solid {{ vidStackBorder }};background:{{ vidStackBg }};color:{{ vidStackFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ vidStackLabel }}</button>
+        </div>
+        <!-- Grouped by what each look does; a group name takes a full row of
+             the grid and its looks follow. -->
         <div style="display:grid;grid-template-columns:repeat({{ vidModeCols }},minmax(0,1fr));gap:3px;min-width:0;">
           <sc-for list="{{ vidModes }}" as="m" hint-placeholder-count="21">
-            <button onClick="{{ m.select }}" style="min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:6px 4px;min-height:{{ deckBtnH }};box-sizing:border-box;cursor:pointer;border:1px solid {{ m.border }};background:{{ m.bg }};color:{{ m.fg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ m.name }}</button>
+            <button onClick="{{ m.select }}" style="grid-column:{{ m.span }};min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-family:'JetBrains Mono',monospace;font-size:{{ m.btnFs }};letter-spacing:{{ m.ls }};text-transform:uppercase;text-align:{{ m.ta }};padding:{{ m.pad }};min-height:{{ m.minH }};box-sizing:border-box;cursor:{{ m.cur }};border:1px solid {{ m.border }};background:{{ m.bg }};color:{{ m.fg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ m.badge }}{{ m.name }}</button>
           </sc-for>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:{{ deckBtnGap }};align-items:stretch;">
         <button onClick="{{ vidFlip }}" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid {{ vidFlipBorder }};background:{{ vidFlipBg }};color:{{ vidFlipFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Mirror</button>
         <button onClick="{{ vidFlipVT }}" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid {{ vidFlipVBorder }};background:{{ vidFlipVBg }};color:{{ vidFlipVFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">Flip</button>
-        <button onClick="{{ vidRevT }}" style="display:{{ vidRevDisplay }};font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid {{ vidRevBorder }};background:{{ vidRevBg }};color:{{ vidRevFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ vidRevLabel }}</button>
-        <button onClick="{{ vidPauseT }}" style="display:{{ vidRevDisplay }};font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid {{ vidPauseBorder }};background:{{ vidPauseBg }};color:{{ vidPauseFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ vidPauseLabel }}</button>
         <button onClick="{{ vidHideT }}" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;min-width:0;border:1px solid {{ vidHideBorder }};background:{{ vidHideBg }};color:{{ vidHideFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ vidHideLabel }}</button>
-        <sc-for list="{{ vidDevices }}" as="d" hint-placeholder-count="1">
-          <button onClick="{{ d.select }}" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-overflow:ellipsis;text-align:center;min-width:0;border:1px solid {{ d.border }};background:{{ d.bg }};color:{{ d.fg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ d.label }}</button>
-        </sc-for>
         </div>
         <div style="display:flex;align-items:center;gap:10px;min-width:0;">
           <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);flex:0 0 auto;min-width:56px;">Mix</span>
-          <div onPointerDown="{{ vidMixDrag.down }}" onPointerMove="{{ vidMixDrag.move }}" onPointerUp="{{ vidMixDrag.up }}" style="position:relative;flex:1;min-width:0;height:{{ ctlHitH }};display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
+          <div onPointerDown="{{ vidMixDrag.down }}" onPointerMove="{{ vidMixDrag.move }}" onPointerUp="{{ vidMixDrag.up }}" onDoubleClick="{{ vidMixReset }}" title="Video against the scene · the mark is 50% · double-click to reset" style="position:relative;flex:1;min-width:0;height:{{ ctlHitH }};display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
             <div style="position:relative;width:100%;height:{{ ctlTrackH }};background:rgba(255,255,255,0.13);">
               <div style="position:absolute;left:0;top:0;bottom:0;width:{{ vidMixPct }};background:var(--acc45);"></div>
+              <div style="position:absolute;left:50%;top:-5px;bottom:-5px;width:2px;margin-left:-1px;background:rgba(242,243,240,0.5);pointer-events:none;"></div>
               <div style="position:absolute;top:{{ ctlThumbTop }};left:{{ vidMixPct }};width:{{ ctlThumbW }};height:{{ ctlThumbH }};margin-left:{{ ctlThumbML }};background:var(--acc);"></div>
             </div>
           </div>
@@ -798,6 +838,13 @@
       </div>
       <div style="display:{{ tabLower }};align-items:center;flex-wrap:wrap;gap:8px 12px;flex:0 0 auto;">
         <div style="flex:1 1 100%;display:{{ tabParamsGrid }};grid-template-columns:{{ deckCtlCols }};gap:12px 14px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;padding:12px 14px;">
+          <div style="grid-column:1/-1;display:flex;align-items:center;flex-wrap:wrap;gap:6px;">
+            <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);flex:1 1 auto;">Parameters</span>
+            <button onClick="{{ randParams }}" title="Roll new values for the dials (□ on the pad, or shake the device)" style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:6px 12px;min-height:{{ deckBtnH }};box-sizing:border-box;cursor:pointer;white-space:nowrap;flex:0 0 auto;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--acc);background:var(--acc14);color:var(--acc);">Randomise</button>
+            <button onClick="{{ randMod }}" title="Give about half the dials a random automation source and depth" style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:6px 12px;min-height:{{ deckBtnH }};box-sizing:border-box;cursor:pointer;white-space:nowrap;flex:0 0 auto;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.16);background:rgba(8,9,10,0.34);color:#F2F3F0;">Random auto</button>
+            <button onClick="{{ randUndo }}" title="Put back the values from before the last roll" style="display:{{ randUndoDisp }};font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:6px 12px;min-height:{{ deckBtnH }};box-sizing:border-box;cursor:pointer;white-space:nowrap;flex:0 0 auto;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.16);background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.75);">Undo</button>
+            <button onClick="{{ shakeT }}" title="{{ shakeTitle }}" style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:6px 12px;min-height:{{ deckBtnH }};box-sizing:border-box;cursor:pointer;white-space:nowrap;flex:0 0 auto;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid {{ shakeBorder }};background:{{ shakeBg }};color:{{ shakeFg }};">{{ shakeLabel }}</button>
+          </div>
           <sc-for list="{{ sliders }}" as="s" hint-placeholder-count="10">
             <div style="display:{{ s.show }};flex-direction:column;gap:4px;min-width:0;">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0;font-size:9.5px;letter-spacing:0.13em;text-transform:uppercase;color:rgba(242,243,240,0.6);">
@@ -891,6 +938,11 @@
                   <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
                 </sc-for>
               </select>
+              <select value="{{ terrLowSel }}" onChange="{{ setTerrLow }}" title="What fills the low ground on Depth Terrain" style="display:{{ terrLowDisp }};font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid var(--acc30);background:rgba(8,9,10,0.34);color:var(--acc);appearance:none;-webkit-appearance:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+                <sc-for list="{{ terrLowOptions }}" as="o" hint-placeholder-count="4">
+                  <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
+                </sc-for>
+              </select>
               <select value="{{ fieldSel }}" onChange="{{ setField }}" title="{{ fieldTitle }}" style="display:{{ fieldDisp }};font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid var(--acc30);background:rgba(8,9,10,0.34);color:var(--acc);appearance:none;-webkit-appearance:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
                 <sc-for list="{{ fieldOptions }}" as="o" hint-placeholder-count="4">
                   <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
@@ -958,6 +1010,7 @@
                   <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
                 </sc-for>
               </select>
+              <button onClick="{{ lfoEaseT }}" title="{{ lfoEaseTitle }}" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid {{ lfoEaseBorder }};background:{{ lfoEaseBg }};color:{{ lfoEaseFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ lfoEaseLabel }}</button>
               </div>
             </div>
             <div title="Beat flashes: on/off, strength, length, which beats" style="display:flex;flex-direction:column;gap:6px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;flex:4 1 288px;min-width:0;">
@@ -1135,14 +1188,15 @@
         <div style="display:{{ vidRowDisplay }};flex-direction:column;gap:7px;">
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;">
             <sc-for list="{{ vidModes }}" as="m" hint-placeholder-count="21">
-              <button onClick="{{ m.select }}" style="font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:0.08em;text-transform:uppercase;padding:6px 4px;cursor:pointer;border:1px solid {{ m.border }};background:{{ m.bg }};color:{{ m.fg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ m.name }}</button>
+              <button onClick="{{ m.select }}" style="grid-column:{{ m.span }};font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:0.08em;text-transform:uppercase;text-align:{{ m.ta }};padding:{{ m.pad }};cursor:{{ m.cur }};border:1px solid {{ m.border }};background:{{ m.bg }};color:{{ m.fg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ m.badge }}{{ m.name }}</button>
             </sc-for>
           </div>
           <div style="display:flex;align-items:center;gap:8px;">
             <span style="font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(242,243,240,0.4);">Mix</span>
-            <div onPointerDown="{{ vidMixDrag.down }}" onPointerMove="{{ vidMixDrag.move }}" onPointerUp="{{ vidMixDrag.up }}" style="position:relative;flex:1;min-width:0;height:{{ ctlHitH }};display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
+            <div onPointerDown="{{ vidMixDrag.down }}" onPointerMove="{{ vidMixDrag.move }}" onPointerUp="{{ vidMixDrag.up }}" onDoubleClick="{{ vidMixReset }}" title="Video against the scene · the mark is 50% · double-click to reset" style="position:relative;flex:1;min-width:0;height:{{ ctlHitH }};display:flex;align-items:center;cursor:ew-resize;touch-action:pan-y;">
               <div style="position:relative;width:100%;height:{{ ctlTrackH }};background:rgba(255,255,255,0.13);">
                 <div style="position:absolute;left:0;top:0;bottom:0;width:{{ vidMixPct }};background:var(--acc45);"></div>
+                <div style="position:absolute;left:50%;top:-5px;bottom:-5px;width:2px;margin-left:-1px;background:rgba(242,243,240,0.5);pointer-events:none;"></div>
                 <div style="position:absolute;top:{{ ctlThumbTop }};left:{{ vidMixPct }};width:{{ ctlThumbW }};height:{{ ctlThumbH }};margin-left:{{ ctlThumbML }};background:var(--acc);"></div>
               </div>
             </div>
@@ -1294,6 +1348,11 @@
               <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
             </sc-for>
           </select>
+          <select value="{{ terrLowSel }}" onChange="{{ setTerrLow }}" title="What fills the low ground on Depth Terrain" style="display:{{ terrLowDisp }};flex:1 1 0;min-width:0;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;padding:8px 4px;min-height:{{ selH }};box-sizing:border-box;cursor:pointer;appearance:none;-webkit-appearance:none;text-align:center;border:1px solid var(--acc30);color:var(--acc);background:rgba(8,9,10,0.34);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+            <sc-for list="{{ terrLowOptions }}" as="o" hint-placeholder-count="4">
+              <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
+            </sc-for>
+          </select>
           <select value="{{ fieldSel }}" onChange="{{ setField }}" title="{{ fieldTitle }}" style="display:{{ fieldDisp }};flex:1 1 0;min-width:0;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;padding:8px 4px;min-height:{{ selH }};box-sizing:border-box;cursor:pointer;appearance:none;-webkit-appearance:none;text-align:center;border:1px solid var(--acc30);color:var(--acc);background:rgba(8,9,10,0.34);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
             <sc-for list="{{ fieldOptions }}" as="o" hint-placeholder-count="4">
               <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
@@ -1395,6 +1454,7 @@
             <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
           </sc-for>
         </select>
+        <button onClick="{{ lfoEaseT }}" title="{{ lfoEaseTitle }}" style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;padding:8px 7px;cursor:pointer;flex:0 0 auto;border:1px solid {{ lfoEaseBorder }};background:{{ lfoEaseBg }};color:{{ lfoEaseFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ lfoEaseLabel }}</button>
       </div>
       <div style="display:flex;gap:4px;">
           <select value="{{ strobeAmtSel }}" onChange="{{ setStrobeAmt }}" title="How hard beat flashes hit" style="flex:1 1 0;min-width:0;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;padding:8px 4px;cursor:pointer;appearance:none;-webkit-appearance:none;text-align:center;border:1px solid var(--acc30);background:rgba(8,9,10,0.34);color:var(--acc);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
@@ -1598,6 +1658,8 @@ class Component extends DCLogic {
     this.state.diag = false;
     this.state.glMsg = '';
     this.state.tutOn = false; this.state.tutStep = 0;
+    this.tutCardRef = React.createRef();
+    this.state.installed = this.isInstalled(); this.state.installMsg = '';
     this.diagRef = React.createRef();
     this.arMeterRef = React.createRef(); this.arDotRef = React.createRef(); this.arPrevRef = React.createRef();
     this.topBarRef = React.createRef();
@@ -1631,12 +1693,12 @@ class Component extends DCLogic {
     this.state.cues=[]; this.state.cueIdx=-1; this.state.cutArmed=false;
     // Auto advance always starts off; its length (in bars) is remembered.
     this.state.advance=false; this.state.advBars=16;
-    this.state.lfoDiv=4;
+    this.state.lfoDiv=4; this.state.lfoEase=true; this.state.shake=true; this.state.terrLow=3;
     this.state.vspin=0;
     this.state.out=false; this.state.outErr='';
     try{ const cs=JSON.parse(localStorage.getItem('spectra.cues')||'[]'); if(Array.isArray(cs)) this.state.cues=cs; }catch(e){}
     this.xfade=0;
-    this.state.vid = {on:false, mode:0, mix:0.5, flip:false, flipV:false, hide:false, rev:false, devices:[], deviceId:'', err:'', trail:0, drift:true,
+    this.state.vid = {on:false, mode:0, mode2:0, mix:0.5, flip:false, flipV:false, hide:false, rev:false, devices:[], deviceId:'', err:'', trail:0, drift:true,
       vtrail:0, vdrift:false, auto:true, shuf:false, link:false, fxc:false, tx:'fade'};
     this.loadSettings();
     // Settings saved before parameters 11 and 12 existed have no entry for them.
@@ -1661,7 +1723,7 @@ class Component extends DCLogic {
                ['system','System','Render, layout, output and help']];
 
   SETTINGS_KEYS = ['vecDen','qual','rate','layout','pal','fx','spin','vspin','accentSel',
-                   'lfoDiv','strobeAmt','strobeLen','strobeRate','xfadeOn','xfSeen','xfMode','xfLen','xfQ','advBars','imu','mesh','meshSrc','rfUrl','auto','qMinSeen','dmode','repSize','repTurn','repVar','repDrift','repGap','vecG','vecScene',
+                   'lfoDiv','lfoEase','shake','terrLow','strobeAmt','strobeLen','strobeRate','xfadeOn','xfSeen','xfMode','xfLen','xfQ','advBars','imu','mesh','meshSrc','rfUrl','auto','qMinSeen','dmode','repSize','repTurn','repVar','repDrift','repGap','vecG','vecScene',
                    'strobe','fieldFx','lineFx','camView','camRep','levels','touchParam','deckTab'];
 
   // Accent is a theme value, so it lives in CSS custom properties rather than in
@@ -1743,6 +1805,16 @@ class Component extends DCLogic {
     // a phone on the same page, a debug console mid-set — and every control in
     // here is a method on this object: SPECTRA.selectPreset(n), .cycleMsg(1).
     try{ window.SPECTRA = this; }catch(err){}
+    // Install state: the prompt may arrive before or after mount, and an app
+    // already installed on this device hides the button even in a tab.
+    this.onInstall = () => this.setState({installed:this.isInstalled()});
+    window.addEventListener('sp-install', this.onInstall);
+    try{ if(navigator.getInstalledRelatedApps) navigator.getInstalledRelatedApps().then(a=>{ if(a && a.length) this.setState({installed:true}); }).catch(()=>{}); }catch(err){}
+    // The docked tour card's height, so the deck can start underneath it.
+    try{
+      this.tutRO = new ResizeObserver(()=>{ const el=this.tutCardRef.current; const h = el ? Math.round(el.offsetHeight) : 0; if(h !== this.state.tutCardH) this.setState({tutCardH:h}); });
+      if(this.tutCardRef.current) this.tutRO.observe(this.tutCardRef.current);
+    }catch(err){}
     // Boot feedback starts here, not at warmShaders. Everything before the
     // shader queue — waiting for the engine script, creating the GL context —
     // used to be silent, so a failure in any of it left the splash sitting with
@@ -1812,7 +1884,7 @@ class Component extends DCLogic {
       else if(k==='h') this.setState(s=>({help:!s.help}));
       else if(k==='g') this.setState(s=>({imu:!s.imu}));
       else if(k==='k') this.resetIMU();
-      else if(k==='escape' && this.state.tutOn) this.setState({tutOn:false});
+      else if(k==='escape' && this.state.tutOn) this.tutEnd();
       else if(k==='j') this.toggleDiag();
       else if(k==='l'){
         const o=['deck','rail','minimal'];
@@ -2202,6 +2274,7 @@ class Component extends DCLogic {
     // Turning the device like a steering wheel (about the screen's own axis)
     // spins the fractal. A HID pad, when connected, takes precedence.
     this.onDevMotion = (e) => {
+      this.shakeStep(e);
       const H = this.hid; if(!H || H.dev) return;
       const g = e.accelerationIncludingGravity; if(!g || g.x == null) return;
       const now = performance.now(); H.phoneT = now;
@@ -2417,6 +2490,13 @@ class Component extends DCLogic {
   }
   componentDidUpdate(){
     const pc=this._lastChrome; this._lastChrome=this.state.chrome;
+    // First visit on this device: once audio is chosen and the starting-scene
+    // picker has gone, offer the tour once. Closing it marks it seen.
+    if(!this._tourOffered && this.state.mic==='live' && !this.state.scanOn && !this.state.tutOn && !this.state.out){
+      this._tourOffered = true;
+      let seen = false; try{ seen = !!localStorage.getItem('spectra.toured'); }catch(e){ seen = true; }
+      if(!seen) setTimeout(()=>{ if(!this.state.tutOn && !this.state.scanOn) this.tutOpen(0); }, 1200);
+    }
     if(pc===true && !this.state.chrome && !this.state.out){ clearTimeout(this._hhT); this.setState({hideHint:true}); this._hhT=setTimeout(()=>this.setState({hideHint:false}), 2800); }
     else if(pc===false && this.state.chrome && this.state.hideHint){ clearTimeout(this._hhT); this.setState({hideHint:false}); }
     this.applyAccent();
@@ -3515,7 +3595,7 @@ class Component extends DCLogic {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,3,-1,-1,3]), gl.STATIC_DRAW);
     this.progs = {}; this.us = {};
     this.UNAMES = ['uRes','uTime','uBass','uMid','uHigh','uLoud','uBeat','uJump','uHue','uMorph','uDetail','uZoom','uReact','uSpeed','uMode',
-     'uTex','uVidMix','uHasTex','uVidFlip','uVidFlipV','uVidMode','uPrev','uFeed','uDrift','uCamYaw','uCamPitch','uCamAuto','uPan','uOrbit','uCA','uCB','uCC','uIter','uXfade','uXfMode','uCtr','uFocus','uPalSel','uSpec',
+     'uTex','uVidMix','uHasTex','uVidFlip','uVidFlipV','uVidMode','uVidMode2','uPrev','uFeed','uDrift','uCamYaw','uCamPitch','uCamAuto','uPan','uOrbit','uCA','uCB','uCC','uIter','uXfade','uXfMode','uCtr','uFocus','uPalSel','uSpec',
      'uRepV','uSceneOff','uLook','uZX','uZLoop','uZAnc','uZRat','uZRot','uZBase','uIOR','uZIter','uTravel','uStrobe','uSat','uGam','uSpan','uWarm','uFill','uField','uLine','uDOF','uRim','uCoCOut','uSpin','uSmooth','uChroma','uNote','uNoteConf','uTonal','uChordChg','uBeatPh','uCtr3','uDepthOut','uCamRoll',
      'uGly',
      'uTxt','uTxtOn','uTxtDepth','uTxtScale','uTxtY','uTxtX','uTxtZ','uTxtRot','uTxtRx','uTxtRy','uTxtHue','uTxtWeight','uTxtWarp','uTxtInk','uTxtLit','uTxtJit','uTxtAsp','uPlane','uDeep','uDeepPix','uDeepBase','uDeepShade','uDeepMax','uRefLen','uDeepOff','uOrb','uCamMode','uCamScale','uRep','uCamProbe','uCamPos','uCamF','uCamR','uCamU','uCamTap','uTgt','uTgtK','uTgtC','uCamFog'];
@@ -3645,7 +3725,7 @@ class Component extends DCLogic {
       this.postProg = pp;
       this.pu = {};
       gl.useProgram(pp);
-      ['uRes','uTime','uFx','uLoud','uBeat','uBass','uScene','uBokeh','uDofDepth','uDepth','uDMode','uDTilt','uTerrZ','uTerrFog','uDenoise'].forEach(n => this.pu[n] = gl.getUniformLocation(pp, n));
+      ['uRes','uTime','uFx','uLoud','uBeat','uBass','uScene','uBokeh','uDofDepth','uDepth','uDMode','uDTilt','uTerrZ','uTerrFog','uTerrLow','uDenoise'].forEach(n => this.pu[n] = gl.getUniformLocation(pp, n));
       gl.uniform1i(this.pu.uScene, 0);
       const loc2 = gl.getAttribLocation(pp,'a');
       gl.enableVertexAttribArray(loc2);
@@ -4303,18 +4383,40 @@ class Component extends DCLogic {
   }
   vidFileRef = React.createRef(); vidLayerRef = React.createRef(); vidDirRef = React.createRef();
 
+  // Playback modes for a file clip (vid.pm): play, pause, rev, bounce and
+  // stutter, at vid.rate (half, normal, double). rev and paused stay in step
+  // with pm so the rail and the pad keep working off them.
+  //
   // Reverse playback. Browsers will not play a negative rate, so the clip is
   // held paused and stepped backwards by seeking. Time that passes while a seek
   // is still decoding is carried into the next one, so the speed stays true
-  // even when the decoder cannot keep up frame for frame.
+  // even when the decoder cannot keep up frame for frame. Bounce runs forward
+  // to the end and back down that same path to the start. Stutter repeats a
+  // slice half a beat long four times, then lets the clip move on to the next.
   revStep(v){
     const vd=this.state.vid, file=vd.on && vd.src==='file' && v;
     const now=performance.now();
-    if(file && vd.paused){
+    const pm=this.playMode(vd), rate=vd.rate || 1;
+    if(file && pm==='pause'){
       if(!v.paused) v.pause();
       this._revOn=false; this._revT=0; this._wasPaused=true; return;
     }
-    const on=file && vd.rev && v.duration>0 && isFinite(v.duration);
+    const dur=file && v.duration>0 && isFinite(v.duration) ? v.duration : 0;
+    if(file && v.playbackRate !== rate) try{ v.playbackRate = rate; }catch(e){}
+    if(pm!=='bounce') this._bounceDir = 1;
+    if(pm==='bounce' && dur && (this._bounceDir||1) > 0 && v.currentTime >= dur-0.12) this._bounceDir = -1;
+    if(pm==='stutter' && dur){
+      const beat = (this.bpm && this.bpm.value > 0) ? 60/this.bpm.value : 0.5;
+      const len = Math.min(0.5, Math.max(0.08, beat/2))*rate;
+      const S = this._stut || (this._stut = {at:v.currentTime, n:0});
+      if(v.currentTime < S.at - 0.05 || v.currentTime > S.at + len*3) { S.at = v.currentTime; S.n = 0; }
+      if(v.currentTime >= S.at + len && !v.seeking){
+        if(++S.n >= 4){ S.n = 0; S.at = Math.min(Math.max(0, dur-len-0.05), v.currentTime); }
+        else try{ v.currentTime = S.at; }catch(e){}
+      }
+    } else this._stut = null;
+    const back = pm==='rev' || (pm==='bounce' && this._bounceDir < 0);
+    const on=file && back && dur;
     if(!on){
       if((this._revOn || this._wasPaused) && file && v.paused){ const p=v.play(); if(p&&p.catch) p.catch(()=>{}); }
       this._revOn=false; this._wasPaused=false; this._revPend=0; this._revT=0; return;
@@ -4325,7 +4427,7 @@ class Component extends DCLogic {
       v.addEventListener('seeked', this._revSeeked || (this._revSeeked=()=>{ this._revSeekedAt=performance.now(); }));
     }
     if(!v.paused) v.pause();
-    const dt=Math.min(0.25,(now-(this._revT||now))/1000); this._revT=now;
+    const dt=Math.min(0.25,(now-(this._revT||now))/1000)*rate; this._revT=now;
     this._revPend=(this._revPend||0)+dt;
     // Wait for the last seek to land and for its frame to be painted at least
     // once before asking for the next. Seeking every tick dropped readyState
@@ -4334,10 +4436,26 @@ class Component extends DCLogic {
     if(this._revSeekAt && (this._revSeekedAt||0) < this._revSeekAt && now-this._revSeekAt<500) return;
     if(this._revSeekAt && now-(this._revSeekedAt||0) < 16) return;
     let t=v.currentTime-this._revPend; this._revPend=0;
-    if(t<=0.03) t=Math.max(0, v.duration-0.05);
+    if(t<=0.03){
+      if(pm==='bounce'){ this._bounceDir = 1; t = 0; }
+      else t=Math.max(0, dur-0.05);
+    }
     this._revSeekAt=now;
     try{ v.currentTime=t; }catch(e){}
   }
+  VID_GROUPS = [['Blend',[0,3,10,15,6]], ['Distort',[2,7,8,9]], ['Tile',[1,18,16,19]],
+                ['Stylise',[4,5,13,20,14,17]], ['Surface',[11,12]]];
+  pickVidLook(id){
+    const vd = this.state.vid, m1 = vd.mode, m2 = (vd.mode2|0) - 1;
+    if(!vd.stack) return this.setVid({mode:id, mode2:0});
+    if(id===m1) return m2>=0 ? this.setVid({mode:m2, mode2:0}) : undefined;
+    if(id===m2) return this.setVid({mode2:0});
+    if(m2<0) return this.setVid({mode2:id+1});
+    this.setVid({mode:m2, mode2:id+1});
+  }
+  setPlay(pm){ this.setVid({pm, rev:pm==='rev', paused:pm==='pause'}); }
+  // paused and rev win, so a new clip (which clears paused) never stays held.
+  playMode(vd){ return vd.paused ? 'pause' : vd.rev ? 'rev' : (vd.pm==='bounce' || vd.pm==='stutter') ? vd.pm : 'play'; }
   uploadVideo(){
     const gl=this.gl, v=this.video;
     const F = this.vidFrame();
@@ -11060,7 +11178,7 @@ class Component extends DCLogic {
     // control as you read about it.
     if(this.state.tutOn){
       if(bCross) this.tutGo(1);
-      if(bCircle) this.setState({tutOn:false});
+      if(bCircle) this.tutEnd();
       if(bTri) this.tutGo(-1);
     }
     else if(shift){
@@ -11221,11 +11339,53 @@ class Component extends DCLogic {
     if(key !== this.tutFbKey && now - (this.tutFbAt||0) > 70){ this.tutFbKey = key; this.tutFbAt = now; this.setState({tutFb:next}); }
   }
 
+  // Randomise keeps the previous look for one Undo. It merges into p rather
+  // than replacing it, so Spin and Light (and anything else not rolled here)
+  // stay where they were instead of dropping out.
   randomize(){
     const rnd = () => Math.round(Math.random()*100)/100;
-    this.setState(s => ({
-      p: {morph:rnd(),detail:0.4+rnd()*0.5,speed:0.3+rnd()*0.6,zoom:0.2+rnd()*0.6,react:0.5+rnd()*0.5,hue:rnd(),iter:0.35+rnd()*0.45,ca:rnd(),cb:rnd(),cc:rnd()}
-    }));
+    this.setState(s => {
+      this._randPrev = {p:s.p, mod:s.mod};
+      return {randUndo:true, p: Object.assign({}, s.p, {morph:rnd(),detail:0.4+rnd()*0.5,speed:0.3+rnd()*0.6,zoom:0.2+rnd()*0.6,react:0.5+rnd()*0.5,hue:rnd(),iter:0.35+rnd()*0.45,ca:rnd(),cb:rnd(),cc:rnd()})};
+    });
+  }
+  // Random automation: about half the dials get a source, the rest go still.
+  randomizeMod(){
+    const pool = ['lfo','lfo','bass','mid','high','lvl','beat','bpm'];
+    this.setState(s => {
+      this._randPrev = {p:s.p, mod:s.mod};
+      const mod = {};
+      Object.keys(s.mod).forEach(k => {
+        mod[k] = Math.random() < 0.5 ? {src:'off', depth:s.mod[k].depth||0.25}
+          : {src:pool[Math.floor(Math.random()*pool.length)], depth:Math.round((0.15+Math.random()*0.35)*100)/100};
+      });
+      return {randUndo:true, mod};
+    });
+  }
+  // Shake to randomise: three hard jolts inside 0.8 s, then a 1.5 s rest so
+  // one shake is one roll. Reads acceleration without gravity where the
+  // device gives it, otherwise the jump between readings with gravity in.
+  shakeStep(e){
+    if(this.state.shake === false || this.state.mic !== 'live') return;
+    let m = 0;
+    const a = e.acceleration, g = e.accelerationIncludingGravity;
+    if(a && a.x != null) m = Math.hypot(a.x, a.y, a.z||0);
+    else if(g && g.x != null){ const q = this._shG; this._shG = {x:g.x, y:g.y, z:g.z||0}; if(q) m = Math.hypot(g.x-q.x, g.y-q.y, (g.z||0)-q.z); }
+    const now = performance.now();
+    if(now < (this._shRest||0) || m < 14) return;
+    if(now - (this._shLast||0) < 90) return;
+    this._shLast = now;
+    this._shHits = (this._shHits||[]).filter(t => now - t < 800); this._shHits.push(now);
+    if(this._shHits.length >= 3){
+      this._shHits = []; this._shRest = now + 1500;
+      this.randomize();
+      try{ navigator.vibrate && navigator.vibrate(30); }catch(err){}
+    }
+  }
+  randomUndo(){
+    const r = this._randPrev; if(!r) return;
+    this._randPrev = null;
+    this.setState({p:r.p, mod:r.mod, randUndo:false});
   }
   cycleAll(dir){
     this.setState(s => {
@@ -12084,7 +12244,7 @@ class Component extends DCLogic {
       const fs = gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(fs, this.E.VIDFX_FRAG()); gl.compileShader(fs);
       gl.attachShader(p, vs); gl.attachShader(p, fs); gl.bindAttribLocation(p, 0, 'a'); gl.linkProgram(p);
       if(!gl.getProgramParameter(p, gl.LINK_STATUS)){ console.warn('[spectra] video fx failed:', gl.getShaderInfoLog(fs)); this._vfxFail = true; return false; }
-      const u = {}; ['uRes','uCanv','uTex','uHasTex','uVidMix','uVidFlip','uVidFlipV','uVidMode','uTime','uMorph','uDetail','uBass','uMid','uHigh','uLoud','uBeat','uHue','uSpan','uPalSel','uSceneOff','uSpeed'].forEach(n => u[n] = gl.getUniformLocation(p, n));
+      const u = {}; ['uRes','uCanv','uTex','uHasTex','uVidMix','uVidFlip','uVidFlipV','uVidMode','uVidMode2','uTime','uMorph','uDetail','uBass','uMid','uHigh','uLoud','uBeat','uHue','uSpan','uPalSel','uSceneOff','uSpeed'].forEach(n => u[n] = gl.getUniformLocation(p, n));
       this.vfx = {p, u, tex: gl.createTexture()};
     }
     const V = this.vfx, u = V.u;
@@ -12099,7 +12259,7 @@ class Component extends DCLogic {
     const vd = this.state.vid, e = this.eff || {}, a = this.a || {};
     gl.uniform2f(u.uRes, gc.width, gc.height);
     gl.uniform1i(u.uCanv, 4); gl.uniform1i(u.uTex, 0);
-    gl.uniform1f(u.uHasTex, (has && !vd.hide) ? 1 : 0); gl.uniform1f(u.uVidMix, vd.mix); gl.uniform1f(u.uVidFlip, vd.flip ? 1 : 0); gl.uniform1f(u.uVidFlipV, vd.flipV ? 1 : 0); gl.uniform1i(u.uVidMode, vd.mode);
+    gl.uniform1f(u.uHasTex, (has && !vd.hide) ? 1 : 0); gl.uniform1f(u.uVidMix, vd.mix); gl.uniform1f(u.uVidFlip, vd.flip ? 1 : 0); gl.uniform1f(u.uVidFlipV, vd.flipV ? 1 : 0); gl.uniform1i(u.uVidMode, vd.mode); gl.uniform1i(u.uVidMode2, vd.mode2|0);
     gl.uniform1f(u.uTime, performance.now()/1000); gl.uniform1f(u.uSpeed, 1);
     gl.uniform1f(u.uMorph, e.morph ?? 0.5); gl.uniform1f(u.uDetail, e.detail ?? 0.5);
     ['Bass','Mid','High','Loud','Beat'].forEach(k => { const l = u['u'+k]; if(l) gl.uniform1f(l, a[k.toLowerCase()] || 0); });
@@ -13020,63 +13180,160 @@ class Component extends DCLogic {
     return W>1e-3 ? [mx/W, my/W] : null;
   }
 
-  // Controller walkthrough. Nine steps in the order a VJ actually needs them:
-  // get the pad seen, learn the two sticks and the triggers, then the modifier
-  // idea (which is what makes 54 scenes' worth of parameters reachable from six
-  // axes), then the cuts, then gyro, then the two panic keys. Each step names
-  // the control and what it does to the image — no theory.
+  // The tour. Every page of the app in the order someone meets it: the start,
+  // the screen, the touch bar, each page of the deck menu, the extras, then
+  // the controller. A step can name the layout and deck page it needs, which
+  // the tour switches to while the card is up and puts back when it closes;
+  // pos is where the card sits so it never covers what the step describes.
+  // The controller chapter keeps its pad feedback (pad:true) and the order a
+  // VJ needs it: get the pad seen, sticks and triggers, the modifier idea,
+  // the cuts, gyro, then the two panic keys.
   TUT = [
-    {g:'Any button', t:'Get the pad seen',
+    {ch:'Start', g:'Welcome', t:'A tour of SPECTRA',
+     d:'This walks every page of the app in order: the screen, the touch bar, the seven pages of the menu, the extras, and last the game controller. Each page opens behind this card, so you can try things as you read. Jump to a chapter with the chips above, close it any time with × or Esc, and bring it back from Controls (H).'},
+    {ch:'Screen', pos:'bottom', g:'Top bar', t:'The readouts',
+     d:'Across the top: the scene and its family, the Bass, Mid, High and Lvl meters, the beat light and BPM, the note it hears, the zoom depth, and the frame rate with the render scale. The audio chip says where the sound comes from — listening, device audio or simulated — and tapping it swaps the mic and device audio where both exist. NO STROBE lights up while beat flashes are killed.'},
+    {ch:'Screen', pos:'bottom', g:'The image', t:'Touch the picture',
+     d:'Drag on the scene to turn a 3D fractal or pan a flat one; pinch or scroll to zoom. The controls fade by themselves after ten seconds without input — tap, double-tap or move the mouse to bring them back, or press U to keep them pinned.'},
+    {ch:'Touch bar', layout:'minimal', pos:'top', g:'Minimal', t:'The touch bar',
+     d:'Phones and tablets open in this layout. ‹ and › step through the scenes. The wide pad is a drag surface: up and down moves the dial named on it, left and right turns Hue, and a tap picks the next dial. PAL steps the palette, AUTO hands the set to the autopilot, and MENU opens the full menu — the next seven pages. On a desktop the same layout shows a hotkey strip instead.'},
+    {ch:'Scenes', tab:'scenes', pos:'top', g:'Menu · Scenes', t:'The scene library',
+     d:'Every scene as a tile with a still of itself, sorted into families by the tabs above the grid. Tap one to go there — with a transition set on the Cues page it crossfades instead of cutting. On a keyboard, 1–9 and Q W E jump to the first twelve, and ← → step through the rest.'},
+    {ch:'Video', tab:'video', pos:'top', g:'Menu · Video', t:'Video under the fractal',
+     d:'Source is where the picture comes from: + File and + Folder load clips from this device, Camera and the camera list pick a live input, and AR turns the camera into a controller — hands, head or body steer the scene. ◂ ▸ step the clips; tap one to play it, × removes it. Playback runs a clip forward, paused, reversed, or in Bounce and Stutter. Video change decides when clips move on and how they hand over, and Video look picks the filter, the Mix against the scene and the video trail.'},
+    {ch:'Cues', tab:'cues', pos:'top', g:'Menu · Cues', t:'Your set list',
+     d:'+ stores the live look as a cue (C), and each cue keeps the transition and length it was added with. ◂ ▸, or Space and Shift+Space, step through them; tap one to jump there and × to remove it. Scene change: Auto advances on its own every so many beats or bars, Quantise holds a change for the next beat or bar, and the transition type and length decide how one scene hands over to the next.'},
+    {ch:'Slots', tab:'slots', pos:'top', g:'Menu · Slots', t:'Stored looks and Morph',
+     d:'Eight slots. Tap an empty one to store what is on screen and a filled one to recall it — F1–F8 recall and Shift+F1–F8 store from the keyboard. Morph (M) puts two slots on one fader: choose the left and right ends and slide between them.'},
+    {ch:'Params', tab:'params', pos:'top', g:'Menu · Params', t:'Trim and the twelve dials',
+     d:'Trim is the tone row that sits over every scene: Smth, Sat, Gam, Span, Warm and DOF. Under it are the twelve parameters. Their names change with the scene but their numbers stay put, so 1 is always the first dial. Drag a fader, double-click to reset it. Each one has an automation source and its own LFO length, so any dial can move on its own with the music. Randomise rolls new values and Random auto new sources, Undo takes back the last roll, and on a phone or tablet a hard shake randomises too (Shake on / off).'},
+    {ch:'Look', tab:'look', pos:'top', g:'Menu · Look', t:'Colour, camera and strobe',
+     d:'Trail sets how long frames linger. Palette and FX colour the image. The 3D camera orbits the object, flies through it or skims its surface; Repeat tiles a 3D fractal into an endless lattice; Vector draws it as edges, contours or points, alone or over the shaded render. Motion: Auto (A) runs the drift and animation, the LFO division sets the default length, and Ease switches the LFO between easing in and out and a constant-speed sweep. Strobe sets the beat flashes — strength, length and which beats — and B kills them for photosensitive rooms.'},
+    {ch:'System', tab:'system', pos:'top', g:'Menu · System', t:'Render, layout and output',
+     d:'Res and Fps trade picture for speed — cap the frame rate to leave GPU time for Traktor or Ableton. The layout button cycles Deck, Rail and Minimal. Out (O) opens a clean window for the projector: drag it to the second screen and press F there. Hide (U) clears the screen. HID connects a game controller for its gyro and touchpad; Gyro steers the fractal by tilting the device, and Level makes how you hold it now the new flat.'},
+    {ch:'Extras', g:'Y · T · N', t:'Text in the scene',
+     d:'Y opens the text panel in any layout. Type a message and press Enter to keep it, then pick a font, its size, colour and motion. T shows or hides the message, N steps to the next one. On a 3D scene the message sits in the space, so it can go behind the fractal or in front of it.'},
+    {ch:'Extras', g:'H · X · F', t:'Shortcuts and settings',
+     d:'H opens Controls: every key and pad button on one sheet, the accent colour, and a reset for your settings. X shows the maths behind the current scene, F goes fullscreen, 0 resets the view, and V turns on zoom levels — deep zoom on the Mandelbrot. Your settings, slots and cues are saved on this device; the live set state is not, so the app never reopens mid-set.'},
+    {ch:'Extras', g:'Install', t:'Keep it on the home screen',
+     d:'The start screen shows an Install button while SPECTRA is still a browser tab. Installed, it gets its own icon, opens full screen and works offline. On iPhone and iPad, use Share and then Add to Home Screen.'},
+    {ch:'Controller', pad:true, g:'Any button', t:'Get the pad seen',
      d:'Plug the controller in or pair it over Bluetooth, then press any button. The chip in the top bar goes live and names the pad. Nothing else needs setting up \u2014 the app polls it directly.'},
-    {g:'Tilt', t:'Turn the fractal with the gyro',
+    {ch:'Controller', pad:true, g:'Tilt', t:'Turn the fractal with the gyro',
      d:'Press G to enable gyro. On a 3D scene, lean the pad left or right and the camera keeps orbiting around the fractal for as long as you hold it; tip it forward or back and it orbits over the top. On 2D scenes the plane the image is drawn on tips with the pad, left and right and forward and back, and comes back flat when the pad is level. On 3D, bring the pad level and the turning stops where it is. K or R3 makes however you are holding it now the new level.'},
-    {g:'L2 / R2', t:'Trails on the triggers',
+    {ch:'Controller', pad:true, g:'L2 / R2', t:'Trails on the triggers',
      d:'R2 lengthens the trail, L2 shortens it, and the harder you squeeze the faster it moves. Hold L1 at the same time for fine control. Zoom is on the right stick, left and right.'},
-    {g:'Touchpad', t:'The top row on the touchpad',
+    {ch:'Controller', pad:true, g:'Touchpad', t:'The top row on the touchpad',
      d:'Drag on the touchpad to set the six trims across the top. One finger: up and down is Smth, left and right is Sat. Two fingers: Gam and Span. Click the pad down and drag one finger: Warm and DOF. Each drag starts from where the trim already sits. Needs the pad connected for gyro (the HID connection).'},
-    {g:'Sticks + L1 / R1', t:'Twelve dials on two sticks',
+    {ch:'Controller', pad:true, g:'Sticks + L1 / R1', t:'Twelve dials on two sticks',
      d:'Both sticks are parameters. On their own they reach 1 to 4; hold L1 for 5 to 8, hold R1 for 9 to 12. Up and down is always the odd number, left and right the even one. Up and right raise a value.'},
-    {g:'1 \u2026 12', t:'The twelve dials, and their numbers',
+    {ch:'Controller', pad:true, g:'1 \u2026 12', t:'The twelve dials, and their numbers',
      d:'The strip numbers every parameter, and a number keeps its position even when a scene renames what sits there \u2014 1 is the first dial whether the scene calls it Orbit, Mirrors or Twist. The next twelve steps take them one at a time, in order. Try each one as you read it.'},
-    {g:'Left stick \u2195', t:'1. Morph',
+    {ch:'Controller', pad:true, g:'Left stick \u2195', t:'1. Morph',
      d:'Push the left stick up and down. Morph is the shape control: it moves the exponent of the iterated map, so the solid changes form rather than just turning. On the flat sets it walks the constant that decides which family of curl you are looking at. Everything else on the strip is a treatment of whatever Morph has chosen.'},
-    {g:'Left stick \u2194', t:'2. Detail',
+    {ch:'Controller', pad:true, g:'Left stick \u2194', t:'2. Detail',
      d:'Same stick, left and right. Detail is how much structure gets resolved \u2014 the march takes finer steps and the surface stops being a smooth shell and starts showing its own filigree. It is the most expensive dial in the app: if the frame rate sags, this is the first place to give something back.'},
-    {g:'Right stick \u2195', t:'3. Speed',
+    {ch:'Controller', pad:true, g:'Right stick \u2195', t:'3. Speed',
      d:'Push the right stick up and down. Speed is the rate of the scene\u2019s own motion \u2014 the drift, the spin, the scroll. At zero the image holds still and every other control still works.'},
-    {g:'Right stick \u2194', t:'4. Zoom',
+    {ch:'Controller', pad:true, g:'Right stick \u2194', t:'4. Zoom',
      d:'Right stick across zooms, right for in, left for out. On the 2D escape-time sets the slider does not stop at the ends: run off one and it wraps to the other, taking the scene up or down a LEVEL. V turns that off.'},
-    {g:'L1 + left stick \u2195', t:'5. React',
+    {ch:'Controller', pad:true, g:'L1 + left stick \u2195', t:'5. React',
      d:'Hold L1 and push the left stick up and down. React is how much the audio moves the image \u2014 at zero the scene ignores the music entirely, at full the bass is driving geometry. Set this against the room.'},
-    {g:'L1 + left stick \u2194', t:'6. Hue',
+    {ch:'Controller', pad:true, g:'L1 + left stick \u2194', t:'6. Hue',
      d:'Same modifier, stick across. Hue rotates the whole palette. It wraps around, so there is no wrong end of it. Pair it with the palette selector, which changes which colours it is rotating through.'},
-    {g:'L1 + right stick \u2195', t:'7. Iter',
+    {ch:'Controller', pad:true, g:'L1 + right stick \u2195', t:'7. Iter',
      d:'Hold L1 and push the right stick up and down. Iter is the iteration budget: low is soft and blobby, high is sharp and lacy. It costs almost as much as Detail, and on the 2D sets it decides whether a deep zoom stays legible.'},
-    {g:'L1 + right stick \u2194', t:'8. Cst A',
+    {ch:'Controller', pad:true, g:'L1 + right stick \u2194', t:'8. Cst A',
      d:'Hold L1 and push the right stick across. The three constants feed the map itself, and what they do is specific to each scene \u2014 the strip relabels them to say so, and the maths panel (X) shows where they sit in the formula. Small moves, large consequences.'},
-    {g:'R1 + left stick \u2195', t:'9. Cst B',
+    {ch:'Controller', pad:true, g:'R1 + left stick \u2195', t:'9. Cst B',
      d:'Hold R1 and push the left stick up and down. Usually the scale or inversion strength that partners A. A and B together are where a scene stops looking like its preset and becomes yours; R3 recentres and the preset chip reloads if you lose it.'},
-    {g:'R1 + left stick \u2194', t:'10. Cst C',
+    {ch:'Controller', pad:true, g:'R1 + left stick \u2194', t:'10. Cst C',
      d:'Same modifier, stick across. The third constant \u2014 often the colour or stripe term rather than the geometry.'},
-    {g:'R1 + right stick \u2195', t:'11. Spin',
+    {ch:'Controller', pad:true, g:'R1 + right stick \u2195', t:'11. Spin',
      d:'Hold R1 and push the right stick up and down. Spin is the rate of the scene\u2019s own rotation: the middle is as designed, the bottom freezes it, the top doubles it. The spin button still sets the direction.'},
-    {g:'R1 + right stick \u2194', t:'12. Light',
+    {ch:'Controller', pad:true, g:'R1 + right stick \u2194', t:'12. Light',
      d:'Same modifier, stick across. Light lifts or sinks the midtones without clipping the highlights: right brightens, left darkens, the middle leaves the scene as designed.'},
-    {g:'D-pad', t:'Cut scenes and colour',
+    {ch:'Controller', pad:true, g:'D-pad', t:'Cut scenes and colour',
      d:'Left and right step through the scenes in the current family; up and down step through the fourteen palettes, wrapping both ways. Hold L1 with up and down to recall your saved slots in order instead.'},
-    {g:'\u2715 \u25cb \u25a1 \u25b3', t:'The four face buttons',
+    {ch:'Controller', pad:true, g:'\u2715 \u25cb \u25a1 \u25b3', t:'The four face buttons',
      d:'Cross toggles AUTO, Circle hides and shows the chrome for a clean image, Square randomises the current scene, Triangle shows and hides the stored message. Hold L1 first and Triangle steps to the next stored message, Square cycles the layout, crossfade and FX instead.'},
-    {g:'PS + R3', t:'Two ways out',
+    {ch:'Controller', pad:true, g:'PS + R3', t:'Two ways out',
      d:'The PS button is the strobe kill \u2014 the one button you can find without looking, and the one to hit if the room needs the flashing to stop. R3 recentres the view, re-levels the gyro and puts auto-spin back, which recovers any camera you have lost.'}
   ];
+  // Chapter starts, in order, for the jump chips.
+  get TUT_CH(){
+    if(!this._tutCh){ this._tutCh = []; this.TUT.forEach((x,i)=>{ if(!this._tutCh.some(c=>c.ch===x.ch)) this._tutCh.push({ch:x.ch, i}); }); }
+    return this._tutCh;
+  }
 
+  // Opening remembers the layout, deck page and pin state the tour is about
+  // to change, and pins the chrome so the idle fade cannot hide the page a
+  // step is describing. Closing puts all three back.
+  tutOpen(i){
+    if(!this.state.tutOn) this._tutView = {layout:this.state.layout, deckTab:this.state.deckTab, pinned:this.pinned};
+    this.pinned = true; clearTimeout(this.idleTimer);
+    this.setState({tutOn:true, help:false, chrome:true});
+    this.tutSet(i||0);
+  }
+  tutSet(n){
+    const st = this.TUT[n]; if(!st) return;
+    const v = this._tutView || {layout:this.state.layout, deckTab:this.state.deckTab};
+    this.setState({tutStep:n, chrome:true, layout: st.tab ? 'deck' : (st.layout || v.layout), deckTab: st.tab || v.deckTab},
+      ()=>{ if(st.tab){ this._deckPinned = true; this.pinDeck(); } });
+  }
+  tutEnd(){
+    const v = this._tutView; this._tutView = null;
+    if(v) this.pinned = v.pinned;
+    try{ localStorage.setItem('spectra.toured','1'); }catch(e){}
+    this.setState(v ? {tutOn:false, tutStep:0, layout:v.layout, deckTab:v.deckTab} : {tutOn:false, tutStep:0},
+      ()=>{ if(this.onActivity) this.onActivity(); });
+  }
   tutGo(d){
-    this.setState(s=>{
-      const n = s.tutStep + d;
-      if(n < 0) return {tutStep:0};
-      if(n >= this.TUT.length) return {tutOn:false, tutStep:0};
-      return {tutStep:n};
-    });
+    const n = this.state.tutStep + d;
+    if(n < 0) return;
+    if(n >= this.TUT.length) return this.tutEnd();
+    this.tutSet(n);
+  }
+
+  // Start screen: the notes for this build. Keep it to what a returning user
+  // would notice, newest first, and replace it on every release.
+  WHATS_NEW = {b:32, date:'21 Oct 2026', items:[
+    'A new tour: every page of the app in order, opened live behind the card, then the controller. Controls (H) \u2192 Tour of the app.',
+    'Video: cameras now sit in Source, and Playback is its own row with Bounce, Stutter and Half speed beside Play, Pause and Reverse.',
+    'Video looks are grouped by type, and Stack runs two looks at once.',
+    'Mix has a centre mark and resets to 50% on double-click.',
+    'Params: Randomise, Random auto and Undo buttons, and shake a phone or tablet to randomise.',
+    'Motion: Ease turns the LFO’s ease in and out on or off.',
+    'Install as app from this screen, and a start screen that fits a portrait phone.',
+    'The full menu lines up edge for edge with the touch bar.'
+  ]};
+
+  // Installed means running from the home screen or app list, not a tab.
+  isInstalled(){
+    try{
+      if(window.__spInstalled || navigator.standalone === true) return true;
+      return ['standalone','fullscreen','minimal-ui','window-controls-overlay'].some(m=>matchMedia('(display-mode: '+m+')').matches);
+    }catch(e){ return false; }
+  }
+  // Chrome and Edge hand over a real prompt; everywhere else the button says
+  // where the browser keeps its own install entry.
+  installApp(){
+    const ev = window.__spInstall;
+    if(ev){
+      window.__spInstall = null;
+      try{
+        ev.prompt();
+        ev.userChoice.then(r=>{
+          if(r && r.outcome==='accepted') this.setState({installed:true, installMsg:''});
+          else this.setState({installMsg:'Not installed. The browser menu can still do it later \u2014 Install app, or Add to Home screen.'});
+        }).catch(()=>{});
+      }catch(e){}
+      return;
+    }
+    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+    this.setState({installMsg: ios
+      ? 'On iPhone or iPad: tap Share, then Add to Home Screen.'
+      : 'Open the browser menu and choose Install app or Add to Home screen. In Chrome and Edge it is also the install icon at the end of the address bar.'});
   }
 
   resetIMU(){
@@ -14189,7 +14446,7 @@ class Component extends DCLogic {
         {k:'Slot buttons', d:'Click an empty slot to store the current state; click a filled one to recall it'},
         {k:'Shift-click a slot', d:'Overwrite it — right-click clears it'},
         {k:'Drag a slider', d:'Set that parameter by hand'},
-        {k:'Tag beside a value', d:'Pick its automation source \u2014 LFO (sine) or SAW (ramp), both on the LFO division, bass, mid, high, level, plus NTE (pitch class of the loudest note), TON (key centre on the circle of fifths) and CHD (chord-change transient)'},
+        {k:'Tag beside a value', d:'Pick its automation source \u2014 LFO (sine, or a straight triangle with Ease off in Motion) or SAW (ramp), both on the LFO division, bass, mid, high, level, plus NTE (pitch class of the loudest note), TON (key centre on the circle of fifths) and CHD (chord-change transient)'},
         {k:'AMT bar', d:'How far that source moves the parameter'},
         {k:'Const A / B sliders', d:'The scene\u2019s core constants — Julia seeds, box-fold scale, Newton relaxation'},
         {k:'Iter slider', d:'Iteration depth — more structure, more GPU cost'},
@@ -14253,9 +14510,13 @@ class Component extends DCLogic {
   // the track and lands with it only by accident; on a division the sweep is a
   // function of bar position, so the same point of the cycle recurs on the same
   // beat every time.
+    // Ease on is the sine: it slows into each end of the sweep and out again.
+    // Ease off is the triangle on the same phase, so the peaks land on the same
+    // beats either way — constant speed, a hard turn at each end.
     if(src==='lfo'){
-      if(d0>0) return Math.sin(((this.mus||0)/d0)*6.28318 + i*1.7);
-      return Math.sin(tt*0.42 + i*1.7);
+      const ph = d0>0 ? ((this.mus||0)/d0)*6.28318 + i*1.7 : tt*0.42 + i*1.7;
+      const sn = Math.sin(ph);
+      return this.state.lfoEase === false ? Math.asin(sn)*0.63662 : sn;
     }
     if(src==='bass') return this.a.bass;
     if(src==='mid') return this.a.mid;
@@ -14994,7 +15255,7 @@ class Component extends DCLogic {
     gl.uniform1f(u.uVidMix, vd.mix);
     gl.uniform1f(u.uVidFlip, vd.flip?1:0);
     gl.uniform1f(u.uVidFlipV, vd.flipV?1:0);
-    gl.uniform1i(u.uVidMode, vd.mode);
+    gl.uniform1i(u.uVidMode, vd.mode); gl.uniform1i(u.uVidMode2, vd.mode2|0);
     gl.uniform2f(u.uRes, gl.drawingBufferWidth, gl.drawingBufferHeight);
     // Every shader scene writes its motion as uTime·uSpeed, which made the Speed
     // slider multiply the entire elapsed time at once — a lurch proportional to
@@ -15724,6 +15985,7 @@ class Component extends DCLogic {
         if(this.state.auto !== false) this.terrZ = (this.terrZ || 0) + tdt*0.05*(0.3 + (this.eff.speed ?? 0.5)*1.4);
         if(pu.uTerrZ) gl.uniform1f(pu.uTerrZ, this.terrZ || 0);
         if(pu.uTerrFog) gl.uniform1f(pu.uTerrFog, tm.dof ?? 0.35);
+        if(pu.uTerrLow) gl.uniform1f(pu.uTerrLow, this.state.terrLow ?? 3);
       }
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, cur.t);
@@ -16662,6 +16924,10 @@ class Component extends DCLogic {
       fxOptions: [{v:'0',tag:'FX Off'},{v:'0.35',tag:'FX Low'},{v:'0.7',tag:'FX Mid'},{v:'1',tag:'FX High'}],
       setFx: (e)=>this.setState({fx: parseFloat(e.target.value)||0}),
       dmodeSel: (s.trim.dpth||0) > 0.001 ? String(s.dmode||0) : 'off',
+      terrLowSel: String(s.terrLow ?? 3),
+      terrLowOptions: [{v:'3',tag:'Water + Mist'},{v:'1',tag:'Water'},{v:'2',tag:'Mist'},{v:'0',tag:'Dark water'}],
+      setTerrLow: (e)=>this.setState({terrLow: parseInt(e.target.value,10)||0}),
+      terrLowDisp: ((s.trim.dpth||0) > 0.001 && String(s.dmode)==='2') ? 'block' : 'none',
       dmodeOptions: [{v:'off',tag:'Depth Off'},{v:'0',tag:'Depth Relief'},{v:'1',tag:'Depth Parallax'},{v:'2',tag:'Depth Terrain'}],
       setDMode: (e)=>{ if(e.target.value==='off'){ this.setState(st=>({trim:Object.assign({}, st.trim, {dpth:0})})); return; } const v = parseInt(e.target.value,10)||0; this.setState(st=>({dmode:v, trim: (st.trim.dpth||0) > 0.001 ? st.trim : Object.assign({}, st.trim, {dpth:0.5})})); },
       fieldSel: String(s.fieldFx || 0),
@@ -16688,6 +16954,22 @@ class Component extends DCLogic {
       // a control is given a length of its own.
       divOptions: [{v:'',tag:'Default'},{v:'1',tag:'1⁄4'},{v:'2',tag:'½B'},{v:'4',tag:'1B'},{v:'8',tag:'2B'},{v:'16',tag:'4B'}],
       setLfo: (e)=>this.setState({lfoDiv: parseFloat(e.target.value)||4}),
+      randParams: () => this.randomize(),
+      randMod: () => this.randomizeMod(),
+      randUndo: () => this.randomUndo(),
+      randUndoDisp: s.randUndo ? 'block' : 'none',
+      shakeT: () => {
+        // iOS only hands out motion after a tap asks for it.
+        try{ if(s.shake === false && typeof DeviceMotionEvent !== 'undefined' && DeviceMotionEvent.requestPermission) DeviceMotionEvent.requestPermission().catch(()=>{}); }catch(err){}
+        this.setState(st=>({shake: st.shake === false}));
+      },
+      shakeLabel: s.shake === false ? 'Shake off' : 'Shake on',
+      shakeTitle: 'Shake the phone or tablet to roll new values. Tap to turn it ' + (s.shake === false ? 'on' : 'off'),
+      shakeBg: chip(s.shake !== false).bg, shakeFg: chip(s.shake !== false).fg, shakeBorder: chip(s.shake !== false).border,
+      lfoEaseT: () => this.setState(st=>({lfoEase: st.lfoEase === false})),
+      lfoEaseLabel: s.lfoEase === false ? 'Linear' : 'Ease',
+      lfoEaseTitle: s.lfoEase === false ? 'LFO runs at constant speed with a hard turn at each end. Tap to ease in and out' : 'LFO eases in and out of each end of its sweep. Tap for constant speed',
+      lfoEaseBg: chip(s.lfoEase !== false).bg, lfoEaseFg: chip(s.lfoEase !== false).fg, lfoEaseBorder: chip(s.lfoEase !== false).border,
       armDisplay: s.cutArmed ? 'inline-block' : 'none',
       outLabel: s.out ? 'Out ▣' : 'Out',
       outToggle: ()=>this.toggleOut(),
@@ -16935,15 +17217,19 @@ class Component extends DCLogic {
       // its box exactly, which pushed the first row up under the wordmark and
       // the scene readout — the same collision the narrow path already avoided.
       // Measured, not a second constant, so it tracks a bar that wraps.
-      deckTop: ((s.topBarH||0) + 2) + 'px',
+      // A docked tour card owns the top of the screen; the deck starts under it
+      // so the page the step describes is never hidden behind the card.
+      deckTop: (Math.max(s.topBarH||0, (s.tutOn && (this.TUT[s.tutStep]||{}).pos==='top') ? (s.tutCardH||0) + (s.narrow ? 16 : 24) : 0) + 2) + 'px',
       // A second scroller inside the deck trapped the wheel and the finger over
       // the scene grid (a large share of the deck). On phones the grid now flows
       // in the deck's own scroll; on desktop it keeps a cap but hands scroll back
       // to the deck at its ends (overscroll auto).
       sceneGridMaxH: s.narrow ? 'none' : '30vh',
+      // Same 12px inset as the touch bar, so the full menu and the mini one
+      // line up edge for edge when the layout switches.
       deckPad: s.narrow
-        ? '10px 10px calc(10px + env(safe-area-inset-bottom))'
-        : '4px 22px 14px',
+        ? '10px 12px calc(12px + env(safe-area-inset-bottom))'
+        : '4px 12px calc(12px + env(safe-area-inset-bottom))',
       deckGap: s.narrow ? '7px' : '10px',
       // Slots: an even 4-across grid on a phone rather than eight nowrap buttons
       // tail-ending a flex row they share with the Trail fader — which is what
@@ -17159,8 +17445,27 @@ class Component extends DCLogic {
       tutFbWhat: (s.tutFb && s.tutFb.what) || '',
       tutFbVal: (s.tutFb && s.tutFb.val) || '',
       tutDisplay: s.tutOn ? 'flex' : 'none',
-      tutOpen: () => this.setState({tutOn:true, tutStep:0, help:false}),
-      tutClose: () => this.setState({tutOn:false}),
+      tutCardRef: this.tutCardRef,
+      ...(()=>{
+        const st = this.TUT[s.tutStep]||this.TUT[0], pos = st.pos || 'center', dock = pos !== 'center';
+        return {
+          tutJustify: pos==='top' ? 'flex-start' : pos==='bottom' ? 'flex-end' : 'center',
+          tutOuterPad: dock ? (s.narrow ? '8px' : '12px') : (s.narrow ? '16px 12px' : '24px'),
+          tutVeil: dock ? 'transparent' : 'rgba(8,9,10,0.72)',
+          tutBlur: dock ? 'none' : 'blur(6px)',
+          tutOuterPE: dock ? 'none' : 'auto',
+          tutPad: s.narrow ? '14px 14px 12px' : (dock ? '18px 20px 16px' : '26px 28px 22px'),
+          tutGap: s.narrow || dock ? '14px' : '20px',
+          tutCardMaxH: dock ? (s.narrow ? '46vh' : '42vh') : '100%',
+          tutTitleFs: s.narrow || dock ? '19px' : '24px',
+          tutPadDisplay: st.pad ? 'flex' : 'none',
+          tutHint: st.pad ? '✕ next · △ back · ○ close' : (dock ? 'Try it — the page is live' : 'Esc closes'),
+          tutChapter: st.ch,
+          tutChapters: this.TUT_CH.map(c=>Object.assign({label:c.ch, go:()=>this.tutSet(c.i)}, chip(c.ch===st.ch)))
+        };
+      })(),
+      tutOpen: () => this.tutOpen(0),
+      tutClose: () => this.tutEnd(),
       tutNext: () => this.tutGo(1),
       tutBack: () => this.tutGo(-1),
       tutNum: String(Math.min(s.tutStep+1, this.TUT.length)).padStart(2,'0'),
@@ -17170,10 +17475,12 @@ class Component extends DCLogic {
       tutBody: (this.TUT[s.tutStep]||this.TUT[0]).d,
       tutNextLabel: s.tutStep >= this.TUT.length-1 ? 'Done' : 'Next',
       tutBackOpacity: s.tutStep > 0 ? '1' : '0.25',
-      tutDots: this.TUT.map((x,i)=>({
-        bg: i===s.tutStep ? accent : (i<s.tutStep ? this.accA(0.35) : 'rgba(255,255,255,0.14)'),
-        go: ()=>this.setState({tutStep:i})
-      })),
+      newsTag: 'Build ' + this.WHATS_NEW.b + ' · ' + this.WHATS_NEW.date,
+      newsItems: this.WHATS_NEW.items.map(d=>({d})),
+      installDisplay: (s.installed || this.fileOrigin) ? 'none' : 'flex',
+      installMsg: s.installMsg || '',
+      installMsgDisplay: (s.installMsg && !s.installed && !this.fileOrigin) ? 'block' : 'none',
+      installApp: () => this.installApp(),
       stickNote: this.is2D() ? 'Current scene is 2D \u2014 drag to travel, shift-drag to rotate' : (this.isCanvasScene() ? 'Canvas scene \u2014 drag to travel, shift-drag to rotate' : 'Current scene is 3D \u2014 drag to orbit, shift-drag to pan'),
       vidOn: s.vid.on,
       vidBtnLabel: (s.vid.on && s.vid.src!=='file') ? 'Camera on' : 'Camera',
@@ -17234,10 +17541,21 @@ class Component extends DCLogic {
       vidRevDisplay: s.vid.src==='file' ? 'block' : 'none',
       vidRevLabel: s.vid.rev ? '\u25C0 Rev' : 'Rev',
       vidRevBg: chip(s.vid.rev).bg, vidRevFg: chip(s.vid.rev).fg, vidRevBorder: chip(s.vid.rev).border,
-      vidRevT: () => this.setVid({rev:!s.vid.rev, paused:false}),
+      vidRevT: () => this.setPlay(s.vid.rev ? 'play' : 'rev'),
       vidPauseLabel: s.vid.paused ? '\u25B6 Play' : 'Pause',
       vidPauseBg: chip(s.vid.paused).bg, vidPauseFg: chip(s.vid.paused).fg, vidPauseBorder: chip(s.vid.paused).border,
-      vidPauseT: () => this.setVid({paused:!s.vid.paused}),
+      vidPauseT: () => this.setPlay(s.vid.paused ? (s.vid.rev ? 'rev' : 'play') : 'pause'),
+      vidPlayModes: [['play','▶ Play','Play forward'],['pause','❚❚ Pause','Hold the frame'],['rev','◀ Reverse','Play backwards'],
+                     ['bounce','⇄ Bounce','Forward to the end, then back to the start'],['stutter','∷ Stutter','Repeat a half-beat slice four times, then move on']].map(([k,label,title])=>{
+        const cur = this.playMode(s.vid);
+        return Object.assign({label, title, select:()=>this.setPlay(k)}, chip(cur===k));
+      }),
+      vidRateLabel: ({0.5:'½× speed',1:'1× speed',2:'2× speed'})[s.vid.rate||1],
+      vidRateT: () => this.setVid({rate: ({0.5:1,1:2,2:0.5})[s.vid.rate||1]}),
+      vidRateBg: chip((s.vid.rate||1)!==1).bg, vidRateFg: chip((s.vid.rate||1)!==1).fg, vidRateBorder: chip((s.vid.rate||1)!==1).border,
+      vidDevDisp: (s.vid.devices && s.vid.devices.length) ? 'flex' : 'none',
+      vidPlayDisplay: s.vid.on && s.vid.src==='file' ? 'flex' : 'none',
+      vidMixReset: () => { this._mixUser=true; this.setVid({mix:0.5}); },
       vidAutoT: () => this.vidSetAuto(!(s.vid.auto !== false)),
       vidAutoBg: chip(s.vid.auto !== false).bg, vidAutoFg: chip(s.vid.auto !== false).fg, vidAutoBorder: chip(s.vid.auto !== false).border,
       vidShufT: () => this.setVid({shuf:!s.vid.shuf}),
@@ -17260,9 +17578,29 @@ class Component extends DCLogic {
       sceneHeld: this._heldScene != null ? 'Scene held until the Morph fader reaches an end' : '',
       sceneHeldDisplay: this._heldScene != null ? 'block' : 'none',
       vidModeCols: s.narrow ? 3 : 7,
-      vidModes: (this.E ? this.E.VID_MODES : []).map(m => Object.assign({
-        name:m.name, select:()=>this.setVid({mode:m.id})
-      }, chip(m.id===s.vid.mode))),
+      // Looks grouped by what they do to the frame. With Stack on, a tap adds
+      // the look as a second layer (or takes it off); a third tap drops the
+      // older of the two. With Stack off a tap simply swaps the look.
+      vidModes: (()=>{
+        if(!this.E) return [];
+        const M = this.E.VID_MODES, byId = id => M.find(m=>m.id===id);
+        const m1 = s.vid.mode, m2 = (s.vid.mode2|0) - 1;
+        const out = [];
+        this.VID_GROUPS.forEach(([label, ids])=>{
+          out.push({name:label, head:true, span:'1 / -1', btnFs:'8px', cur:'default', pad:'8px 0 1px', ta:'left', ls:'0.2em', bg:'transparent', fg:'rgba(242,243,240,0.42)', border:'transparent', badge:'', minH:'0px', select:()=>{}});
+          ids.forEach(id=>{
+            const m = byId(id); if(!m) return;
+            const on = id===m1 || id===m2;
+            out.push(Object.assign({name:m.name, head:false, span:'auto', btnFs:'9px', cur:'pointer', pad:'6px 4px', ta:'center', ls:'0.1em', minH: s.narrow ? '44px' : '40px',
+              badge: s.vid.stack && m2>=0 ? (id===m1 ? '1 \u00b7 ' : id===m2 ? '2 \u00b7 ' : '') : '',
+              select:()=>this.pickVidLook(id)}, chip(on)));
+          });
+        });
+        return out;
+      })(),
+      vidStackT: () => this.setVid(s.vid.stack ? {stack:false, mode2:0} : {stack:true}),
+      vidStackLabel: s.vid.stack ? 'Stack on' : 'Stack',
+      vidStackBg: chip(!!s.vid.stack).bg, vidStackFg: chip(!!s.vid.stack).fg, vidStackBorder: chip(!!s.vid.stack).border,
       vidDevices: s.vid.devices.map(d => Object.assign({
         label: d.label.length>22 ? d.label.slice(0,21)+'…' : d.label,
         select: ()=>this.enableVideo(d.id)

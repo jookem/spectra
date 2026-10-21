@@ -25,6 +25,9 @@ uniform float uDepth,uDMode;
 uniform float uTerrZ;
 // Distance blur on the terrain, 0..1 (driven by the DOF trim).
 uniform float uTerrFog;
+// What fills the low ground on the terrain, as bits: 1 water (see-through,
+// shore foam, caustics), 2 low mist. 0 keeps the plain dark water plane.
+uniform float uTerrLow;
 uniform vec2 uDTilt;
 // Post denoise, 0..1, from the top half of the Smth trim. Clamps each pixel to
 // the range of its 8 neighbours (kills single-pixel speckle and crawling
@@ -127,6 +130,7 @@ void main(){
     vec3 avg=textureLod(uScene,vec2(0.5),9.0).rgb;
     vec3 tint=avg/max(max(avg.r,max(avg.g,avg.b)),0.02);
     float wl=Hh*0.16;
+    vec3 voidc=vec3(0.004,0.005,0.008);
     float t=0.02, tp=t; bool hit=false; bool wat=false;
     float tw=rd.y<-1e-4 ? (ro.y-wl)/(-rd.y) : 1e4;
     for(int i=0;i<128;i++){
@@ -136,7 +140,6 @@ void main(){
       tp=t; t+=max(0.0025+t*0.0015,(p.y-h)*0.42); if(t>9.0) break;
     }
     float dofk=clamp(uTerrFog,0.0,1.0);
-    vec3 voidc=vec3(0.004,0.005,0.008);
     // Horizon glow in the scene's own colour, fading up into the void.
     float hz=clamp(rd.y+0.08,0.0,1.0);
     vec3 sky=mix(tint*(0.18+0.25*uLoud)+avg*0.6, voidc, smoothstep(0.0,0.35,hz));
@@ -146,7 +149,42 @@ void main(){
       wat = t>=tw-0.002;
       vec3 p=ro+rd*t;
       vec3 c;
-      if(wat){
+      bool wOn=mod(floor(uTerrLow+0.5),2.0)>0.5;
+      if(wat && wOn){
+        // Shallow water: two rolling ripple layers (taller on the bass), the
+        // ground seen through it and darkening with depth, light caustics on
+        // the bed and foam lines that run along the shore.
+        // A broad swell under fine ripples; the ripples fade with distance so
+        // far water stays a smooth sheen instead of averaging out to flat.
+        vec2 rq=p.xz*9.0; float rt=uTime*1.2;
+        vec2 sw=p.xz*2.6;
+        vec2 wg=vec2(sin(rq.x+rt)+0.6*sin(rq.x*2.3-rq.y*1.7+rt*1.6), cos(rq.y*1.1+rt*0.9)+0.6*cos(rq.y*2.1+rq.x*1.3-rt*1.3));
+        vec2 sg=vec2(sin(sw.x*0.8+sw.y*0.5+rt*0.6), cos(sw.y*0.9-sw.x*0.4+rt*0.5));
+        float wa=(0.22+uBass*0.3)*mix(1.0,0.35,clamp(t/4.0,0.0,1.0));
+        vec3 n=normalize(vec3(wg.x*wa+sg.x*0.12, 1.0, wg.y*wa+sg.y*0.12));
+        float gH=TH(p.xz)*Hh;
+        float dW=clamp((wl-gH)/max(wl,1e-4),0.0,1.0);
+        vec3 bed=textureLod(uScene,MR((p.xz+n.xz*0.035*dW)*0.9+0.5),2.0).rgb;
+        float cs=pow(abs(sin(rq.x*0.6+wg.y*0.8+rt)*sin(rq.y*0.6-wg.x*0.8-rt*0.7)),5.0);
+        bed*=0.55+cs*1.2*(1.0-dW);
+        vec3 deepc=tint*0.05+avg*0.10;
+        vec3 under=mix(bed*vec3(0.75,0.85,0.95), deepc, smoothstep(0.0,0.9,dW));
+        // What the water mirrors: a bright band at the horizon going dark
+        // overhead, so every ripple that tips the reflection up or down shows
+        // as a light or dark streak — that is what makes it read as water.
+        vec3 rr=reflect(rd,n);
+        float hzR=clamp(rr.y,0.0,1.0);
+        vec3 rc=mix(tint*(0.55+0.45*uLoud)+avg*0.9+vec3(0.03), voidc+tint*0.04, smoothstep(0.0,0.28,hzR));
+        float t2=0.01;
+        for(int j=0;j<32;j++){ vec3 q2=p+rr*t2; float h2=TH(q2.xz)*Hh; if(q2.y<h2){ rc=textureLod(uScene,MR(q2.xz*0.9+0.5),3.0).rgb*0.8; break; } t2+=max(0.01,(q2.y-h2)*0.6); if(t2>3.0) break; }
+        float fr=0.2+0.8*pow(1.0-max(-rd.y,0.0),4.0);
+        c=mix(under, rc, clamp(fr,0.0,0.92));
+        float shore=1.0-smoothstep(0.0,0.3,dW);
+        float fl=smoothstep(0.6,0.95,0.5+0.5*sin(dW*34.0-uTime*2.2+wg.x*1.5));
+        c+=(fl*0.7+0.3)*shore*shore*(0.3+0.4*uLoud)*(tint*0.4+0.6);
+        float gl=max(dot(reflect(-ld,n),-rd),0.0);
+        c+=(pow(gl,40.0)*0.35+pow(gl,300.0)*1.6)*(0.6+uBeat*0.8)*(tint*0.5+0.5);
+      } else if(wat){
         // Water: rippled normal (bass-driven), reflected ray marched for the ridges.
         vec2 rq=p.xz*14.0; float rt=uTime*1.4;
         vec3 n=normalize(vec3(sin(rq.x+rt)*0.5+sin(rq.y*1.3-rt*0.8)*0.5, 9.0-uBass*5.0, cos(rq.y+rt*1.1)*0.5));
@@ -187,6 +225,19 @@ void main(){
       float fogH=1.0-exp(-pow(te/5.5,1.6));
       tcol=mix(c,sky,fogH);
     } else tcol=sky;
+    if(uTerrLow>1.5){
+      // Low mist: exponential height fog sitting on the water line, integrated
+      // along the ray in closed form, so it costs no steps. It breathes with
+      // a slow drift over the ground and lifts with the music.
+      float T=hit?t:9.0, k=Hh*0.45;
+      float y0=ro.y-wl, ry=rd.y;
+      float od = abs(ry)>1e-4 ? exp(-y0/k)*(1.0-exp(-ry*T/k))*k/ry : exp(-y0/k)*T;
+      vec2 mx=(ro.xz+rd.xz*min(T,3.0))*2.2;
+      float br=0.65+0.35*sin(mx.x+uTime*0.35)*sin(mx.y*0.8-uTime*0.27);
+      float fa=1.0-exp(-max(od,0.0)*(0.8+uLoud*0.8)*br);
+      vec3 mc=tint*(0.12+0.18*uLoud)+avg*0.55+vec3(0.015);
+      tcol=mix(tcol, mc, clamp(fa,0.0,0.5));
+    }
     terr=true;
   }
   vec3 col;
@@ -463,6 +514,7 @@ vec2 cmul(vec2 a,vec2 b){return vec2(a.x*b.x-a.y*b.y,a.x*b.y+a.y*b.x);}
 vec2 cdiv(vec2 a,vec2 b){float d=dot(b,b);return vec2(a.x*b.x+a.y*b.y,a.y*b.x-a.x*b.y)/max(d,1e-12);}
 vec2 cpow_d(vec2 z,float e){float r=pow(max(length(z),1e-9),e),a=atan(z.y,z.x)*e;return r*vec2(cos(a),sin(a));}
 uniform int uVidMode;
+uniform int uVidMode2;   // second stacked look, as id+1; 0 is none
 // 1 = draw no scene, only the video effect over black (vector-only views).
 uniform float uSceneOff;
 uniform sampler2D uSpec;
@@ -471,7 +523,10 @@ float specAt(float x){ return texture(uSpec, vec2(clamp(x,0.0,1.0),0.25)).r; }
 // has to sample the frame from inside the raymarch shading — hence prototypes.
 vec3 sampleVid(vec2 t);
 vec3 surfVid(vec3 p, vec3 n);
-bool vidSurfOn(){ return uHasTex>0.5 && uVidMix>0.001 && (uVidMode==11 || uVidMode==12); }
+// Surface and Emit project onto the 3D surface while it is shaded, so only
+// one of them can run; the first look wins when both slots ask for one.
+int vidSurfMode(){ if(uVidMode==11 || uVidMode==12) return uVidMode; if(uVidMode2==12 || uVidMode2==13) return uVidMode2-1; return -1; }
+bool vidSurfOn(){ return uHasTex>0.5 && uVidMix>0.001 && vidSurfMode()>=0; }
 vec2 wvLR(float x){ return texture(uSpec, vec2(clamp(x,0.0,1.0),0.75)).rg*2.0-1.0; }
 float wvL(float x){ return wvLR(x).x; }
 
@@ -2246,7 +2301,7 @@ vec3 render3(vec2 uv){
     }
     if(vidSurfOn()){
       vec3 sv=surfVid(p,n);
-      if(uVidMode==11){
+      if(vidSurfMode()==11){
         // Painted on, then lit by the same light as the fractal so the frame
         // wraps the relief; a share of it self-lit so shadowed folds still read.
         base=mix(base, sv*1.45, uVidMix);
@@ -3465,17 +3520,17 @@ vec3 wireMesh(vec2 uv, vec2 suv, vec3 col){
   c += neon*0.045*solid;                      // faint interior fill
   return c*(1.0 + uLoud*0.25);
 }
-vec3 videoLayer(vec2 uv, vec2 suv, vec3 col){
+vec3 videoLook(vec2 uv, vec2 suv, vec3 col, int vm){
   if(uSceneOff>0.5){
     // Vector-only: there is no scene image under the lines. Effects that are
     // built out of the scene's colour (matte, surface projection) would draw
     // black, so those show the plain video instead.
     if(uHasTex<0.5 || uVidMix<=0.001) return vec3(0.0);
-    if(uVidMode==6 || uVidMode==11 || uVidMode==12) return sampleVid(suv)*uVidMix;
+    if(vm==6 || vm==11 || vm==12) return sampleVid(suv)*uVidMix;
     col=vec3(0.0);
   }
   if(uHasTex<0.5 || uVidMix<=0.001) return col;
-  if(uVidMode>=11 && uVidMode<=12){
+  if(vm>=11 && vm<=12){
 #ifdef SURF3D
     return col;   // already projected onto the surface during shading
 #else
@@ -3486,7 +3541,7 @@ vec3 videoLayer(vec2 uv, vec2 suv, vec3 col){
     vec2 g=vec2(dFdx(l),dFdy(l));
     vec2 t=suv+(length(g)>1e-6?normalize(g):vec2(0.0))*(0.03+l*0.22);
     vec3 vv=sampleVid(t);
-    if(uVidMode==11){
+    if(vm==11){
       // Shaded by the field's own relief so the bands read as folds the frame
       // is draped over, with a floor so dark bands do not swallow it.
       float sh=0.75+clamp(dot(g*40.0, vec2(0.6,0.8)),-0.35,0.45);
@@ -3498,17 +3553,17 @@ vec3 videoLayer(vec2 uv, vec2 suv, vec3 col){
   }
   vec2 px = 1.0/vec2(textureSize(uTex,0));
   vec3 v;
-  if(uVidMode==4){
+  if(vm==4){
     return mix(col, roto(suv, px, false), uVidMix);
-  } else if(uVidMode==5){
+  } else if(vm==5){
     vec3 ink = roto(suv, px, true);
     return col*(1.0-uVidMix*0.35) + ink*uVidMix*1.2;
-  } else if(uVidMode==6){
+  } else if(vm==6){
     float l=dot(col,vec3(0.299,0.587,0.114));
     float matte=smoothstep(0.03,0.32,l);
     vec3 vv=sampleVid(suv);
     return mix(col, mix(col*0.12, vv*(0.75+l*0.8), matte), uVidMix);
-  } else if(uVidMode==7){
+  } else if(vm==7){
     float rows=floor(mix(8.0,44.0,uDetail));
     float row=floor(suv.y*rows);
     float seed=hash(vec2(row, floor(uTime*(1.5+uBass*9.0))));
@@ -3516,29 +3571,29 @@ vec3 videoLayer(vec2 uv, vec2 suv, vec3 col){
     vec3 vv=sampleVid(suv+vec2((seed-0.5)*amp,0.0));
     float keep=step(0.22,seed);
     return mix(col, mix(col,vv,keep), uVidMix);
-  } else if(uVidMode==8){
+  } else if(vm==8){
     float l=dot(col,vec3(0.33));
     vec2 g=vec2(l-0.5, dot(col,vec3(0.2,0.6,0.2))-0.5);
     float amt=0.02+uBass*0.07+uHigh*0.035;
     vec3 sp=vec3(sampleVid(suv+g*amt).r, sampleVid(suv).g, sampleVid(suv-g*amt).b);
     return mix(col, sp, uVidMix);
-  } else if(uVidMode==9){
+  } else if(vm==9){
     float l=dot(col,vec3(0.33));
     float cells=mix(18.0,130.0,uDetail)*(0.45+l*1.2);
     vec2 t=floor(suv*cells)/cells + 0.5/cells;
     vec3 vv=sampleVid(t)*(0.55+pal(l*1.5)*0.85);
     return mix(col, vv, uVidMix);
-  } else if(uVidMode==10){
+  } else if(vm==10){
     vec3 vv=sampleVid(suv);
     return mix(col, abs(vv-col)*1.45, uVidMix);
-  } else if(uVidMode==13){
+  } else if(vm==13){
     vec3 a=asciiArt(suv, col);
     float am=clamp(dot(a,vec3(0.4)),0.0,1.0);
     return mix(col, a, am*uVidMix);
-  } else if(uVidMode==14){
+  } else if(vm==14){
     vec3 wm=wireMesh(uv, suv, col);
     return 1.0-(1.0-col)*(1.0-clamp(wm*uVidMix,0.0,1.0));
-  } else if(uVidMode==15){
+  } else if(vm==15){
     // Void: the video lives only in the empty (black) parts of the scene; the
     // fractal itself is left untouched. Soft edge so it does not cut out hard.
     // Green screen: the fractal is the foreground, everything else is keyed
@@ -3548,7 +3603,7 @@ vec3 videoLayer(vec2 uv, vec2 suv, vec3 col){
     if(gVoidK>=0.0) hole=gVoidK;
     else { float l=dot(col,vec3(0.299,0.587,0.114)); hole=1.0-smoothstep(0.02,0.10,l); }
     return mix(col, sampleVid(suv), hole*uVidMix);
-  } else if(uVidMode==16){
+  } else if(vm==16){
     // Quad: a screen in each corner. Detail sizes them, up to a full 2x2 wall.
     float sz=mix(0.26,0.49,uDetail), gp=0.012;
     vec2 cq=step(0.5,suv);
@@ -3560,7 +3615,7 @@ vec3 videoLayer(vec2 uv, vec2 suv, vec3 col){
     vec3 vv=sampleVid(lc);
     vec3 c2=mix(col, vv, inside*uVidMix);
     return mix(c2, pal(0.2+uHigh*0.2)*1.2, edge*uVidMix);
-  } else if(uVidMode==17){
+  } else if(vm==17){
     // Dream: diffusion filter. A wide soft copy of the frame is laid over the
     // sharp one, highlights bloom into halation, blacks lift into haze.
     vec2 r=(0.004+uDetail*0.018)*vec2(uRes.y/uRes.x,1.0)*(1.0+uBass*0.4);
@@ -3578,17 +3633,17 @@ vec3 videoLayer(vec2 uv, vec2 suv, vec3 col){
     vec3 cs=col*0.82+col*col*0.45+vec3(0.025,0.02,0.035);
     vec3 scr=1.0-(1.0-cs)*(1.0-clamp(dv,0.0,1.0));
     return mix(col, scr*vec3(1.03,0.99,1.02), uVidMix);
-  } else if(uVidMode==18){
+  } else if(vm==18){
     // Mirror: the frame folded on its centre line, screened over the scene.
     vec2 t=vec2(0.5-abs(suv.x-0.5), suv.y);
     vec3 vv=sampleVid(t);
     return mix(col, 1.0-(1.0-col)*(1.0-vv), uVidMix);
-  } else if(uVidMode==19){
+  } else if(vm==19){
     // Grid: the frame tiled 2x2 up to 5x5 with Detail.
     float n=floor(mix(2.0,5.99,uDetail));
     vec3 vv=sampleVid(fract(suv*n));
     return mix(col, 1.0-(1.0-col)*(1.0-vv), uVidMix);
-  } else if(uVidMode==20){
+  } else if(vm==20){
     // Halftone: the frame as a dot screen in the scene's palette, over the scene.
     float cells=floor(mix(40.0,140.0,uDetail));
     vec2 asp=vec2(uRes.x/uRes.y,1.0);
@@ -3602,14 +3657,14 @@ vec3 videoLayer(vec2 uv, vec2 suv, vec3 col){
     vec3 ink=pal(l*1.3+uHigh*0.25)*1.2;
     return mix(col, ink, dot1*uVidMix);
   }
-  if(uVidMode==0){
+  if(vm==0){
     v = sampleVid(suv);
-  } else if(uVidMode==1){
+  } else if(vm==1){
     float a=atan(uv.y,uv.x), r=length(uv);
     float seg=floor(mix(4.0,12.0,uMorph));
     a=abs(mod(a*seg/6.28318,1.0)-0.5)*2.0;
     v = sampleVid(vec2(a, fract(r*0.8+uTime*0.02)));
-  } else if(uVidMode==2){
+  } else if(vm==2){
     float l=dot(col,vec3(0.33));
     vec2 d=vec2(l-0.5, dot(col,vec3(0.2,0.5,0.3))-0.5)*0.4*(0.35+uBass);
     v = sampleVid(suv+d);
@@ -3622,6 +3677,14 @@ vec3 videoLayer(vec2 uv, vec2 suv, vec3 col){
   return mix(col, 1.0-(1.0-col)*(1.0-v), uVidMix);
 }
 
+// Up to two looks at once: the second runs on what the first produced. With
+// the scene switched off the first pass already owns the whole image, so the
+// second is skipped rather than drawn over black.
+vec3 videoLayer(vec2 uv, vec2 suv, vec3 col){
+  vec3 c=videoLook(uv,suv,col,uVidMode);
+  if(uVidMode2>0 && uVidMode2-1!=uVidMode && uSceneOff<0.5) c=videoLook(uv,suv,c,uVidMode2-1);
+  return c;
+}
 void main(){
   vec2 uv=(gl_FragCoord.xy*2.0-uRes)/uRes.y;
   vec2 suv=gl_FragCoord.xy/uRes;

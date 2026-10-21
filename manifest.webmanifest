@@ -4,6 +4,12 @@
   "description": "Audio-reactive generative visuals for live sets.",
   "start_url": "./VJ%20Fractal.dc.html",
   "scope": "./",
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "https://jookem.github.io/spectra/manifest.webmanifest"
+    }
+  ],
   "display": "fullscreen",
   "display_override": [
     "fullscreen",
