@@ -1,9 +1,9 @@
 // Deep zoom for the Mandelbrot field: perturbation against one high-precision
-// reference orbit. The centre lives in BigInt fixed point (192 fractional bits),
+// reference orbit. The center lives in BigInt fixed point (192 fractional bits),
 // the GPU only ever sees small float32 offsets from the reference, so the zoom
 // runs to ~1e-30 instead of stopping at float precision (~1e-5).
 // Owns: the reference orbit texture (unit 6), a tiny probe program that reads
-// back escape counts for auto-steering, and the BigInt centre.
+// back escape counts for auto-steering, and the BigInt center.
 (function(){
 const FB=192n, FBn=192, TW=4096, UNIT=6;
 const toFix=d=>BigInt(Math.round(d*2**FBn));
@@ -146,7 +146,7 @@ class DeepZoom{
       }
     }
     if(found){
-      // target is relative to the probe's centre, which the view has since left
+      // target is relative to the probe's center, which the view has since left
       const S=this.probeS;
       this.tx=bx*S-toNum(this.cx-this.probeCx);this.ty=by*S-toNum(this.cy-this.probeCy);
     }

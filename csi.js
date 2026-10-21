@@ -50,7 +50,7 @@ export class CSISource {
     let t = 0;
     // Two "bodies" drifting through a standing-wave field, plus a breathing
     // term and per-subcarrier noise. Produces the same statistics real CSI has:
-    // strongly correlated neighbours, occasional deep fades.
+    // strongly correlated neighbors, occasional deep fades.
     const bodies = [{ p: 0.3, v: 0.006 }, { p: 0.75, v: -0.004 }];
     this.simTimer = setInterval(() => {
       t += 1;
@@ -143,7 +143,7 @@ export class CSISource {
     }
 
     // motion: mean per-subcarrier variance over the window. Movement in the
-    // room decorrelates neighbouring subcarriers; a still room does not.
+    // room decorrelates neighboring subcarriers; a still room does not.
     let mv = 0;
     if (this.hist.length > 3) {
       const L = this.hist.length;

@@ -27,7 +27,7 @@ works offline after the first load.
 ## Running it
 
 **In the browser:** open https://jookem.github.io/spectra/ in Chrome and allow
-microphone access. Nothing is recorded or transmitted; the analyser reads the
+microphone access. Nothing is recorded or transmitted; the analyzer reads the
 input stream in-process.
 
 **Installed:** Chrome / Edge (desktop, Android): the install icon in the

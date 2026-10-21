@@ -8,7 +8,7 @@
 // where the wave belongs — so the wave still sits between the ocean belt's
 // bands, and nothing else in the scene changes.
 //
-// Vertices arrive already projected by the scene's own perspective maths as
+// Vertices arrive already projected by the scene's own perspective math as
 // (x px, y px, depth 0..1 front..back); the shader only converts to clip space.
 // No culling: with a depth buffer the interior faces are correctly hidden by
 // the near skin instead of being discarded.
@@ -38,7 +38,7 @@ void main(){ gl_FragColor = vec4(vCol, 1.0); }`;
     if (!cv) {
       cv = document.createElement('canvas');
       // Premultiplied: the antialiased edge pixels are resolved against the
-      // transparent clear, so with straight alpha their colour came out half
+      // transparent clear, so with straight alpha their color came out half
       // black and drew a dark outline round the wave's foot on the sea.
       gl = cv.getContext('webgl', {
         alpha: true, depth: true, antialias: true,
@@ -76,7 +76,7 @@ void main(){ gl_FragColor = vec4(vCol, 1.0); }`;
     }
   }
 
-  // Start a wave: sizes the layer, clears colour and depth.
+  // Start a wave: sizes the layer, clears color and depth.
   function begin(w, h, maxTris) {
     if (!init(w | 0, h | 0)) return false;
     grow(maxTris || 1024);

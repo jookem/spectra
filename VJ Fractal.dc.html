@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<script src="./support.js?v=b32"></script>
+<script src="./support.js?v=b33"></script>
 <meta name="ext-resource-dependency" content="./csi.js" data-resource-id="csiJs">
 </head>
 <body>
@@ -34,12 +34,12 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
   @keyframes vjspin{to{transform:rotate(360deg)}}
   @keyframes vjscan{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
 </style>
-<script src="vj-engine.js?v=b32"></script>
-<script src="deep-zoom.js?v=b32"></script>
-<script src="cam-fly.js?v=b32"></script>
-<script src="wave-mesh.js?v=b32"></script>
-<script src="wave-gl.js?v=b32"></script>
-<script src="scene-thumbs.js?v=b32"></script>
+<script src="vj-engine.js?v=b33"></script>
+<script src="deep-zoom.js?v=b33"></script>
+<script src="cam-fly.js?v=b33"></script>
+<script src="wave-mesh.js?v=b33"></script>
+<script src="wave-gl.js?v=b33"></script>
+<script src="scene-thumbs.js?v=b33"></script>
 </helmet>
 <template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#08090A"/><circle cx="50" cy="50" r="22" fill="none" stroke="#C8FF2E" stroke-width="3"/><circle cx="50" cy="50" r="11" fill="none" stroke="#C8FF2E" stroke-width="2" opacity="0.6"/><circle cx="50" cy="50" r="3.5" fill="#C8FF2E"/></svg></template>
 <div style="position:relative;width:100vw;height:100dvh;overflow:hidden;background:#08090A;font-family:'JetBrains Mono',ui-monospace,monospace;color:#F2F3F0;user-select:none;-webkit-user-select:none;">
@@ -95,7 +95,7 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
   <sc-if value="{{ needsMic }}" hint-placeholder-val="{{ true }}">
     <!-- Side gutter and its own scroll: on a portrait phone the buttons ran
          edge to edge, and What's new plus Install can outgrow a short screen.
-         The auto margins on the first and last child centre the column when it
+         The auto margins on the first and last child center the column when it
          fits and let it scroll from the top when it does not. -->
     <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:26px;overflow-y:auto;overscroll-behavior:contain;padding:28px 20px calc(28px + env(safe-area-inset-bottom));box-sizing:border-box;background:rgba(8,9,10,0.86);backdrop-filter:blur(6px);z-index:40;">
       <div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:auto;">
@@ -106,7 +106,7 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
           <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.42);">A SWRV Systems production</div>
           <div style="width:18px;height:1px;background:rgba(242,243,240,0.25);"></div>
         </div>
-        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 32 · 21 Oct 2026</div>
+        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 33 · 21 Oct 2026</div>
       </div>
       <div style="max-width:420px;text-align:center;font-size:12.5px;line-height:1.7;color:rgba(242,243,240,0.55);">The visuals are driven entirely by what the microphone hears. Nothing is recorded or sent anywhere.</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:10px;width:100%;max-width:470px;">
@@ -180,7 +180,7 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
     <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
       <div style="font-family:Archivo,sans-serif;font-weight:700;font-size:54px;letter-spacing:-0.03em;line-height:1;">SPECTRA</div>
       <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.36);">A SWRV Systems production</div>
-      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 32 · 21 Oct 2026</div>
+      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 33 · 21 Oct 2026</div>
     </div>
     <div ref="{{ warmWrapRef }}" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
       <div style="width:260px;height:2px;background:rgba(255,255,255,0.1);">
@@ -254,11 +254,11 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
     </div>
     </div>
   </sc-if>
-  <!-- Tour. Intro and controller steps sit centred over a veil; the page steps
+  <!-- Tour. Intro and controller steps sit centered over a veil; the page steps
        dock the card at the top (or bottom, for the top bar) with no veil, so the
        page it is describing stays live and usable underneath. -->
   <div style="position:absolute;inset:0;z-index:46;display:{{ tutDisplay }};flex-direction:column;align-items:center;justify-content:{{ tutJustify }};padding:{{ tutOuterPad }};box-sizing:border-box;background:{{ tutVeil }};backdrop-filter:{{ tutBlur }};-webkit-backdrop-filter:{{ tutBlur }};pointer-events:{{ tutOuterPE }};">
-    <div ref="{{ tutCardRef }}" style="pointer-events:auto;display:flex;flex-direction:column;gap:{{ tutGap }};width:min(620px,100%);max-height:{{ tutCardMaxH }};overflow-y:auto;overscroll-behavior:contain;box-sizing:border-box;padding:{{ tutPad }};border:1px solid var(--acc28);background:rgba(12,13,14,0.96);box-shadow:0 10px 40px rgba(0,0,0,0.5);">
+    <div ref="{{ tutCardRef }}" style="pointer-events:auto;display:flex;flex-direction:column;gap:{{ tutGap }};width:min(620px,100%);max-height:{{ tutCardMaxH }};overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--acc30) transparent;box-sizing:border-box;padding:{{ tutPad }};border:1px solid var(--acc28);background:rgba(12,13,14,0.96);box-shadow:0 10px 40px rgba(0,0,0,0.5);">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;">
         <div style="font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:0.22em;text-transform:uppercase;color:rgba(242,243,240,0.4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Tour · {{ tutChapter }} · {{ tutNum }} / {{ tutTotal }}</div>
         <button onClick="{{ tutClose }}" title="Close the tour (Esc)" style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1;padding:3px 7px;cursor:pointer;flex:0 0 auto;border:1px solid rgba(255,255,255,0.12);background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.45);" style-hover="color:#F2F3F0;border-color:rgba(255,255,255,0.3);">×</button>
@@ -325,14 +325,14 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
       <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px;padding:14px 16px;border:1px solid var(--acc22);background:var(--acc5);">
         <div style="display:flex;flex-direction:column;gap:5px;flex:1 1 380px;min-width:260px;">
           <div style="font-size:9.5px;letter-spacing:0.24em;text-transform:uppercase;color:var(--acc);">Settings — saved on this machine</div>
-          <div style="font-size:10.5px;line-height:1.55;color:rgba(242,243,240,0.55);text-wrap:pretty;">Res, Fps, layout, palette and its Sat / Gam / Span / Warm trim, Smth, FX, Spin, LFO division, crossfade type and length, quantise, gyro, mesh source and Auto all come back the way you left them. So do your slots, cue list and scene messages. Live performance state — the current scene, pan and zoom, camera, strobe kill — deliberately does not, so the app never reopens mid-set.</div>
+          <div style="font-size:10.5px;line-height:1.55;color:rgba(242,243,240,0.55);text-wrap:pretty;">Res, Fps, layout, palette and its Sat / Gam / Span / Warm trim, Smth, FX, Spin, LFO division, crossfade type and length, quantize, gyro, mesh source and Auto all come back the way you left them. So do your slots, cue list and scene messages. Live performance state — the current scene, pan and zoom, camera, strobe kill — deliberately does not, so the app never reopens mid-set.</div>
         </div>
         <button onClick="{{ settingsReset }}" style="font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:0.14em;text-transform:uppercase;padding:9px 12px;cursor:pointer;flex:0 0 auto;border:1px solid rgba(255,255,255,0.18);background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.75);">{{ settingsResetLabel }}</button>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;padding:14px 16px;box-sizing:border-box;max-width:100%;min-width:0;border:1px solid rgba(255,255,255,0.12);">
         <div style="display:flex;flex-direction:column;gap:5px;flex:1 1 320px;min-width:220px;">
           <div style="font-size:9.5px;letter-spacing:0.24em;text-transform:uppercase;color:var(--acc);">Accent</div>
-          <div style="font-size:10.5px;line-height:1.55;color:rgba(242,243,240,0.55);text-wrap:pretty;">Colour of every lit control, meter and readout in the interface. Saved with the rest of the settings.</div>
+          <div style="font-size:10.5px;line-height:1.55;color:rgba(242,243,240,0.55);text-wrap:pretty;">Color of every lit control, meter and readout in the interface. Saved with the rest of the settings.</div>
         </div>
         <div style="display:flex;align-items:center;gap:7px;flex:0 1 auto;flex-wrap:wrap;min-width:0;">
           <sc-for list="{{ accentSwatches }}" as="ac" hint-placeholder-count="5">
@@ -438,7 +438,7 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
           </div>
           <div style="display:flex;align-items:flex-start;gap:9px;">
             <span style="flex:0 0 20px;width:20px;height:20px;box-sizing:border-box;border-radius:50%;border:1px solid var(--acc50);color:var(--acc);font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:700;display:flex;align-items:center;justify-content:center;">6</span>
-            <span style="font-size:11.5px;line-height:1.55;color:rgba(242,243,240,0.5);"><b style="font-weight:700;color:#F2F3F0;">D-pad ↑ ↓</b> — Step the colour palette — 14 of them, either direction</span>
+            <span style="font-size:11.5px;line-height:1.55;color:rgba(242,243,240,0.5);"><b style="font-weight:700;color:#F2F3F0;">D-pad ↑ ↓</b> — Step the color palette — 14 of them, either direction</span>
           </div>
           <div style="display:flex;align-items:flex-start;gap:9px;">
             <span style="flex:0 0 20px;width:20px;height:20px;box-sizing:border-box;border-radius:50%;border:1px solid var(--acc50);color:var(--acc);font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:700;display:flex;align-items:center;justify-content:center;">7</span>
@@ -446,7 +446,7 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
           </div>
           <div style="display:flex;align-items:flex-start;gap:9px;">
             <span style="flex:0 0 20px;width:20px;height:20px;box-sizing:border-box;border-radius:50%;border:1px solid var(--acc50);color:var(--acc);font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:700;display:flex;align-items:center;justify-content:center;">8</span>
-            <span style="font-size:11.5px;line-height:1.55;color:rgba(242,243,240,0.5);"><b style="font-weight:700;color:#F2F3F0;">Right stick</b> — Morph and Detail. Press to recentre the view</span>
+            <span style="font-size:11.5px;line-height:1.55;color:rgba(242,243,240,0.5);"><b style="font-weight:700;color:#F2F3F0;">Right stick</b> — Morph and Detail. Press to recenter the view</span>
           </div>
           <div style="display:flex;align-items:flex-start;gap:9px;">
             <span style="flex:0 0 20px;width:20px;height:20px;box-sizing:border-box;border-radius:50%;border:1px solid var(--acc50);color:var(--acc);font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:700;display:flex;align-items:center;justify-content:center;">9</span>
@@ -840,7 +840,7 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
         <div style="flex:1 1 100%;display:{{ tabParamsGrid }};grid-template-columns:{{ deckCtlCols }};gap:12px 14px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;padding:12px 14px;">
           <div style="grid-column:1/-1;display:flex;align-items:center;flex-wrap:wrap;gap:6px;">
             <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);flex:1 1 auto;">Parameters</span>
-            <button onClick="{{ randParams }}" title="Roll new values for the dials (□ on the pad, or shake the device)" style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:6px 12px;min-height:{{ deckBtnH }};box-sizing:border-box;cursor:pointer;white-space:nowrap;flex:0 0 auto;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--acc);background:var(--acc14);color:var(--acc);">Randomise</button>
+            <button onClick="{{ randParams }}" title="Roll new values for the dials (□ on the pad, or shake the device)" style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:6px 12px;min-height:{{ deckBtnH }};box-sizing:border-box;cursor:pointer;white-space:nowrap;flex:0 0 auto;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--acc);background:var(--acc14);color:var(--acc);">Randomize</button>
             <button onClick="{{ randMod }}" title="Give about half the dials a random automation source and depth" style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:6px 12px;min-height:{{ deckBtnH }};box-sizing:border-box;cursor:pointer;white-space:nowrap;flex:0 0 auto;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.16);background:rgba(8,9,10,0.34);color:#F2F3F0;">Random auto</button>
             <button onClick="{{ randUndo }}" title="Put back the values from before the last roll" style="display:{{ randUndoDisp }};font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:6px 12px;min-height:{{ deckBtnH }};box-sizing:border-box;cursor:pointer;white-space:nowrap;flex:0 0 auto;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.16);background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.75);">Undo</button>
             <button onClick="{{ shakeT }}" title="{{ shakeTitle }}" style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:6px 12px;min-height:{{ deckBtnH }};box-sizing:border-box;cursor:pointer;white-space:nowrap;flex:0 0 auto;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid {{ shakeBorder }};background:{{ shakeBg }};color:{{ shakeFg }};">{{ shakeLabel }}</button>
@@ -919,10 +919,10 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
               </div>
               <span style="font-size:9px;color:var(--acc);">{{ trailRead }}</span>
             </div>
-            <div title="Colour palette and post FX" style="display:flex;flex-direction:column;gap:6px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;flex:{{ lookFlex }};min-width:0;">
+            <div title="Color palette and post FX" style="display:flex;flex-direction:column;gap:6px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;flex:{{ lookFlex }};min-width:0;">
               <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);">Look</span>
               <div style="display:grid;grid-template-columns:{{ lookCols }};gap:{{ deckBtnGap }};align-items:stretch;">
-              <select value="{{ palSel }}" onChange="{{ setPal }}" title="Colour palette" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid var(--acc30);background:rgba(8,9,10,0.34);color:var(--acc);appearance:none;-webkit-appearance:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+              <select value="{{ palSel }}" onChange="{{ setPal }}" title="Color palette" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid var(--acc30);background:rgba(8,9,10,0.34);color:var(--acc);appearance:none;-webkit-appearance:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
                 <sc-for list="{{ palOptions }}" as="o" hint-placeholder-count="14">
                   <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
                 </sc-for>
@@ -940,6 +940,16 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
               </select>
               <select value="{{ terrLowSel }}" onChange="{{ setTerrLow }}" title="What fills the low ground on Depth Terrain" style="display:{{ terrLowDisp }};font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid var(--acc30);background:rgba(8,9,10,0.34);color:var(--acc);appearance:none;-webkit-appearance:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
                 <sc-for list="{{ terrLowOptions }}" as="o" hint-placeholder-count="4">
+                  <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
+                </sc-for>
+              </select>
+              <select value="{{ waterOnSel }}" onChange="{{ setWaterOn }}" title="What fills the black empty space of a 2D scene while Depth is off" style="display:{{ waterOnDisp }};font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid var(--acc30);background:rgba(8,9,10,0.34);color:var(--acc);appearance:none;-webkit-appearance:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+                <sc-for list="{{ waterOnOptions }}" as="o" hint-placeholder-count="4">
+                  <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
+                </sc-for>
+              </select>
+              <select value="{{ waterHueSel }}" onChange="{{ setWaterHue }}" title="How far the water hue turns from the scene, so the two stay apart" style="display:{{ waterHueDisp }};font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid var(--acc30);background:rgba(8,9,10,0.34);color:var(--acc);appearance:none;-webkit-appearance:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+                <sc-for list="{{ waterHueOptions }}" as="o" hint-placeholder-count="4">
                   <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
                 </sc-for>
               </select>
@@ -1330,7 +1340,7 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
       <div style="display:flex;flex-direction:column;gap:6px;">
         <div style="font-size:9.5px;letter-spacing:0.24em;text-transform:uppercase;color:rgba(242,243,240,0.55);text-shadow:0 0 3px rgba(8,9,10,0.95),0 0 7px rgba(8,9,10,0.85),0 1px 2px rgba(8,9,10,0.9);">Look</div>
         <div style="display:flex;gap:4px;">
-          <select value="{{ palSel }}" onChange="{{ setPal }}" title="Colour palette" style="flex:1 1 0;min-width:0;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;padding:8px 4px;min-height:{{ selH }};box-sizing:border-box;cursor:pointer;appearance:none;-webkit-appearance:none;text-align:center;border:1px solid var(--acc30);color:var(--acc);background:rgba(8,9,10,0.34);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+          <select value="{{ palSel }}" onChange="{{ setPal }}" title="Color palette" style="flex:1 1 0;min-width:0;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;padding:8px 4px;min-height:{{ selH }};box-sizing:border-box;cursor:pointer;appearance:none;-webkit-appearance:none;text-align:center;border:1px solid var(--acc30);color:var(--acc);background:rgba(8,9,10,0.34);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
             <sc-for list="{{ palOptions }}" as="o" hint-placeholder-count="14">
               <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
             </sc-for>
@@ -1350,6 +1360,16 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
           </select>
           <select value="{{ terrLowSel }}" onChange="{{ setTerrLow }}" title="What fills the low ground on Depth Terrain" style="display:{{ terrLowDisp }};flex:1 1 0;min-width:0;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;padding:8px 4px;min-height:{{ selH }};box-sizing:border-box;cursor:pointer;appearance:none;-webkit-appearance:none;text-align:center;border:1px solid var(--acc30);color:var(--acc);background:rgba(8,9,10,0.34);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
             <sc-for list="{{ terrLowOptions }}" as="o" hint-placeholder-count="4">
+              <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
+            </sc-for>
+          </select>
+          <select value="{{ waterOnSel }}" onChange="{{ setWaterOn }}" title="What fills the black empty space of a 2D scene while Depth is off" style="display:{{ waterOnDisp }};flex:1 1 0;min-width:0;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;padding:8px 4px;min-height:{{ selH }};box-sizing:border-box;cursor:pointer;appearance:none;-webkit-appearance:none;text-align:center;border:1px solid var(--acc30);color:var(--acc);background:rgba(8,9,10,0.34);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+            <sc-for list="{{ waterOnOptions }}" as="o" hint-placeholder-count="4">
+              <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
+            </sc-for>
+          </select>
+          <select value="{{ waterHueSel }}" onChange="{{ setWaterHue }}" title="How far the water hue turns from the scene, so the two stay apart" style="display:{{ waterHueDisp }};flex:1 1 0;min-width:0;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;padding:8px 4px;min-height:{{ selH }};box-sizing:border-box;cursor:pointer;appearance:none;-webkit-appearance:none;text-align:center;border:1px solid var(--acc30);color:var(--acc);background:rgba(8,9,10,0.34);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+            <sc-for list="{{ waterHueOptions }}" as="o" hint-placeholder-count="4">
               <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
             </sc-for>
           </select>
@@ -1491,7 +1511,7 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
 
   <div style="position:absolute;left:22px;bottom:20px;z-index:30;display:{{ hotkeyDisplay }};flex-direction:column;gap:5px;pointer-events:none;opacity:{{ hotkeyOpacity }};transition:opacity .35s;">
     <div style="font-size:9.5px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(242,243,240,0.62);text-shadow:0 0 3px rgba(8,9,10,0.95),0 0 7px rgba(8,9,10,0.85),0 1px 2px rgba(8,9,10,0.9);">1–9 QWE scene · [ ] hue · A automation · R spin · X formula · SPACE cue · C add cue · M morph · O output · U chrome · ESC hide · F full</div>
-    <div style="font-size:9.5px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(242,243,240,0.52);text-shadow:0 0 3px rgba(8,9,10,0.95),0 0 7px rgba(8,9,10,0.85),0 1px 2px rgba(8,9,10,0.9);">Pad: R-stick morph/detail · L-stick orbit/travel · R2 L2 zoom (L1 fine) · L1 hue/react + cc/iter · R1 speed/trail + ca/cb · TP-click constants · D-pad ←→ scene, ↑↓ iter · L3 spin · R3 recentre · ✕ auto · ○ chrome · △ text · □ random · H all mappings</div>
+    <div style="font-size:9.5px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(242,243,240,0.52);text-shadow:0 0 3px rgba(8,9,10,0.95),0 0 7px rgba(8,9,10,0.85),0 1px 2px rgba(8,9,10,0.9);">Pad: R-stick morph/detail · L-stick orbit/travel · R2 L2 zoom (L1 fine) · L1 hue/react + cc/iter · R1 speed/trail + ca/cb · TP-click constants · D-pad ←→ scene, ↑↓ iter · L3 spin · R3 recenter · ✕ auto · ○ chrome · △ text · □ random · H all mappings</div>
   </div>
 
   <div style="position:absolute;left:0;right:0;bottom:0;z-index:31;display:{{ touchBarDisplay }};pointer-events:{{ chromePE }};flex-direction:column;gap:10px;max-height:100dvh;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;padding:12px 12px calc(12px + env(safe-area-inset-bottom));opacity:{{ chromeOpacity }};transition:opacity .35s;">
@@ -1629,7 +1649,7 @@ class Component extends DCLogic {
     this.hist=[]; this.eff={}; this.prevBtn={};
     this.cam={yaw:0, pitch:0, roll:0, vy:0, vp:0, vr:0, auto:1};
     // Gyro pose, held as an absolute offset rather than integrated. Separate from
-    // cam so levelling the pad cannot wipe a rotation the stick or mouse made.
+    // cam so leveling the pad cannot wipe a rotation the stick or mouse made.
     this.imuYaw=0; this.imuPitch=0;
     // Bank for the canvas scenes. Bounded and separate from imuYaw: those
     // scenes draw a projected world, so tilt has to be a finite lean, not the
@@ -1693,7 +1713,7 @@ class Component extends DCLogic {
     this.state.cues=[]; this.state.cueIdx=-1; this.state.cutArmed=false;
     // Auto advance always starts off; its length (in bars) is remembered.
     this.state.advance=false; this.state.advBars=16;
-    this.state.lfoDiv=4; this.state.lfoEase=true; this.state.shake=true; this.state.terrLow=3;
+    this.state.lfoDiv=4; this.state.lfoEase=true; this.state.shake=true; this.state.terrLow=3; this.state.voidWater=true; this.state.waterScheme='split';
     this.state.vspin=0;
     this.state.out=false; this.state.outErr='';
     try{ const cs=JSON.parse(localStorage.getItem('spectra.cues')||'[]'); if(Array.isArray(cs)) this.state.cues=cs; }catch(e){}
@@ -1723,7 +1743,7 @@ class Component extends DCLogic {
                ['system','System','Render, layout, output and help']];
 
   SETTINGS_KEYS = ['vecDen','qual','rate','layout','pal','fx','spin','vspin','accentSel',
-                   'lfoDiv','lfoEase','shake','terrLow','strobeAmt','strobeLen','strobeRate','xfadeOn','xfSeen','xfMode','xfLen','xfQ','advBars','imu','mesh','meshSrc','rfUrl','auto','qMinSeen','dmode','repSize','repTurn','repVar','repDrift','repGap','vecG','vecScene',
+                   'lfoDiv','lfoEase','shake','terrLow','voidWater','waterScheme','strobeAmt','strobeLen','strobeRate','xfadeOn','xfSeen','xfMode','xfLen','xfQ','advBars','imu','mesh','meshSrc','rfUrl','auto','qMinSeen','dmode','repSize','repTurn','repVar','repDrift','repGap','vecG','vecScene',
                    'strobe','fieldFx','lineFx','camView','camRep','levels','touchParam','deckTab'];
 
   // Accent is a theme value, so it lives in CSS custom properties rather than in
@@ -1904,7 +1924,7 @@ class Component extends DCLogic {
       else if(e.key==='ArrowLeft'){ e.preventDefault(); this.stepScene(-1); }
       else if(e.key==='ArrowRight'){ e.preventDefault(); this.stepScene(1); }
       // Palettes on the vertical arrows, matching the pad's D-pad: left/right walks
-      // scenes, up/down walks colour. Wraps both ways so it never dead-ends mid-set.
+      // scenes, up/down walks color. Wraps both ways so it never dead-ends mid-set.
       else if(e.key==='ArrowUp' || e.key==='ArrowDown'){
         e.preventDefault();
         const n = (this.E && this.E.PAL_NAMES) ? this.E.PAL_NAMES.length : 6;
@@ -1987,10 +2007,10 @@ class Component extends DCLogic {
         // Pan is expressed in screen widths and multiplied by the current scale
         // downstream, so one unit is always the same fraction of the frame no
         // matter how deep the zoom. That is why travel is safe on the 2D
-        // families now: it cannot walk off the validated centre the way an
+        // families now: it cannot walk off the validated center the way an
         // absolute offset would, and the clamp keeps the subject within reach.
-        // Travelling by hand also takes 2D off the automatic centre search: the
-        // search owns the centre, and the fold that gives these scenes unlimited
+        // Traveling by hand also takes 2D off the automatic center search: the
+        // search owns the center, and the fold that gives these scenes unlimited
         // travel writes to it, so the two cannot both be live.
         const pan=(kx,ky)=>{ if(this.is2D()) this.manual2D = true;
           this.pan.x=cl(D.px - dx*kx); this.pan.y=cl(D.py - dy*ky); this.pan.vx=0; this.pan.vy=0; };
@@ -2067,7 +2087,7 @@ class Component extends DCLogic {
         // coarse one.
         const dir = e.deltaY>0 ? -1 : 1;
         const step = this.is2D() ? 0.014 : (this.isCanvasScene() ? 0.05 : 0.018);
-        // Hand control outranks the automatic 2D centre search: without this the
+        // Hand control outranks the automatic 2D center search: without this the
         // wheel moved the slider while the render stayed pinned to whatever
         // depth the probe had validated, so 2D scenes appeared not to zoom.
         if(this.is2D()) this.manual2D = true;
@@ -2220,7 +2240,7 @@ class Component extends DCLogic {
           // One gesture per touch. A real pinch is lopsided — one finger often
           // stays put — so its midpoint walks, and with the drag live that
           // swung the view and buried the zoom. Nothing moves until the fingers
-          // have travelled ~14px; then the largest of spread, twist (as arc
+          // have traveled ~14px; then the largest of spread, twist (as arc
           // length) and midpoint travel picks pinch, twist or drag, and that
           // holds until the fingers lift. Each starts from where the fingers
           // are at that moment, so nothing jumps.
@@ -2416,7 +2436,7 @@ class Component extends DCLogic {
     if(!el || !cv) return;
     if(this.camFly){
       const ac=this.state.accentSel||this.props.accent||'#C8FF2E';
-      // Ring colour follows the scene: the palette colour the probe reports, or
+      // Ring color follows the scene: the palette color the probe reports, or
       // in the line view the line hue, so the ring matches the in-scene mark.
       let rc=this.camFly.sceneC;
       if(this._vOnly){ const hh=((this.eff&&this.eff.hue)??0.08)%1, k=[0,4,2].map(o=>{ const q=Math.min(1,Math.max(0,Math.abs(((hh*6+o)%6)-3)-1)); return 0.4+0.6*q; }); rc=k.map(v=>v*0.85+0.15); }
@@ -2444,7 +2464,7 @@ class Component extends DCLogic {
         el.style.opacity = String(op);
         this.drawFlyPath(m.path, op);
         const ring=el.querySelector('[data-ring]'), lbl=el.querySelector('[data-lbl]');
-        // Travelling: the ring closes in on the dot as the camera nears the point.
+        // Traveling: the ring closes in on the dot as the camera nears the point.
 
         if(ring){ ring.style.width=sz+'px'; ring.style.height=sz+'px'; ring.style.borderStyle = m.hit ? 'solid' : 'dashed';
           ring.style.borderWidth = (1.5+glow*1.5)+'px';
@@ -2472,7 +2492,7 @@ class Component extends DCLogic {
     if(this._tapVis){ el.style.display='none'; this._tapVis=false; this.drawFlyPath(null); }
   }
   // The route to the aimed point: a ring at each step the flight will pass
-  // through, nearer rings larger and stronger, in the target's colour. The
+  // through, nearer rings larger and stronger, in the target's color. The
   // route bends where the probe found the fractal in the way.
   drawFlyPath(path, op){
     const host=this.tapMarkRef && this.tapMarkRef.current; if(!host || !host.parentNode) return;
@@ -2641,7 +2661,7 @@ class Component extends DCLogic {
     // This was 600000: ten minutes, set when the splash was supposed to wait for
     // the entire set. With 81 scenes and a backend that compiles synchronously
     // that is exactly what it did, and "the app never loads" is the same event
-    // seen from outside. Warming is an optimisation and must never be able to
+    // seen from outside. Warming is an optimization and must never be able to
     // hold the door shut; the queue keeps running after handover, so scenes go
     // on becoming resident either way.
     this.WARM_CAP = 20000;
@@ -2776,7 +2796,7 @@ class Component extends DCLogic {
     // The deferred half's scheduler. Two gates, both about the USER rather than
     // the driver: nothing compiles within 1.5s of any input, and nothing
     // compiles while the last frames ran late. A compile lands in a genuine gap
-    // or it waits, however long that takes — warming is an optimisation and has
+    // or it waits, however long that takes — warming is an optimization and has
     // no deadline worth a stutter.
     // One cadence for the whole queue: yield for a paint between submissions,
     // so the splash's bar and its "Linking <family>" line actually repaint.
@@ -2801,7 +2821,7 @@ class Component extends DCLogic {
     // time is a few seconds slower and it always finishes.
     const MAXP = 1;
     // Attempts per family, and the wall clock the whole queue is allowed. Both
-    // are hard stops: warming is an optimisation, and it must never be able to
+    // are hard stops: warming is an optimization, and it must never be able to
     // outlive its usefulness by grinding the main thread.
     const tries = {};
     this.warmSkip = this.warmSkip || {};
@@ -2849,7 +2869,7 @@ class Component extends DCLogic {
               ? 'First draw · scene '+Math.min(glModes.length,(this.warmDrawn||0)+1)+' of '+glModes.length
               // i>=fams.length is NOT the same as "priming": the link poll and
               // the rebuild sweeps both run past the end of the family walk,
-              // and labelling those as priming pointed the operator at the
+              // and labeling those as priming pointed the operator at the
               // first canvas scene while the actual stall was a shader link.
               // Only say Priming when a prime is genuinely the current job.
               : (i>=fams.length && ci<canModes.length && built()>=fams.length
@@ -2942,14 +2962,14 @@ class Component extends DCLogic {
       } else { this.pendWaitT0 = 0; }
       // Nothing may schedule a preheat while the queue is running: preheat takes
       // the same this.pend slot the queue defers to, so a scene selected during
-      // boot would park the queue on its own neighbour lookahead — work the
+      // boot would park the queue on its own neighbor lookahead — work the
       // queue is about to do anyway, at the cost of the deference timeout on
       // every pass. Once is enough — clearing every tick would also swallow a
       // preheat scheduled after the queue has finished with that family.
       if(!this.warmClearedPreheat){ this.warmClearedPreheat = true; clearTimeout(this.preheatT); }
       // Harvest. Without the extension there is nothing to poll, so the first
       // job in the list is taken as ready and LINK_STATUS blocks on it — the old
-      // serial behaviour, with a paint in front of every stall.
+      // serial behavior, with a paint in front of every stall.
       // Deadline first, before anything that can return early. Sitting further
       // down it was unreachable on the one path it was written for: a link that
       // never completes keeps inflight at 1, and the inflight branch returns
@@ -3034,7 +3054,7 @@ class Component extends DCLogic {
             // did not get to was permanently dead: useFamily returned false and
             // the scene drew nothing at all. Leaving it undefined means the live
             // path builds it on demand the moment the operator selects it,
-            // which is the correct behaviour and the only one that cannot lose
+            // which is the correct behavior and the only one that cannot lose
             // a working scene. warmSkip keeps the queue from re-submitting it.
             console.warn('[spectra] warm queue skipping family after 3 attempts:', fams[i]);
             this.warmSkip[fams[i]] = 1;
@@ -3204,7 +3224,7 @@ class Component extends DCLogic {
       // was left to restart it: inflight stuck at 1, every family resident, and
       // warmDrawAll never running. A job older than 5s is no longer "genuinely
       // in flight", so kick the tick and let the harvest decide — it retires
-      // duplicates and honours the deadline.
+      // duplicates and honors the deadline.
       if(inflight.length && ext && performance.now() - (inflight[0].t0||0) < 5000) return;
       clearTimeout(this.warmTimer);
       tick();
@@ -3424,7 +3444,7 @@ class Component extends DCLogic {
     // high-performance GPU is what crashed, while the default adapter works.
     let gl = null;
     // alpha:false on the preferred sets, so the drawing buffer has no alpha
-    // channel for the compositor to honour. Belt and braces behind uCoCOut: any
+    // channel for the compositor to honor. Belt and braces behind uCoCOut: any
     // future pass that writes something other than opacity to alpha cannot make
     // the canvas transparent. The plainer fallbacks keep their defaults, since a
     // driver that refused the first two should be asked for as little as possible.
@@ -3600,7 +3620,7 @@ class Component extends DCLogic {
      'uGly',
      'uTxt','uTxtOn','uTxtDepth','uTxtScale','uTxtY','uTxtX','uTxtZ','uTxtRot','uTxtRx','uTxtRy','uTxtHue','uTxtWeight','uTxtWarp','uTxtInk','uTxtLit','uTxtJit','uTxtAsp','uPlane','uDeep','uDeepPix','uDeepBase','uDeepShade','uDeepMax','uRefLen','uDeepOff','uOrb','uCamMode','uCamScale','uRep','uCamProbe','uCamPos','uCamF','uCamR','uCamU','uCamTap','uTgt','uTgtK','uTgtC','uCamFog'];
     // A canvas scene has no shader family — compile mode 0 so the GL path is
-    // still initialised for whenever the user switches back to a fractal.
+    // still initialized for whenever the user switches back to a fractal.
     // Safe start on weak GPUs (integrated / software). Compiling a raymarch
     // shader is one synchronous driver call that can freeze such machines for
     // many seconds, so open on a 2D canvas scene, which needs no shader at all.
@@ -3691,7 +3711,7 @@ class Component extends DCLogic {
     // branch per element rather than a memory read, and that chain lived in
     // every program. As a texture it is one texelFetch and costs nothing to
     // link. NEAREST and CLAMP_TO_EDGE because the values are bit masks, not
-    // colours -- any filtering would blend two glyphs into a third.
+    // colors -- any filtering would blend two glyphs into a third.
     this.glyTex = gl.createTexture();
     gl.activeTexture(gl.TEXTURE4);
     gl.bindTexture(gl.TEXTURE_2D, this.glyTex);
@@ -3725,7 +3745,7 @@ class Component extends DCLogic {
       this.postProg = pp;
       this.pu = {};
       gl.useProgram(pp);
-      ['uRes','uTime','uFx','uLoud','uBeat','uBass','uScene','uBokeh','uDofDepth','uDepth','uDMode','uDTilt','uTerrZ','uTerrFog','uTerrLow','uDenoise'].forEach(n => this.pu[n] = gl.getUniformLocation(pp, n));
+      ['uRes','uTime','uFx','uLoud','uBeat','uBass','uScene','uBokeh','uDofDepth','uDepth','uDMode','uDTilt','uTerrZ','uTerrFog','uTerrLow','uWater','uWaterHue','uWaterMono','uDenoise'].forEach(n => this.pu[n] = gl.getUniformLocation(pp, n));
       gl.uniform1i(this.pu.uScene, 0);
       const loc2 = gl.getAttribLocation(pp,'a');
       gl.enableVertexAttribArray(loc2);
@@ -3787,7 +3807,7 @@ class Component extends DCLogic {
     // renderer string decides the profile — never the pointer type.
     const igpu = /intel|iris|uhd graphics|hd graphics|radeon\s*(vega|graphics)\b|microsoft basic/i.test(r);
     const mobileGpu = /adreno|mali|apple gpu|powervr/i.test(r);
-    // Software rasterisers (SwiftShader, llvmpipe, Mesa's softpipe, ANGLE's
+    // Software rasterizers (SwiftShader, llvmpipe, Mesa's softpipe, ANGLE's
     // software fallback, headless CI browsers) link shaders on the CPU, so a
     // single raymarch program can cost seconds of SYNCHRONOUS main-thread time.
     // Every yield the warm queue makes is between builds, not inside one, so on
@@ -3801,7 +3821,7 @@ class Component extends DCLogic {
     } else {
       this.plat={kind:'desktop-dgpu', dprCap:2.0, floor:0.45, down:0.06, up:0.04, upFps:52, probes:6};
     }
-    // A software rasteriser is not a slow GPU, it is no GPU: the whole march
+    // A software rasterizer is not a slow GPU, it is no GPU: the whole march
     // runs on one CPU thread, so the machine stays COOL while the frame rate
     // sits in the single digits — the signature that looks like a mystery
     // rather than a thermal problem. Nothing below can make that fast, but
@@ -3812,7 +3832,7 @@ class Component extends DCLogic {
       this.plat={kind:'software', dprCap:1.0, floor:0.20, down:0.18, up:0.01, upFps:58, probes:1};
       // And say so, once. Without this the machine just feels broken: there is
       // no heat, no fan, and no way to tell from inside the app that the
-      // browser handed us a CPU rasteriser instead of the GPU.
+      // browser handed us a CPU rasterizer instead of the GPU.
       try{ this.setState({glMsg:'No GPU acceleration in this browser — running on the CPU. Turn on hardware acceleration in browser settings.'}); }catch(e){}
       clearTimeout(this._softMsgT);
       this._softMsgT = setTimeout(()=>{ try{ if(/No GPU acceleration/.test(this.state.glMsg||'')) this.setState({glMsg:''}); }catch(e){} }, 12000);
@@ -3843,14 +3863,14 @@ class Component extends DCLogic {
     this.rscale = Math.abs(target - this.rscale) < 0.004
       ? target : this.rscale + (target - this.rscale)*0.04;
     const P=this.plat;
-    // Quantise the render scale to 1/24 steps. resize() runs once per FRAME, and
+    // Quantize the render scale to 1/24 steps. resize() runs once per FRAME, and
     // it used to derive w/h straight from the continuously-easing scale: on Auto
     // quality the size therefore changed on almost every frame, and each change
     // reallocated the canvas backing store plus two full-resolution FBO textures
     // and freed the two before them. That is an allocation storm rather than a
     // workload — which is exactly the failure signature we were chasing: the 3D
     // engine flat at 0%, shared GPU memory climbing, the CPU pinned inside the
-    // driver, and the tab unresponsive. Quantising means the size takes one of
+    // driver, and the tab unresponsive. Quantizing means the size takes one of
     // ~24 values, so a slow adaptive ramp reallocates a handful of times instead
     // of hundreds; the intermediate scales were never visible anyway.
     // The adaptive floor exists to stop the AUTO governor hunting itself into
@@ -3874,7 +3894,7 @@ class Component extends DCLogic {
     }
     const w=Math.max(1,Math.floor(cw*dpr)), h=Math.max(1,Math.floor(ch*dpr));
     if(c.width!==w||c.height!==h){
-      // Floor on reallocation frequency, independent of the quantiser. A window
+      // Floor on reallocation frequency, independent of the quantizer. A window
       // being dragged, or a quality target hunting across a step boundary, can
       // still ask for a new size every frame; a resize is cheap to defer and
       // ruinous to do at frame rate. Large jumps (a real window resize) go
@@ -3931,7 +3951,7 @@ class Component extends DCLogic {
       const n = err && err.name;
       const msg = n==='NoSysAudio' ? 'No audio came with the share. Pick Entire screen and tick “Also share system audio” (a tab share works too, with “Also share tab audio”).'
         : n==='SysUnsupported' ? 'Device audio needs desktop Chrome or Edge. Phones cannot share their audio output with a web page — use the mic there.'
-        : n==='NotAllowedError' ? 'Share cancelled.'
+        : n==='NotAllowedError' ? 'Share canceled.'
         : ((n||'Error')+': '+((err&&err.message)||'unknown'));
       this.setState({micHint:msg, mic: this.state.mic==='live' ? 'live' : 'denied'});
     }
@@ -4443,8 +4463,11 @@ class Component extends DCLogic {
     this._revSeekAt=now;
     try{ v.currentTime=t; }catch(e){}
   }
+  // Water color harmonies: key, label, turn of the wheel from the scene hue.
+  WATER_SCHEMES = [['analog','Analogous',0.083],['split','Split complementary',0.417],['comp','Complementary',0.5],
+                   ['triad','Triadic',0.333],['mono','Monochromatic',0]];
   VID_GROUPS = [['Blend',[0,3,10,15,6]], ['Distort',[2,7,8,9]], ['Tile',[1,18,16,19]],
-                ['Stylise',[4,5,13,20,14,17]], ['Surface',[11,12]]];
+                ['Stylize',[4,5,13,20,14,17]], ['Surface',[11,12]]];
   pickVidLook(id){
     const vd = this.state.vid, m1 = vd.mode, m2 = (vd.mode2|0) - 1;
     if(!vd.stack) return this.setVid({mode:id, mode2:0});
@@ -4516,7 +4539,7 @@ class Component extends DCLogic {
 
   // Fold the spectrum into 12 pitch classes. Summing energy around each
   // equal-tempered note from C2 to B6 and adding octaves together gives the
-  // profile that makes a chord recognisable regardless of voicing or register —
+  // profile that makes a chord recognizable regardless of voicing or register —
   // the same reason a C major triad is still C major an octave up.
   computeChroma(){
     const H=this.h;
@@ -4676,7 +4699,7 @@ class Component extends DCLogic {
   // filled opaque before stroking so near ridges occlude far ones.
 
   // Non-fractal scenes spend Morph / Cst A-C on look rather than geometry, so
-  // the strip is relabelled per family to say what the control actually does.
+  // the strip is relabeled per family to say what the control actually does.
   paramLabels(mode){
     // Parameter 11 is Glow on 3D scenes; elsewhere it only duplicated the Spin
     // button, so it is hidden. Canvas scenes never read 11 or Light (12) either.
@@ -4808,11 +4831,11 @@ class Component extends DCLogic {
       43:['DNA','a field of double helices to fly through','Twist · Groove · Spacing · Grain'],
       45:['Cathedral','Mandelbox at negative scale','arcades of arches and ogee windows; Scale · Inner R · Fold · Twist'],
       44:['Romanesco','r = a·e^(bn), θ = n·137.5°, z = H(1−r/R)^c','each floret the whole head again; Florets · Profile · Tilt · Grow'],
-      17:['Magnet','z ← ((z² + c − 1)/(2z + c − 2))²','Ising-model renormalisation'],
+      17:['Magnet','z ← ((z² + c − 1)/(2z + c − 2))²','Ising-model renormalization'],
       18:['Phoenix','z ← z² + c₁ + c₂·z₋₁','one-step memory'],
       20:['Ship Julia','z ← (|Re z| + i·Im z)² + c','Burning Ship with fixed c'],
       21:['Celtic','z ← (|Re z²| + i·Im z²) + c','abs on the real part only'],
-      39:['Harmony','z ← z² + c,  c = r·e^(iθ)','θ = key centre on the circle of fifths; r = tonal clarity'],
+      39:['Harmony','z ← z² + c,  c = r·e^(iθ)','θ = key center on the circle of fifths; r = tonal clarity'],
       40:['Golden Wave','c = e^(2πit)/2 − e^(4πit)/4,  t = 1/φ','Siegel disk at the golden rotation number, curled onto r = e^(θ·lnφ/(π/2))'],
       22:['Spectrum','r(θ) = FFT[θ]','radial magnitude field'],
       23:['Triangle emitter','r·cos(â) = e^((n − t)/k),  â = θ mod 120°','nested equilateral shells thrown outward on a log radius'],
@@ -4821,7 +4844,7 @@ class Component extends DCLogic {
       26:['Grid pulse','sin(kx)·sin(ky) gated on beat',''],
       27:['Ribbons','stacked sin(x + φᵢ) bands',''],
       28:['Ink blobs','metaball Σ 1/|p − pᵢ|²',''],
-      90:['Spectrum mesh','ridgeline of FFT over time','colour is the band: red bass, green mids, violet treble'],
+      90:['Spectrum mesh','ridgeline of FFT over time','color is the band: red bass, green mids, violet treble'],
       91:['Outrun','1/z grid + mirrored FFT ridges','one-point perspective'],
       92:['Code tunnel','glyphs at x = a·f/z','one-point perspective'],
       93:['Half pipe','U-tube ribs at r·f/z','pan swings the axis left/right and up/down'],
@@ -4836,7 +4859,7 @@ class Component extends DCLogic {
       102:['Lensed disk','r′ = r(1 + 1.3 r\u209b²/r²),  r″ = k r\u209b²/r','deflection bows the far side up; inversion draws the arc over the shadow'],
       103:['Painter’s solid','θ ← θ + k(θₜ − θ),  k = 0.34 on each onset','pose locks on the beat and flows between: fast ease to a held target'],
       104:['Aizawa attractor','ż = c + az − z³/3 − (x²+y²)(1+ez) + f z x³','the orbit sweeps a torus; winding rate d on Cst A fans the rim'],
-      105:['Spiral flame','f₁(z) = c₁z,  f₂(z) = 1 + c₂(z − 1)','two complex spiral maps; brightness is log hit density, colour is map history'],
+      105:['Spiral flame','f₁(z) = c₁z,  f₂(z) = 1 + c₂(z − 1)','two complex spiral maps; brightness is log hit density, color is map history'],
       106:['Dragon flame','f₁(z) = ½(1+i)z,  f₂(z) = 1 − ½(1−i)z','the Heighway pair with the angle on Curl; Symmetry turns it into a twin dragon'],
       107:['Fern flame','Barnsley: stem, frond, two leaflets','four affine maps weighted 1 : 85 : 7 : 7; Curl bends the frond map'],
       108:['Galaxy flame','f₁(z) = s·e^{iθ}z,  f₂(z) = sph(0.3z + 1)','a shrinking rotation repeats a spherical blob into arms; Symmetry sets the arm count'],
@@ -4901,7 +4924,7 @@ class Component extends DCLogic {
     // so without the gain the field can never reach the top of the frame.
     // Gain per column as well as overall. Music carries far less energy in
     // the treble than in the bass, so one global gain left the violet end flat.
-    // Each column is normalised against its own slow running peak (floored so
+    // Each column is normalized against its own slow running peak (floored so
     // silence stays flat), blended with the global gain so loud bass still
     // reads louder.
     let mx=0; for(let i=0;i<n;i++) if(row[i]>mx) mx=row[i];
@@ -4944,11 +4967,11 @@ class Component extends DCLogic {
     if(M.grad && M.gradKey===key) return M.grad;
     const e=this.eff||{};
     // Frequency IS the x axis here — the columns are FFT bins with the low end at
-    // the left — so a gradient across the grid reads as one colour per band, the
+    // the left — so a gradient across the grid reads as one color per band, the
     // way a DJ waveform encodes it: red and orange on the kick and bass, green
     // through the vocal and synth mids, blue and violet on hats, snares, risers
     // and filter sweeps. That replaces the old arbitrary hue ramp, where the
-    // colour said nothing about what was making the shape.
+    // color said nothing about what was making the shape.
     const spread=(e.cc==null?0.5:e.cc);
     // Hue is a ±40° trim rather than a free rotation: the mapping only means
     // something if red stays on the bass end, so the control tints it without
@@ -4972,7 +4995,7 @@ class Component extends DCLogic {
 
   // Grid pitch from the Iter slider: fewer, wider-spaced columns and a longer
   // gap between transverse ridges. Changing the column count reallocates the
-  // sample buffers, so it is quantised to keep that off most frames.
+  // sample buffers, so it is quantized to keep that off most frames.
   meshPitch(){
     const e=this.eff||{};
     const q=Math.round((e.iter==null?0.5:e.iter)*8)/8;
@@ -5065,7 +5088,7 @@ class Component extends DCLogic {
     // landed last frame (M.vpNow); the pan is nudged by the error until it sits
     // on the tapped / dragged spot. Closed loop, so it holds for every scene's
     // own horizon height and perspective without a per-scene mapping. Scenes
-    // that do not report fall back to frame centre plus offset.
+    // that do not report fall back to frame center plus offset.
     // Vanishing-point placement, open loop. The pointer's spot maps straight
     // to the pan that puts the scene's vanishing point there (each scene's gain
     // and sign below), and the pan eases toward it. The earlier closed loop
@@ -5198,7 +5221,7 @@ class Component extends DCLogic {
     if(!drawRidge){
       if((tick % 32) === 0){
         const st=this.meshStatRef.current;
-        if(st) st.textContent = M.cols+' × '+M.steps+' · '+(this.meshSource()==='rf'?'subcarrier':'band')+' colour';
+        if(st) st.textContent = M.cols+' × '+M.steps+' · '+(this.meshSource()==='rf'?'subcarrier':'band')+' color';
       }
       show();
       return;
@@ -5213,7 +5236,7 @@ class Component extends DCLogic {
 
     if((tick % 32) === 0){
       const st=this.meshStatRef.current;
-      if(st) st.textContent = M.cols+' × '+M.steps+' · '+(this.meshSource()==='rf'?'subcarrier':'band')+' colour';
+      if(st) st.textContent = M.cols+' × '+M.steps+' · '+(this.meshSource()==='rf'?'subcarrier':'band')+' color';
     }
   }
 
@@ -5228,7 +5251,7 @@ class Component extends DCLogic {
       const i = Math.min(n-1, Math.floor(y*n/H));
       const d = has ? C.vec[i]-C.base[i] : C.vec[i]-0.5;
       const v = Math.min(1, Math.abs(d)*6);
-      // deviation above baseline reads accent, below reads cool grey
+      // deviation above baseline reads accent, below reads cool gray
       if(d >= 0) ctx.fillStyle = 'rgba('+this.accRGB().join(',')+','+v.toFixed(3)+')';
       else ctx.fillStyle = 'rgba(150,190,255,'+v.toFixed(3)+')';
       ctx.fillRect(W-1, y, 1, 1);
@@ -5244,12 +5267,12 @@ class Component extends DCLogic {
   // Code Tunnel: rings of digit streams in one-point perspective. Each stream
   // is a run of glyphs marching along z toward the viewer; speed rides the
   // bass, hue rides the treble. Streams are placed by ANGLE around the axis, so
-  // they emerge from the round core at the centre — the earlier four-plane
+  // they emerge from the round core at the center — the earlier four-plane
   // layout made them pour out of the edges of a square instead.
   // Depth budget. Streams used to be born at z≈6.4 and culled past 7.2; at that
   // depth a glyph's projected offset from the axis is already a good fraction of
   // the core's radius, so the runs appeared BESIDE the glowing vanishing point
-  // and travelled outward from there. Born at 10–11.5 instead, the first glyphs
+  // and traveled outward from there. Born at 10–11.5 instead, the first glyphs
   // land inside the core itself and the run is seen emerging from the light,
   // which is what a source should look like. Per-frame speed is raised in step
   // so the longer runway does not slow the arrival rate.
@@ -5257,7 +5280,7 @@ class Component extends DCLogic {
   // switch: slot 0 is the binary rain and slots 1..N are the stored messages in
   // the order they were saved, so turning the knob walks the tunnel through
   // everything the rig has been given to say. With an empty list it falls back
-  // to the old halfway behaviour on whatever message is current.
+  // to the old halfway behavior on whatever message is current.
   codeSrc(){
     const e=this.eff||{}, v=Math.max(0,Math.min(1,(e.iter==null?0:e.iter)));
     const L=(this.state.txtList||[]).filter(m => m && m.trim());
@@ -5354,7 +5377,7 @@ class Component extends DCLogic {
     const wNat=ctx.measureText(msg).width;
     if(wNat>wMax){ px*=wMax/wNat; ctx.font='700 '+px.toFixed(1)+'px '+this.txtFont(); }
     // X and rotation were missing here, so on the canvas scenes the message
-    // ignored two of its own controls and sat centred whatever the panel said.
+    // ignored two of its own controls and sat centered whatever the panel said.
     const tn2=this.txtNudge||{x:0,y:0,rot:0};
     const tX2=Math.max(0,Math.min(1,(s.txtX==null?0.5:s.txtX)+(tn2.x||0)+ta2.x));
     const cx=W*0.5+(tX2-0.5)*0.8*H, cy=H*(1-Math.max(0,Math.min(1,(s.txtY==null?0.5:s.txtY)+ta2.y)));
@@ -5364,7 +5387,7 @@ class Component extends DCLogic {
     if(rot2 || fx2<0.9999 || fy2<0.9999){ ctx.translate(cx,cy); ctx.rotate(rot2); ctx.scale(fx2,fy2); ctx.translate(-cx,-cy); }
     // Bass thickens the strokes, the same weight cue the shader path uses.
     const wt=A.bass*rk*px*0.035;
-    // Colour tracks the detected key when the reading is confident.
+    // Color tracks the detected key when the reading is confident.
     const keyed=H2 && H2.conf>0.28;
     const hue=keyed ? (H2.note*30+18)%360 : Math.round((202+(this.eff&&this.eff.hue!=null?this.eff.hue:0.55)*70)%360);
     const ink=(s.txtInk==null?0.55:s.txtInk);
@@ -5432,7 +5455,7 @@ class Component extends DCLogic {
     // Full wheel. This was a 60° window off green, so the tunnel was always some
     // shade of the same acid green no matter where Hue sat; the treble term is
     // what did most of the visible work. Kept the audio push, widened the base.
-    // Full wheel centred on the authored acid green (117° at the preset's 0.35),
+    // Full wheel centered on the authored acid green (117° at the preset's 0.35),
     // so the default look is unchanged and the range opens both ways.
     const hue=Math.round(117+((e.hue==null?0.35:e.hue)-0.35)*360+high*46);
 
@@ -5442,7 +5465,7 @@ class Component extends DCLogic {
     ctx.fillStyle='rgba(2,6,10,'+(1.0-tr*0.88).toFixed(3)+')';
     ctx.fillRect(0,0,W,H);
 
-    // Tight vanishing-point core, plus rays so the streaks dominate the centre
+    // Tight vanishing-point core, plus rays so the streaks dominate the center
     // rather than the glow.
     ctx.lineWidth=1;
     const NR=Math.round(8+(e.cb==null?0.5:e.cb)*112);   // Rays
@@ -5524,12 +5547,12 @@ class Component extends DCLogic {
 
   // Star field. It used to be a bitmap cached against the horizon height — but
   // the horizon carries the view pan, so it moved constantly and the field was
-  // re-randomised nearly every frame: what read as "busy twinkling" was actually
+  // re-randomized nearly every frame: what read as "busy twinkling" was actually
   // the whole sky being redealt. Now the positions are generated ONCE per canvas
   // size and kept as data, and the twinkle is an explicit slow oscillation:
   // each star has its own period between roughly 6 and 14 seconds and its own
   // phase, so the field breathes at about the pace of the drive instead of
-  // strobing. Stars are stored in normalised y over the full frame, so a moving
+  // strobing. Stars are stored in normalized y over the full frame, so a moving
   // horizon just reveals or hides them rather than reshuffling them.
   // ---- Video in the canvas scenes ---------------------------------------
   // Scenes build the clip into their own geometry when the video filter is
@@ -5551,7 +5574,7 @@ class Component extends DCLogic {
     return null;
   }
   // Stand-in for the video scenes when no video is on, so their screens read
-  // as screens: colour bars from the scene hue with a rolling bar.
+  // as screens: color bars from the scene hue with a rolling bar.
   sceneSig(){
     const V=this.sceneVid(true); if(V) return V;
     const M=this.MESH; let c=M.sigCv; if(!c){ c=M.sigCv=document.createElement('canvas'); c.width=160; c.height=90; }
@@ -5580,7 +5603,7 @@ class Component extends DCLogic {
     return Object.assign({},V,{src:R.cv[(R.head-lag+N)%N],w,h});
   }
   _vcrop(V,ar){ const sr=V.w/V.h; if(sr>ar){ const sw=V.h*ar; return {sx:(V.w-sw)/2,sy:0,sw,sh:V.h}; } const sh=V.w/ar; return {sx:0,sy:(V.h-sh)/2,sw:V.w,sh}; }
-  // Cover-fit into a rectangle, honouring Mirror and Flip.
+  // Cover-fit into a rectangle, honoring Mirror and Flip.
   vidBlit(ctx,V,x,y,w,hh,alpha){
     if(!V || w<1 || hh<1) return;
     const C=this._vcrop(V,w/hh);
@@ -5629,7 +5652,7 @@ class Component extends DCLogic {
     const f=t=>{ t=((t%1)+1)%1; return t<1/6?p+(q-p)*6*t:t<0.5?q:t<2/3?p+(q-p)*(2/3-t)*6:p; };
     return [f(h+1/3)*255,f(h)*255,f(h-1/3)*255]; }
   hsh1(k){ const s=Math.sin(k*127.1+311.7)*43758.5453; return s-Math.floor(s); }
-  // Running average colour of the clip, for light the screen throws on the set.
+  // Running average color of the clip, for light the screen throws on the set.
   vidAvg(V){
     const M=this.MESH; if(!V) return [0.3,0.3,0.4];
     if(!M.avgCv){ M.avgCv=document.createElement('canvas'); M.avgCv.width=M.avgCv.height=1; }
@@ -5646,7 +5669,7 @@ class Component extends DCLogic {
   // never sort behind the wall they sit on. Video is mapped onto quads with
   // subdivided affine triangles, so it keeps its perspective.
   // WebGL back end for lp3: one offscreen canvas shared by every canvas scene.
-  // Faces go in as triangles with their lit, fogged colour; the GPU's depth
+  // Faces go in as triangles with their lit, fogged color; the GPU's depth
   // buffer decides what is in front per pixel, which no ordering of whole
   // faces can do once faces cross, nest or overlap in a loop. Passes:
   //   1 opaque faces, writing depth;
@@ -5798,8 +5821,8 @@ class Component extends DCLogic {
     const BF={pz:[[.5,-.5,.5],[.5,.5,.5],[-.5,.5,.5],[-.5,-.5,.5]], nz:[[-.5,-.5,-.5],[-.5,.5,-.5],[.5,.5,-.5],[.5,-.5,-.5]],
               px:[[.5,-.5,-.5],[.5,.5,-.5],[.5,.5,.5],[.5,-.5,.5]], nx:[[-.5,-.5,.5],[-.5,.5,.5],[-.5,.5,-.5],[-.5,-.5,-.5]],
               py:[[-.5,.5,-.5],[-.5,.5,.5],[.5,.5,.5],[.5,.5,-.5]], ny:[[-.5,-.5,.5],[-.5,-.5,-.5],[.5,-.5,-.5],[.5,-.5,.5]]};
-    // Sorting by centre depth fails wherever a big face meets small ones: a
-    // soffit's centre lies behind the column tops it roofs, a ceiling's past
+    // Sorting by center depth fails wherever a big face meets small ones: a
+    // soffit's center lies behind the column tops it roofs, a ceiling's past
     // the frames hung under it, so the big face painted over them. After the
     // sort, each big face is checked against the faces that overlap it on
     // screen. A face wholly on the camera's side of its plane must paint after
@@ -6015,9 +6038,14 @@ class Component extends DCLogic {
     ctx.fillStyle=g; ctx.fillRect(x-r,y-r,r*2,r*2); }
   skyGrad(ctx,W,hz,top,bot){ const g=ctx.createLinearGradient(0,0,0,Math.max(1,hz)); g.addColorStop(0,top); g.addColorStop(1,bot); ctx.fillStyle=g; ctx.fillRect(0,0,W,Math.max(0,hz)+1); }
   // Faceted ridge line at the horizon, alternate facets a shade lighter.
+  // A faceted ridge on the horizon that scrolls with par (pixels). Each peak
+  // belongs to a fixed slot in the world, so as the view turns the range
+  // passes by instead of sliding a step and snapping back, which read as the
+  // mountains turning on the spot.
   lpRidge(ctx,W,hz,h,seed,c1,c2,par){
-    const n=14, pts=[]; for(let i=0;i<=n;i++){ const r=this.hsh1(seed+i*3.1); pts.push([W*(i/n)+(par||0)%(W/n), hz-h*(0.35+r*0.65)]); }
-    for(let i=0;i<n;i++){ ctx.fillStyle=i%2?c1:c2; ctx.beginPath(); ctx.moveTo(pts[i][0]-1,hz+1); ctx.lineTo(pts[i][0],pts[i][1]); ctx.lineTo(pts[i+1][0]+1,pts[i+1][1]); ctx.lineTo(pts[i+1][0]+1,hz+1); ctx.closePath(); ctx.fill(); }
+    const n=14, seg=W/n, off=par||0, k0=Math.floor(-off/seg)-1, pts=[];
+    for(let i=0;i<=n+2;i++){ const k=k0+i, r=this.hsh1(seed+(((k%997)+997)%997)*3.1); pts.push([k*seg+off, hz-h*(0.35+r*0.65), k]); }
+    for(let i=0;i<pts.length-1;i++){ ctx.fillStyle=(pts[i][2]&1)?c1:c2; ctx.beginPath(); ctx.moveTo(pts[i][0]-1,hz+1); ctx.lineTo(pts[i][0],pts[i][1]); ctx.lineTo(pts[i+1][0]+1,pts[i+1][1]); ctx.lineTo(pts[i+1][0]+1,hz+1); ctx.closePath(); ctx.fill(); }
     ctx.fillStyle=c1; ctx.fillRect(0,hz,W,2);
   }
 
@@ -6049,12 +6077,10 @@ class Component extends DCLogic {
     // From behind, the picture shows through mirrored, as a projection on a
     // screen would.
     if(bk.pz) S.vid(bk.pz,bk.on('pz',0.03,0.04,0.97,0.96,0.02),Object.assign({},V,{flip:!V.flip}),{alpha:0.85});
-    const scr=S.box([0,4.8+sht/2,22.6],[swd+1.2,sht+1.0,0.8],0,rgb(hu+5,0.55,0.42));
-    if(scr.nz){
-      S.decal(scr.nz,scr.on('nz',0.03,0.05,0.97,0.95,0.01),[10,10,14],{emit:1});
-      S.vid(scr.nz,scr.on('nz',0.045,0.07,0.955,0.93,0.02),V,{alpha:0.88+(A.beat||0)*0.12});
-      for(let i=0;i<4;i++) for(const u of [0.013,0.987]){ const v=0.2+i*0.2, on=((M.tick>>3)+i)%2; S.decal(scr.nz,scr.on('nz',u-0.009,v-0.03,u+0.009,v+0.03,0.03),on?[255,200,90]:[120,90,60],{emit:1}); }
-    }
+    // The screen is a flat projection sheet, not a set: a thin panel with the
+    // picture running to its edges, no bezel and no black border.
+    const scr=S.box([0,4.8+sht/2,22.6],[swd+1.2,sht+1.0,0.16],0,rgb(hu+5,0.3,0.5));
+    if(scr.nz) S.vid(scr.nz,scr.on('nz',0.004,0.006,0.996,0.994,0.01),V,{alpha:0.9+(A.beat||0)*0.1});
     // booth
     // The booth is drawn in its own pass after the beam, so the light comes
     // out of the lens on the far face instead of washing over the box.
@@ -6085,9 +6111,17 @@ class Component extends DCLogic {
         S.decal(ch.nz,ch.on('nz',0.05,0.5,0.24,0.8,0.01),tl,{emit:1}); S.decal(ch.nz,ch.on('nz',0.76,0.5,0.95,0.8,0.01),tl,{emit:1});
         S.decal(ch.nz,ch.on('nz',0.38,0.2,0.62,0.45,0.01),[220,220,200],{emit:1});
       }
-      if(cab.nz) S.decal(cab.nz,cab.on('nz',0.1,0.12,0.9,0.85,0.01),[30+vc[0]*60,32+vc[1]*60,48+vc[2]*70],{emit:1});
-      if(cab.px) S.decal(cab.px,cab.on('px',0.1,0.15,0.9,0.85,0.01),[28,30,46],{emit:1});
-      if(cab.nx) S.decal(cab.nx,cab.on('nx',0.1,0.15,0.9,0.85,0.01),[28,30,46],{emit:1});
+      // Glass: dark, with the screen's picture reflected in it, mirrored and
+      // cropped to the slice of the screen each car's window would catch. The
+      // windshield faces the screen and takes the strongest image; the rear
+      // and side windows carry a fainter one.
+      const rf=Object.assign({},V,{flip:!V.flip}), rcw=V&&V.w?V.w*0.42:0, rch=V&&V.h?V.h*0.5:0;
+      const rcrop=V&&V.w?{sx:Math.max(0,Math.min(V.w-rcw,(0.29+(x/20)*0.3+0.0)*V.w)),sy:V.h*0.2,sw:rcw,sh:rch}:null;
+      const glass=(k,u0,v0,u1,v1,c,a)=>{ if(!cab[k]) return; S.decal(cab[k],cab.on(k,u0,v0,u1,v1,0.01),c,{emit:1}); if(rcrop) S.vid(cab[k],cab.on(k,u0,v0,u1,v1,0.015),rf,{alpha:a,crop:rcrop}); };
+      glass('pz',0.1,0.12,0.9,0.85,[26+vc[0]*40,28+vc[1]*40,40+vc[2]*50],0.55+(A.beat||0)*0.15);
+      glass('nz',0.1,0.12,0.9,0.85,[30+vc[0]*60,32+vc[1]*60,48+vc[2]*70],0.28);
+      glass('px',0.1,0.15,0.9,0.85,[28,30,46],0.2);
+      glass('nx',0.1,0.15,0.9,0.85,[28,30,46],0.2);
     }
     // planters and the sign
     for(const sx of [-15.5,15.5]) for(let k=0;k<5;k++){
@@ -6110,7 +6144,7 @@ class Component extends DCLogic {
     ctx.save(); ctx.globalCompositeOperation='lighter';
     // Beam: from the booth's lens to the picture area's actual corners on the
     // screen face, filled as the convex hull so it can't fold over itself.
-    const hw=(swd+1.2)*0.455, y0s=4.3+(sht+1)*0.07, y1s=4.3+(sht+1)*0.93, zs=22.18;
+    const hw=(swd+1.2)*0.496, y0s=4.3+(sht+1)*0.01, y1s=4.3+(sht+1)*0.99, zs=22.52;
     // Seen from behind the screen the beam and the lens are both hidden by it,
     // and these 2D layers have no depth test, so they are left out there.
     const front=cam.z<zs;
@@ -6156,7 +6190,7 @@ class Component extends DCLogic {
         S.box([s*(gap+1.1),0.09,z0+D/2],[2.2,0.18,D-0.05],0,[70,70,82]);
         S.box([s*(gap+2.2+8),0.04,z0+D/2],[16,0.08,D],0,[44,42,52],{bias:1500});
         // streetlight
-        // Post stands ON the kerb (top 0.18), the arm starts at its side and
+        // Post stands ON the curb (top 0.18), the arm starts at its side and
         // the lamp hangs under the arm's end: no piece passes through another.
         if(id%2===0){ const lx=s*(gap+0.5); S.box([lx,0.18+2.6,z0+0.5],[0.14,5.2,0.14],0,[40,40,50]); S.box([lx-s*(0.07+0.65),5.15,z0+0.5],[1.3,0.1,0.12],0,[40,40,50]);
           S.box([lx-s*1.15,5.04,z0+0.5],[0.45,0.12,0.25],0,[255,225,170],{emit:1}); glows.push([lx-s*1.15,4.98,z0+0.5]); }
@@ -6197,7 +6231,7 @@ class Component extends DCLogic {
             S.decal(B[inner],B.on(inner,uc,v0-0.035,uc+uw,v0-0.015,0.16),[255,240,210],{emit:1});
           }
           // Lightbox billboards carrying the message from the text panel, in
-          // its font, in one of three sign colours.
+          // its font, in one of three sign colors.
           else if(pi===0 && isSign && B[inner]){
             const bh=2.4/P.s[1], v0=Math.max(0.08,Math.min(0.9-bh,0.3+hs(id*2.3+s)*0.45)), v1=v0+bh, uw=Math.min(0.72,7.5/P.s[2]), uc=0.1+hs(id+7)*Math.max(0,0.85-uw-0.1);
             const T=this.citySign(Math.floor(hs(id*5.9+s)*3),hu);
@@ -6215,8 +6249,8 @@ class Component extends DCLogic {
   }
 
   // A billboard face for Billboard City: the current message in the text
-  // panel's font on a backlit panel, in one of three colourways. Cached per
-  // message, font, colourway and hue, and redrawn once a web font finishes
+  // panel's font on a backlit panel, in one of three colorways. Cached per
+  // message, font, colorway and hue, and redrawn once a web font finishes
   // loading (fontGen), so a sign never keeps the fallback face.
   citySign(k,hu){
     const M=this.MESH, msg=String((this.txtMsg&&this.txtMsg()||'').trim()||'SPECTRA'), font=this.txtFont();
@@ -6323,8 +6357,8 @@ class Component extends DCLogic {
       const pad=(x,z,yaw,col,btn)=>{ const B=S.box([x,fy+0.03,z],[0.42,0.06,0.19],yaw,col);
         if(B.py){ S.decal(B.py,B.on('py',0.1,0.3,0.32,0.7,0.005),[40,40,46]); for(let i=0;i<btn.length;i++) disc(B,'py',0.66+(i%2)*0.12,0.35+(i>>1)*0.3,0.05,btn[i],0.006,6); } };
       const sx=Math.min(X0,2.4);
-      // Super Famicom: pale grey, a darker ridge, the cartridge standing in its
-      // slot, the four colours on the lid.
+      // Super Famicom: pale gray, a darker ridge, the cartridge standing in its
+      // slot, the four colors on the lid.
       { const x=-sx, z=-1.5, yw=0.18, B=S.box([x,fy+0.1,z],[1.0,0.2,0.74],yw,[192,190,198]);
         S.box([x+Math.sin(yw)*0.22,fy+0.23,z+Math.cos(yw)*0.22],[0.98,0.06,0.28],yw,[160,158,170]);
         S.box([x,fy+0.23,z],[0.56,0.06,0.26],yw,[90,88,100]);
@@ -6338,7 +6372,7 @@ class Component extends DCLogic {
         if(B.py){ S.decal(B.py,B.on('py',0.66,0.08,0.95,0.18,0.006),[210,40,40]); S.decal(B.py,B.on('py',0.7,0.6,0.92,0.68,0.006),[70,70,80]); }
         if(B.nz) S.decal(B.nz,B.on('nz',0.08,0.35,0.3,0.65,0.006),[200,40,40],{emit:1});
         pad(x+0.15,z-0.8,yw+0.15,[30,30,34],[[60,60,70],[60,60,70],[60,60,70]]); }
-      // PlayStation: light grey, the round lid, the coloured logo.
+      // PlayStation: light gray, the round lid, the colored logo.
       { const x=sx, z=-1.5, yw=-0.2, B=S.box([x,fy+0.085,z],[1.0,0.17,0.72],yw,[200,200,206]);
         if(B.py){ disc(B,'py',0.38,0.55,0.3,[150,150,160],0.006,12); disc(B,'py',0.38,0.55,0.08,[120,120,130],0.008,8);
           S.decal(B.py,B.on('py',0.78,0.7,0.84,0.82,0.006),[230,60,60]); S.decal(B.py,B.on('py',0.84,0.7,0.9,0.82,0.006),[240,200,60]);
@@ -6574,9 +6608,17 @@ class Component extends DCLogic {
     const F=H*1.0*Vw.sc, OX=W/2, OY=H*0.5; this.vpAim(cam,F,Vw); this.vpReport(OX+Vw.ox, OY+Vw.oy); const hz=OY-F*Math.tan(cam.pitch);
     this.skyGrad(ctx,W,hz,'hsl('+hu+',40%,4%)','hsl('+(hu+20)+',45%,13%)');
     this.octx=ctx; this.outrunStars(W,H,hz,t);
-    this.lpRidge(ctx,W,hz,H*0.09,21,'hsl('+hu+',30%,8%)','hsl('+hu+',28%,11%)',-cam.yaw*F);
+    // Three ranges, far to near: hazier and taller at the back, darker and
+    // lower in front, each turning faster than the one behind it so the orbit
+    // shows depth between them.
+    this.lpRidge(ctx,W,hz,H*0.14,37,'hsl('+(hu+15)+',26%,13%)','hsl('+(hu+15)+',24%,16%)',-cam.yaw*F);
+    this.lpRidge(ctx,W,hz,H*0.09,21,'hsl('+hu+',30%,9%)','hsl('+hu+',28%,12%)',-cam.yaw*F*1.6);
+    this.lpRidge(ctx,W,hz,H*0.045,53,'hsl('+(hu-10)+',32%,6%)','hsl('+(hu-10)+',30%,8%)',-cam.yaw*F*2.5);
     const S=this.lp3(Object.assign(cam,{f:F,cx:OX,cy:OY,L1:[-0.4,0.7,-0.5],C1:[0.28,0.3,0.45],amb:[0.2,0.2,0.3],fogC:rgb(hu+20,0.45,0.12),fogK:0.02}));
-    ctx.fillStyle='hsl('+hu+',25%,6%)'; ctx.fillRect(0,hz,W,H-hz);
+    { const wg=ctx.createLinearGradient(0,hz,0,H);
+      wg.addColorStop(0,'hsl('+(hu+20)+',40%,15%)'); wg.addColorStop(0.18,'hsl('+(hu+10)+',35%,8%)'); wg.addColorStop(1,'hsl('+hu+',30%,4%)');
+      ctx.fillStyle=wg; ctx.fillRect(0,hz,W,H-hz);
+      this.poolGlints(ctx,W,hz,hz+(H-hz)*0.35,t,hu,1); }
     // A Doric temple on a rocky island, columns on all four sides under a
     // gabled roof. In the middle of the floor stands a pedestal (stepped
     // plinth, fluted drum, a capital of leaves and corner volutes, a square
@@ -6595,7 +6637,9 @@ class Component extends DCLogic {
     const col=(x,z)=>{
       S.box([x,fy+0.12,Z+z],[0.95,0.24,0.95],0,stoneL);
       const nd=3, dh=(CH-0.6)/nd;
-      for(let d=0;d<nd;d++) flute(S.box([x,fy+0.24+dh*(d+0.5),Z+z],[0.64,dh-0.03,0.64],0.3927,stone,{taper:[0.94,0.94]}),3,stoneD);
+      // Eight-sided shaft: two squares a quarter turn apart, each fluted, so
+      // the column turns its faces to the light in steps and reads as round.
+      for(let d=0;d<nd;d++) for(const ya of [0.3927,1.1781]) flute(S.box([x,fy+0.24+dh*(d+0.5),Z+z],[0.64,dh-0.03,0.64],ya,stone,{taper:[0.94,0.94]}),3,stoneD);
       S.box([x,fy+CH-0.27,Z+z],[0.8,0.14,0.8],0,stoneL,{taper:[1.2,1.2]}); S.box([x,fy+CH-0.1,Z+z],[0.98,0.2,0.98],0,stoneL);
     };
     // Four a side: the corners and an inner pair set wide, so the middle
@@ -6669,19 +6713,43 @@ class Component extends DCLogic {
     const dx=cam.x, dz=cam.z-Z, dl=Math.hypot(dx,dz)||1, ux=dx/dl, uz=dz/dl, ir=isle/Math.max(Math.abs(ux),Math.abs(uz));
     const wl=S.P([ux*ir,-0.3,Z+uz*ir]), hz2=wl?Math.max(hz,wl[1]):hz;
     const n=Math.max(40,Math.round((H-hz2)/4)), amp=W*(0.002+(e.ca??0.5)*0.006+(A.bass||0)*0.008), spd=0.6+(e.speed??0.6)*3;
-    ctx.fillStyle='hsl('+hu+',30%,3%)'; ctx.fillRect(0,hz2,W,H-hz2);
+    { const wg=ctx.createLinearGradient(0,hz2,0,H);
+      wg.addColorStop(0,'hsl('+(hu+15)+',38%,11%)'); wg.addColorStop(1,'hsl('+hu+',32%,4%)');
+      ctx.fillStyle=wg; ctx.fillRect(0,hz2,W,H-hz2); }
     if((A.beat||0)>0.6 && !M.plB){ M.plB=1; (M.rings||(M.rings=[])).push({x:0.3+Math.random()*0.4,r:0,a:1}); if(M.rings.length>8) M.rings.shift(); } else if((A.beat||0)<0.3) M.plB=0;
     for(let j=0;j<n;j++){
       const d=(j+0.5)/n, y=hz2+(H-hz2)*j/n, rh=(H-hz2)/n+1, src=hz2-hz2*0.98*Math.pow(d,0.8)-1;
       const dx=Math.sin(d*55-t*spd*2.2)*amp*(0.4+d*2.4)+Math.sin(d*131+t*spd*3.1)*amp*0.6*d;
-      ctx.globalAlpha=0.8*(1-d*0.55); ctx.drawImage(ctx.canvas,0,Math.max(0,src),W,Math.max(1,hz2*0.98/n),dx,y,W,rh);
+      ctx.globalAlpha=0.62*(1-d*0.6); ctx.drawImage(ctx.canvas,0,Math.max(0,src),W,Math.max(1,hz2*0.98/n),dx,y,W,rh);
     }
     ctx.globalAlpha=1;
-    const wt=ctx.createLinearGradient(0,hz2,0,H); wt.addColorStop(0,'hsla('+hu+',45%,10%,0.15)'); wt.addColorStop(1,'hsla('+hu+',45%,4%,0.75)');
+    // Water color over the reflection so the sand and rock come back cool
+    // and dark rather than brown, then the sheen and its glints.
+    ctx.save(); ctx.globalCompositeOperation='color'; ctx.fillStyle='hsla('+(hu+10)+',45%,30%,0.45)'; ctx.fillRect(0,hz2,W,H-hz2); ctx.restore();
+    const wt=ctx.createLinearGradient(0,hz2,0,H); wt.addColorStop(0,'hsla('+(hu+20)+',45%,30%,0.10)'); wt.addColorStop(0.3,'hsla('+hu+',45%,8%,0.25)'); wt.addColorStop(1,'hsla('+hu+',45%,4%,0.7)');
     ctx.fillStyle=wt; ctx.fillRect(0,hz2,W,H-hz2);
+    this.poolGlints(ctx,W,hz2,H,t,hu,1.4);
     ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.lineWidth=1.2;
     (M.rings||[]).forEach(R=>{ R.r+=this.sceneDt()*0.25; R.a*=0.975; const rx=W*R.r, ry=(H-hz2)*R.r*0.18, x=W*R.x, y=hz2+(H-hz2)*0.45;
       ctx.strokeStyle='hsla('+(hu+20)+',70%,75%,'+(R.a*0.35).toFixed(3)+')'; ctx.beginPath(); ctx.ellipse(x,y,rx,Math.max(1,ry),0,0,6.2832); ctx.stroke(); });
+    ctx.restore();
+  }
+
+  // Thin bright ripples on open water between y0 and y1: short horizontal
+  // strokes that thin and close up toward the horizon and drift sideways, so
+  // a flat band reads as a moving surface catching the sky.
+  poolGlints(ctx,W,y0,y1,t,hu,k){
+    if(y1-y0<4) return;
+    const hs=i=>this.hsh1(i), n=Math.round(70*k);
+    ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.lineCap='round';
+    for(let i=0;i<n;i++){
+      const d=Math.pow(hs(i*1.3),1.7), y=y0+(y1-y0)*d, len=W*(0.015+d*0.07)*(0.5+hs(i*2.7)), sp=(0.02+d*0.08)*W;
+      const x=((hs(i*4.1)*W + t*sp*(hs(i*7.9)<0.5?1:-1)) % (W+len) + W+len) % (W+len) - len;
+      const a=(0.05+d*0.16)*(0.5+0.5*Math.sin(t*(1.5+hs(i*3.3)*2)+i));
+      if(a<=0.01) continue;
+      ctx.strokeStyle='hsla('+(hu+30)+',60%,80%,'+a.toFixed(3)+')'; ctx.lineWidth=Math.max(0.6,d*2.2);
+      ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+len,y); ctx.stroke();
+    }
     ctx.restore();
   }
 
@@ -6704,18 +6772,15 @@ class Component extends DCLogic {
     ctx.restore();
     const V=this.sceneSig(), sz=1.2+(e.morph??0.5)*3.2+(A.loud||0)*0.4+(A.beat||0)*0.2;
     // A circular hologram at the vanishing point: the clip cut to a disc,
-    // tinted, scanlined and flickering, with a glowing rim, two turning rings
-    // and the projector beam that throws it. Twist turns it about its vertical
-    // axis, so it narrows to an ellipse as it goes side-on.
+    // tinted, scanlined and flickering, with a glowing rim and two turning
+    // rings. The people in the clip lift off it on their own layer, as in the
+    // Reflection Pool, and slide against the disc as it turns and the view
+    // moves (Depth sets how far). Twist turns it about its vertical axis, so
+    // it narrows to an ellipse as it goes side-on.
     const turn=Math.sin(t*0.4)*0.4+(this.scnYaw||0), sq=Math.cos(turn), sqa=Math.max(0.04,Math.abs(sq));
     const r=W*0.9*Vw.sc*(sz*0.5)/8, hx=cx, hy=cy+Math.sin(t*0.7)*0.15/8*W*0.9*Vw.sc, rc=this.hrgb(hu+10,0.8,0.62);
     const fl=0.86+Math.random()*0.08+(A.beat||0)*0.06;
     ctx.save(); ctx.globalCompositeOperation='lighter';
-    // beam from a projector below
-    const by=hy+r*1.9, bm=ctx.createLinearGradient(0,by,0,hy);
-    bm.addColorStop(0,'rgba('+rc.join(',')+',0.32)'); bm.addColorStop(1,'rgba('+rc.join(',')+',0.02)');
-    ctx.fillStyle=bm; ctx.beginPath(); ctx.moveTo(hx-r*0.08,by); ctx.lineTo(hx+r*0.08,by); ctx.lineTo(hx+r*sqa,hy); ctx.lineTo(hx-r*sqa,hy); ctx.closePath(); ctx.fill();
-    this.glow2(ctx,hx,by,r*0.25,rc,0.6);
     this.glow2(ctx,hx,hy,r*1.5,rc,0.18*fl);
     ctx.restore();
     // the disc
@@ -6734,6 +6799,25 @@ class Component extends DCLogic {
     ctx.lineWidth=Math.max(1,r*0.012); ctx.setLineDash([r*0.18,r*0.1]);
     for(const [k,sp] of [[1.12,0.5],[1.24,-0.32]]){ ctx.lineDashOffset=t*sp*r; ctx.globalAlpha=0.5; ctx.beginPath(); ctx.ellipse(hx,hy,r*k*sqa,r*k,0,0,6.2832); ctx.stroke(); }
     ctx.restore();
+    // The cut-out: its shadow sits on the disc, the people float in front of
+    // it. Offset grows with Depth, with the turn (they stand proud of the face,
+    // so they swing wider than it) and with the pan, which is the parallax.
+    const mt=this.segMatte(V,rc);
+    if(mt){
+      const dep=0.15+(e.cb??0.5)*1.2, sn=Math.sin(turn);
+      const px=sn*r*0.34*dep + Vw.ox*0.12*dep, py=Vw.oy*0.08*dep - r*0.03*dep;
+      // Same aspect as the disc, so the crop matches and the people line up
+      // with themselves in the picture; a touch larger for the lift.
+      const w2=r*2*sqa*1.05, h2=r*2*1.05;
+      ctx.save(); ctx.beginPath(); ctx.ellipse(hx,hy,r*sqa,r,0,0,6.2832); ctx.clip();
+      if(sq<0){ ctx.translate(hx,hy); ctx.scale(-1,1); ctx.translate(-hx,-hy); }
+      this.vidBlit(ctx,mt.shade,hx-r*sqa+px*0.25,hy-r+r*0.04,r*2*sqa,r*2,0.55);
+      ctx.restore();
+      ctx.save();
+      if(sq<0){ ctx.translate(hx+px,hy); ctx.scale(-1,1); ctx.translate(-(hx+px),-hy); }
+      this.vidBlit(ctx,mt.cut,hx+px-w2/2,hy+py-h2/2,w2,h2,0.95*fl);
+      ctx.restore();
+    }
   }
 
   // The Sphere: a faceted dome over a dusk city, wrapped in the clip. Two
@@ -6775,19 +6859,20 @@ class Component extends DCLogic {
     for(const [a0,w0] of [[0,1.4],[1.2,1.0],[2.5,1.2]]){ const ca=Math.cos(a0), sa=Math.sin(a0);
       S.decal(gnd,[[-90*ca-w0*sa,0.01,-90*sa+w0*ca],[90*ca-w0*sa,0.01,90*sa+w0*ca],[90*ca+w0*sa,0.01,90*sa-w0*ca],[-90*ca+w0*sa,0.01,-90*sa-w0*ca]],[40,38,52]); }
     // city blocks — kept off the ferris wheel's lot
-    const glows=[], FW=[-40,0,34], FWr=17;
+    const glows=[], FW=[-40,0,34], FWr=17, occ=[];
     for(let i=0;i<70;i++){
       const ang=hs(i*3.3)*6.283+(hs(i*3.3)<0.5?0:0), rr0=hs(i*7.1), rad=rr0<0.3?19+rr0*25:30+(rr0-0.3)*130, inner=rad<44, x=Math.cos(ang)*rad, z=Math.sin(ang)*rad, r=hs(i*1.7);
       if(!inner && Math.abs(rad-R)<9) continue;
       if(Math.hypot(x-FW[0],z-FW[2])<FWr) continue;
       const bw=3+r*6, bd=3+hs(i*2.9)*6, bh=inner?1+hs(i*5.3)*2.2:3+Math.pow(hs(i*5.3),2)*26, col=rgb(hu-20+r*40,0.15,0.22+r*0.12);
       const B=S.box([x,bh/2,z],[bw,bh,bd],ang,col);
+      occ.push([x,bh/2,z,bw,bh,bd,ang]);
       for(const k of ['nz','pz','nx','px']){ if(!B[k]||B[k].d>110) continue; const rows=Math.max(1,Math.round(bh/2.2)), cols=Math.max(1,Math.round(bw/2));
         for(let c=0;c<cols;c++) for(let w=0;w<rows;w++){ if(hs(i*13+c*3+w*7+k.length)>0.45) continue;
           S.decal(B[k],B.on(k,(c+0.25)/cols,(w+0.3)/rows,(c+0.75)/cols,(w+0.7)/rows,0.03),hs(i+c+w)<0.3?[255,200,120]:[255,235,190],{emit:1}); } }
     }
     // the tower, warm gold, like the hotel behind the dome in the reference
-    const T=S.box([48,14,46],[8,28,5],-0.8,rgb(38,0.7,0.5));
+    const T=S.box([48,14,46],[8,28,5],-0.8,rgb(38,0.7,0.5)); occ.push([48,14,46,8,28,5,-0.8]);
     for(const k of ['nz','nx','pz','px']){ if(!T[k]) continue; for(let w=0;w<14;w++) S.decal(T[k],T.on(k,0.08,(w+0.2)/14,0.92,(w+0.6)/14,0.03),[255,210,130],{emit:1}); }
     S.box([48,28.6,46],[6,1.2,4],-0.8,rgb(38,0.6,0.42));
     // podium
@@ -6795,7 +6880,7 @@ class Component extends DCLogic {
     S.box([0,0.8,0],[Rs*2.3,1.6,Rs*2.3],0.785,rgb(hu-20,0.12,0.18));
     const ring=S.box([0,1.8,0],[Rs*1.7,0.6,Rs*1.7],0,rgb(hu-20,0.1,0.12));
     // the dome
-    // The clip is cropped to a centred square before it is wrapped.
+    // The clip is cropped to a centered square before it is wrapped.
     const nLon=22, nLat=12, half=nLon/2, Vd=V, C=this._vcrop(V,1);
     const spin=t*0.15*Math.max(0,(e.ca??0.3)-0.3)*1.5;
     // Latitudes start where the dome meets the top of the ring, so no facet
@@ -6857,7 +6942,29 @@ class Component extends DCLogic {
     }
     S.paint(ctx);
     ctx.save(); ctx.globalCompositeOperation='lighter';
-    for(const L of this._fwLights||[]){ const p=S.P(L); if(p) this.glow2(ctx,p[0],p[1],Math.max(1.5,F*0.45/p[2]),[255,220,170],0.85); }
+    // The lights are glows laid over the finished frame, which has no depth
+    // test of its own, so each one checks its line of sight first: a building,
+    // the tower or the dome between it and the camera hides it.
+    const seen=L=>{
+      const ox=cam.x, oy=cam.y, oz=cam.z, dx=L[0]-ox, dy=L[1]-oy, dz=L[2]-oz;
+      for(const b of occ){
+        const cw=Math.cos(b[6]), sw=Math.sin(b[6]), rx=ox-b[0], rz=oz-b[2];
+        const o=[rx*cw-rz*sw, oy-b[1], rx*sw+rz*cw], d=[dx*cw-dz*sw, dy, dx*sw+dz*cw], h=[b[3]/2,b[4]/2,b[5]/2];
+        let t0=0, t1=0.98, hit=true;
+        for(let a=0;a<3;a++){
+          if(Math.abs(d[a])<1e-9){ if(Math.abs(o[a])>h[a]){ hit=false; break; } continue; }
+          let ta=(-h[a]-o[a])/d[a], tb=(h[a]-o[a])/d[a]; if(ta>tb){ const q=ta; ta=tb; tb=q; }
+          if(ta>t0) t0=ta; if(tb<t1) t1=tb; if(t0>t1){ hit=false; break; }
+        }
+        if(hit) return false;
+      }
+      // the dome, as its bounding ellipsoid above the ring
+      const ex=ox, ey=(oy-cy0)/ySc, ez=oz, fx=dx, fy=dy/ySc, fz=dz;
+      const qa=fx*fx+fy*fy+fz*fz, qb=2*(ex*fx+ey*fy+ez*fz), qc=ex*ex+ey*ey+ez*ez-Rs*Rs*0.97, disc=qb*qb-4*qa*qc;
+      if(disc>0){ const tq=(-qb-Math.sqrt(disc))/(2*qa); if(tq>0 && tq<0.98 && oy+dy*tq>yTop) return false; }
+      return true;
+    };
+    for(const L of this._fwLights||[]){ if(!seen(L)) continue; const p=S.P(L); if(p) this.glow2(ctx,p[0],p[1],Math.max(1.5,F*0.45/p[2]),[255,220,170],0.85); }
     const dc=S.P([0,cy0,0]); if(dc) this.glow2(ctx,dc[0],dc[1],F*Rs*2.2/dc[2],[vc[0]*255,vc[1]*255,vc[2]*255],0.18+(A.loud||0)*0.15);
     ctx.restore();
   }
@@ -6897,7 +7004,7 @@ class Component extends DCLogic {
     const spd=0.30+Math.pow(e.speed==null?0.9:e.speed,2)*11.4;
     if(this.state.auto) M.z=(M.z||0)+spd*(0.014+bass*0.022);
 
-    // Hue now walks the whole wheel, centred so the preset's stored hue (0.55)
+    // Hue now walks the whole wheel, centered so the preset's stored hue (0.55)
     // still lands on the authored 253° and the default look is untouched.
     // It used to cover 140° from a cyan base, so
     // the scene could only ever be cyan through magenta — the sky and sun were
@@ -6908,7 +7015,7 @@ class Component extends DCLogic {
     const hb=Math.round(((253+((e.hue==null?0.55:e.hue)-0.55)*360)%360+360)%360);
     // Same approach as Shorebreak: rather than guessing offsets from hb, rotate
     // the authored literals by however far hb has turned from its default. Each
-    // colour below is the measured HSL of the hex it replaces, so orRot=0 at the
+    // color below is the measured HSL of the hex it replaces, so orRot=0 at the
     // preset default reproduces the original palette exactly.
     const orRot=(hb-253+360)%360;
     const orH=(h)=>Math.round(((h+orRot)%360+360)%360);
@@ -6986,7 +7093,7 @@ class Component extends DCLogic {
       ctx.restore();
     }
 
-    // mountains — spectrum mirrored about the centre, wireframe read from ribs.
+    // mountains — spectrum mirrored about the center, wireframe read from ribs.
     // Each range is filled solid before it is stroked, so the sun disappears
     // behind the peaks instead of shining through them; the far range is filled
     // a shade lighter than the near one to keep the two readable when they cross.
@@ -7031,7 +7138,7 @@ class Component extends DCLogic {
     }
 
     // horizon glow, punched by the beat
-    // Geometry and colours here are fixed; only the strength moves. Built once at
+    // Geometry and colors here are fixed; only the strength moves. Built once at
     // full alpha and scaled with globalAlpha, so the beat can drive it without
     // rebuilding the ramp.
     const gg=this.gcache('or.glow'+orRot+'|'+Math.round(hz)+'|'+Math.round(H), ()=>{
@@ -7079,7 +7186,7 @@ class Component extends DCLogic {
     ctx.restore();
   }
 
-  // Shorebreak. A single big low-poly wave seen broadside, travelling left to
+  // Shorebreak. A single big low-poly wave seen broadside, traveling left to
   // right across the frame and pitching over as it goes, on a faceted sea under
   // a dusk sky with clouds passing.
   //
@@ -7097,7 +7204,7 @@ class Component extends DCLogic {
   //    the reference is a wave seen from the side, and oblique is what reads that
   //    way. It also keeps the silhouette constant as the wave crosses the frame.
   //
-  // 3. Every facet is flat-filled with its own tone, and neighbouring facets are
+  // 3. Every facet is flat-filled with its own tone, and neighboring facets are
   //    perturbed by a hash that is fixed per (slice, vertex). Fixed, because a
   //    per-frame random makes the whole surface boil; the wave should travel as
   //    a rigid form the way a real swell does.
@@ -7148,7 +7255,7 @@ class Component extends DCLogic {
     // green sea under a magenta sky — no water looks like that, and this is the
     // one scene in the set that reads as a place rather than a pattern. The
     // window runs 178°–228°: cool tropical green-teal at one end, deep evening
-    // blue at the other, through the authored 203° dusk at centre. The warm
+    // blue at the other, through the authored 203° dusk at center. The warm
     // offsets below (sun, clouds, the band at the waterline) still ride on it,
     // so the whole sky stays consistent with whatever water is chosen.
     const hb=Math.round(178+(e.hue==null?0.5:e.hue)*50);
@@ -7317,7 +7424,7 @@ class Component extends DCLogic {
     const xAt=(u,k)=>vpx+(u+scroll)*k;              // world x -> screen x
     const uAt=(x,k)=>(x-vpx)/k-scroll;              // screen x -> world x
     const beltL=b=>26+b*4.4;        // deep teal water, per the reference palette
-    // The belt's own colour as rgb, so the wave's footprint can be mixed into
+    // The belt's own color as rgb, so the wave's footprint can be mixed into
     // the exact water tone at its depth rather than approximating it.
     const beltRGB=(b)=>{
       const l=beltL(Math.max(0,b))/100, s=0.52, hh=shH(190)/60;
@@ -7499,7 +7606,7 @@ class Component extends DCLogic {
       SUR.z += (SUR.sz-SUR.z)*0.46;
       // Longitudinally he runs ALONG the wave, in model z. The wave is one
       // profile swept down its length, so the face is identical at every z and
-      // travelling this axis cannot put him through anything. Kept well inside
+      // traveling this axis cannot put him through anything. Kept well inside
       // the swept span so he stays on the stretch of face that is in frame.
       const xPrev=SUR.x;
       if(SUR.sx===undefined) SUR.sx=SUR.tx||0;
@@ -7542,7 +7649,7 @@ class Component extends DCLogic {
       // turn coming the other way.
       // Carving. A surfer cannot reverse: to go the other way he has to turn the
       // board through the arc, and that takes time. So the board's heading is the
-      // direction he is actually travelling — the board's long axis is model +x,
+      // direction he is actually traveling — the board's long axis is model +x,
       // so pointing it along the velocity is atan2(vz, vx) — and the yaw is RATE
       // LIMITED on its way there. Reversing the input therefore swings him a full
       // half turn through the depth-facing quarter, which is what a cutback looks
@@ -7565,7 +7672,7 @@ class Component extends DCLogic {
       const sway=(Math.sin(t2*2.05+SUR.swPh)*0.42+Math.sin(t2*0.83+SUR.swPh*1.7)*0.19)*swDamp;
       const yawD=SUR.yaw+sway;
       const cyw=Math.cos(yawD), syw=Math.sin(yawD), CZ=(MSH.piv||MSH.sur)[2];
-      // Travelling along the wave changes his depth, and depth changes his
+      // Traveling along the wave changes his depth, and depth changes his
       // perspective factor. That factor multiplies the belt's running scroll, so
       // left alone a depth change re-projects him HUNDREDS of pixels sideways
       // about the vanishing point instead of moving him along the wave. This is
@@ -7625,12 +7732,12 @@ class Component extends DCLogic {
             MSH.hull0=0.5*Math.atan2(2*sxy, sxx-syy);
           } else MSH.hull0=0;
         }
-        // The authored tilt has to be cancelled AS IT CURRENTLY SITS, not as it
-        // was modelled: the carve rotates the hull about his vertical first, so
+        // The authored tilt has to be canceled AS IT CURRENTLY SITS, not as it
+        // was modeled: the carve rotates the hull about his vertical first, so
         // by the time the pitch is applied that baked-in angle has been squashed
         // by cos(yaw) — and at a full reversal it has flipped sign. Rotating the
         // authored direction through the yaw and reading its x-y angle back
-        // handles both, and normalising to a half turn keeps it a LINE angle, so
+        // handles both, and normalizing to a half turn keeps it a LINE angle, so
         // a board pointing the other way still lies on the face rather than
         // mirroring off it.
         let h0e=Math.atan2(Math.sin(MSH.hull0), Math.cos(MSH.hull0)*cyw);
@@ -7726,13 +7833,13 @@ class Component extends DCLogic {
         if(SX[a]<-8&&SX[b]<-8&&SX[c]<-8) continue;
         if(SX[a]>W+8&&SX[b]>W+8&&SX[c]>W+8) continue;
         const h=HY[k];
-        // prim 2 is the surfer: it carries its own baked colour and takes no part
+        // prim 2 is the surfer: it carries its own baked color and takes no part
         // in the water ramp or the waterline blend.
         let col;
         if(prim===2){
           col=[MSH.rgb[k*3],MSH.rgb[k*3+1],MSH.rgb[k*3+2]];
           // Trunks per rider. The shorts are the only blue-dominant part of him,
-          // and swapping channels rather than substituting a flat colour keeps
+          // and swapping channels rather than substituting a flat color keeps
           // every facet's own shading intact — the same fold reads the same
           // depth in red or green as it does in blue.
           if(cfg.suit && col[2]>col[0]*1.2 && col[2]>col[1]*1.1)
@@ -7750,7 +7857,7 @@ class Component extends DCLogic {
           ? [0,1,2].map(j=>bl[j]+(mid[j]-bl[j])*(e/0.62))
           : [0,1,2].map(j=>{const w=(e-0.62)/0.38, wt=[251,255,255][j];return mid[j]+(wt-mid[j])*w*w;});
         }
-        // Faceted relief comes off the model's own normals, not the colour.
+        // Faceted relief comes off the model's own normals, not the color.
         const sh = prim===2 ? LAM[k] : 0.94+0.11*(NR?NR[k*3+1]:1);
         if(useGL){
           GL.tri(SX[a],SY[a],SZ[a], SX[b],SY[b],SZ[b], SX[c],SY[c],SZ[c],
@@ -7779,7 +7886,7 @@ class Component extends DCLogic {
             const a=SX[i]-ax, b=SY[i]-ay; sxx+=a*a; syy+=b*b; sxy+=a*b;
           }
           const th=0.5*Math.atan2(2*sxy, sxx-syy);
-          SUR.hullMeas=-th;      // screen y is down; report a maths-convention angle
+          SUR.hullMeas=-th;      // screen y is down; report a math-convention angle
         }
       }
       if(window.__SURFDBG){
@@ -7812,12 +7919,12 @@ class Component extends DCLogic {
         const drive = Math.max(0, spd - sizeK*0.10);
         if(drive>0){
           const ux=pvx/spd, uy=pvy/spd;
-          // The tail is the end of the board he is travelling AWAY from,
+          // The tail is the end of the board he is traveling AWAY from,
           // measured along the board's own length. Spray leaves there, at the
           // hull.
-          const towards = (SUR.z-zPrev) >= 0;
-          const tx = towards ? pMinX : pMaxX;
-          const ty = Math.min(ry1, (towards ? pMinY : pMaxY) + (ry1-ry0)*0.10);
+          const toward = (SUR.z-zPrev) >= 0;
+          const tx = toward ? pMinX : pMaxX;
+          const ty = Math.min(ry1, (toward ? pMinY : pMaxY) + (ry1-ry0)*0.10);
           const emit = Math.min(3, 1 + Math.round(drive*0.28));
           for(let e=0;e<emit;e++){
             // Fired opposite the direction of travel, with spread, so the plume
@@ -7935,7 +8042,7 @@ class Component extends DCLogic {
   // Cyclical five-stop ramp. Cosine palettes sweep hue at a constant rate; a
   // stop list can hold a tone across several bands and then turn hard, which is
   // what makes valleys and shells legible instead of rainbow soup.
-  // The ramp is now a SHAPE, not a fixed set of colours: five stops given as
+  // The ramp is now a SHAPE, not a fixed set of colors: five stops given as
   // [hue offset in turns, saturation, lightness]. The stop list only decides
   // how the ramp climbs and where it turns hard — the Hue control rotates the
   // whole thing around the wheel, so every canvas scene can reach any part of
@@ -8025,7 +8132,7 @@ class Component extends DCLogic {
   //
   // It runs on the finished frame rather than inside each scene, so one pass
   // serves every 2D scene and nothing about how they draw has to change. The
-  // result is composited in 'overlay' around mid grey: mid grey leaves a pixel
+  // result is composited in 'overlay' around mid gray: mid gray leaves a pixel
   // untouched, so only the lit and shadowed slopes move and the palette is
   // preserved instead of being washed toward white.
   reliefPass(ctx,W,H,amt){
@@ -8093,7 +8200,7 @@ class Component extends DCLogic {
   }
 
   // Gradient cache. createLinearGradient/createRadialGradient allocates an
-  // object and makes the rasterizer build a fresh colour ramp, and the canvas
+  // object and makes the rasterizer build a fresh color ramp, and the canvas
   // scenes were doing that several times per frame for gradients whose inputs
   // barely move — the sun disc, the horizon glow, the sea ramp. Keyed on the
   // quantized inputs, so a gradient is rebuilt only when it would actually look
@@ -8124,7 +8231,7 @@ class Component extends DCLogic {
     return {a:M.acc, w:w, h:h, cv:M.accCv, ctx:M.accCtx, img:M.accImg};
   }
   accDecay(A,k){ const a=A.a; for(let i=0;i<a.length;i++) a[i]*=k; }
-  // Segment rasteriser for the accumulator. The flows deposit one cell per
+  // Segment rasterizer for the accumulator. The flows deposit one cell per
   // integration step, which reads as a dotted trace the moment the step size is
   // pushed. Joining consecutive samples with a line makes the swept path
   // continuous at any speed, and the deposit is divided along the run so a fast
@@ -8166,7 +8273,7 @@ class Component extends DCLogic {
       // where the reference photographs are near-white filament. 4.0 spends the
       // curve where the density actually lives, and the brightness ramp now
       // reaches past 1 so the dense core of a lobe clips to white the way a long
-      // exposure does, instead of topping out at three-quarter grey.
+      // exposure does, instead of topping out at three-quarter gray.
       const l=Math.min(1,Math.log(1+v*gain)/4.0);
       const c=this.cyc(l*0.82,hue);
       const b=0.30+l*1.45;
@@ -8434,7 +8541,7 @@ class Component extends DCLogic {
   // elapsed time — jumps by t·Δrate the instant the rate changes: three minutes
   // in, a nudge of the Speed slider rewrote hundreds of radians of history, the
   // scene lurched hard for a moment and then carried on at almost exactly the
-  // old apparent rate. That was the Speed slider's whole behaviour. Integrating
+  // old apparent rate. That was the Speed slider's whole behavior. Integrating
   // the rate instead means the slider changes only the rate, from now on, with
   // no discontinuity. Every scene phase that Speed touches goes through here.
   clk(key,rate){
@@ -8605,7 +8712,7 @@ class Component extends DCLogic {
         if(mk==='surface'){
           // Bilinear deposit. A single-pixel splat on a flow this dense gives
           // the shell a grainy sparkle; spreading each sample across the four
-          // neighbours it falls between turns the same hits into a continuous
+          // neighbors it falls between turns the same hits into a continuous
           // surface, which is the whole point of this attractor.
           const gx=fx-ix, gy=fy-iy, i2=Math.min(aw-1,ix+1), j2=Math.min(ah-1,iy+1);
           a[iy*aw+ix]+=amt*(1-gx)*(1-gy); a[iy*aw+i2]+=amt*gx*(1-gy);
@@ -8652,7 +8759,7 @@ class Component extends DCLogic {
     this.flowScene(ctx,W,H,tick,{
       key:'lorenz', dt:0.0032, steps:900, span:62, zc:25, bail:200,
       mark:'comet', keepBias:-0.10,
-      // The two unstable fixed points at the centre of the wings:
+      // The two unstable fixed points at the center of the wings:
       // C± = (±√(β(ρ−1)), ±√(β(ρ−1)), ρ−1). They are what the flow orbits, so
       // marking them gives the butterfly two anchors that hold still while
       // everything else moves — and they track ρ as the transient pushes it.
@@ -8668,7 +8775,7 @@ class Component extends DCLogic {
         ctx.stroke();
         // The origin: the saddle where the two lobes meet. Every wing change
         // passes through it, so it is the one point on the butterfly that
-        // explains the shape. A ring, plus the chord joining the two centres
+        // explains the shape. A ring, plus the chord joining the two centers
         // through it, so the three anchors read as one figure.
         const o=proj(0,0,0), c1=proj(r,r,P.rho-1), c2=proj(-r,-r,P.rho-1);
         ctx.strokeStyle='rgba(150,190,232,0.24)';
@@ -8728,7 +8835,7 @@ class Component extends DCLogic {
       // diagonal to fill all three arms of the lattice rather than one.
       seed:(i,n)=>{ const a=i/n*6.2832; return {x:1.1+Math.cos(a)*0.9, y:1.1+Math.sin(a)*0.9, z:1.1}; },
       // Below b ≈ 0.208 the orbit is chaotic and fills a knotted lattice; above
-      // it the flow collapses to a limit cycle. The slider is centred on that
+      // it the flow collapses to a limit cycle. The slider is centered on that
       // boundary, so Cst A sweeps from tidy loop to full tangle.
       // Held on the chaotic side of the b ≈ 0.208 boundary. The old range ran to
       // 0.41, so the top half of the slider collapsed the flow to a small limit
@@ -8754,7 +8861,7 @@ class Component extends DCLogic {
 
   // Flames (105–108). An IFS rendered the way fractal-flame tools render it: a
   // point is thrown through randomly chosen maps and every landing is counted,
-  // so brightness is log hit density and colour is the running average of the
+  // so brightness is log hit density and color is the running average of the
   // maps that point passed through. Nothing is drawn outside the attractor.
   drawFlameSpiral(ctx,W,H,tick){ this.drawFlame(ctx,W,H,tick,105); }
   drawFlameDragon(ctx,W,H,tick){ this.drawFlame(ctx,W,H,tick,106); }
@@ -8800,8 +8907,8 @@ class Component extends DCLogic {
     Object.assign(m2,{w:0.4,col:0.92,v:1,vw:vv*0.35});
     return [m1,m2];
   }
-  // Per-scene gradients, indexed by the colour coordinate. Hue rotates the
-  // whole gradient about the grey axis, so 0.5 is the designed palette.
+  // Per-scene gradients, indexed by the color coordinate. Hue rotates the
+  // whole gradient about the gray axis, so 0.5 is the designed palette.
   FLAME_STOPS = {
     105:[[0,8,22,96],[0.3,28,86,226],[0.55,118,186,255],[0.8,255,204,96],[1,255,150,40]],
     106:[[0,40,6,4],[0.3,170,30,12],[0.6,250,110,30],[0.85,255,206,96],[1,255,246,210]],
@@ -9020,7 +9127,7 @@ class Component extends DCLogic {
     // build's full-res scale and the old fixed 0.7*dpr one, so the field starts
     // at exactly the size it always had - and because the divisor no longer
     // contains the quality factor or the governor, W still shrinks the buffer
-    // when either backs off. Normalising against the live scale cancelled out
+    // when either backs off. Normalizing against the live scale canceled out
     // and made both controls no-ops.
     const div=2*Math.min(window.devicePixelRatio||1,1.5)/(0.7*Math.min(window.devicePixelRatio||1,2));
     const w=Math.max(16,Math.round(W/div)), h=Math.max(16,Math.round(H/div));
@@ -9053,7 +9160,7 @@ class Component extends DCLogic {
     // Warp, in place of the old core Glow. The glow was a white bloom at the
     // vanishing point, which is the one part of this image that needs no help —
     // the arms converging there already read as depth. Warp instead breathes the
-    // spiral out of true: a slow travelling wave in the phase, so the arms
+    // spiral out of true: a slow traveling wave in the phase, so the arms
     // wander rather than running as perfect logarithmic curves.
     const warp=(e.detail==null?0.45:e.detail);
     const hue=(e.hue==null?0.5:e.hue)+mtick*0.0004;
@@ -9063,7 +9170,7 @@ class Component extends DCLogic {
     // shared dt clock now, so the drain turns at a rate in radians per second and
     // holds it whatever the frame timing does.
     const sp0=(e.speed==null?0.6:e.speed);
-    // Negated: with +ph0 the bands crawled OUTWARD, away from the centre. A
+    // Negated: with +ph0 the bands crawled OUTWARD, away from the center. A
     // hypnotic spiral pulls inward — the whole point is that the eye is drawn
     // down the drain, not pushed off the rim.
     const ph0=this.clk('swirlPh',(0.18+sp0*sp0*13.4)*(1+M.swBass*0.55));
@@ -9091,7 +9198,7 @@ class Component extends DCLogic {
     const wph=ph0*0.30;
     // Sign flipped on both axes. Everywhere else the pan moves the VIEW, which
     // is right when there is a field to travel across — but this scene is one
-    // centred object, and the eye reads the spiral as the thing being held. Push
+    // centered object, and the eye reads the spiral as the thing being held. Push
     // the stick right and the swirl now goes right.
     const cx=w*0.5-V.ox/div, cy=h*0.5-V.oy/div;
     const pulse=1+beat*0.06;
@@ -9108,7 +9215,7 @@ class Component extends DCLogic {
         const tri=Math.abs(((tw%1)+1)%1-0.5)*4-1;
         const trif=Math.min(1,sc/Math.max(1e-4,rk*2.2));
         let phase=arms*ang - twistNow*Math.log(r) + ph0 + serr*0.55*tri*trif;
-        // Travelling wave along the arm, two octaves so it never reads as a
+        // Traveling wave along the arm, two octaves so it never reads as a
         // single wobble. Amplitude is in radians of phase, so its effect is the
         // same at any Twist.
         if(warp>0.01) phase += warp*(1.35*Math.sin(ang*2.0-r*3.1+wph) + 0.62*Math.sin(ang*5.0+r*1.7-wph*1.7));
@@ -9127,14 +9234,14 @@ class Component extends DCLogic {
           // that cut the phase jumps by exactly arms·2π — so the raw band number
           // jumped too and left a hard horizontal seam down the left of the
           // frame. Taken modulo the arm count the index is continuous through
-          // the cut, and the colours still cycle once per turn.
+          // the cut, and the colors still cycle once per turn.
           const band=Math.floor(phase/6.2832);
           const bq=((band%arms)+arms)%arms;
           // cyc hands back its shared LUT row, so the blend is read into
           // locals — writing through c would rewrite the palette itself.
           const c=this.cyc(bq/arms+r*0.05+ph0*0.021, hue);
           let c0=c[0], c1=c[1], c2=c[2];
-          // Blend toward the neighbouring band across the boundary pixel.
+          // Blend toward the neighboring band across the boundary pixel.
           const fb=phase/6.2832-band, gpx=Math.max(1e-4,gk/r)/6.2832;
           const bl=fb<gpx ? 0.5-fb/(2*gpx) : (fb>1-gpx ? 0.5+(fb-1+gpx)/(2*gpx) : 0);
           if(bl>0.001){
@@ -9186,11 +9293,11 @@ class Component extends DCLogic {
   // cheaper than the two-image lens this replaced.
   //
   // The rows refresh in continuous rotation, each carrying the geometry of the
-  // frame that traced it, and the geometry is quantised before it reaches the
+  // frame that traced it, and the geometry is quantized before it reaches the
   // trace. Both matter: with AUTO on, inclination and shadow size are modulated
   // every frame, so a cache that restarted whenever they changed would restart
   // every frame and never get past its first slice — the trap drawEscape's
-  // progressive sweep fell into. Quantising means the modulation usually traces
+  // progressive sweep fell into. Quantizing means the modulation usually traces
   // to the same table; rotation means every row gets refreshed regardless.
   drawHole(ctx,W,H,tick){
     const M=this.MESH, A=this.a, e=this.eff||{};
@@ -9235,7 +9342,7 @@ class Component extends DCLogic {
     if(this.state.auto) M.bhT+=(0.005+Math.pow(e.speed==null?0.5:e.speed,2)*0.33)*(1+bass*0.8);
     const T=M.bhT, rate=1.0+(e.ca==null?0.5:e.ca)*2.2;
     const hue=(e.hue==null?0.08:e.hue)+mtick*0.00008;
-    // Quantised geometry for the trace. Emission still reads the live values,
+    // Quantized geometry for the trace. Emission still reads the live values,
     // so beat response stays frame-exact — it is only the ray paths that snap.
     const rsQ=Math.round(rsS/0.02)*0.02, cosiQ=Math.round(cosi/0.03)*0.03;
     const siniQ=Math.sqrt(Math.max(0,1-cosiQ*cosiQ));
@@ -9269,7 +9376,7 @@ class Component extends DCLogic {
           const bR=Math.sqrt(dx*dx+dy*dy);
           const i3=(py*w+px)*3;
           TR[i3]=0; TR[i3+1]=0; TR[i3+2]=0;
-          if(bR<1e-4){ MASK[py*w+px]=1; continue; }   // dead centre: straight in
+          if(bR<1e-4){ MASK[py*w+px]=1; continue; }   // dead center: straight in
           const ux=dx/bR, uy=dy/bR;
           const ang=KA*bR, sa=Math.sin(ang), ca=Math.cos(ang);
           // Orbital-plane basis: er points from the hole to the camera, ep is
@@ -9464,7 +9571,7 @@ class Component extends DCLogic {
   // Disco Robot. A one-point-perspective room drawn as flat-shaded quads sorted
   // back to front — a painter's pass, no depth buffer — which is what lets the
   // robot's own limbs occlude each other without a z-texture. The limbs are
-  // deliberately detached: every bone is an independent solid centred on its own
+  // deliberately detached: every bone is an independent solid centered on its own
   // segment, so the pose solver moves each one without a joint to satisfy.
   //
   // The pose itself is the whole point of the scene: on each onset the solver
@@ -9516,8 +9623,8 @@ class Component extends DCLogic {
       return [hx+ix*rc-iy*rs, hy+ix*rs+iy*rc, d];
     };
 
-    // Two coloured lights plus a white key from the ball. The room hue rotates,
-    // so the beige plastic picks up whatever colour the floor is throwing.
+    // Two colored lights plus a white key from the ball. The room hue rotates,
+    // so the beige plastic picks up whatever color the floor is throwing.
     const ballH=hueK+t*0.055;
     const keyC=hsv(ballH+0.06,0.80,1);
     const filC=hsv(ballH+0.52,0.85,1);
@@ -9540,7 +9647,7 @@ class Component extends DCLogic {
       let nx=ay*bz-az*by, ny=az*bx-ax*bz, nz=ax*by-ay*bx;
       const nl=Math.hypot(nx,ny,nz)||1; nx/=nl; ny/=nl; nz/=nl;
       const fc=[(q[0][0]+q[2][0])/2,(q[0][1]+q[2][1])/2,(q[0][2]+q[2][2])/2];
-      if(o.ctr){ // outward normal decided by the solid's centre, not by winding
+      if(o.ctr){ // outward normal decided by the solid's center, not by winding
         if(nx*(fc[0]-o.ctr[0])+ny*(fc[1]-o.ctr[1])+nz*(fc[2]-o.ctr[2])<0){ nx=-nx; ny=-ny; nz=-nz; }
         if(!noCull && nx*(fc[0]-camX)+ny*(fc[1]-(MIR?-eyeY:eyeY))+nz*(fc[2]-camZ)>0) return;
       }
@@ -9596,7 +9703,7 @@ class Component extends DCLogic {
     ctx.globalCompositeOperation='source-over';
     ctx.fillStyle='#05060B'; ctx.fillRect(0,0,W,H);
 
-    // Back wall: a dark plane with a soft wash of the room colour.
+    // Back wall: a dark plane with a soft wash of the room color.
     const TS=1.05, TZ0=1.1, rows=tileN+8, wallZ=TZ0+rows*TS;
     const wg=ctx.createLinearGradient(0,0,0,H);
     wg.addColorStop(0,'#04050A');
@@ -9613,7 +9720,7 @@ class Component extends DCLogic {
         const p0=P(x0,0,z0), p1=P(x1,0,z0), p2=P(x1,0,z1), p3=P(x0,0,z1);
         const lo=Math.min(p0[0],p1[0],p2[0],p3[0]), hi=Math.max(p0[0],p1[0],p2[0],p3[0]);
         if(hi<-4||lo>W+4) continue;
-        // Chunky colour blocks, not a smooth ramp: the reference floor switches
+        // Chunky color blocks, not a smooth ramp: the reference floor switches
         // whole tiles at a time, which is what makes the grid legible.
         const ph=c*0.13+r*0.10+t*0.20;
         const hh=hueK+Math.floor(ph*2.5)*0.148;
@@ -9780,7 +9887,7 @@ class Component extends DCLogic {
     if(R.musPrev==null) R.musPrev=musNow;
     const dMus=Math.max(0,musNow-R.musPrev); R.musPrev=musNow;
     if(this.state.auto!==false) R.beat+=dMus;
-    // Manual trigger: R1 + Triangle bumps a counter on the pad. Honoured at the
+    // Manual trigger: R1 + Triangle bumps a counter on the pad. Honored at the
     // next step boundary rather than the instant it lands, so a hand cue still
     // arrives on the music.
     const cueN=this.robotNext||0;
@@ -10115,13 +10222,13 @@ class Component extends DCLogic {
     const swing=-aimX*2.4*bG + (Math.sin(t*0.29)*0.16+Math.sin(t*0.17+1.3)*0.10)*bendG*wn;
     const climb= aimY*1.9*rG + (Math.sin(t*0.23+0.7)*0.20+Math.sin(t*0.13)*0.12)*riseG*wn;
     const ribs=Math.round(12+(e.detail==null?0.6:e.detail)*24);
-    // Full wheel centred on the authored blue (240° at the preset's 0.55).
+    // Full wheel centered on the authored blue (240° at the preset's 0.55).
     const hb=Math.round(((240+((e.hue==null?0.55:e.hue)-0.55)*360)%360+360)%360);
     const bandMix=e.cc==null?0.4:e.cc;                   // Bands: fill contrast
     const SEG=16;
 
     // A point on the tube wall: u in [-1,1] across the arc, z in ribs. Local Y
-    // is measured UP from the trough, so the rims sit above the centre line and
+    // is measured UP from the trough, so the rims sit above the center line and
     // the section reads as a U rather than a dome. The arc runs to 1.5 rad (86°)
     // so the rims climb to about mid-screen at the near end, and zNear is set
     // under 1 so the front band passes the camera and overflows the frame.
@@ -10130,7 +10237,7 @@ class Component extends DCLogic {
     // trough off the bottom edge; zN pulls the front band past the camera.
     const ARC=1.5, zN=0.35, EYE=1.0;
     // Axis displacement at depth z. Quadratic in z so the mouth of the tube
-    // stays put under the camera and the far end does the travelling, which is
+    // stays put under the camera and the far end does the traveling, which is
     // what makes it read as a bend rather than the whole world sliding.
     const axS=z => swing*z*z*0.05;
     const axC=z => climb*z*z*0.05;
@@ -10211,7 +10318,7 @@ class Component extends DCLogic {
       // overlapping near edge composited band-over-band and produced a third,
       // intermediate value in the seam region — reading as a extra section
       // between the dark and light ones. Instead the quad stops exactly at its
-      // own near edge and is stroked in its own fill colour, which covers the
+      // own near edge and is stroked in its own fill color, which covers the
       // anti-aliased seam without ever double-compositing a fill.
       const zb=Math.max(0.02, z1);
       quad(z0,zb,-1,-LANE,panel,panel);
@@ -10294,7 +10401,7 @@ class Component extends DCLogic {
       const pool = tone<0.34 ? ['pair','quarter','pair']
                  : tone<0.67 ? ['eighth','pair','quarter']
                              : ['eighth','sharp','eighth'];
-      // Hue tracks the detected pitch class, so a key change recolours the
+      // Hue tracks the detected pitch class, so a key change recolors the
       // notes flying up the tube.
       const nh=(this.h && this.h.conf>0.25) ? (this.h.note*30+18)%360 : (hb+28)%360;
       M.pipeObj.push({
@@ -10572,11 +10679,11 @@ class Component extends DCLogic {
     ].join('\n');
   }
 
-  // Analogue trigger conditioning, per pad and per trigger.
+  // Analog trigger conditioning, per pad and per trigger.
   //
   // The pad this was found on reports R2 pinned at 1.0 with nothing touching it,
   // so a fixed dead zone read that idle as a permanent full squeeze and the zoom
-  // travelled forever untouched. Subtracting the resting value is not enough on
+  // traveled forever untouched. Subtracting the resting value is not enough on
   // its own: with a rest of 1.0 there is no headroom above it, and the trigger
   // goes from runaway to completely dead.
   //
@@ -10600,7 +10707,7 @@ class Component extends DCLogic {
     // dead zone is derived from how much it wobbled in that window — jitter is
     // rejected without spending range. Nothing is inferred from a high reading;
     // a trigger resting high is simply unusable, and stays under test until it
-    // falls and settles, because a pad that initialises high is far more common
+    // falls and settles, because a pad that initializes high is far more common
     // than a genuinely inverted one.
     if(s.rest === null){
       const now = performance.now();
@@ -10626,7 +10733,7 @@ class Component extends DCLogic {
     return Math.min(1, (t - s.gate)/(1 - s.gate));
   }
 
-  // Floating panels the operator can place: the maths readout, the HID
+  // Floating panels the operator can place: the math readout, the HID
   // diagnostics and the text controls. The offset is kept per panel in px and
   // applied as a transform, so the panel keeps whatever corner it was anchored
   // to and simply moves from there. Persisted, because where a panel sits is
@@ -10773,9 +10880,9 @@ class Component extends DCLogic {
       if(Math.abs(rb) < 0.09) R.v[R.b] += rb*0.02;
       const dz = v => { const m = Math.abs(v); return m < 0.07 ? 0 : Math.sign(v)*(m-0.07); };
       // Tilt is a POSITION, not a rate. Integrating it meant a held tilt kept
-      // turning the view, and levelling the pad only stopped it wherever it had
+      // turning the view, and leveling the pad only stopped it wherever it had
       // got to — the view had no home, so pad and image drifted apart over a
-      // set. Mapped absolutely, level is centre and a given tilt is always the
+      // set. Mapped absolutely, level is center and a given tilt is always the
       // same angle: tip the pad and the fractal leans with it, bring it back and
       // the fractal comes back. K (or R3) re-levels, for when the pad has been
       // set down and picked up differently.
@@ -10787,7 +10894,7 @@ class Component extends DCLogic {
       H.sr = (H.sr||0) + (roll  - (H.sr||0))*ks;
       H.sp = (H.sp||0) + (pitch - (H.sp||0))*ks;
       const st = Math.min(0.12, Math.max(0, dt));
-      // Tilt is a RATE now, not a pose. Held over, the pad keeps travelling; back
+      // Tilt is a RATE now, not a pose. Held over, the pad keeps traveling; back
       // to level, it stops where it is — which is how a jib or a slider behaves,
       // and it means the whole frame is reachable from a wrist rather than only
       // the arc a given lean maps to.
@@ -10819,12 +10926,12 @@ class Component extends DCLogic {
         // second. 1.05 frame widths is far enough to put the far side of the
         // solid in view and near enough that some of it is always on screen.
         // Pan is a POSE here, not a rate. Integrating tilt into this.pan meant
-        // a lean kept travelling for as long as it was held and then simply
+        // a lean kept traveling for as long as it was held and then simply
         // stopped wherever it had reached when the pad came level: the view had
         // no home, so over a set the pad and the image drifted apart and only
-        // an explicit recentre could reunite them. Mapped absolutely into its
+        // an explicit recenter could reunite them. Mapped absolutely into its
         // own offset, a given tilt is always the same displacement and level is
-        // always origin — tip the pad and the solid slides off-centre, bring it
+        // always origin — tip the pad and the solid slides off-center, bring it
         // back and it settles home by itself.
         // Tilt is a RATE: held over, the object keeps turning; level, it stops
         // where it is. Left/right orbits around, forward/back over the top.
@@ -10832,7 +10939,7 @@ class Component extends DCLogic {
         const wy = gz(H.sr)*2.4, wp = -gz(H.sp)*2.0;
         if(wy || wp){
           this.cancelHome();
-          // Orbit about the fractal's own centre, not the surface point in
+          // Orbit about the fractal's own center, not the surface point in
           // front of the camera: the pivot glides to the origin and is held there.
           this.pivHeld = true;
           if(this.piv3){ const kc = 1 - Math.pow(0.02, st); for(let i=0;i<3;i++) this.piv3[i] += (0 - this.piv3[i])*kc; }
@@ -10907,7 +11014,7 @@ class Component extends DCLogic {
     }
   }
 
-  // Pad state is delivered to the focused document, so a hidden or minimised
+  // Pad state is delivered to the focused document, so a hidden or minimized
   // operator window gets a frozen snapshot even though the loop is still
   // running. The output popup is a same-origin document with its own navigator,
   // so when it holds focus its pad state is the live one — poll both and take
@@ -11048,13 +11155,13 @@ class Component extends DCLogic {
     const zcurve = (t, rise) => t*(0.40 + 0.60*t)*(1 + Math.min(2.2, rise*0.5));
     const zr = (this.is2D() ? 0.52 : 1.30) * (shift ? 0.22 : 1);
     const zMove = false;
-    // Hand control outranks the automatic 2D centre search — the same rule the
+    // Hand control outranks the automatic 2D center search — the same rule the
     // wheel already followed. Without it the triggers moved the slider while the
-    // descent kept re-solving the centre every validated step, so the frame
+    // descent kept re-solving the center every validated step, so the frame
     // lurched to a new location on the way down instead of zooming into the one
-    // under the crosshair. The Julia-centred sets (Phoenix, Ship) never showed it
-    // because they short-circuit the search and always centre on the origin —
-    // which is exactly the steady behaviour every 2D set should have by hand.
+    // under the crosshair. The Julia-centered sets (Phoenix, Ship) never showed it
+    // because they short-circuit the search and always center on the origin —
+    // which is exactly the steady behavior every 2D set should have by hand.
     if(zMove && this.is2D()) this.manual2D = true;
     // A LEVEL is only ever taken under a deliberate pull. A marginal reading can
     // move the slider, but it can never wrap the bar and jump the scene.
@@ -11066,7 +11173,7 @@ class Component extends DCLogic {
       const tr1 = Math.min(0.985, Math.max(0, tr0 + dTr));
       if(tr1 !== tr0) this.setVid({trail:tr1});
     }
-    // While the zoom is actually travelling, the resolution governor must not
+    // While the zoom is actually traveling, the resolution governor must not
     // hunt: zooming in raises march cost, fps dips under the trigger, the scale
     // drops a coarse step, the cheaper frame then recovers a fine step, and the
     // cycle repeats — read as stutter on the way in and nothing on the way out,
@@ -11259,8 +11366,8 @@ class Component extends DCLogic {
         if(dUp) this.setVid({mode:(this.state.vid.mode-1+vm)%vm});
         if(dDown) this.setVid({mode:(this.state.vid.mode+1)%vm});
       } else {
-        // D-pad up/down steps the colour palette — 14 of them, wrapping in both
-        // directions, so a whole recolour is one thumb press away.
+        // D-pad up/down steps the color palette — 14 of them, wrapping in both
+        // directions, so a whole recolor is one thumb press away.
         const np = (this.E && this.E.PAL_NAMES) ? this.E.PAL_NAMES.length : 14;
         if(dUp) this.setState(s=>({pal: ((s.pal||0)-1+np)%np}));
         if(dDown) this.setState(s=>({pal: ((s.pal||0)+1)%np}));
@@ -11322,7 +11429,7 @@ class Component extends DCLogic {
     if(E.bCross) btn('\u2715', 'Autopilot on / off', 'here: next step');
     if(E.bCircle) btn('\u25CB', 'Show / hide menu', 'here: close');
     if(E.bTri) btn('\u25B3', I.shift ? 'Next message' : 'Show / hide message', 'here: back');
-    if(E.bSquare) btn('\u25A1', I.shift ? 'Cycle panel layout' : 'Randomise', 'off during walkthrough');
+    if(E.bSquare) btn('\u25A1', I.shift ? 'Cycle panel layout' : 'Randomize', 'off during walkthrough');
     if(E.bShare) btn('Share', 'Controls sheet');
     if(E.bOptions) btn('Options', 'Cycle modulation sources');
     if(E.bL3) btn('L3', I.pName==='Disco Robot' ? 'Robot spin' : 'Auto-orbit on / off');
@@ -11339,7 +11446,7 @@ class Component extends DCLogic {
     if(key !== this.tutFbKey && now - (this.tutFbAt||0) > 70){ this.tutFbKey = key; this.tutFbAt = now; this.setState({tutFb:next}); }
   }
 
-  // Randomise keeps the previous look for one Undo. It merges into p rather
+  // Randomize keeps the previous look for one Undo. It merges into p rather
   // than replacing it, so Spin and Light (and anything else not rolled here)
   // stay where they were instead of dropping out.
   randomize(){
@@ -11362,7 +11469,7 @@ class Component extends DCLogic {
       return {randUndo:true, mod};
     });
   }
-  // Shake to randomise: three hard jolts inside 0.8 s, then a 1.5 s rest so
+  // Shake to randomize: three hard jolts inside 0.8 s, then a 1.5 s rest so
   // one shake is one roll. Reads acceleration without gravity where the
   // device gives it, otherwise the jump between readings with gravity in.
   shakeStep(e){
@@ -11798,7 +11905,7 @@ class Component extends DCLogic {
     return J.row >= J.h;
   }
   // Turn a finished level into what its phase draws. Coordinates are stored
-  // normalised (0-1, y down) so they scale to any overlay size.
+  // normalized (0-1, y down) so they scale to any overlay size.
   litePrep(L, k){
     const J = L.lv[k], w = J.w, h = J.h, px = J.px;
     const hit = (i, j) => i >= 0 && j >= 0 && i < w && j < h && px[(j*w + i)*4] > 127;
@@ -12147,7 +12254,7 @@ class Component extends DCLogic {
             gl.attachShader(q, vs); gl.attachShader(q, fs); gl.bindAttribLocation(q, 0, 'a'); gl.linkProgram(q);
             q._mode = p._mode; q._vs = vs; q._fs = fs; q._safe = true; q._stage = 3;
             if(gl.getProgramParameter(q, gl.LINK_STATUS)){
-              console.warn('[spectra] ' + fam + ': optimised shader rejected by this driver, safe variant in use.');
+              console.warn('[spectra] ' + fam + ': optimized shader rejected by this driver, safe variant in use.');
               this._safeGL = true; try{ localStorage.setItem('spectra.safeGL', '1'); }catch(e){}
               try{ gl.deleteProgram(p); }catch(e){}
               if(this.state.glMsg) this.setState({glMsg: ''});
@@ -12624,7 +12731,7 @@ class Component extends DCLogic {
       // link is in, there is nothing to poll — do the next piece and hold the
       // previous scene, which is exactly what 'wait' already means to the caller.
       //
-      // _bootSync is the exception, and it has to be honoured HERE rather than in
+      // _bootSync is the exception, and it has to be honored HERE rather than in
       // the readiness test below: initGL calls this once and cannot proceed on a
       // 'wait', so returning one aborted context setup before the probe buffers
       // existed — which surfaced as three empty-log "compile failed" errors from
@@ -12682,11 +12789,11 @@ class Component extends DCLogic {
       gl.useProgram(prog); this.prog = prog; this.u = this.us[fam]; this.fam = fam;
       // Ramp-in: a freshly switched 3D scene opens at a fraction of its pixels and
       // climbs back as frames come in on time, so its first frames (where the
-      // driver also finishes specialising the program) can never be long ones.
+      // driver also finishes specializing the program) can never be long ones.
       // Guard state is per scene. A shared value meant a back-off earned on one
       // scene (or on the switch itself) followed you to the next and back again.
       // A scene that has already run gets its own settled level back at once and
-      // skips the ramp: its program is specialised, its first frame is not slow.
+      // skips the ramp: its program is specialized, its first frame is not slow.
       if(this.gFam && this.safeK != null) (this.gMem || (this.gMem = {}))[this.gFam] = this.safeK;
       this.gFam = fam;
       this.gGrace = performance.now() + 600;
@@ -12826,7 +12933,7 @@ class Component extends DCLogic {
   }
 
   // Per-frame text uniforms. Reactivity is one master amount rather than a
-  // switch per behaviour: at 0 the type is dead stable and fully readable, and
+  // switch per behavior: at 0 the type is dead stable and fully readable, and
   // everything below scales up from there together.
   uploadText(gl, u){
     if(!u || u.uTxtOn === undefined || u.uTxtOn === null) return;
@@ -12863,7 +12970,7 @@ class Component extends DCLogic {
     gl.uniform1f(u.uTxtDepth, 0.04 + (s.txtDepth == null ? 0.4 : s.txtDepth)*0.5);
     // Negative weight dilates the field, so bass literally thickens the strokes.
     gl.uniform1f(u.uTxtWeight, -A.bass*0.05*rk);
-    // Colour tracks the detected key when the reading is confident, otherwise it
+    // Color tracks the detected key when the reading is confident, otherwise it
     // sits on the scene hue so it still belongs to the palette.
     const H = this.h;
     const keyed = H && H.conf > 0.28;
@@ -12928,7 +13035,7 @@ class Component extends DCLogic {
     return this._m2.has(m);
   }
 
-  // Kick off a pivot probe: render the 2x1 strip that carries the centre ray's
+  // Kick off a pivot probe: render the 2x1 strip that carries the center ray's
   // world hit and start the copy into the pack buffer. Nothing is read here, so
   // the frame never waits on the GPU.
   pivStart(){
@@ -12962,13 +13069,13 @@ class Component extends DCLogic {
     gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, this.pivPx);
     gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
     const px = this.pivPx;
-    if(px[3] < 128) return null;              // centre ray missed: hold the pivot
+    if(px[3] < 128) return null;              // center ray missed: hold the pivot
     const dec = (h,l) => ((h + l/255)/255 - 0.5)*64;
     return [dec(px[0],px[4]), dec(px[1],px[5]), dec(px[2],px[6])];
   }
 
   // Endless zoom on the 2D scenes. The Zoom slider covers the octave range each
-  // set was tuned for and genuinely descends through it — centre search,
+  // set was tuned for and genuinely descends through it — center search,
   // iteration budget and all. This handles what the slider CANNOT: at either end
   // the bar wraps to the opposite side and the scene takes a zoom LEVEL, a
   // conformal jump to a matching part of the set (see zoomLevel). Returns the
@@ -13021,13 +13128,13 @@ class Component extends DCLogic {
 
   // A level is a jump to a MATCHING part of the set, not a slide across to a
   // random one. The move is the square-root branch of the escape map — the
-  // preimage of the current view centre:
+  // preimage of the current view center:
   //
   //     w  = c - a          a = (-0.75, 0), the set's own symmetry point
   //     c' = a + sqrt(w)    principal root, branch flipped on alternate levels
   //
   // Two properties are why this is the right jump. It is conformal, so the
-  // neighbourhood of c' is a rotated, rescaled copy of the neighbourhood of c —
+  // neighborhood of c' is a rotated, rescaled copy of the neighborhood of c —
   // the new view is structurally the same kind of place, which is what "matches
   // the current view" means for a self-similar set. And it is exactly
   // invertible (c = a + w², w = c' - a), so a level down retraces the level up
@@ -13040,7 +13147,7 @@ class Component extends DCLogic {
     if(now < (this.lvlLock || 0)) return false;   // one level per press-through
     const st = this.lvlStack || (this.lvlStack = []);
     // Levels are places in an escape-time set. Mirror tunnel and Flow have no
-    // centre to jump between, so there is no level to take there and the bar
+    // center to jump between, so there is no level to take there and the bar
     // stops at its wall on those two.
     if(!this.has2Ctr(this.curMode())) return false;
     if(dir > 0){
@@ -13050,7 +13157,7 @@ class Component extends DCLogic {
       const sc = (md2 >= 17 ? 2.8 : 2.6) * Math.pow(2, -(2.1 + z*6.4));
       const cv = this.ctrVal || [0,0];
       const off = this.lvlOff() || [0,0];
-      // Where the eye actually is: scene centre plus the level offset already
+      // Where the eye actually is: scene center plus the level offset already
       // banked, in fractal units.
       const cx = cv[0] + off[0]*sc*2, cy = cv[1] + off[1]*sc*2;
       const ax = -0.75, ay = 0;
@@ -13099,7 +13206,7 @@ class Component extends DCLogic {
   // Pan, rotated into fractal space. Doing it here rather than in the shader
   // keeps a push left meaning screen-left at any orientation without adding a
   // matrix multiply to the largest program in the bundle.
-  // Which 2D paths carry a centre term (uCtr / ctr) and a rotated sampling
+  // Which 2D paths carry a center term (uCtr / ctr) and a rotated sampling
   // point. Mirror tunnel (10) and Flow (11) have neither: they read uPan raw.
   has2Ctr(m){ return m<=9 || (m>=17 && m<=21) || (m>=37 && m<=39); }
 
@@ -13114,7 +13221,7 @@ class Component extends DCLogic {
     if(!this.has2Ctr(md2)) return [px, py];
     const a = this.pan2Ang(md2), c = Math.cos(a), s = Math.sin(a);
     const rx = px*c - py*s, ry = px*s + py*c;
-    // Last line of defence: uPan must never carry a NaN, whatever fed it.
+    // Last line of defense: uPan must never carry a NaN, whatever fed it.
     return Number.isFinite(rx) && Number.isFinite(ry) ? [rx, ry] : [0, 0];
   }
 
@@ -13164,7 +13271,7 @@ class Component extends DCLogic {
   // from the buffer probeCam already filled, so it costs no extra draw.
   // Weighted by squared deviation from the frame mean: that measures where the
   // STRUCTURE is rather than where the light is, so a bright fog down one side
-  // cannot drag the centre off the fractal.
+  // cannot drag the center off the fractal.
   probeCtr(){
     const px=this.probePx, N=this.PB;
     if(!px) return null;
@@ -13202,19 +13309,19 @@ class Component extends DCLogic {
     {ch:'Video', tab:'video', pos:'top', g:'Menu · Video', t:'Video under the fractal',
      d:'Source is where the picture comes from: + File and + Folder load clips from this device, Camera and the camera list pick a live input, and AR turns the camera into a controller — hands, head or body steer the scene. ◂ ▸ step the clips; tap one to play it, × removes it. Playback runs a clip forward, paused, reversed, or in Bounce and Stutter. Video change decides when clips move on and how they hand over, and Video look picks the filter, the Mix against the scene and the video trail.'},
     {ch:'Cues', tab:'cues', pos:'top', g:'Menu · Cues', t:'Your set list',
-     d:'+ stores the live look as a cue (C), and each cue keeps the transition and length it was added with. ◂ ▸, or Space and Shift+Space, step through them; tap one to jump there and × to remove it. Scene change: Auto advances on its own every so many beats or bars, Quantise holds a change for the next beat or bar, and the transition type and length decide how one scene hands over to the next.'},
+     d:'+ stores the live look as a cue (C), and each cue keeps the transition and length it was added with. ◂ ▸, or Space and Shift+Space, step through them; tap one to jump there and × to remove it. Scene change: Auto advances on its own every so many beats or bars, Quantize holds a change for the next beat or bar, and the transition type and length decide how one scene hands over to the next.'},
     {ch:'Slots', tab:'slots', pos:'top', g:'Menu · Slots', t:'Stored looks and Morph',
      d:'Eight slots. Tap an empty one to store what is on screen and a filled one to recall it — F1–F8 recall and Shift+F1–F8 store from the keyboard. Morph (M) puts two slots on one fader: choose the left and right ends and slide between them.'},
     {ch:'Params', tab:'params', pos:'top', g:'Menu · Params', t:'Trim and the twelve dials',
-     d:'Trim is the tone row that sits over every scene: Smth, Sat, Gam, Span, Warm and DOF. Under it are the twelve parameters. Their names change with the scene but their numbers stay put, so 1 is always the first dial. Drag a fader, double-click to reset it. Each one has an automation source and its own LFO length, so any dial can move on its own with the music. Randomise rolls new values and Random auto new sources, Undo takes back the last roll, and on a phone or tablet a hard shake randomises too (Shake on / off).'},
-    {ch:'Look', tab:'look', pos:'top', g:'Menu · Look', t:'Colour, camera and strobe',
-     d:'Trail sets how long frames linger. Palette and FX colour the image. The 3D camera orbits the object, flies through it or skims its surface; Repeat tiles a 3D fractal into an endless lattice; Vector draws it as edges, contours or points, alone or over the shaded render. Motion: Auto (A) runs the drift and animation, the LFO division sets the default length, and Ease switches the LFO between easing in and out and a constant-speed sweep. Strobe sets the beat flashes — strength, length and which beats — and B kills them for photosensitive rooms.'},
+     d:'Trim is the tone row that sits over every scene: Smth, Sat, Gam, Span, Warm and DOF. Under it are the twelve parameters. Their names change with the scene but their numbers stay put, so 1 is always the first dial. Drag a fader, double-click to reset it. Each one has an automation source and its own LFO length, so any dial can move on its own with the music. Randomize rolls new values and Random auto new sources, Undo takes back the last roll, and on a phone or tablet a hard shake randomizes too (Shake on / off).'},
+    {ch:'Look', tab:'look', pos:'top', g:'Menu · Look', t:'Color, camera and strobe',
+     d:'Trail sets how long frames linger. Palette and FX color the image. The 3D camera orbits the object, flies through it or skims its surface; Repeat tiles a 3D fractal into an endless lattice; Vector draws it as edges, contours or points, alone or over the shaded render. Motion: Auto (A) runs the drift and animation, the LFO division sets the default length, and Ease switches the LFO between easing in and out and a constant-speed sweep. Strobe sets the beat flashes — strength, length and which beats — and B kills them for photosensitive rooms.'},
     {ch:'System', tab:'system', pos:'top', g:'Menu · System', t:'Render, layout and output',
      d:'Res and Fps trade picture for speed — cap the frame rate to leave GPU time for Traktor or Ableton. The layout button cycles Deck, Rail and Minimal. Out (O) opens a clean window for the projector: drag it to the second screen and press F there. Hide (U) clears the screen. HID connects a game controller for its gyro and touchpad; Gyro steers the fractal by tilting the device, and Level makes how you hold it now the new flat.'},
     {ch:'Extras', g:'Y · T · N', t:'Text in the scene',
-     d:'Y opens the text panel in any layout. Type a message and press Enter to keep it, then pick a font, its size, colour and motion. T shows or hides the message, N steps to the next one. On a 3D scene the message sits in the space, so it can go behind the fractal or in front of it.'},
+     d:'Y opens the text panel in any layout. Type a message and press Enter to keep it, then pick a font, its size, color and motion. T shows or hides the message, N steps to the next one. On a 3D scene the message sits in the space, so it can go behind the fractal or in front of it.'},
     {ch:'Extras', g:'H · X · F', t:'Shortcuts and settings',
-     d:'H opens Controls: every key and pad button on one sheet, the accent colour, and a reset for your settings. X shows the maths behind the current scene, F goes fullscreen, 0 resets the view, and V turns on zoom levels — deep zoom on the Mandelbrot. Your settings, slots and cues are saved on this device; the live set state is not, so the app never reopens mid-set.'},
+     d:'H opens Controls: every key and pad button on one sheet, the accent color, and a reset for your settings. X shows the math behind the current scene, F goes fullscreen, 0 resets the view, and V turns on zoom levels — deep zoom on the Mandelbrot. Your settings, slots and cues are saved on this device; the live set state is not, so the app never reopens mid-set.'},
     {ch:'Extras', g:'Install', t:'Keep it on the home screen',
      d:'The start screen shows an Install button while SPECTRA is still a browser tab. Installed, it gets its own icon, opens full screen and works offline. On iPhone and iPad, use Share and then Add to Home Screen.'},
     {ch:'Controller', pad:true, g:'Any button', t:'Get the pad seen',
@@ -13240,25 +13347,25 @@ class Component extends DCLogic {
     {ch:'Controller', pad:true, g:'L1 + left stick \u2195', t:'5. React',
      d:'Hold L1 and push the left stick up and down. React is how much the audio moves the image \u2014 at zero the scene ignores the music entirely, at full the bass is driving geometry. Set this against the room.'},
     {ch:'Controller', pad:true, g:'L1 + left stick \u2194', t:'6. Hue',
-     d:'Same modifier, stick across. Hue rotates the whole palette. It wraps around, so there is no wrong end of it. Pair it with the palette selector, which changes which colours it is rotating through.'},
+     d:'Same modifier, stick across. Hue rotates the whole palette. It wraps around, so there is no wrong end of it. Pair it with the palette selector, which changes which colors it is rotating through.'},
     {ch:'Controller', pad:true, g:'L1 + right stick \u2195', t:'7. Iter',
      d:'Hold L1 and push the right stick up and down. Iter is the iteration budget: low is soft and blobby, high is sharp and lacy. It costs almost as much as Detail, and on the 2D sets it decides whether a deep zoom stays legible.'},
     {ch:'Controller', pad:true, g:'L1 + right stick \u2194', t:'8. Cst A',
-     d:'Hold L1 and push the right stick across. The three constants feed the map itself, and what they do is specific to each scene \u2014 the strip relabels them to say so, and the maths panel (X) shows where they sit in the formula. Small moves, large consequences.'},
+     d:'Hold L1 and push the right stick across. The three constants feed the map itself, and what they do is specific to each scene \u2014 the strip relabels them to say so, and the math panel (X) shows where they sit in the formula. Small moves, large consequences.'},
     {ch:'Controller', pad:true, g:'R1 + left stick \u2195', t:'9. Cst B',
-     d:'Hold R1 and push the left stick up and down. Usually the scale or inversion strength that partners A. A and B together are where a scene stops looking like its preset and becomes yours; R3 recentres and the preset chip reloads if you lose it.'},
+     d:'Hold R1 and push the left stick up and down. Usually the scale or inversion strength that partners A. A and B together are where a scene stops looking like its preset and becomes yours; R3 recenters and the preset chip reloads if you lose it.'},
     {ch:'Controller', pad:true, g:'R1 + left stick \u2194', t:'10. Cst C',
-     d:'Same modifier, stick across. The third constant \u2014 often the colour or stripe term rather than the geometry.'},
+     d:'Same modifier, stick across. The third constant \u2014 often the color or stripe term rather than the geometry.'},
     {ch:'Controller', pad:true, g:'R1 + right stick \u2195', t:'11. Spin',
      d:'Hold R1 and push the right stick up and down. Spin is the rate of the scene\u2019s own rotation: the middle is as designed, the bottom freezes it, the top doubles it. The spin button still sets the direction.'},
     {ch:'Controller', pad:true, g:'R1 + right stick \u2194', t:'12. Light',
      d:'Same modifier, stick across. Light lifts or sinks the midtones without clipping the highlights: right brightens, left darkens, the middle leaves the scene as designed.'},
-    {ch:'Controller', pad:true, g:'D-pad', t:'Cut scenes and colour',
+    {ch:'Controller', pad:true, g:'D-pad', t:'Cut scenes and color',
      d:'Left and right step through the scenes in the current family; up and down step through the fourteen palettes, wrapping both ways. Hold L1 with up and down to recall your saved slots in order instead.'},
     {ch:'Controller', pad:true, g:'\u2715 \u25cb \u25a1 \u25b3', t:'The four face buttons',
-     d:'Cross toggles AUTO, Circle hides and shows the chrome for a clean image, Square randomises the current scene, Triangle shows and hides the stored message. Hold L1 first and Triangle steps to the next stored message, Square cycles the layout, crossfade and FX instead.'},
+     d:'Cross toggles AUTO, Circle hides and shows the chrome for a clean image, Square randomizes the current scene, Triangle shows and hides the stored message. Hold L1 first and Triangle steps to the next stored message, Square cycles the layout, crossfade and FX instead.'},
     {ch:'Controller', pad:true, g:'PS + R3', t:'Two ways out',
-     d:'The PS button is the strobe kill \u2014 the one button you can find without looking, and the one to hit if the room needs the flashing to stop. R3 recentres the view, re-levels the gyro and puts auto-spin back, which recovers any camera you have lost.'}
+     d:'The PS button is the strobe kill \u2014 the one button you can find without looking, and the one to hit if the room needs the flashing to stop. R3 recenters the view, re-levels the gyro and puts auto-spin back, which recovers any camera you have lost.'}
   ];
   // Chapter starts, in order, for the jump chips.
   get TUT_CH(){
@@ -13297,15 +13404,15 @@ class Component extends DCLogic {
 
   // Start screen: the notes for this build. Keep it to what a returning user
   // would notice, newest first, and replace it on every release.
-  WHATS_NEW = {b:32, date:'21 Oct 2026', items:[
-    'A new tour: every page of the app in order, opened live behind the card, then the controller. Controls (H) \u2192 Tour of the app.',
-    'Video: cameras now sit in Source, and Playback is its own row with Bounce, Stutter and Half speed beside Play, Pause and Reverse.',
-    'Video looks are grouped by type, and Stack runs two looks at once.',
-    'Mix has a centre mark and resets to 50% on double-click.',
-    'Params: Randomise, Random auto and Undo buttons, and shake a phone or tablet to randomise.',
-    'Motion: Ease turns the LFO’s ease in and out on or off.',
-    'Install as app from this screen, and a start screen that fits a portrait phone.',
-    'The full menu lines up edge for edge with the touch bar.'
+  WHATS_NEW = {b:33, date:'21 Oct 2026', items:[
+    'Water in its own hue: Depth Terrain water and, with Depth off, the black empty space of 2D scenes now fill with moving water. Pick its color harmony in Look: analogous, complementary, split complementary, triadic or monochromatic.',
+    'American spelling throughout the app.',
+    'Starfield Warp: the projector is gone; the people in the clip lift off the hologram with parallax, as in the Reflection Pool.',
+    'Reflection Pool: water that reflects the sky and catches glints, eight-sided fluted columns, and three mountain ranges that pass at different speeds.',
+    'Mountains in Reflection Pool and Drive-in now scroll past properly instead of appearing to turn on the spot.',
+    'Sphere: the ferris wheel lights hide behind buildings, the tower and the dome.',
+    'Drive-in: a flat screen with the picture to its edges, and the film reflected in the car windows.',
+    'A new tour of every page, Install as app, video playback modes, stacked looks, randomize and shake, terrain water and mist.'
   ]};
 
   // Installed means running from the home screen or app list, not a tab.
@@ -13347,11 +13454,11 @@ class Component extends DCLogic {
 
   // Fibonacci framing on the Fields (the 2D escape-time scenes). The anchor —
   // the deep, detailed point the zoom dives to — sits on the golden spiral's
-  // eye instead of dead centre: 1/sqrt(5) of the half-frame off centre on each
+  // eye instead of dead center: 1/sqrt(5) of the half-frame off center on each
   // axis, which is 72.4% across and 27.6% down. Each scene takes one of the
   // spiral's four mirror orientations, and its view is turned by a multiple of
   // the golden angle (137.5 degrees), so the arms sweep round the frame along
-  // the spiral instead of sitting square to it. The tunnels keep their centre.
+  // the spiral instead of sitting square to it. The tunnels keep their center.
   goldIdx(){
     const pr = this.E && this.E.PRESETS[this.state.preset];
     if(!pr || pr.grp !== 'FLD' || !this.is2D()) return -1;
@@ -13436,7 +13543,7 @@ class Component extends DCLogic {
     const solved = this.zSolve(mode, e);
     if(solved) return solved;
     // Families without a solved anchor keep the plain bounded slider: the
-    // centre the search found, and the old 6.4-octave span.
+    // center the search found, and the old 6.4-octave span.
     return {anc:this.ctrVal||[0,0], rat:6.4, rot:0};
   }
 
@@ -13476,7 +13583,7 @@ class Component extends DCLogic {
     return {anc:[z[0]*scale, z[1]*scale], rat:Math.max(k*base, 0.45), rot:net(k)};
   }
 
-  // Cached on the quantised parameters that enter the map: Harmony's anchor
+  // Cached on the quantized parameters that enter the map: Harmony's anchor
   // moves with the tonal centroid, so this is read every frame.
   zSolve(mode, e0){
     const e = e0 || this.eff || this.state.p || {};
@@ -13533,7 +13640,7 @@ class Component extends DCLogic {
     // Multibrot (0.53) — the power is a knob, and for a non-integer power the
     // polar principal branch is not holomorphic, so a Misiurewicz point is not
     // a similarity of anything; only the exact quadratic case would work.
-    // Phoenix (0.65) — the second-order recurrence is linearisable in the PAIR
+    // Phoenix (0.65) — the second-order recurrence is linearizable in the PAIR
     // (z, zprev), but every pixel starts with zprev = 0, which does not scale
     // with the frame, so the conjugacy never reaches the picture.
     // Newton (0.74) and Ship Julia (0.35) — their cycles straddle the axes,
@@ -13547,9 +13654,9 @@ class Component extends DCLogic {
   // Latch the orbit pivot onto the point currently facing the viewer, and hold
   // it there until the gesture ends.
   //
-  // WHY A LATCH. The probe reports the surface under the centre of the screen,
+  // WHY A LATCH. The probe reports the surface under the center of the screen,
   // which is the right pivot — but it is also a moving target: orbiting changes
-  // what is at the centre, so chasing it is a feedback loop, and the lag the
+  // what is at the center, so chasing it is a feedback loop, and the lag the
   // damping needs to stay stable is what made rotation feel like it was swinging
   // about the object's origin rather than about the face in front of you. Every
   // 3D application resolves this the same way: pick the pivot once when the hand
@@ -13565,7 +13672,7 @@ class Component extends DCLogic {
     if(mode===6) return [-0.745,0.113];     // seahorse valley, on the body edge
     if(mode===9) return [-1.3966,0.0];
     // Measured framings, not guesses: each scene was rendered across a grid of
-    // centres and read back, and these are the frames where the filigree fills
+    // centers and read back, and these are the frames where the filigree fills
     // the picture instead of one smooth interior lobe. The lobes are the
     // "uninteresting black part" — the escape loop runs to the cap there, so
     // the whole region shades from the orbit trap alone and reads as one flat
@@ -13579,7 +13686,7 @@ class Component extends DCLogic {
   }
 
   // Where a scene's frame sits by default, in the same screen-relative units as
-  // uPan. The looping families cannot be re-centred — their anchor is fixed by
+  // uPan. The looping families cannot be re-centered — their anchor is fixed by
   // the similarity the wrap depends on — but the shader turns uPan with the
   // sweep, so a frame parked off the anchor still lands back on itself. That
   // makes a default pan the one way to reframe them: Celtic's anchor sits with
@@ -13595,7 +13702,7 @@ class Component extends DCLogic {
   zBase(mode){ return 9.0; }
 
   // Julia-family scenes are drawn in the DYNAMICAL plane, where the interesting
-  // structure is always wrapped around the origin. The centre search is built
+  // structure is always wrapped around the origin. The center search is built
   // for parameter-plane scenes (Mandelbrot and kin), where it hunts for a
   // boundary worth looking at — run on a Julia set it wanders off to some
   // arbitrary filament and the subject sits off-frame. These stay pinned.
@@ -13611,7 +13718,7 @@ class Component extends DCLogic {
   // knob, so the boundary it would hunt for moves under the search, and the
   // descent walked the frame into the main lobe. All three take a measured
   // frame instead.
-  juliaCentred(mode){
+  juliaCentered(mode){
     return mode===8 || mode===38 || mode===39
         || mode===17 || mode===18 || mode===20 || mode===37;
   }
@@ -13619,7 +13726,7 @@ class Component extends DCLogic {
   recenter(mode, ca, cb, t, zoom, from){
     const is2 = this.is2Mode(mode);
     if(!is2) return [0,0];
-    if(this.juliaCentred(mode)) return this.anchorFor(mode);
+    if(this.juliaCentered(mode)) return this.anchorFor(mode);
     if(zoom < 0.04 && !from) return this.anchorFor(mode);
     const sc = (mode>=17 ? 2.8 : 2.6) * Math.pow(2, -Math.min(1,Math.max(0,zoom))*17);
     let cx, cy;
@@ -13653,8 +13760,8 @@ class Component extends DCLogic {
         // structure actually is.
         const inFrac = 1 - escaped/v.length;
         // Favour the body of the set over the outer strips: cells that are
-        // mostly interior, whose left/right and up/down neighbours match
-        // (a symmetric spot), and that sit near the scene's own centre.
+        // mostly interior, whose left/right and up/down neighbors match
+        // (a symmetric spot), and that sit near the scene's own center.
         const bal = isMixed ? 200*(1-Math.min(1,Math.abs(inFrac-0.65)*2)) : 0;
         const sym = 1 - (Math.abs(v[1]-v[2]) + Math.abs(v[3]-v[4]))/(2*maxi);
         const rr = Math.hypot(ox-cx, oy-cy)/span;
@@ -13715,7 +13822,7 @@ class Component extends DCLogic {
   // pace without a jump, and loudness pushes it on (scaled by React).
   TXT_ANIMS = [['off','Off','No motion'],['spin','Spin','Turns about its upright axis'],['sway','Sway','Rocks gently on all three axes'],
                ['tumble','Tumble','Turns over on all three axes'],['flip','Flip','Rolls over top to bottom'],
-               ['float','Float','Drifts and bobs, in and out of depth'],['orbit','Orbit','Circles the centre, near and far'],
+               ['float','Float','Drifts and bobs, in and out of depth'],['orbit','Orbit','Circles the center, near and far'],
                ['beat','Beat','Kicks on the beat']];
   txtAnimAt(){
     const s=this.state, m=s.txtAnim||'off', o={x:0,y:0,z:0,rx:0,ry:0,rz:0};
@@ -13773,15 +13880,15 @@ class Component extends DCLogic {
     // message can be carried anywhere in the world — out past the frame, or
     // behind the fractal — it is as easy to lose as the camera, and R3 has to
     // bring it back with everything else. Position, depth and rotation all
-    // return to centre; the message and its look settings are untouched.
+    // return to center; the message and its look settings are untouched.
     this.txtNudge = {x:0, y:0, z:0, rot:0};
     const st=this.state;
     if(st.txtX!==0.5 || st.txtY!==0.5 || st.txtZ || st.txtRot || st.txtRotX || st.txtRotY)
       this.setState({txtX:0.5, txtY:0.5, txtZ:0, txtRot:0, txtRotX:0, txtRotY:0});
-    this.manual2D=false;    // hand back to the auto centre search on 2D scenes
-    this.ctrScene=null;     // and force a re-solve of the centre next frame
+    this.manual2D=false;    // hand back to the auto center search on 2D scenes
+    this.ctrScene=null;     // and force a re-solve of the center next frame
     // Levels are part of the pose the reset recovers: they are carried in the
-    // pan uniform, so leaving them behind put the recentred view somewhere off
+    // pan uniform, so leaving them behind put the recentered view somewhere off
     // the middle of the screen.
     this.lvlStack = []; this.lvlRot = 0;
     const yaw0=this.cam.yaw, yawT=Math.round(yaw0/6.28318530718)*6.28318530718;
@@ -13805,7 +13912,7 @@ class Component extends DCLogic {
     const k=u<0.5 ? 4*u*u*u : 1-Math.pow(-2*u+2,3)/2;   // ease in-out cubic
     // Home is the scene's default frame, which is not always the origin: the
     // looping families are reframed by a standing pan offset rather than a
-    // centre, and easing those to zero would put the frame back on the flat
+    // center, and easing those to zero would put the frame back on the flat
     // interior the offset exists to avoid.
     const V=this.viewOff(this.drawMode);
     this.pan.x=V[0]+(H.px-V[0])*(1-k); this.pan.y=V[1]+(H.py-V[1])*(1-k);
@@ -13921,7 +14028,7 @@ class Component extends DCLogic {
     this.selectPreset(S.i, true);
     S.worst = Math.max(S.worst || 0, performance.now() - tSel);
     this.xfade = 0;
-    // selectPreset books a neighbour preheat 600ms out. During the walk that is
+    // selectPreset books a neighbor preheat 600ms out. During the walk that is
     // a second link stacked on the one just started — the next scene is the
     // walk's own job, so drop the lookahead.
     clearTimeout(this.preheatT);
@@ -14165,7 +14272,7 @@ class Component extends DCLogic {
   cancelHome(){ if(this.homing){ this.gYaw=this.cam.yaw; this.gPitch=this.cam.pitch; this.homing=null; } }
 
   // Pan limits. Past roughly one frame of travel every scene is empty field, and
-  // on the 2D sets a far pan also walks off the validated centre, so the frame
+  // on the 2D sets a far pan also walks off the validated center, so the frame
   // goes black with no way back but a reset. Canvas scenes get a little more
   // room since their content fills the width.
   clampPan(){
@@ -14186,12 +14293,12 @@ class Component extends DCLogic {
     // shove could not fling the frame into empty field.
     //
     // So instead of a bigger clamp: once travel passes half a frame, fold that
-    // distance into the render centre and zero the pan. The shader adds
+    // distance into the render center and zero the pan. The shader adds
     // ctr + pan*sc*2, so moving the same quantity from one term to the other is
     // exactly neutral — no visible jump — and leaves the pan free to travel
     // again. Distance covered is then unbounded while the value never grows.
     const md2 = this.curMode();
-    // The fold banks travel into the render centre and zeroes the pan, which is
+    // The fold banks travel into the render center and zeroes the pan, which is
     // invisible ONLY because the shader adds ctr + pan*sc*2. Mirror tunnel and
     // Flow have no ctr term, so the banked half-frame went into a uniform they
     // never read and the pan reset to nothing — the frame snapping back to the
@@ -14200,7 +14307,7 @@ class Component extends DCLogic {
     // shader frames off the solved anchor, not uCtr, so the fold moved a number
     // the frame no longer reads and zeroed the pan -- the frame snapping back to
     // the anchor after a bit of travel. A looping scene keeps the plain clamp,
-    // and its pan turns with the sweep so the loop stays registered off-centre.
+    // and its pan turns with the sweep so the loop stays registered off-center.
     if(this.manual2D && this.ctrVal && md2 !== undefined && !this.canvasMode()
        && this.is2Mode(md2) && this.has2Ctr(md2) && !this.zFree(md2)){
       const r = Math.hypot(p.x, p.y);
@@ -14208,7 +14315,7 @@ class Component extends DCLogic {
         const z = Math.max(0, Math.min(1, this.zEffLast != null ? this.zEffLast : (this.eff.zoom||0)));
         const sc = (md2 >= 17 ? 2.8 : 2.6) * Math.pow(2, -(2.1 + z*6.4));
         // Pan is view-relative in the shader now, so the banked amount has to be
-        // turned by the same angle before it goes into the centre — otherwise the
+        // turned by the same angle before it goes into the center — otherwise the
         // fold moves the frame sideways every time it fires on a rotated scene.
         const pr = this.pan2(p.x, p.y);
         const rx = pr[0], ry = pr[1];
@@ -14222,9 +14329,9 @@ class Component extends DCLogic {
         // before banking it costs one readback per half-frame of movement
         // rather than one per frame.
         //
-        // probeSd renders a small tile at the candidate centre and returns the
+        // probeSd renders a small tile at the candidate center and returns the
         // luminance standard deviation, which is near zero on empty field and
-        // rises with structure — the same measure the auto-centre search uses,
+        // rises with structure — the same measure the auto-center search uses,
         // so "somewhere worth being" means the same thing to the pan as it does
         // to the descent. Below the floor the move is refused: pan is pinned at
         // the boundary and its velocity killed, so the frame coasts to a stop
@@ -14232,7 +14339,7 @@ class Component extends DCLogic {
         // it. A starved probe budget (-1) passes, since blocking travel on a
         // frame that could not afford to look would read as the controls
         // sticking at random.
-        // Containment: the frame centre may not bank further than ~0.9 of a
+        // Containment: the frame center may not bank further than ~0.9 of a
         // zoom-0 half-frame from where the scene opened. At that distance the
         // edge of the subject still crosses the middle of the frame, so a third
         // or more of it stays on screen whatever the pan, gyro or drag does.
@@ -14367,7 +14474,7 @@ class Component extends DCLogic {
     if(!this.E) return false;
     // Ask the engine which shader family the scene belongs to rather than
     // repeating the mode ranges here — the old copy missed modes 34-36, so
-    // Spudsville and its neighbours were driven as flat scenes: mouse drag
+    // Spudsville and its neighbors were driven as flat scenes: mouse drag
     // panned a uniform the raymarcher ignores instead of orbiting the camera.
     return this.E.FAM_OF(this.E.PRESETS[this.state.preset].mode).slice(0,3) !== '3d:';
   }
@@ -14379,15 +14486,15 @@ class Component extends DCLogic {
         {k:'1 – 9, Q W E', d:'Jump to scenes 1–12 (D-pad reaches all 40)'},
         {k:'[  ]', d:'Shift hue'},
         {k:'A', d:'Automation on / off — camera drift, scene motion and the canvas scenes’ animation. The same switch is the Auto button in Motion'},
-        {k:'0', d:'Reset the view — pan back to centre, camera level. Zoom is left where you set it'},
+        {k:'0', d:'Reset the view — pan back to center, camera level. Zoom is left where you set it'},
         {k:'← / →', d:'Previous / next scene'},
-        {k:'↑ / ↓', d:'Step through the colour palettes — ↑ back, ↓ forward, wrapping either way'},
+        {k:'↑ / ↓', d:'Step through the color palettes — ↑ back, ↓ forward, wrapping either way'},
         {k:'X', d:'Show the iterated map behind the current scene'},
         {k:'Y', d:'Open the text panel — works in every layout'},
         {k:'T', d:'Show or hide the scene message'},
         {k:'Shift + T', d:'Open the text panel, same as Y'},
         {k:'N', d:'Next message in the list'},
-        {k:'B', d:'Strobe kill — stops all beat flashing and hard cuts; motion and colour keep running'},
+        {k:'B', d:'Strobe kill — stops all beat flashing and hard cuts; motion and color keep running'},
         {k:'R', d:'Cycle spin direction — Shift-R cycles the vertical roll (forward, off, backward) on 3D scenes'},
         {k:'U', d:'Show / hide all controls — showing with U pins them open, so the 10-second idle fade stops until you press U again'},
         {k:'Esc', d:'Hide the controls straight away instead of waiting for the idle fade'},
@@ -14428,15 +14535,15 @@ class Component extends DCLogic {
         {k:'Left stick (Disco Robot)', d:'Walk him around the floor \u2014 across it, and up and down for upstage and downstage. The gyro and the mouse keep the camera; R3 puts him back in the middle'},
         {k:'Left stick (Half Pipe)', d:'Aim the far end of the tube \u2014 the pipe bends and climbs toward where the stick is held'},
         {k:'R1 + D-pad ↑ ↓', d:'Cycle the video overlay mode'},
-        {k:'L3 / R3', d:'Auto-spin on-off / recentre view, re-level the gyro and put the message back in the middle. On Disco Robot L3 spins him a full turn on the spot instead'},
+        {k:'L3 / R3', d:'Auto-spin on-off / recenter view, re-level the gyro and put the message back in the middle. On Disco Robot L3 spins him a full turn on the spot instead'},
         {k:'D-pad ← →', d:'Step through scenes'},
-        {k:'D-pad ↑ ↓', d:'Step through the 14 colour palettes — ↑ back, ↓ forward, wrapping either way. The Pal button and its Trim row still do the fine work'},
+        {k:'D-pad ↑ ↓', d:'Step through the 14 color palettes — ↑ back, ↓ forward, wrapping either way. The Pal button and its Trim row still do the fine work'},
         {k:'Left stick (Shorebreak)', d:'Rides the surfer instead of 1. Morph / 2. Detail — ← → across the wave’s face, ↑ ↓ along its length — and the camera holds still so the two do not fight over the stick'},
         {k:'L1 + D-pad ↑ ↓', d:'Step through your saved slots'},
         {k:'Touchpad — one finger', d:'Drag ↕ Smth, ↔ Sat (needs HID)'},
         {k:'Touchpad — two fingers', d:'Drag ↕ Gam, ↔ Span (needs HID)'},
         {k:'Touchpad — click + drag', d:'Click the pad down and drag one finger: ↕ Warm, ↔ DOF (needs HID)'},
-        {k:'Tilt the controller', d: twoD ? 'Tips the plane the fractal is drawn on — tilt up and it leans away in perspective, lean sideways and it banks. G toggles, K re-levels' : 'Gyro leans the camera absolutely: level is centre, and a given tilt is always the same angle. G toggles it, K or R3 re-levels'},
+        {k:'Tilt the controller', d: twoD ? 'Tips the plane the fractal is drawn on — tilt up and it leans away in perspective, lean sideways and it banks. G toggles, K re-levels' : 'Gyro leans the camera absolutely: level is center, and a given tilt is always the same angle. G toggles it, K or R3 re-levels'},
         {k:'Shake the controller', d:'Jump to the next palette (needs HID)'}
       ],
       mouse: [
@@ -14446,7 +14553,7 @@ class Component extends DCLogic {
         {k:'Slot buttons', d:'Click an empty slot to store the current state; click a filled one to recall it'},
         {k:'Shift-click a slot', d:'Overwrite it — right-click clears it'},
         {k:'Drag a slider', d:'Set that parameter by hand'},
-        {k:'Tag beside a value', d:'Pick its automation source \u2014 LFO (sine, or a straight triangle with Ease off in Motion) or SAW (ramp), both on the LFO division, bass, mid, high, level, plus NTE (pitch class of the loudest note), TON (key centre on the circle of fifths) and CHD (chord-change transient)'},
+        {k:'Tag beside a value', d:'Pick its automation source \u2014 LFO (sine, or a straight triangle with Ease off in Motion) or SAW (ramp), both on the LFO division, bass, mid, high, level, plus NTE (pitch class of the loudest note), TON (key center on the circle of fifths) and CHD (chord-change transient)'},
         {k:'AMT bar', d:'How far that source moves the parameter'},
         {k:'Const A / B sliders', d:'The scene\u2019s core constants — Julia seeds, box-fold scale, Newton relaxation'},
         {k:'Iter slider', d:'Iteration depth — more structure, more GPU cost'},
@@ -14462,13 +14569,13 @@ class Component extends DCLogic {
         {k:'Trim row', d:'Fine trim on any palette — Sat, Gam (gamma), Span (ramp width), Warm (R/B tilt). Double-click a track to reset it'},
         {k:'Depth / Rim', d:'On 3D scenes this slider is Rim: it lights the silhouette edges in the bright tone of the palette so the form stands off the background. On 2D scenes it is Depth, which gives them a third dimension, read from brightness. Relief lights the image as a carved surface, Parallax slides it apart in layers, Terrain flies over it as a landscape. Pick the kind in Look; the Depth trim sets how tall it gets and the gyro steers it. On the 3D scenes the same trim adds Relief instead'},
         {k:'Relief (Depth on 3D)', d:'A bump map on the 3D surface — fine raised and sunken detail fixed to the geometry, so it rides the form as the camera moves and catches the light. Depth sets how strong it is; 0 is the smooth surface. The setting is shared with 2D Depth'},
-        {k:'Depth Terrain', d:'Bright parts of the frame become hills, dark parts valleys and water, and the camera flies over them while the fractal keeps animating underneath. Auto moves the flight; the DOF trim hazes the distance. The ground carries a fine rock relief that grows with Depth. For gentler hills, lower Depth or pick a scene with broad areas of colour rather than fine filigree'},
+        {k:'Depth Terrain', d:'Bright parts of the frame become hills, dark parts valleys and water, and the camera flies over them while the fractal keeps animating underneath. Auto moves the flight; the DOF trim hazes the distance. The ground carries a fine rock relief that grows with Depth. For gentler hills, lower Depth or pick a scene with broad areas of color rather than fine filigree'},
         {k:'View: Orbit / Fly / Surface', d:'3D scenes only. Orbit circles the whole object. Fly steers itself through the open space between forms. Surface skims low over the surface and keeps a safe height above it'},
         {k:'Click / tap (Fly, Surface)', d:'Travel one step toward that point. Hold longer to go farther — one more step for each second held, up to 8. A ring shows where you will stop. Double-click cancels'},
         {k:'Click a piece (Surface)', d:'Fly to the piece you clicked and circle it, looking down at it, until you pick something else or change view'},
         {k:'Repeat Tight / Loose', d:'3D scenes: tile the fractal into an endless lattice of copies. Its settings set the smallest copy, the spacing, and how much each copy turns, varies and drifts'},
         {k:'Lines (vector)', d:'Draw the 3D fractal as vector lines — edges, depth contours or points — on their own or over the shaded image, for every scene or just this one'},
-        {k:'DOF trim', d:'Depth of field on the 3D scenes, focused on the orbit centre. On Depth Terrain it hazes the distance instead'},
+        {k:'DOF trim', d:'Depth of field on the 3D scenes, focused on the orbit center. On Depth Terrain it hazes the distance instead'},
         {k:'Device audio', d:'Listen to what this computer is playing instead of the room microphone. In the share picker choose Entire screen and tick “Also share system audio”. Desktop Chrome / Edge only'},
         {k:'Video', d:'Play a video file or a folder of videos in place of the camera, with its own clip advance, transition and trail'},
         {k:'Output window (O)', d:'Clean image for the projector in its own window — controls stay on this one'},
@@ -14488,11 +14595,11 @@ class Component extends DCLogic {
         {k:'Video change', d:'Auto steps the clip list, In order / Random its order, Link scene changes clip with the scene, FX cycle picks a new video look each clip, Tx the transition, Drift moves the video trail'},
         {k:'Several screens (TV Wall, Billboard City, Frame Corridor)', d:'Each screen plays the clip at its own delay, up to two seconds behind, so they never all show the same frame. Sphere keeps one picture wrapped round its dome'},
         {k:'Two-finger twist (Scenes)', d:'On the canvas scenes a twist turns the scene about its vertical axis — round its subject on Drive-in, TV Wall, Sphere, Reflection Pool and Starfield Warp, on the spot in the streets and corridors'},
-        {k:'Fields framing', d:'The 2D escape-time scenes put their detailed anchor on the golden spiral’s eye rather than dead centre, and turn each view by a multiple of the golden angle (137.5°), so the arms sweep round the frame'},
+        {k:'Fields framing', d:'The 2D escape-time scenes put their detailed anchor on the golden spiral’s eye rather than dead center, and turn each view by a multiple of the golden angle (137.5°), so the arms sweep round the frame'},
         {k:'DNA', d:'An endless field of double helices to fly through. Twist sets the pitch, Groove the gap between strands, Spacing how dense the field is, Grain the surface texture, Pairs the rungs per turn, Thickness the strands'},
         {k:'Romanesco', d:'One golden-angle spiral of florets wrapped round the head, each floret a smaller head with its own spiral. Florets sets their size, Profile pointed to domed, Tilt how they lean, Grow drifts them out from the tips, Detail adds a level'},
         {k:'Cathedral', d:'The Mandelbox at negative scale: arcades of arches and ogee windows. Scale, Inner R, Fold and Twist reshape it; zoom in to dive into the arcades'},
-        {k:'Touch gestures', d:'One finger: drag up/down for the chosen parameter, left/right for colour. Two fingers: drag to move the view, pinch to zoom, twist to turn — each touch does one of the three, picked by how the fingers first move. Three fingers: pan. Double-tap: hide or show the controls'},
+        {k:'Touch gestures', d:'One finger: drag up/down for the chosen parameter, left/right for color. Two fingers: drag to move the view, pinch to zoom, twist to turn — each touch does one of the three, picked by how the fingers first move. Three fingers: pan. Double-tap: hide or show the controls'},
         {k:'Diagnostics (J)', d:'Live controller, timing and render values. Drag it anywhere, double-click to put it back, × or J to close'}
       ]
     };
@@ -14562,7 +14669,7 @@ class Component extends DCLogic {
   // Strobe kill, in one place so both the shader upload and the 2D scenes read
   // the same numbers. Damping uBeat alone was not enough: the bands themselves
   // multiply brightness and drive the palette read in most scenes, so a kick
-  // still landed as a colour flash with the strobe off. So keep a slow envelope
+  // still landed as a color flash with the strobe off. So keep a slow envelope
   // of each band and crossfade to it as the gain falls — the visuals still swell
   // and shift with the music, over a second rather than a frame. Ramped rather
   // than switched, so throwing the kill is not itself a flash.
@@ -14866,7 +14973,7 @@ class Component extends DCLogic {
   pumpOut(){
     const w=this.outWin;
     if(!w || w.closed){ if(this.state.out) this.closeOut(); return; }
-    // The maths panel is page DOM, not canvas, so the feed never carried it.
+    // The math panel is page DOM, not canvas, so the feed never carried it.
     // Mirror it into the output window whenever it is on here.
     try{
       const d=w.document, box=d.getElementById('fx');
@@ -14902,13 +15009,13 @@ class Component extends DCLogic {
   //
   // Borrowing the popup's requestAnimationFrame was not enough: rAF is a
   // *compositing* callback, and the browser suspends it for an occluded or
-  // minimised window as readily as for a background tab, so both clocks stopped
+  // minimized window as readily as for a background tab, so both clocks stopped
   // together. Page timers are no better — a hidden document's setTimeout chain
   // is clamped to roughly one call a second.
   //
   // A dedicated Worker is the one clock the visibility rules leave alone: it has
   // no document, so there is nothing to throttle it against. When we go hidden
-  // the loop runs on worker ticks; WebGL draws and the analyser both work
+  // the loop runs on worker ticks; WebGL draws and the analyzer both work
   // normally in a hidden document, so the projector keeps its frames. rAF takes
   // over again the moment the window is visible, because it is the right clock
   // whenever there is a compositor to sync to.
@@ -14967,7 +15074,7 @@ class Component extends DCLogic {
   // At most one frame outstanding, ever. Registering on every entry into
   // frame() meant both clocks booked callbacks — and while hidden rAF never
   // fires, so the pending set only grew; the browser flushes the whole batch on
-  // the next animation frame, which turned a long minimise into thousands of
+  // the next animation frame, which turned a long minimize into thousands of
   // callbacks in one frame on return. rAF is booked only from the rAF path,
   // which is also the only path that clears the flag.
   pump(){
@@ -15035,7 +15142,7 @@ class Component extends DCLogic {
     this.fLast=nw;
     // Frame cap. Reschedule already happened above, so skipping here costs the
     // browser one empty callback and nothing else. The 1.5ms slack stops a cap
-    // of 30 from landing just past a 60Hz vsync and quantising down to 20.
+    // of 30 from landing just past a 60Hz vsync and quantizing down to 20.
     const capFps = (this.RATE.find(x=>x.id===this.state.rate)||{}).fps || 0;
     if(capFps){
       const iv = 1000/capFps;
@@ -15159,7 +15266,7 @@ class Component extends DCLogic {
     const tt=this.vtime, mod=this.state.mod, auto=this.state.auto;
     const p = this.macroBlend() || this.state.p;
     this.strobeStep(dt);
-    // Canvas scenes read this.a directly for their flashes and colour gains, so
+    // Canvas scenes read this.a directly for their flashes and color gains, so
     // the strobe-killed view is swapped in for the draw and put back after —
     // automation has already sampled the real values above, and this way the
     // 2D scenes obey the kill without editing every one of them.
@@ -15322,7 +15429,7 @@ class Component extends DCLogic {
     gl.uniform1f(u.uNote, this.h.note/12);
     gl.uniform1f(u.uNoteConf, this.h.conf);
     gl.uniform2f(u.uTonal, this.h.tx, this.h.ty);
-    // Chord-change transient shifts the palette read, so it is a colour flash by
+    // Chord-change transient shifts the palette read, so it is a color flash by
     // any other name — on the strobe gain with the rest.
     gl.uniform1f(u.uChordChg, this.h.chg * this.strobeGain);
     // Bar position for tempo-locked scene structure. Without a tempo estimate
@@ -15365,13 +15472,13 @@ class Component extends DCLogic {
       else if(f > up) this.rscaleTarget = Math.min(1.0, this.rscaleTarget + P.up);
     }
     const md = this.drawMode;
-    // What counts as "a different scene to re-centre for". The constants were
+    // What counts as "a different scene to re-center for". The constants were
     // rounded to two decimals, which meant that with automation driving Cst A or
     // Cst B — or a thumb on the stick — the rounding flipped several times a
     // second, and each flip restarted the whole zoom descent from zero. That
     // descent is up to 60 steps of up to 10 probes each, every probe a
     // synchronous readPixels, so it never finished before being restarted: the
-    // probe budget was consumed every frame, indefinitely, for a centre that
+    // probe budget was consumed every frame, indefinitely, for a center that
     // was thrown away. Coarser buckets plus a re-entry floor: a real change of
     // scene or a deliberate move of the constants still re-searches at once, a
     // modulated wobble does not.
@@ -15399,7 +15506,7 @@ class Component extends DCLogic {
       this.ctrMode = modeKey;
       this.ctrScene = sceneKey;
       var hit = CC[sceneKey];
-      // The scene keeps moving after it is left, so a remembered centre can go
+      // The scene keeps moving after it is left, so a remembered center can go
       // flat. One probe decides whether it is still worth reusing.
       if(hit && this.is2Mode(md) && !this.zFree(md) && this.probeSd(Math.min(hit.z, e.zoom), hit.v) < 7.0){ delete CC[sceneKey]; hit = null; }
       if(hit){
@@ -15412,7 +15519,7 @@ class Component extends DCLogic {
         this.ctrZoom = 0;
         this.zoomCap = 1;
       }
-      this.manual2D = false;      // a new scene goes back to the auto centre search
+      this.manual2D = false;      // a new scene goes back to the auto center search
       this.ctrT = tt;
       this.ctrOk = !!hit;
       if(this.is2Mode(md) && !hit){
@@ -15451,7 +15558,7 @@ class Component extends DCLogic {
     const MINSD = 7.0;
     gl.uniform1i(u.uMode, md);
 
-    // Zoom-out is instant (the centre is always valid at a shallower depth) but
+    // Zoom-out is instant (the center is always valid at a shallower depth) but
     // zoom-in has to validate each step, so a fixed small step made pushing in
     // feel notched next to pulling out. Run the descent every frame and let the
     // step grow with the distance still to cover.
@@ -15483,10 +15590,10 @@ class Component extends DCLogic {
     }
 
     // With the loop armed the zoom slider is a phase, not a depth, and it rolls
-    // over every sweep. The centre search reads that rollover as a big zoom OUT
-    // and re-picks a centre — which is a real jump to a real different place,
+    // over every sweep. The center search reads that rollover as a big zoom OUT
+    // and re-picks a center — which is a real jump to a real different place,
     // and was what made the loop read as snapping back out instead of matching.
-    // The loop needs a pinned centre, so the search sits out while it runs.
+    // The loop needs a pinned center, so the search sits out while it runs.
     if(is2 && !this.state.levels && e.zoom < this.ctrZoom - 0.008){
       this.ctrZoom = e.zoom;
       this.zoomCap = 1;
@@ -15507,7 +15614,7 @@ class Component extends DCLogic {
     }
 
     let zEff = is2 ? ((this.manual2D || this.state.levels) ? e.zoom : Math.min(e.zoom, this.zoomCap, Math.max(this.ctrZoom, 0))) : e.zoom;
-    // the 2D descent validates the centre in discrete steps; ease the rendered zoom
+    // the 2D descent validates the center in discrete steps; ease the rendered zoom
     // through them so magnification travels continuously instead of stair-stepping
     const zdt = Math.min(0.1, Math.max(0.001, (t - (this.zSmT||t))/1000));
     this.zSmT = t;
@@ -15558,7 +15665,7 @@ class Component extends DCLogic {
       }catch(err){ console.warn('[spectra] deep zoom off:', err); window.DeepZoom = null; }
     }
     if(!this.deepOn && u.uDeep) gl.uniform1f(u.uDeep, 0);
-    // Iteration ramp across the sweep. Flat for a linearisable anchor; a
+    // Iteration ramp across the sweep. Flat for a linearizable anchor; a
     // period-doubling anchor needs twice the iterations at the bottom of the
     // sweep as at the top, and the ramp is what makes both ends resolve the
     // same picture instead of the deep end starving and blooming. Set on EVERY
@@ -15578,7 +15685,7 @@ class Component extends DCLogic {
       if(this.zFree(md) && !xf && zl.ramp) rmp = Math.pow(2, zl.ramp*(zEff-1));
     }
     if(u.uZIter) gl.uniform1f(u.uZIter, rmp);
-    // Wash guard. A validated centre goes stale (the set animates, the stick
+    // Wash guard. A validated center goes stale (the set animates, the stick
     // zooms past what was checked). Twice a second, probe what is on screen; if
     // it is flat, glide to the busiest nearby spot at this depth, and only if
     // nothing nearby has structure, back the zoom out a step.
@@ -15636,7 +15743,7 @@ class Component extends DCLogic {
     // because it has to survive as a pose the drag and the pad can still read.
     // The camera basis is carried through the pole (see render3), so this can run
     // past vertical and come back the far side instead of gimbal-locking.
-    // Roll is an Auto behaviour: it runs only while Auto is on, so it can be
+    // Roll is an Auto behavior: it runs only while Auto is on, so it can be
     // armed ahead of time and stays parked while the operator drives by hand.
     const vs = this.state.auto ? (this.state.vspin || 0) : 0;
     if(vs !== 0){
@@ -15693,9 +15800,9 @@ class Component extends DCLogic {
       ? this.pan2(this.pan.x + (lo?lo[0]:0), this.pan.y + (lo?lo[1]:0))
       : [this.pan.x + gp.x, this.pan.y + gp.y];
     // Hard containment for the 2D Fields sets, applied to the final offset
-    // whatever wrote it (stick, drag, gyro, level offset). The frame centre may
+    // whatever wrote it (stick, drag, gyro, level offset). The frame center may
     // not sit further than ~0.9 of a zoom-0 half-frame from where the scene
-    // opened (or from the descent centre, if that is already further), so the
+    // opened (or from the descent center, if that is already further), so the
     // subject always crosses the frame. Looping scenes frame off the anchor and
     // only get a tighter view-relative cap.
     if(this.is2D() && !this.isCanvasScene() && md0 !== undefined && this.is2Mode(md0) && this.has2Ctr(md0)){
@@ -15819,7 +15926,7 @@ class Component extends DCLogic {
     // which sits at a fixed point INSIDE the fractal — so whichever face was
     // toward the camera at mount stayed the axis of the whole move, and turning
     // swung the rest of the object around it. The pivot is now the point the
-    // centre of the frame is looking at: probe the centre ray's hit and orbit
+    // center of the frame is looking at: probe the center ray's hit and orbit
     // that. As the view turns, the pivot walks onto whatever face is toward the
     // viewer now. Stable rather than a feedback loop, because moving the eye
     // along the line through the pivot leaves that line — and therefore the
@@ -15835,7 +15942,7 @@ class Component extends DCLogic {
       if(q){
         const cl = v => Math.max(-26, Math.min(26, v));
         this.pivAim = [cl(q[0]), cl(q[1]), cl(q[2])];
-        // Repeat on: the centre ray lands on whichever copy it meets first, and
+        // Repeat on: the center ray lands on whichever copy it meets first, and
         // that copy changes as the view turns, so the aim hopped a whole cell
         // forward and the eye (which rides the pivot) walked off through the
         // lattice - the "wild" orbit. Bring every landing into the pivot's own
@@ -15843,7 +15950,7 @@ class Component extends DCLogic {
         const rp = this.repP || 0;
         if(rp > 0 && this.piv3) for(let i=0;i<3;i++) this.pivAim[i] -= rp*Math.round((this.pivAim[i]-this.piv3[i])/rp);
         if(!this.piv3) this.piv3 = this.pivAim.slice();
-        // How fast the aim is travelling, measured between probe landings. This
+        // How fast the aim is traveling, measured between probe landings. This
         // is what the lead term below needs and the only place it can be known.
         if(this.pivAimPrev){
           const dtp = Math.max(16, t - (this.pivAimT || t));
@@ -15869,9 +15976,9 @@ class Component extends DCLogic {
       // LEAD TERM. A first-order lag chasing a moving target settles at a
       // constant error of v/K, not at zero — so while the scene turns steadily
       // the pivot sat a fixed distance BEHIND where the frame was looking, and
-      // the subject rode off-centre. The offset reversed with the direction of
+      // the subject rode off-center. The offset reversed with the direction of
       // travel, which is exactly the report: counter-clockwise put the fractal
-      // left of centre, clockwise put it right. Aiming at aim + v/K cancels that
+      // left of center, clockwise put it right. Aiming at aim + v/K cancels that
       // steady-state error algebraically, leaving the filter to do what it is
       // for — absorbing the step when a fresh probe lands. Clamped so a probe
       // that jumps across the solid cannot fling the pivot off it.
@@ -15973,6 +16080,12 @@ class Component extends DCLogic {
         : (this.is2D() ? 0.35 + 0.65*(tm.smth ?? 0.55) : 0));
       if(pu.uDofDepth) gl.uniform1f(pu.uDofDepth, is3dof ? 1 : 0);
       if(pu.uDenoise) gl.uniform1f(pu.uDenoise, dnAmt);
+      // Flat water fills the empty space of the shader 2D scenes with Depth
+      // off. The canvas scenes keep their night skies, which sit near black.
+      if(pu.uWater) gl.uniform1f(pu.uWater, (!depthOn && this.state.voidWater !== false && this.is2D() && !this.isCanvasScene()) ? 1 : 0);
+      { const ws = this.WATER_SCHEMES.find(w=>w[0]===this.state.waterScheme) || this.WATER_SCHEMES[1];
+        if(pu.uWaterHue) gl.uniform1f(pu.uWaterHue, ws[2]);
+        if(pu.uWaterMono) gl.uniform1f(pu.uWaterMono, ws[0]==='mono' ? 1 : 0); }
       if(pu.uDepth){
         gl.uniform1f(pu.uDepth, depthOn ? tm.dpth : 0);
         gl.uniform1f(pu.uDMode, this.state.dmode || 0);
@@ -16042,7 +16155,7 @@ class Component extends DCLogic {
   // a link already in flight (or finished) instead of starting one. Never links
   // over a family that is already pending — that would throw away real progress.
   preheat(i, chosen){
-    // Speculative builds (hover, neighbours, slots, idle warm-up) are what froze
+    // Speculative builds (hover, neighbors, slots, idle warm-up) are what froze
     // the app with nothing on screen to explain it. Only a scene the user has
     // actually committed to is built ahead of time now.
     if(!chosen && !this.state.preheatAll) return;
@@ -16070,7 +16183,7 @@ class Component extends DCLogic {
   // which froze every control on a canvas scene until a shader program linked.
   // AR, step one: the live video as a controller. A 64x36 copy of each frame
   // is differenced against the last; the share of pixels that changed is the
-  // motion amount and their weighted centre is where it is. Both are eased so
+  // motion amount and their weighted center is where it is. Both are eased so
   // a flicker does not twitch the picture. They feed the MOT / MOX / MOY
   // automation sources, and with AR steer on, movement steers the view: the
   // fractal turns toward the side you move on, the canvas scenes swing round,
@@ -16120,7 +16233,7 @@ class Component extends DCLogic {
   }
   // AR, step two: hands and head, through MediaPipe. The library and its
   // models load from Google's CDN the first time a mode needs them (which needs
-  // internet once); the frames themselves are analysed here and never leave.
+  // internet once); the frames themselves are analyzed here and never leave.
   //   hand:   pinch thumb and index to grab, move to turn the scene exactly as
   //           a mouse drag does, let go to release (a flick keeps an orbit
   //           turning); pinch with both hands and spread or close them to zoom.
@@ -16583,9 +16696,9 @@ class Component extends DCLogic {
     // Land the new scene's dial values on the readouts immediately.
     this.effSnap = true;
     this.setState(pr.pal!=null ? {preset:i, pal:pr.pal} : {preset:i}, ()=>{
-      // Arrow keys and the HID d-pad walk the list, so the two neighbours are the
+      // Arrow keys and the HID d-pad walk the list, so the two neighbors are the
       // most likely next scenes. Preheat them once the current one is settled.
-      // Preheat the neighbours in the order the pad will actually reach them —
+      // Preheat the neighbors in the order the pad will actually reach them —
       // the grouped walk, not the raw array.
       const w = this.sceneWalk(), n = w.length;
       let at = w.indexOf(i); if(at < 0) at = 0;
@@ -16644,7 +16757,7 @@ class Component extends DCLogic {
         T = null;
         this.dragging=false; this.commitP(); try{ e.currentTarget.releasePointerCapture(e.pointerId); }catch(x){}
       },
-      // A pointerup the element never sees (cancelled gesture, capture lost to a
+      // A pointerup the element never sees (canceled gesture, capture lost to a
       // scroll or a re-render mid-drag) left dragging true and pDirty set, so p
       // held values React had never been told about and the panel rendered from
       // a stale copy.
@@ -16702,7 +16815,7 @@ class Component extends DCLogic {
     const presets = ALLP.map((pr,i)=>({pr,i})).filter(o=>grpOf(o.pr)===tabKind).map(({pr,i})=>{
       // With no context the shader scenes cannot draw. Dim them rather than
       // hide them — they come back the moment a context is granted, and a grid
-      // that loses two thirds of its tiles is more alarming than one that greys
+      // that loses two thirds of its tiles is more alarming than one that grays
       // them.
       const dead = noCtx && pr.kind !== '2DC';
       const thumb = thumbs[pr.name] || '';
@@ -16924,6 +17037,16 @@ class Component extends DCLogic {
       fxOptions: [{v:'0',tag:'FX Off'},{v:'0.35',tag:'FX Low'},{v:'0.7',tag:'FX Mid'},{v:'1',tag:'FX High'}],
       setFx: (e)=>this.setState({fx: parseFloat(e.target.value)||0}),
       dmodeSel: (s.trim.dpth||0) > 0.001 ? String(s.dmode||0) : 'off',
+      waterOnSel: s.voidWater === false ? '0' : '1',
+      waterOnOptions: [{v:'1',tag:'Empty: Water'},{v:'0',tag:'Empty: Black'}],
+      setWaterOn: (e)=>this.setState({voidWater: e.target.value !== '0'}),
+      waterOnDisp: ((s.trim.dpth||0) <= 0.001 && this.E && !this.isCanvasScene()) ? 'block' : 'none',
+      // Water hue as a color harmony against the scene: how far round the
+      // wheel the water's tint turns, or the same hue made deeper (mono).
+      waterHueSel: s.waterScheme || 'split',
+      waterHueOptions: this.WATER_SCHEMES.map(([v,tag])=>({v, tag:'Water: '+tag})),
+      setWaterHue: (e)=>this.setState({waterScheme: e.target.value}),
+      waterHueDisp: (((s.trim.dpth||0) <= 0.001 && s.voidWater !== false && this.E && !this.isCanvasScene()) || ((s.trim.dpth||0) > 0.001 && String(s.dmode)==='2' && ((s.terrLow ?? 3) & 1))) ? 'block' : 'none',
       terrLowSel: String(s.terrLow ?? 3),
       terrLowOptions: [{v:'3',tag:'Water + Mist'},{v:'1',tag:'Water'},{v:'2',tag:'Mist'},{v:'0',tag:'Dark water'}],
       setTerrLow: (e)=>this.setState({terrLow: parseInt(e.target.value,10)||0}),
@@ -17047,7 +17170,7 @@ class Component extends DCLogic {
       // having, and tying the two to one control would make it unreachable.
       vspinTag: 'Roll ' + ((s.vspin || 0) === 0 ? 'Off' : ((s.vspin || 0) > 0 ? '⤵ Fwd' : '⤴ Back')),
       vspinBg: chip(!!s.auto && (s.vspin || 0) !== 0).bg, vspinFg: chip(!!s.auto && (s.vspin || 0) !== 0).fg, vspinBorder: chip(!!s.auto && (s.vspin || 0) !== 0).border,
-      // Deck: same treatment as the Spin picker beside it while live, greyed
+      // Deck: same treatment as the Spin picker beside it while live, grayed
       // like the Fire picker when off or waiting on Auto.
       rollBorder: (!!s.auto && (s.vspin||0)!==0) ? 'var(--acc30)' : 'rgba(255,255,255,0.11)',
       rollFg: (!!s.auto && (s.vspin||0)!==0) ? 'var(--acc)' : 'rgba(242,243,240,0.5)',
@@ -17111,8 +17234,8 @@ class Component extends DCLogic {
         ['repSize','Min size',0.26,'Smallest copy, as a fraction of full size',v=>Math.round(v*100)+'%'],
         ['repGap','Spacing',0.4,'Distance between copies',v=>(0.6+v).toFixed(2)+'x'],
         ['repTurn','Turn',1,'How far each copy is rotated and mirrored',v=>Math.round(v*100)+'%'],
-        ['repVar','Variety',1,'How much each copy varies its shape and colour',v=>Math.round(v*100)+'%'],
-        ['repDrift','Drift',0.5,'Off-centre offset of the smaller copies',v=>Math.round(v*100)+'%'],
+        ['repVar','Variety',1,'How much each copy varies its shape and color',v=>Math.round(v*100)+'%'],
+        ['repDrift','Drift',0.5,'Off-center offset of the smaller copies',v=>Math.round(v*100)+'%'],
       ].map(([k,label,def,tip,fmt])=>{ const v = s[k] ?? def; return {label, tip, value:v, read:fmt(v), pct:(v*100).toFixed(1)+'%', drag:this.drag(nv=>this.setState({[k]: nv}))}; }),
       rollSel: String(s.vspin || 0),
       rollOptions: [{v:'1',tag:'Roll ⤵ Fwd'},{v:'0',tag:'Roll Off'},{v:'-1',tag:'Roll ⤴ Back'}],
@@ -17535,7 +17658,7 @@ class Component extends DCLogic {
       arHint: (this.arStat ? this.arStat + ' ' : '') + ({
         hand: 'AR hands: pinch your thumb and index finger to grab and move your hand to turn the scene, bring it closer to the camera or pull it back to zoom, and twist it like a dial to roll; relax your hand to let go (a quick flick keeps it spinning). Hold up an open palm and move it to pan. Close a fist and move it up or down for Morph, sideways for Hue; twist it for Saturation, push it toward the camera or pull it back for Speed. Pinch with both hands: spread or close them to zoom, twist the pair to turn the hue. In Fly or Surface view, point with your index finger to aim a target and hold still to fly there. A peace sign goes to the next scene. The preview shows what the camera sees; drag it anywhere.',
         body: 'AR body: for performing from across a room. Stand so the camera sees you from the waist up. Sway left or right to turn the view, crouch to look down, step toward the camera to zoom, tip your shoulders to roll. Raise your right hand above your shoulder to take hold: higher sets Morph, out to the side turns the Hue. Raise your left hand the same way for Speed (higher) and Saturation (out). Drop the arm to let go. Clap from wide apart to tap the tempo; jump to land a beat.',
-        head: 'AR head: the screen becomes a window. Move your head left, right, up or down and the view follows; lean in to zoom, lean back to pull out; tilt your head and the view rolls with it; nod along to the music and each nod lands as a beat and sets the tempo. Sit centred in front of the camera when you switch it on.',
+        head: 'AR head: the screen becomes a window. Move your head left, right, up or down and the view follows; lean in to zoom, lean back to pull out; tilt your head and the view rolls with it; nod along to the music and each nod lands as a beat and sets the tempo. Sit centered in front of the camera when you switch it on.',
         motion: 'AR motion: any movement in front of the camera turns the view toward its side, and a sudden burst of movement hits like a beat (strobe, bloom and the beat-driven controls fire with it). Works without internet but reacts to everything that moves; a still background helps.'
       })[this.arModeOf()] || '',
       vidRevDisplay: s.vid.src==='file' ? 'block' : 'none',

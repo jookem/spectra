@@ -13,7 +13,7 @@ uniform float uTime,uFx,uLoud,uBeat,uBass;
 uniform float uBokeh;
 // 1 when the scene texture's alpha carries a real circle-of-confusion per pixel
 // (the 3D families write it during the march), 0 when there is no depth to read
-// and focus has to be guessed from the frame centre.
+// and focus has to be guessed from the frame center.
 uniform float uDofDepth;
 // Depth for the flat families, read off the finished frame: brightness is
 // height. uDepth is the amount (0 = off), uDMode picks how it is shown
@@ -28,9 +28,23 @@ uniform float uTerrFog;
 // What fills the low ground on the terrain, as bits: 1 water (see-through,
 // shore foam, caustics), 2 low mist. 0 keeps the plain dark water plane.
 uniform float uTerrLow;
+// Water on the flat 2D scenes with Depth off: 1 fills the near-black empty
+// space with water. uWaterHue turns the water's tint away from the scene's
+// own color, in turns, so water and subject never share a hue.
+uniform float uWater, uWaterHue, uWaterMono;
+vec3 hueRot(vec3 c, float a){ const vec3 k=vec3(0.57735); float ca=cos(a); return c*ca+cross(k,c)*sin(a)+k*dot(k,c)*(1.0-ca); }
+// The water's tint: the scene's tint turned round the wheel. A near-gray
+// scene has no hue to turn, so it falls back to a cool cyan.
+vec3 waterTint(vec3 tint){
+  vec3 w=max(hueRot(tint, uWaterHue*6.28318), vec3(0.0));
+  // Monochromatic keeps the hue and goes deeper and richer instead.
+  if(uWaterMono>0.5) w=pow(w/max(max(w.r,max(w.g,w.b)),0.02), vec3(2.2));
+  float sat=max(tint.r,max(tint.g,tint.b))-min(tint.r,min(tint.g,tint.b));
+  return mix(vec3(0.3,0.68,1.0), w/max(max(w.r,max(w.g,w.b)),0.02), smoothstep(0.08,0.3,sat));
+}
 uniform vec2 uDTilt;
 // Post denoise, 0..1, from the top half of the Smth trim. Clamps each pixel to
-// the range of its 8 neighbours (kills single-pixel speckle and crawling
+// the range of its 8 neighbors (kills single-pixel speckle and crawling
 // sparkle) and then blends toward a luminance-weighted 3x3 average.
 uniform float uDenoise;
 float h2(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
@@ -140,7 +154,7 @@ void main(){
       tp=t; t+=max(0.0025+t*0.0015,(p.y-h)*0.42); if(t>9.0) break;
     }
     float dofk=clamp(uTerrFog,0.0,1.0);
-    // Horizon glow in the scene's own colour, fading up into the void.
+    // Horizon glow in the scene's own color, fading up into the void.
     float hz=clamp(rd.y+0.08,0.0,1.0);
     vec3 sky=mix(tint*(0.18+0.25*uLoud)+avg*0.6, voidc, smoothstep(0.0,0.35,hz));
     vec3 ld=normalize(vec3(0.55,0.42,0.35));
@@ -162,28 +176,29 @@ void main(){
         vec2 sg=vec2(sin(sw.x*0.8+sw.y*0.5+rt*0.6), cos(sw.y*0.9-sw.x*0.4+rt*0.5));
         float wa=(0.22+uBass*0.3)*mix(1.0,0.35,clamp(t/4.0,0.0,1.0));
         vec3 n=normalize(vec3(wg.x*wa+sg.x*0.12, 1.0, wg.y*wa+sg.y*0.12));
+        vec3 wtn=waterTint(tint);
         float gH=TH(p.xz)*Hh;
         float dW=clamp((wl-gH)/max(wl,1e-4),0.0,1.0);
         vec3 bed=textureLod(uScene,MR((p.xz+n.xz*0.035*dW)*0.9+0.5),2.0).rgb;
         float cs=pow(abs(sin(rq.x*0.6+wg.y*0.8+rt)*sin(rq.y*0.6-wg.x*0.8-rt*0.7)),5.0);
         bed*=0.55+cs*1.2*(1.0-dW);
-        vec3 deepc=tint*0.05+avg*0.10;
-        vec3 under=mix(bed*vec3(0.75,0.85,0.95), deepc, smoothstep(0.0,0.9,dW));
+        vec3 deepc=wtn*0.07+avg*0.05;
+        vec3 under=mix(bed*mix(vec3(0.8),wtn,0.45), deepc, smoothstep(0.0,0.9,dW));
         // What the water mirrors: a bright band at the horizon going dark
         // overhead, so every ripple that tips the reflection up or down shows
         // as a light or dark streak — that is what makes it read as water.
         vec3 rr=reflect(rd,n);
         float hzR=clamp(rr.y,0.0,1.0);
-        vec3 rc=mix(tint*(0.55+0.45*uLoud)+avg*0.9+vec3(0.03), voidc+tint*0.04, smoothstep(0.0,0.28,hzR));
+        vec3 rc=mix(wtn*(0.45+0.4*uLoud)+avg*0.5+vec3(0.03), voidc+wtn*0.04, smoothstep(0.0,0.28,hzR));
         float t2=0.01;
         for(int j=0;j<32;j++){ vec3 q2=p+rr*t2; float h2=TH(q2.xz)*Hh; if(q2.y<h2){ rc=textureLod(uScene,MR(q2.xz*0.9+0.5),3.0).rgb*0.8; break; } t2+=max(0.01,(q2.y-h2)*0.6); if(t2>3.0) break; }
         float fr=0.2+0.8*pow(1.0-max(-rd.y,0.0),4.0);
         c=mix(under, rc, clamp(fr,0.0,0.92));
         float shore=1.0-smoothstep(0.0,0.3,dW);
         float fl=smoothstep(0.6,0.95,0.5+0.5*sin(dW*34.0-uTime*2.2+wg.x*1.5));
-        c+=(fl*0.7+0.3)*shore*shore*(0.3+0.4*uLoud)*(tint*0.4+0.6);
+        c+=(fl*0.7+0.3)*shore*shore*(0.3+0.4*uLoud)*(wtn*0.4+0.6);
         float gl=max(dot(reflect(-ld,n),-rd),0.0);
-        c+=(pow(gl,40.0)*0.35+pow(gl,300.0)*1.6)*(0.6+uBeat*0.8)*(tint*0.5+0.5);
+        c+=(pow(gl,40.0)*0.35+pow(gl,300.0)*1.6)*(0.6+uBeat*0.8)*(wtn*0.5+0.5);
       } else if(wat){
         // Water: rippled normal (bass-driven), reflected ray marched for the ridges.
         vec2 rq=p.xz*14.0; float rt=uTime*1.4;
@@ -259,6 +274,27 @@ void main(){
     col=mix(col,(col+acc)/(1.0+wsum),uDenoise*0.75);
   }
   col*=shade;
+  if(!dOn && uWater>0.5){
+    // Flat water for the empty space of a 2D scene: only the near-black reads
+    // as water, and it moves — two ripple layers, light from the bright parts
+    // nearby bleeding into it through the ripples, caustics and glints, all in
+    // the water's own hue so it never blends into the subject.
+    float l=dot(col,vec3(0.2126,0.7152,0.0722));
+    float m=1.0-smoothstep(0.008,0.05,l);
+    if(m>0.001){
+      vec2 p=uv*vec2(uRes.x/uRes.y,1.0); float rt=uTime;
+      vec2 w=vec2(sin(p.x*18.0+rt*1.3)+0.6*sin(p.x*41.0-p.y*23.0+rt*2.1), cos(p.y*16.0+rt*1.1)+0.6*cos(p.y*37.0+p.x*19.0-rt*1.7));
+      vec2 off=w*(0.004+uBass*0.006);
+      vec3 avg=textureLod(uScene,vec2(0.5),9.0).rgb;
+      vec3 wtn=waterTint(avg/max(max(avg.r,max(avg.g,avg.b)),0.02));
+      vec3 near=textureLod(uScene,uv+off*3.0,4.0).rgb*1.5+textureLod(uScene,uv+off*6.0,6.0).rgb*1.1;
+      float nl=dot(near,vec3(0.2126,0.7152,0.0722));
+      float cs=pow(abs(sin(p.x*9.0+w.y*1.2+rt*0.8)*sin(p.y*9.0-w.x*1.2-rt*0.6)),6.0);
+      float gl=smoothstep(0.9,1.0,0.5+0.25*(w.x+w.y));
+      vec3 wat=wtn*(0.03+0.025*uLoud) + wtn*nl*0.7 + near*0.12 + wtn*cs*(0.08+0.12*uLoud) + mix(vec3(1.0),wtn,0.4)*gl*(0.12+uBeat*0.25);
+      col=mix(col, wat, m);
+    }
+  }
   if(dOn && uDMode<0.5){
     // Relief: the brightness field read as a surface and lit by a light that
     // circles the frame, pushed round by the bass and steered by the tilt.
@@ -277,7 +313,7 @@ void main(){
   // Shallow focal plane. A macro lens on something this small holds only a
   // narrow band sharp, and that limit is most of why a fractal photograph reads
   // as an object in space rather than a plot. There is no depth buffer here, so
-  // focus falls off with distance from frame centre — which is where the scenes
+  // focus falls off with distance from frame center — which is where the scenes
   // keep their subject anyway. Six taps on a golden-angle spiral rather than a
   // ring: a ring at this few samples shows as a visible halo, the spiral just
   // reads as blur. Weighting the taps by their own brightness is what makes the
@@ -287,7 +323,7 @@ void main(){
     // Two ways in. With real depth the circle of confusion arrives per pixel in
     // the alpha channel, so focus sits on the surface the camera is actually
     // orbiting and the background goes as soft as a macro lens makes it. Without
-    // depth it falls off from frame centre, which is where the 2D scenes keep
+    // depth it falls off from frame center, which is where the 2D scenes keep
     // their subject anyway.
     float coc = uDofDepth>0.5
       ? texture(uScene,uv).a*uBokeh
@@ -299,7 +335,7 @@ void main(){
       // spreads into a round highlight instead of a ring or a streak, and the
       // brightness weighting is what keeps it a DISC: weighting each tap by its
       // own luma means a small highlight dominates the average over its whole
-      // circle of confusion rather than being diluted into grey. That single
+      // circle of confusion rather than being diluted into gray. That single
       // term is most of what the eye reads as a photographic defocus.
       int N = uDofDepth>0.5 ? 18 : 6;
       float rmax = uDofDepth>0.5 ? 0.075 : 0.035;
@@ -313,7 +349,7 @@ void main(){
         vec4 s=texture(uScene,suv);
         // A sample only bleeds onto this pixel if it is at least as defocused as
         // the pixel is — otherwise a sharp foreground smears over the blurred
-        // field behind it, which is the classic gather artefact and reads as a
+        // field behind it, which is the classic gather artifact and reads as a
         // halo around every in-focus edge.
         float ok = uDofDepth>0.5 ? smoothstep(-0.25,0.10,s.a*uBokeh-coc*0.55) : 1.0;
         float lum=dot(s.rgb,vec3(0.2126,0.7152,0.0722));
@@ -358,7 +394,7 @@ uniform float uVidMix,uHasTex,uVidFlip,uVidFlipV,uFeed,uDrift,uCamYaw,uCamPitch,
 // Every self-driven spin in the file routes through it so one control stops them all.
 uniform float uSpin;
 // Noise-reduction master (Smth). Widens sub-pixel filters and relaxes the
-// raymarch hit test; 0 = the old razor-thin, fizzy behaviour.
+// raymarch hit test; 0 = the old razor-thin, fizzy behavior.
 uniform float uSmooth;
 uniform vec2 uPan;
 // Gyro plane tilt for the flat families (x = pitch, y = roll, radians). The
@@ -375,7 +411,7 @@ uniform float uZLoop;
 // wraps while its weight is zero and the zoom never stops or cuts.
 uniform vec3 uZX;
 // Deep zoom (Mandelbrot, host deep-zoom.js): perturbation against a reference
-// orbit in uOrb, offsets in float32, centre held in BigInt on the host.
+// orbit in uOrb, offsets in float32, center held in BigInt on the host.
 uniform float uDeep,uDeepPix,uDeepBase,uDeepShade;
 uniform int uDeepMax,uRefLen;
 uniform vec2 uDeepOff;
@@ -385,21 +421,21 @@ uniform sampler2D uOrb;
 // period (0 off). uCamProbe draws the steering probe instead of the frame.
 uniform float uCamMode,uCamScale,uRep,uCamProbe;
 // Repeat variation: x = smallest copy (fraction of full size), y = turn amount,
-// z = per-copy parameter spread, w = off-centre drift of the smaller copies.
+// z = per-copy parameter spread, w = off-center drift of the smaller copies.
 uniform vec4 uRepV;
 // 3D look: x = fog depth (1 = as designed), y = glow amount (1 = as designed).
 uniform vec2 uLook;
 uniform vec3 uCamPos,uCamF,uCamR,uCamU,uCamTap;
 // Tap target highlight (host cam-fly.js applyTgt). uTgt.w 0 = off.
 uniform vec4 uTgt; uniform vec3 uTgtK,uTgtC;
-// 1 on the fractal copy that holds the target point (same cell maths as map()).
+// 1 on the fractal copy that holds the target point (same cell math as map()).
 // Without repeats it is the form within the picked radius around the point.
 float tgtSel(bool hit,vec3 p,float Rg){ if(!hit) return 0.0; if(uRep<=0.0) return 1.0-smoothstep(Rg*0.85,Rg,length(p-uTgt.xyz));
   vec3 a=floor(p/uRep+0.5), b=floor(uTgt.xyz/uRep+0.5); return all(equal(a,b))?1.0:0.0; }
 // Fog / reach length for the inside views (host-smoothed open space).
 uniform float uCamFog;
 vec4 gProbe=vec4(0.0);
-// Probe pixel 25: the target colour, so the host's marker ring matches it.
+// Probe pixel 25: the target color, so the host's marker ring matches it.
 vec4 gProbeC=vec4(0.0);
 // The endless-zoom triple, solved on the HOST and passed in rather than derived
 // per family in here. Every family that loops needs the same three numbers — a
@@ -427,7 +463,7 @@ uniform float uZBase;
 // optical property with a visible range from opaque stone to lit wax.
 uniform float uIOR;
 // Iteration scale across a sweep, evaluated on the host because it depends only
-// on the phase. A LINEARISABLE anchor -- every repelling cycle, so Julia, Sine
+// on the phase. A LINEARIZABLE anchor -- every repelling cycle, so Julia, Sine
 // Lambda, the Misiurewicz points -- adds a fixed handful of iterations per
 // period, so its budget is flat and this stays 1. A period-doubling cascade
 // anchor does not: the structure's period doubles every sweep, so resolving the
@@ -437,7 +473,7 @@ uniform float uIOR;
 // Ramped by the family's own factor it reads the same at both ends, and since
 // the ramp ends at 1.0 the peak is still the plain clamped budget.
 uniform float uZIter;
-// Probe channel. When set, every fragment traces the CENTRE ray instead of its
+// Probe channel. When set, every fragment traces the CENTER ray instead of its
 // own and the shader writes out the world position that ray landed on, packed
 // into bytes, so the host can read back the point the viewer is looking AT and
 // orbit that instead of the world origin.
@@ -445,7 +481,7 @@ uniform float uDepthOut;
 // 1 only while drawing a 3D scene INTO the offscreen target that the post pass
 // will read. The circle of confusion is written to alpha, and alpha is not a
 // free channel on the direct-to-backbuffer path: the context has an alpha
-// channel and the compositor honours it, so a frame that ends up on screen with
+// channel and the compositor honors it, so a frame that ends up on screen with
 // alpha 0 is an invisible frame. Flagged by the host for exactly the one draw
 // that consumes it, the same way uDepthOut flags the probe pass.
 uniform float uCoCOut;
@@ -469,7 +505,7 @@ uniform vec3 uOrbit;
 uniform int uPalSel;
 uniform float uSat,uGam,uSpan,uWarm;
 // How strongly the interior is engraved. The attracting region has no escape
-// count to colour it, so it plots as one dead shape; this is the amount of
+// count to color it, so it plots as one dead shape; this is the amount of
 // pattern laid into it instead.
 uniform float uFill;
 // Exterior structure on the escape-time families. 0 off, 1 field grid (external
@@ -492,13 +528,13 @@ uniform float uRim;
 uniform sampler2D uTxt;
 uniform float uTxtOn,uTxtDepth,uTxtScale,uTxtY,uTxtHue,uTxtWeight,uTxtWarp,uTxtInk,uTxtLit,uTxtJit,uTxtAsp;
 // Text placement. The message is translated in text space and turned about its
-// own centre, so the transform is the same one at every sampling site — the 3D
+// own center, so the transform is the same one at every sampling site — the 3D
 // SDF, the ghost plane, the per-letter lookup and the 2D field all apply
 // translate-then-rotate and therefore agree on where a given letter is.
 uniform float uTxtX,uTxtRot,uTxtZ,uTxtRx,uTxtRy;
 // Harmony inputs. uChroma is the 12-bin pitch class profile (which notes are
 // sounding, octave-folded); uTonal is that profile projected onto the circle of
-// fifths, so its angle is the key centre and its length is tonal clarity.
+// fifths, so its angle is the key center and its length is tonal clarity.
 uniform float uChroma[12];
 uniform float uNote,uNoteConf,uChordChg;
 // Bar-relative beat position: 0..4 counting up, fractional part is the phase
@@ -538,7 +574,7 @@ vec2 csqrt(vec2 w){
   return vec2(sqrt(max(r+w.x,0.0)*0.5), sign(w.y+1e-9)*sqrt(max(r-w.x,0.0)*0.5));
 }
 // Multi-stop gradient ramp. Unlike the cosine palettes, which sweep hue at a
-// constant rate, a stop list can hold a colour across several shells and then
+// constant rate, a stop list can hold a color across several shells and then
 // turn hard — that uneven pacing is what makes deep zooms read as gold cores
 // cooling out through plum into teal, instead of an even rainbow.
 vec3 ramp(float x, vec3 a, vec3 b, vec3 c, vec3 d, vec3 e, vec3 f){
@@ -593,7 +629,7 @@ vec3 pal(float t){
   vec3 duo=0.5+0.5*cos(6.28318*(vec3(0.0,0.12,0.24)+tt*0.7));
   vec3 c=mix(base,duo,clamp(uCC,0.0,1.0)*(uPalSel==0?1.0:0.0));
   // Global color trim, applied to every palette. Saturation pivots on Rec.709
-  // luma so 0 is a true greyscale and >1 pushes past the palette's own range;
+  // luma so 0 is a true grayscale and >1 pushes past the palette's own range;
   // warmth is a complementary R/B tilt; gamma shapes the ramp's midtones.
   float lum=dot(c,vec3(0.2126,0.7152,0.0722));
   c=mix(vec3(lum),c,uSat);
@@ -646,7 +682,7 @@ float sfScale(){
   return 1.0;
 }
 // Orbit length. On the families whose Morph used to be a fold (Mandelbrot,
-// Sine Lambda, Ship Julia) it now sets how much of the orbit history colours
+// Sine Lambda, Ship Julia) it now sets how much of the orbit history colors
 // the pixel: near 0 only the last few points count, so the texture is crisp
 // and local; at 1 the whole orbit averages, so the bands run long and smooth.
 float orbitKeep(){
@@ -680,7 +716,7 @@ vec3 esc_shade(float i,float maxi,float m,vec2 z,vec2 dz,float st,float sn,float
   // Relief. The analytic normal (cdiv(z,dz)) only describes the boundary's own
   // slope; treating the smooth iteration count as a height field and taking its
   // screen-space gradient instead lights the whole exterior, so every shell and
-  // filament is sculpted rather than a flat colour band. This is what separates
+  // filament is sculpted rather than a flat color band. This is what separates
   // the reference's embossed ropes from a plain escape-time plot.
   float hgt=log(max(de,1e-7));
   vec2 gr=vec2(dFdx(hgt),dFdy(hgt));
@@ -740,15 +776,15 @@ vec3 esc_shade(float i,float maxi,float m,vec2 z,vec2 dz,float st,float sn,float
   float ph=(pow(tt,0.42)*3.2+pow(tt,1.7)*1.15*mix(0.3,1.7,uCA))*phRate;
   // Flatter leading exponent, stronger tail: bands stay tight where the escape
   // count is climbing fast near the set and stretch into wide plates out in the
-  // open field, which is the band rhythm the plot is recognised by.
+  // open field, which is the band rhythm the plot is recognized by.
   ph=mix(ph,(pow(tt,0.26)*1.75+pow(tt,1.30)*1.65*mix(0.3,1.7,uCA))*phRate,fillw);
   // The speckle left after the earlier AA pass was never the stripe or the
   // specular — it is the palette phase itself. Deep in the shell stack ph moves
-  // by more than a whole cycle between neighbouring pixels, so pal() returns an
+  // by more than a whole cycle between neighboring pixels, so pal() returns an
   // essentially random point on the ramp per pixel and the field reads as
   // dithered noise. No amount of softening a band EDGE fixes that; the cycle is
   // simply not resolvable. pfw is how many ramp cycles one pixel spans, and
-  // where that passes 1 the only correct colour is the ramp's own average.
+  // where that passes 1 the only correct color is the ramp's own average.
   float pfw=fwidth(ph);
   float res=1.0/(1.0+pfw*mix(1.6,5.0,uSmooth));
   float bw=clamp(pfw*mix(0.5,1.8,uSmooth),0.0,0.30);
@@ -775,11 +811,11 @@ vec3 esc_shade(float i,float maxi,float m,vec2 z,vec2 dz,float st,float sn,float
     col+=pal(pc/12.0*1.2+0.5)*pow(en,2.5)*0.50;
   }
 
-  // Golden Wave: a woodblock print has one carved block per colour, so the ramp
-  // is quantised to a handful of flat plates rather than a continuous gradient.
-  // Quantising the palette coordinate (not the final RGB) keeps every plate on
+  // Golden Wave: a woodblock print has one carved block per color, so the ramp
+  // is quantized to a handful of flat plates rather than a continuous gradient.
+  // Quantizing the palette coordinate (not the final RGB) keeps every plate on
   // palette, and the fwidth term keeps each plate edge one pixel soft so the
-  // quantisation does not reintroduce the aliasing the AA pass just removed.
+  // quantization does not reintroduce the aliasing the AA pass just removed.
   // Relief is damped at the same time: the print reads as flat inked areas with
   // gradation only where the block was wiped, not as a lit surface.
   if(uMode==40){
@@ -892,7 +928,7 @@ vec3 esc_in(float tr,float st,float sn,vec2 dz,float maxi){
   // The cycle's MULTIPLIER is the missing channel. The orbit derivative decays
   // like |lambda|^n toward an attracting cycle, so log|dz| divided by the
   // iteration count recovers log|lambda| -- zero on the lobe's own boundary,
-  // most negative at its centre. It is a smooth dome over exactly the ground
+  // most negative at its center. It is a smooth dome over exactly the ground
   // the trap cannot describe, and it costs nothing: dz is already accumulated
   // by every escape loop in the set and was simply thrown away on interior hits.
   float mlt  = log(max(length(dz),1e-30))/max(maxi,1.0);
@@ -930,7 +966,7 @@ vec3 esc_in(float tr,float st,float sn,vec2 dz,float maxi){
   // contour lines, exactly as a map contours a hill: the dome gives the lobe's
   // own level curves, the trap gives the orbit's. Dividing by the screen-space
   // derivative keeps every line one pixel wide however deep it is zoomed, so
-  // the pattern neither aliases at the centre of a lobe nor smears at its rim.
+  // the pattern neither aliases at the center of a lobe nor smears at its rim.
   if(uFill>0.001){
     float dk=mix(14.0,46.0,uCC), tk=mix(9.0,26.0,uCC);
     float dl=1.0-smoothstep(0.0,1.0,abs(fract(dome*dk-0.5)-0.5)/max(fwidth(dome)*dk,1e-5));
@@ -941,8 +977,8 @@ vec3 esc_in(float tr,float st,float sn,vec2 dz,float maxi){
     // the way shading does on an etching.
     vec2 hd=normalize(dg+vec2(1e-6));
     float hl=(0.5+0.5*sin(dot(gl_FragCoord.xy,vec2(hd.y,-hd.x))*0.85))*smoothstep(0.12,0.70,dome);
-    // The lines carry the palette, so the fill is the picture's own colour
-    // rather than a grey screen over it, and they are densest where the basin
+    // The lines carry the palette, so the fill is the picture's own color
+    // rather than a gray screen over it, and they are densest where the basin
     // is deepest — precisely where the flat plate used to be.
     float amt=uFill*(0.35+0.65*deep);
     ic += pal(0.16+dome*0.42+uCB*0.10)*(dl*0.30+tl*0.20+hl*0.14)*amt;
@@ -983,7 +1019,7 @@ float txtLetter(vec2 q){
 // camera's own yaw so the message stays readable while the camera orbits, but
 // still a genuine solid in the scene — the march finds it, so the fractal can
 // pass in front and hide it, and it takes the same light.
-// Apparent-size normaliser for the 3D message. The scenes are framed at wildly
+// Apparent-size normalizer for the 3D message. The scenes are framed at wildly
 // different camera distances — a fifth of a unit on the Mandelbulb, several
 // units on Spudsville and Mandelbox, since a bigger fractal simply sits further
 // back — and type measured in world units therefore changed size by a factor of
@@ -1006,7 +1042,7 @@ float sdText3(vec3 p){
   // or back behind it — and because the offset is applied after the yaw
   // rotation it stays "toward the camera" as the scene turns.
   q.z-=uTxtZ*gTxtK;
-  // Turn about the message's own centre: yaw, then pitch, then the roll below.
+  // Turn about the message's own center: yaw, then pitch, then the roll below.
   q.xz*=rot(uTxtRy); q.yz*=rot(uTxtRx);
   float sc=max(uTxtScale,0.02)*gTxtK;
   q/=sc;
@@ -1050,7 +1086,7 @@ float menger(vec3 p){
   // Cst B is the cross-section: how wide the square hole cut at each level is
   // relative to the cell. It is the sponge's one defining constant — 3 is
   // Menger's own, below it the struts thicken until the holes close, above it
-  // they thin to a cage. Centred so 0.5 is the classical sponge.
+  // they thin to a cage. Centered so 0.5 is the classical sponge.
   float xw=3.0+(uCB-0.5)*0.9;
   int mi=int(clamp((4.0+uZoom*3.0)*fi(),2.0,12.0));
   for(int m=0;m<12;m++){
@@ -1084,7 +1120,7 @@ float apollonian(vec3 p,out float trap){
   // Cst A is the inversion radius — the size of the sphere every point is
   // reflected through, which sets how tightly the packing nests. Cst B is the
   // lattice period the fold wraps into, so it changes how many spheres a cell
-  // holds rather than their scale. Both centred on the classical values.
+  // holds rather than their scale. Both centered on the classical values.
   float kk=1.05+uMorph*0.5+(uCA-0.5)*0.42;
   float per=0.5+(uCB-0.5)*0.14;
   int N=int(clamp(fi()*5.0,2.0,12.0));
@@ -1104,7 +1140,7 @@ float qjulia(vec3 pos,out float trap){
   // Morph and the clock; the other two sat at fixed literals, which is why the
   // scene had one shape however hard you pushed it. Cst A and Cst B now own
   // them — c is the whole of what a Julia set IS, so this is the parameter that
-  // makes the family explorable instead of decorative. Centred on the values
+  // makes the family explorable instead of decorative. Centered on the values
   // that were hard-coded.
   vec4 c=vec4(-0.65+uMorph*0.4+sin(uTime*0.13*uSpeed)*0.18,
               0.55+cos(uTime*0.11*uSpeed)*0.16,
@@ -1293,11 +1329,11 @@ float tessQuad(vec3 p,vec3 a,vec3 b,vec3 c,vec3 d){
 }
 float tessFrac(vec3 p,out float trap){
   float ph=uTime*0.11*uSpeed*uSpin+(uCA-0.5)*6.28318;
-  // Projection distance from the 4D eye to the hypercube's centre. Must stay
+  // Projection distance from the 4D eye to the hypercube's center. Must stay
   // above the largest |w| a vertex can reach (2, the vertex radius) or a corner
   // passes behind the eye.
   float D=mix(4.6,2.45,clamp(uMorph,0.0,1.0));
-  // Size normaliser: the largest projected radius any vertex can take at this
+  // Size normalizer: the largest projected radius any vertex can take at this
   // d, over w in [0,2) with |xyz|²+w²=4. Dividing by it keeps the object the
   // same size as Perspective is turned, rather than ballooning as d shrinks.
   float rmax=0.0;
@@ -1369,11 +1405,11 @@ float tessFrac(vec3 p,out float trap){
 // straight rod joining them; the twist stretches distances by sqrt(1+(kR)^2),
 // so the result is divided by that to stay a safe bound. The helices run the
 // full height of space on a staggered grid (alternate rows shifted half a
-// cell), so one stands at the centre and the line the camera looks down stays
+// cell), so one stands at the center and the line the camera looks down stays
 // clear; each has its own phase and drift. Only the nearest helix is ever
 // evaluated, one per step, which is what keeps the field affordable.
 //   tw  pitch (loose ladder -> tight coil)    ca  groove (strand phase offset)
-//   cb  field spacing (dense -> open)          cc  grain (in the colour, not the shape)
+//   cb  field spacing (dense -> open)          cc  grain (in the color, not the shape)
 //   uIter pairs per turn   uDetail rod thickness   bass: swell
 //   high: base pairs light up                 beat: twist ripple down the strands
 float dnaHash(float n){ return fract(sin(n*12.9898)*43758.5453); }
@@ -1391,7 +1427,7 @@ float dnaOne(vec3 p, float ph, float seed, out float trap, float tw, float ca, f
   float d=min(length(q.xz-c1),length(q.xz-c2))-rb; trap=0.12;
   // Base pairs: a rod from one backbone to the other at each step, sunk into
   // both, so every rung is joined at both ends. Its two halves take two
-  // colours, the way a base pair is drawn.
+  // colors, the way a base pair is drawn.
   float npp=6.0+floor(clamp(uIter,0.0,1.0)*8.0);
   float sp=pitch/npp;
   float slot=floor(p.y/sp+0.5), y0=slot*sp;
@@ -1404,7 +1440,7 @@ float dnaOne(vec3 p, float ph, float seed, out float trap, float tw, float ca, f
     trap=(pair<0.5?0.55:0.85)+(side<0.0?0.06:0.0);
     trap+=uHigh*uReact*0.3*step(0.6,dnaHash(slot+seed+floor(uTime*8.0)));
   }
-  // Grain: the ridged texture of the reference, carried in the colour index
+  // Grain: the ridged texture of the reference, carried in the color index
   // only. Moving the surface itself cost six sines per step on every helix.
   if(cc>0.01){ vec3 g=p*vec3(23.0,19.0,23.0); trap+=cc*0.05*sin(g.x+g.y*0.7)*sin(g.z-g.y*0.9); }
   return d/stretch;
@@ -1416,11 +1452,11 @@ float dna(vec3 p, out float trap, float tw, float ca, float cb, float cc){
   float row=floor(p.z/C+0.5), off=mod(row,2.0)*C*0.5;
   vec2 cell=vec2(floor((p.x-off)/C+0.5), row);
   vec2 ctr=vec2(cell.x*C+off, row*C);
-  // The centre helix keeps phase 0, so the scene opens on the same strand.
+  // The center helix keeps phase 0, so the scene opens on the same strand.
   float h=(cell.x==0.0 && row==0.0) ? 0.0 : dnaHash(dot(cell,vec2(7.13,3.71))+1.3);
   vec3 lp=vec3(p.x-ctr.x, p.y+h*9.0, p.z-ctr.y);
   float d=dnaOne(lp, h*6.2831853, h, trap, tw, ca, cc), df=d;
-  // Only this cell's helix is evaluated. A neighbour's is at least as far as
+  // Only this cell's helix is evaluated. A neighbor's is at least as far as
   // the cell edge plus the clear gap on its side (half a cell less the helix
   // radius), so the step never exceeds that and cannot jump past one.
   vec2 e=abs(p.xz-ctr)-vec2(C*0.5);
@@ -1438,7 +1474,7 @@ float dna(vec3 p, out float trap, float tw, float ca, float cb, float cc){
 // function applied to itself, level after level.
 // The spiral is a lattice in (log r, theta). Its 8 and 13 parastichies make a
 // square cell when b = 0.027, so the nearest floret is a round-off in that
-// lattice plus three neighbours: four candidates a level, whatever the count.
+// lattice plus three neighbors: four candidates a level, whatever the count.
 //   morph  floret size     ca  profile exponent c (pointed -> domed)
 //   cb     floret tilt     cc  growth: florets drift out from the tip
 //   uDetail  levels 1..3   bass: florets swell   beat: a pulse down the levels
@@ -1567,9 +1603,9 @@ float romanesco(vec3 p, out float trap){
   return d;
 }
 
-// CubeKochMosely (42). A Menger cube lattice coloured by the march itself. At
+// CubeKochMosely (42). A Menger cube lattice colored by the march itself. At
 // every subdivision the cell the point falls in is recorded, and the trap is
-// that CELL CENTRE projected onto a sweep axis — not the hit point. So every
+// that CELL CENTER projected onto a sweep axis — not the hit point. So every
 // face of a given cube receives one single trap value and the gradient lands on
 // the lattice a cube at a time, in steps, instead of smearing continuously
 // across each surface. Animating a phase against it then wipes the gradient
@@ -1791,7 +1827,7 @@ float map(vec3 p,out float trap){
     // Cst A moved it, and Cst B had nothing at all on this scene. Giving w a
     // second term is the honest place for it: the pair together sweep the slice
     // through the 4D body, and small changes in w reshape the solid in a way no
-    // amount of pre-transform mimics. Centred so 0.5 is the old single-term value.
+    // amount of pre-transform mimics. Centered so 0.5 is the old single-term value.
     qc.w += (uCB-0.5)*0.5;
     // z starts at the origin for a Mandelbrot; leaving that alone keeps the
     // family what it is.
@@ -1908,7 +1944,7 @@ vec3 rayCol(vec3 ro,vec3 rd,float far,int budget){
   return (b2*(0.10+0.85*df)+fr2*gP[3]*0.8)*exp(-d*0.28);
 }
 
-// Tap target colour, taken from the scene's own palette (the slot its glow
+// Tap target color, taken from the scene's own palette (the slot its glow
 // uses) at full brightness, so the highlight reads as part of the scene.
 vec3 tgtCol(){ vec3 c=pal(0.15); c=c/max(max(c.r,c.g),max(c.b,0.05)); return mix(c,vec3(1.0),0.15); }
 vec3 render3(vec2 uv){
@@ -2006,12 +2042,12 @@ vec3 render3(vec2 uv){
   else if(uMode==36){dfar=1.42;}  // 0.20, floored
   else if(uMode==41){dfar=9.11;}  // 0.69
   else if(uMode==42){dfar=4.29;}  // 0.42
-  else if(uMode==43){dfar=7.2;}   // DNA field: the centre helix whole, the field behind it
+  else if(uMode==43){dfar=7.2;}   // DNA field: the center helix whole, the field behind it
   else if(uMode==44){dfar=9.6;}   // Romanesco: the whole head in frame
   else if(uMode==45){dfar=9.0;}   // Cathedral: the whole box at zoom 0, the arcades by default
   else {dfar=4.85;}
 #ifdef NORM3D
-  // Every bounded object is normalised to the Mandelbulb's box (see _NORM), so
+  // Every bounded object is normalized to the Mandelbulb's box (see _NORM), so
   // they all take the Mandelbulb's framing distance.
   dfar=4.85;
 #endif
@@ -2020,7 +2056,7 @@ vec3 render3(vec2 uv){
   // and letting it fall back out is the "everything pulsates" the whole set had
   // Camera breath on the low end, gated on the strobe: with strobe on the frame
   // pumps with the kick, with strobe killed the geometry sits still and the beat
-  // reads only through colour and bloom.
+  // reads only through color and bloom.
   // The tesseract is the one scene you can fly INTO: the shared range stops at
   // a fifth of the framing distance, which parks the eye just outside the outer
   // cube. A much longer range lets the zoom carry the camera through the panes
@@ -2059,8 +2095,8 @@ vec3 render3(vec2 uv){
   // Camera pan. Translating the eye along its own right/up axes without
   // touching the look direction is a true dolly across the subject, so the 3D
   // families get the same travel the 2D and canvas scenes have.
-  // Containment: the dolly is limited so the subject's centre projects inside an
-  // ellipse at 85% of the frame. A centre inside the frame keeps over half of a
+  // Containment: the dolly is limited so the subject's center projects inside an
+  // ellipse at 85% of the frame. A center inside the frame keeps over half of a
   // roughly round subject on screen, so stick, drag and gyro together can never
   // push it out. Done here because only the shader knows dist.
   {
@@ -2071,7 +2107,7 @@ vec3 render3(vec2 uv){
     if(e>1.0) po/=e;
     ro+=r*po.x+u*po.y;
   }
-  // Auto-centring. A distance estimator has no notion of its own centre, and
+  // Auto-centring. A distance estimator has no notion of its own center, and
   // almost none of these fractals are symmetric about the world origin — the
   // Mandelbulb's mass sits off-axis, the box folds drift with their constants.
   // Orbiting the origin therefore swung the subject out of frame, which is what
@@ -2150,7 +2186,7 @@ vec3 render3(vec2 uv){
     if(h<eps){ hit=true; hp=p; htrap=trap; hd=d; break; }
     d+=h*relax;
     // Orbit stops 7 units past the camera. The tesseract's camera sits inside
-    // the home cell, so under Repeat that cut off every neighbour.
+    // the home cell, so under Repeat that cut off every neighbor.
     if(d>(fc?mix(dist0+7.0,max(uCamScale*60.0,uCamFog*40.0),cw):dist+((uMode==41)?max(7.0,uRep*2.5):7.0))) break;
   }
   // Shade the FIRST surface the ray met, not wherever the walk ended up.
@@ -2162,7 +2198,7 @@ vec3 render3(vec2 uv){
   //
   // Everything drawn is anchored to the object, the way the contours are:
   //  - a smoothed surface normal, so the post pass finds creases as places
-  //    where the normal turns sharply between neighbouring pixels (thin,
+  //    where the normal turns sharply between neighboring pixels (thin,
   //    stable lines, judged on the broad form rather than every bump);
   //  - points where two world-space grid planes cross the surface, so each
   //    dot is a fixed spot on the geometry and rides it exactly.
@@ -2315,7 +2351,7 @@ vec3 render3(vec2 uv){
       }
     }
     if(uMode==42 && trap>-0.5){
-      // Self-illumination rather than a light. The trap arrives quantised per
+      // Self-illumination rather than a light. The trap arrives quantized per
       // cube, so it is used directly as the coordinate along a gradient, and a
       // phase subtracted from it sweeps that gradient through the lattice: at
       // any instant a band of cubes is lit and the rest sit nearly black, and
@@ -2338,7 +2374,7 @@ vec3 render3(vec2 uv){
       // glass there is; it no longer controls how opaque the glass is.
       vec3 l2=normalize(vec3(0.7,0.9,-0.6));
       // Narrower palette walk than the solid scenes use. Glass is nearly
-      // colourless in the hand — the hue belongs in the glints and the edges,
+      // colorless in the hand — the hue belongs in the glints and the edges,
       // not in the body, or the whole lattice reads as tinted plastic.
       vec3 gbase=pal(trap*0.9+0.12+uHigh*0.18);
       vec3 rfl=reflect(rd,n);
@@ -2415,8 +2451,8 @@ vec3 render3(vec2 uv){
           (dot(rg,rg)>1e-5?envCol(rg):envCol(rd)).g,
           (dot(rb,rb)>1e-5?envCol(rb):envCol(rd)).b);
         vec3 mir=envCol(reflect(rd,n));
-        // The body keeps its own colour, or every family comes out the same
-        // colourless crystal.
+        // The body keeps its own color, or every family comes out the same
+        // colorless crystal.
         vec3 tint=mix(vec3(1.0),base*1.7,0.38);
         vec3 lg=normalize(vec3(0.7,0.9,-0.6));
         float spec=pow(clamp(dot(n,normalize(lg-rd)),0.0,1.0),90.0);
@@ -2455,7 +2491,7 @@ vec3 render3(vec2 uv){
   // has. The hit threshold above widens with distance from the focal plane, so
   // a defocused silhouette genuinely spreads and softens rather than being
   // blurred after the fact; and here the out-of-focus depths are washed toward
-  // the aerial colour and given back a share of the proximity glow, which is
+  // the aerial color and given back a share of the proximity glow, which is
   // what turns a soft edge into a bloomed one. Focus sits on the orbit pivot —
   // the surface facing the viewer — so the subject is sharp and the field falls
   // away both in front of it and behind.
@@ -2528,7 +2564,7 @@ vec3 esc2at(vec2 uv,int kind,float ex,vec2 ctrIn,float rotAdd,float bud,float ie
   vec2 jc=vec2(-0.4+(uCA-0.5)*1.1+(uMorph-0.5)*0.25, 0.6+(uCB-0.5)*1.1);
   vec2 ctr = ctrIn;  vec2 p=uv*sc;
   if(uMode==7 && uZLoop<0.5){
-    // Framed like Harmony: zoomed out, the whole set sits centred on the
+    // Framed like Harmony: zoomed out, the whole set sits centered on the
     // origin (a Julia set is symmetric about it). Deeper on the slider the frame
     // glides onto the repelling fixed point z* = (1+sqrt(1-4c))/2, which lies on
     // the set, and the endless (crossfade) zoom closes in on that point wherever
@@ -2541,7 +2577,7 @@ vec3 esc2at(vec2 uv,int kind,float ex,vec2 ctrIn,float rotAdd,float bud,float ie
     ctr=mix(zs,base,sxf);
   }
   // uCamYaw is the manual rotation on the 2D families (drag / right stick).
-  // Applied before the centre offset, so it turns the image about the middle of
+  // Applied before the center offset, so it turns the image about the middle of
   // the frame and the subject never leaves the screen — which is why these
   // scenes rotate instead of panning.
   p=p*rot((kind!=2?uTime*0.03*uSpeed*uSpin:0.0)+uCamYaw+uCamRoll+rotAdd);
@@ -2562,13 +2598,13 @@ vec3 esc2at(vec2 uv,int kind,float ex,vec2 ctrIn,float rotAdd,float bud,float ie
     vec2 c,z;
   if(kind==1){ c=jc; z=p; }
   // Sine Lambda's |c| has to exceed 1 or the origin is attracting and the whole
-  // plane converges — the scene was blank until c re was at maximum. Centred on
+  // plane converges — the scene was blank until c re was at maximum. Centered on
   // 1.5 now, so mid-slider is the strongest banding and the travel stays inside
   // the range where structure exists.
   else if(kind==2){ c=vec2(1.5+(uCA-0.5)*1.3, (uCB-0.5)*1.1); z=p*2.4; }
   // C Re / C Im shift c in VIEW units, not set units. A fixed 0.55 offset is a
   // few percent of the frame at the top level but several screen widths once
-  // zoomed toward the seahorse valley — any setting off-centre threw the view
+  // zoomed toward the seahorse valley — any setting off-center threw the view
   // into the interior and the scene went black unless C Re sat at an extreme
   // that happened to land back on the boundary. Scaled by sc, full travel is
   // about one frame width at every depth, so the controls steer across the
@@ -2680,7 +2716,7 @@ vec3 esc2at(vec2 uv,int kind,float ex,vec2 ctrIn,float rotAdd,float bud,float ie
 // per layer on the most expensive program in the set — the third layer is what
 // hung the app. This does not hide the wrap, it removes it: park the camera on
 // a point the fractal is genuinely self-similar about, and zoom by exactly the
-// ratio that maps the neighbourhood onto itself. One sweep later the frame
+// ratio that maps the neighborhood onto itself. One sweep later the frame
 // holds the same picture it started with, so there is no seam to cover and one
 // tap is enough.
 //
@@ -2772,7 +2808,7 @@ vec3 escape2b(vec2 uv,int kind){
     // non-analytic (abs) variants too
     dz=pw*cmul(cpow_d(z,pw-1.0),dz)+(kind==0?vec2(1.0,0.0):vec2(0.0));
     if(kind==0){
-      // MAGNET (type I), from the renormalisation of the Ising model:
+      // MAGNET (type I), from the renormalization of the Ising model:
       // z <- ((z^2 + c - 1) / (2z + c - 2))^2. Two fates: escape to infinity,
       // or settle on the fixed point z = 1, so the set has a Mandelbrot-like
       // bulb plus a second, attracting basin with its own filigree. Morph bends
@@ -2815,7 +2851,7 @@ vec3 escape2b(vec2 uv,int kind){
       // above: cb was dead on this branch, and the second fold is the control
       // this family actually has to offer.
       // Fold floor 0.25: an unfolded (Mandelbrot) state framed on the Celtic
-      // centre is empty field.
+      // center is empty field.
       z=vec2(mix(z2.x,abs(z2.x),0.25+0.75*clamp(uMorph,0.0,1.0)),
              mix(z2.y,abs(z2.y),clamp(uCB,0.0,1.0)))+c;
     }
@@ -2844,8 +2880,8 @@ vec3 tunnel(vec2 uv){
   float z=uTravel*0.55+1.0/max(r,0.06)*0.55+uJump;
   float f=fbm(vec2(a*3.4,z*1.2));
   float band=sin((z+f*1.4)*mix(2.5,14.0,uDetail))*0.5+0.5;   // Detail: ring count
-  // Hue keyed to depth, so each ring carries its own colour past the camera
-  // instead of the whole barrel changing colour at once.
+  // Hue keyed to depth, so each ring carries its own color past the camera
+  // instead of the whole barrel changing color at once.
   vec3 col=pal(f*1.6+z*0.26+uHigh*0.3)*pow(band,mix(0.5,4.0,uCC));   // Cst C: band edge
   col*=0.75+0.55*band*(0.4+uBass*uReact);
   col*=smoothstep(0.0,0.35,r)*(1.6-r*0.7);
@@ -2910,7 +2946,7 @@ vec3 escape2c(vec2 uv,int kind){
   float hspin = uMode==39 ? -hth/3.0 : uTime*0.02*uSpeed*uSpin;
   vec2 ctr3=lp?uZAnc:uCtr;
   if(uMode==39){
-    // Zoomed out the figure stays centred; zooming in, the frame glides off the
+    // Zoomed out the figure stays centered; zooming in, the frame glides off the
     // origin (a flat interior with banding) onto the most repelling fixed point
     // of z^4+c. That point lies on the set itself, so detail never runs out.
     vec2 ch=hrad*vec2(cos(hth),sin(hth)); vec2 best=vec2(0.0); float bm=-1.0;
@@ -2940,11 +2976,11 @@ vec3 escape2c(vec2 uv,int kind){
   }
   if(kind==2){
     // Circle of fifths mapped onto the c = r*e^(i0) Julia family. Every point on
-    // that circle gives a connected, structured Julia set, and neighbouring
-    // angles look like neighbours — so a IV-V-I is a short continuous walk
+    // that circle gives a connected, structured Julia set, and neighboring
+    // angles look like neighbors — so a IV-V-I is a short continuous walk
     // through shape space rather than a cut. The tonal centroid is already an
     // angle on the fifths circle, so the mapping is direct, not arbitrary.
-    // Quarter turn on the mapping. The angle is the key centre, and with no
+    // Quarter turn on the mapping. The angle is the key center, and with no
     // signal it reads zero, which put c on the POSITIVE REAL axis at radius
     // 0.7 -- outside the cardioid, where the Julia set is dust. That is what
     // the scene opened on. Offset by a quarter turn and silence lands on the
@@ -2956,7 +2992,7 @@ vec3 escape2c(vec2 uv,int kind){
     // where the arms are thinnest and most detailed, and pulling inward gives a
     // rounder, calmer shape. Driving it from tonal clarity means a clear triad
     // renders as intricate structure and an ambiguous or noisy passage collapses
-    // toward a blob, so consonance reads as form and not only as colour.
+    // toward a blob, so consonance reads as form and not only as color.
     // 0.63 on the imaginary axis is just inside the connected region: the set
     // still has interior, so it reads as a filled body with feathered arms
     // rather than a scatter of filaments. Measured, the interior vanishes
@@ -3017,7 +3053,7 @@ vec3 escape2c(vec2 uv,int kind){
     // with b = ln(phi)/(pi/2). Rotating the plane by ln(r)/b therefore maps rays
     // onto exactly that spiral, so the set's radial arms curl into the breaking
     // crest — and because the winding rate goes as log r, the curl tightens
-    // without limit toward the centre, which is the eye of the wave. Bass drives
+    // without limit toward the center, which is the eye of the wave. Bass drives
     // the curl: the wave pitches over on the beat instead of merely brightening.
     float b=log(PHI)/1.5707963;
     float curl=uMorph*1.35+uBass*uReact*0.30;
@@ -3101,7 +3137,7 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
   if(k==0){
     // The row spans the whole frame, not the unit square. p.x reaches past 2
     // on a wide canvas at mid zoom, so a +-1 mapping clamped the outer thirds
-    // of the frame to the first and last bin and the analyser stopped short of
+    // of the frame to the first and last bin and the analyzer stopped short of
     // both edges. Wider mapping, and more bins across it.
     float x=clamp(p.x*0.26+0.5,0.0,1.0);
     float bars=floor(mix(40.0,168.0,dens));
@@ -3136,7 +3172,7 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
     // read as a triangle and not a ring.
     float corner=smoothstep(0.62,1.0,abs(aa)/(SEC*0.5));
     v*=0.70+0.60*corner*(0.45+amp*0.55);
-    // Emission on the hit: one shell leaves the centre per beat.
+    // Emission on the hit: one shell leaves the center per beat.
     float born=exp(-fract(max(uBeatPh,0.0))*3.2)*uReact;
     v+=band*exp(-tri*2.2)*born*0.55;
     glo=pow(band,3.0)*(0.45+uBass*uReact)+exp(-tri*3.0)*born*0.5;
@@ -3215,7 +3251,7 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
   } else if(k==4){
     // Grid Pulse: the cells sit on a plane and extrude toward the viewer, so a
     // lit cell is a column rising out of the grid straight at the camera. With
-    // the vanishing point at the centre, a point raised by y projects outward
+    // the vanishing point at the center, a point raised by y projects outward
     // by 1/(1-y*e), so the inverse map for a screen point is q = p*(1-y*e).
     // Marching y downward from the tallest possible column and taking the
     // first cell whose height covers that level is a cheap depth test: the
@@ -3324,8 +3360,8 @@ vec3 synth(vec2 uv,int k){
   vec3 bg=pal(0.62+haze*0.3+uHue*0.0)*haze*haze*(0.045+uBass*uReact*0.11);
   bg+=pal(0.08)*exp(-abs(uv.y+0.72)*3.4)*(0.03+uLoud*0.09);
 
-  // Harmony tint: the key centre rotates the palette read and a chord change
-  // nudges it, so a modulation in the music lands as a colour shift.
+  // Harmony tint: the key center rotates the palette read and a chord change
+  // nudges it, so a modulation in the music lands as a color shift.
   float hs=hue*0.85+uTonal.x*0.10+uChordChg*0.08;
 
   // Thickness without a second field evaluation. The directional derivative of
@@ -3339,7 +3375,7 @@ vec3 synth(vec2 uv,int k){
 
   // Two-light material. The normal comes from the mask gradient; a key from the
   // upper left plus a complementary fill from below is what breaks the
-  // single-hue flatness — lit faces run to the palette's key colour, shadowed
+  // single-hue flatness — lit faces run to the palette's key color, shadowed
   // ones toward its opposite.
   vec3 n=normalize(vec3(-gx*3.0,-gy*3.0,0.62));
   vec3 L=normalize(vec3(-0.52,0.60,0.72));
@@ -3384,7 +3420,7 @@ vec3 synth(vec2 uv,int k){
     c+=(pal(rh*0.85)*rv + pal(rh*0.85+0.28)*rg*bl*0.14)*fade;
   }
 
-  // Beat ring: a thin shock expanding from the centre once per beat, so there
+  // Beat ring: a thin shock expanding from the center once per beat, so there
   // is something that arrives and resolves instead of only drifting.
   float rr=length(uv);
   // Squared by multiplication, not pow(): pow() with a negative base is
@@ -3452,7 +3488,7 @@ vec3 roto(vec2 t, vec2 px, bool inkOnly){
 // compiles in constant time no matter how many glyphs the ramp grows to.
 uniform sampler2D uGly;
 float glyphPix(int g, vec2 f){
-  // 5x7 glyph centred in a 6x9 box: half a blank column each side, one blank
+  // 5x7 glyph centered in a 6x9 box: half a blank column each side, one blank
   // row above and below.
   ivec2 p = ivec2(floor(vec2(f.x*6.0-0.5, (1.0-f.y)*9.0-1.0)));
   if(p.x<0 || p.x>4 || p.y<0 || p.y>6) return 0.0;
@@ -3474,7 +3510,7 @@ vec3 asciiArt(vec2 suv, vec3 col){
   l = pow(clamp(l*(1.0+uBass*0.5), 0.0, 1.0), 1.1);
   int g = int(clamp(l*50.0, 0.0, 49.0));
   float m = glyphPix(g, f);
-  // Video's own colour by default, palette-mapped by luma as Morph goes up.
+  // Video's own color by default, palette-mapped by luma as Morph goes up.
   vec3 tint = mix(vv/max(max(vv.r,max(vv.g,vv.b)),0.08)*(0.35+l*0.95),
                   pal(l*1.25+uHigh*0.25)*(0.4+l*0.9), uMorph);
   // Glyphs only: the fractal underneath stays as it is.
@@ -3523,7 +3559,7 @@ vec3 wireMesh(vec2 uv, vec2 suv, vec3 col){
 vec3 videoLook(vec2 uv, vec2 suv, vec3 col, int vm){
   if(uSceneOff>0.5){
     // Vector-only: there is no scene image under the lines. Effects that are
-    // built out of the scene's colour (matte, surface projection) would draw
+    // built out of the scene's color (matte, surface projection) would draw
     // black, so those show the plain video instead.
     if(uHasTex<0.5 || uVidMix<=0.001) return vec3(0.0);
     if(vm==6 || vm==11 || vm==12) return sampleVid(suv)*uVidMix;
@@ -3634,7 +3670,7 @@ vec3 videoLook(vec2 uv, vec2 suv, vec3 col, int vm){
     vec3 scr=1.0-(1.0-cs)*(1.0-clamp(dv,0.0,1.0));
     return mix(col, scr*vec3(1.03,0.99,1.02), uVidMix);
   } else if(vm==18){
-    // Mirror: the frame folded on its centre line, screened over the scene.
+    // Mirror: the frame folded on its center line, screened over the scene.
     vec2 t=vec2(0.5-abs(suv.x-0.5), suv.y);
     vec3 vv=sampleVid(t);
     return mix(col, 1.0-(1.0-col)*(1.0-vv), uVidMix);
@@ -3753,7 +3789,7 @@ void main(){
     fragColor=vec4(gl_FragCoord.x<1.0?floor(q)/255.0:fract(q), gHit);
     return;
   }
-  // Ink pass: the letterforms take the scene's own colour down and lift a rim,
+  // Ink pass: the letterforms take the scene's own color down and lift a rim,
   // so the type reads as cut out of the material rather than laid over it.
   if(uTxtOn>0.5 && !is3 && tS<0.5){
     // Ink has a floor while the message is on. At a low Ink setting the flat
@@ -3951,7 +3987,7 @@ const PRESETS = [
   {name:'Dragon Flame',  grp:'FLM', kind:'2DC', mode:106,p:{morph:0.5,detail:0.55,speed:0.4,zoom:0.5,hue:0.5,ca:0.5,cb:0.5,cc:0.2,iter:0}},
   {name:'Fern Flame',    grp:'FLM', kind:'2DC', mode:107,p:{morph:0.5,detail:0.55,speed:0.4,zoom:0.5,hue:0.5,ca:0.5,cb:0.5,cc:0.2,iter:0}},
   {name:'Galaxy Flame',  grp:'FLM', kind:'2DC', mode:108,p:{morph:0.5,detail:0.55,speed:0.4,zoom:0.5,hue:0.5,ca:0.5,cb:0.5,cc:0.3,iter:0.4}},
-  // Video scenes: the clip is part of the set (colour bars stand in without one).
+  // Video scenes: the clip is part of the set (color bars stand in without one).
   {name:'Drive-in',grp:'SCN', kind:'2DC', mode:109,p:{morph:0.5,detail:0.5,speed:0.6,zoom:0.5,hue:0.62,ca:0.5,cb:0.5,cc:0.3,iter:0.5}},
   {name:'Billboard City',grp:'SCN', kind:'2DC', mode:110,p:{morph:0.5,detail:0.5,speed:0.6,zoom:0.5,hue:0.58,ca:0.5,cb:0.5,cc:0.3,iter:0.5}},
   {name:'TV Wall',grp:'SCN', kind:'2DC', mode:111,p:{morph:0.5,detail:0.5,speed:0.6,zoom:0.5,hue:0.5,ca:0.5,cb:0.5,cc:0.3,iter:0.5}},
@@ -4043,7 +4079,7 @@ const VEC_FOR = m => {
     .replace(/out vec4 fragColor;/, 'layout(location=0) out vec4 fragColor;\nlayout(location=1) out vec4 fragPts;\nlayout(location=2) out vec4 fragNrm;'));
 };
 // Vector compositor: reads the encoded march buffer and draws edge lines,
-// depth contours and a point cloud in the accent colour, pulsing on the beat.
+// depth contours and a point cloud in the accent color, pulsing on the beat.
 const VEC_POST = `#version 300 es
 precision highp float;
 out vec4 o;
@@ -4094,11 +4130,11 @@ void main(){
   }
   vec4 P=texture(uP,uv);
   // Location value for edge pixels: a silhouette pixel can be a miss, so take
-  // the surface neighbour's value.
+  // the surface neighbor's value.
   float loc=P.x;
   if(hit<0.5 && P.x==0.0){ vec4 a1=texture(uP,uv+vec2(px.x,0)), a2=texture(uP,uv-vec2(px.x,0)), a3=texture(uP,uv+vec2(0,px.y)), a4=texture(uP,uv-vec2(0,px.y));
     loc=H(uv+vec2(px.x,0))>0.5?a1.x:H(uv-vec2(px.x,0))>0.5?a2.x:H(uv+vec2(0,px.y))>0.5?a3.x:a4.x; }
-  // Depth fade for this pixel; a silhouette miss takes its surface neighbour's.
+  // Depth fade for this pixel; a silhouette miss takes its surface neighbor's.
   float df=P.w;
   if(df<=0.0){ df=max(max(texture(uP,uv+vec2(px.x,0)).w,texture(uP,uv-vec2(px.x,0)).w),max(texture(uP,uv+vec2(0,px.y)).w,texture(uP,uv-vec2(0,px.y)).w)); if(df<=0.0) df=1.0; }
   bool combo=(st&5)==5;
@@ -4132,9 +4168,9 @@ void main(){
   }
   // Depth fade so far structure recedes.
   float fade=1.0;   // depth falloff is done along the ray in the march pass
-  // Colour follows the Hue slider: base hue from Hue, shifted along the
-  // fractal's orbit trap and depth so structure reads as bands of colour.
-  // Colour by location on the object, offset by the Hue slider.
+  // Color follows the Hue slider: base hue from Hue, shifted along the
+  // fractal's orbit trap and depth so structure reads as bands of color.
+  // Color by location on the object, offset by the Hue slider.
   vec3 tE=hsv(fract(uVHue + loc*0.6 + uBeat*0.04), 0.82, 1.0);
   // Points take the complementary hue so they read apart from the lines.
   vec3 tP=hsv(fract(uVHue + 0.5 + pz*0.3 + uBeat*0.04), 0.55, 1.0);
@@ -4145,9 +4181,9 @@ void main(){
   float a=clamp(eInk+eGlow+cInk+pInk+pg,0.0,1.0)*fade;
   // Always blended: in vector-only the frame underneath is black or the
   // video drawn over black, and an opaque write here was wiping the video.
-  // Tap target ink from the march pass, in the accent colour, over everything.
+  // Tap target ink from the march pass, in the accent color, over everything.
   float tz=P.z;
-  // Coloured from the line hue (Hue slider) so it sits with the lines.
+  // Colored from the line hue (Hue slider) so it sits with the lines.
   if(tz>0.002){ vec3 tc=mix(hsv(fract(uVHue),0.6,1.0),vec3(1.0),0.15); col+=tc*tz*1.3; a=clamp(a+tz,0.0,1.0); }
   o=vec4(col,a);
 }`;
@@ -4190,7 +4226,7 @@ const _HELPERS = {};
   while((m = re.exec(_B3))) _HELPERS[m[1]] = m[2];
 }
 // Controls bound somewhere other than map() — the shading block, say — which a
-// search of the estimator cannot see. Mode 42 colours its lattice from uCB in
+// search of the estimator cannot see. Mode 42 colors its lattice from uCB in
 // render3, so an injected bend there would be a second binding again.
 const _BOUND_ELSEWHERE = {42:['uCA','uCB','uCC']};
 const _readsU = (mode, name) => {
@@ -4215,8 +4251,8 @@ const _fillFor = m => {
 // correct normals, since nrm() differences this same function. trap=-1 marks a
 // text hit so the shader can give it its own material.
 // Measured bounding box of every bounded 3D object at its preset settings
-// (64^3 occupancy grid, 2nd-98th percentile): extent x,y,z and centre. Each is
-// rescaled per axis to the Mandelbulb's 2.06 cube and recentred, so every
+// (64^3 occupancy grid, 2nd-98th percentile): extent x,y,z and center. Each is
+// rescaled per axis to the Mandelbulb's 2.06 cube and recentered, so every
 // object arrives the same size in all three dimensions and all share one
 // framing distance. The distance stays a safe bound: d(q)/max(scale).
 // Space-filling scenes (Apollonian, Kleinian, Pseudo-Klein) have no box and
@@ -4239,10 +4275,10 @@ const _normFor = m => {
 const _mapFor = m => _normFor(m).def + 'float mapG(vec3 p,out float trap){\n  trap=0.0;\n' + _fillFor(m) + (_BRANCH[String(m)] || _BRANCH['0']) + '\n}\n'
   // Repeat space with per-cell variation: each tile hashes its cell id into a
   // turn (any angle about a tilted axis), a size (26-100%, biased small, and
-  // off-centre in its cell so small ones don't sit in a grid), a mirror fold on a
-  // third of the cells, and a small colour shift. All are isometries or a
+  // off-center in its cell so small ones don't sit in a grid), a mirror fold on a
+  // third of the cells, and a small color shift. All are isometries or a
   // uniform scale, so the distance stays valid; the cap at the cell wall stops
-  // a step from carrying the ray into a neighbour that is turned differently.
+  // a step from carrying the ray into a neighbor that is turned differently.
   + 'float map(vec3 p,out float trap){\n  vec3 pq=p; float ks=1.0, bnd=1e9, csh=0.0;\n  if(uRep>0.0){\n    vec3 cid=floor(p/uRep+0.5); vec3 lp=p-cid*uRep;\n    vec3 hr=fract(sin(vec3(dot(cid,vec3(127.1,311.7,74.7)),dot(cid,vec3(269.5,183.3,246.1)),dot(cid,vec3(113.5,271.9,124.6))))*43758.5453);\n    bnd=uRep*0.5-max(abs(lp.x),max(abs(lp.y),abs(lp.z)));\n    pq=lp;\n    pq.xz*=rot(hr.x*6.2831853*uRepV.y); pq.xy*=rot((hr.y-0.5)*1.4*uRepV.y);\n    if(hr.z<0.33*uRepV.y) pq.x=abs(pq.x);\n    ks=mix(clamp(uRepV.x,0.08,1.0),1.0,pow(fract(hr.y*7.13+hr.z),1.3)); pq-=(fract(hr.zxy*vec3(5.3,8.9,3.7))-0.5)*(1.0-ks)*uRep*0.84*uRepV.w; pq/=ks;\n    csh=(hr.z-0.5)*0.5;\n    vec3 hv=fract(hr*vec3(13.7,29.3,7.9)+hr.zxy);\n    vec3 hw=fract(hv*vec3(41.3,17.9,23.1)+hr.yzx);\n    vec3 hx=fract(hw*vec3(11.1,37.7,19.3)+hv.zxy);\n    float vk=uRepV.z;\n    gVM=(hv.x-0.5)*1.1*vk; gVA=(hv.y-0.5)*1.0*vk; gVB=(hv.z-0.5)*1.0*vk; gVC=(hw.x-0.5)*0.8*vk;\n    gVZ=(hw.y-0.5)*0.6*vk; gVS=(hw.z-0.5)*2.4*uSpin*vk; gVP=(hx.x-0.5)*1.2*vk; gVF=mix(1.0,mix(0.55,1.45,hx.y),vk);\n    csh=(hx.z-0.5)*0.7*vk;\n  }\n  float lod0=gLod; gLod*=' + _normFor(m).k + ';\n  float d=mapG(pq*' + _normFor(m).a + '+' + _normFor(m).c + ',trap)*ks/' + _normFor(m).k + ';\n  gLod=lod0;\n  gVM=0.0; gVA=0.0; gVB=0.0; gVC=0.0; gVZ=0.0; gVS=0.0; gVP=0.0; gVF=1.0;\n  gDR=d;\n  if(uRep>0.0){ d=min(d,max(bnd,0.0)+uRep*0.04); trap=clamp(trap+csh,0.0,1.0); }\n  float dt=sdText3(p);\n  if(dt<d){ trap=-1.0; gDR=dt; return dt; }\n  return d;\n}\n';
 
 const _2D_PATH = m => m<=9 ? ['P_E2A','escape2(uv,uMode-6)']
@@ -4264,7 +4300,7 @@ const FAM_OF = m => m>=90 ? 'can'
   : (m>=22 && m<30 ? 'syn' : '2d:'+_2D_PATH(m)[0]);
 // Drop every function main() can never reach. Each program carries the whole
 // helper library (every family's estimator, every 2D shader), and on Windows the
-// D3D11 compiler optimises all of it at link time whether called or not — on an
+// D3D11 compiler optimizes all of it at link time whether called or not — on an
 // Iris Xe that link of ~86k characters never came back.
 const _stripDead = src => {
   try{
@@ -4308,9 +4344,9 @@ const _stripDead = src => {
   }catch(e){ return src; }
 };
 const _slim = src => _stripDead(src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/[ \t]*\/\/[^\n]*/g, '').replace(/\n\s*\n+/g, '\n'));
-// Safe variant for drivers that reject the optimised program (seen on a Pixel):
+// Safe variant for drivers that reject the optimized program (seen on a Pixel):
 // the palette table goes back to direct pal() calls, no derivative normals, no
-// const-int mode folding. Same picture, the pre-optimisation code shape.
+// const-int mode folding. Same picture, the pre-optimization code shape.
 const _unPal = src => {
   const T = [];
   const ml = /\/\/ gP\[\d+\] terms: ([^\n]*)/.exec(src);
@@ -4408,7 +4444,7 @@ const GLYPHS = new Uint8Array([0,0,0,0,0,0,0,0,0,0,0,0,4,0,0,0,0,0,0,4,2,4,4,0,0
 const MAPLIB_FOR = (m, main) => FAM_OF(m).slice(0,3) !== '3d:' ? null
   : _slim((_HEAD + '#define SURF3D 1\n' + _VARY3 + _B3.replace(_MAPSRC, _mapFor(m)) + main).replace(/uniform\s+int\s+uMode\s*;/, 'const int uMode = ' + (m|0) + ';'));
 // Video effects over a canvas scene: the canvas frame arrives as a texture
-// and stands in for the scene colour, so every video mode works on them too.
+// and stands in for the scene color, so every video mode works on them too.
 const VIDFX_FRAG = () => _slim(_HEAD + _VID + `uniform sampler2D uCanv;
 void main(){
   vec2 suv=gl_FragCoord.xy/uRes;

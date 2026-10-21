@@ -134,7 +134,7 @@ class CamFly{
     // The distance at the probed eye bounds a ball of empty space around it;
     // _guard keeps the rendered eye inside that ball (Surface only).
     if(this.pPos){ this.safe={P:this.pPos,dR:v[0]*0.6,n:this.data.n,need:null}; this.pPos=null; }
-    // Pixel 25 is the scene's target colour (see tgtCol in render3).
+    // Pixel 25 is the scene's target color (see tgtCol in render3).
     if(this.px[25*4+3]>127)this.sceneC=[this.px[100]/255,this.px[101]/255,this.px[102]/255];
   }
   update(o){
@@ -237,7 +237,7 @@ class CamFly{
       this.tilt=Math.max(0,(this.tilt||0)-dt/3);
       this.fwd=D.free[0];
       // Weighted blend of the open headings, not the single best one: the best
-      // flips between neighbours from frame to frame, which steered the camera
+      // flips between neighbors from frame to frame, which steered the camera
       // left-right and up-down. A soft blend moves only as the openings do.
       let mx=1e-9;for(let i=0;i<17;i++)mx=Math.max(mx,D.free[i]);
       let best=[0,0,0];
@@ -323,19 +323,19 @@ class CamFly{
   }
   // Inspect (Surface, after arriving on a picked fractal): circle it like a
   // satellite round the earth, looking straight down at it. The orbit plane
-  // turns slowly about the line to the centre, so successive passes sweep the
+  // turns slowly about the line to the center, so successive passes sweep the
   // whole form. Runs until something else is picked or the view changes.
   _inspect(D,d,dR,n,dt,spd,F){
-    // A true orbit: the eye sits on a sphere round the fractal's centre, so it
-    // cannot wander off. With repeats the centre is the copy's own cell centre
+    // A true orbit: the eye sits on a sphere round the fractal's center, so it
+    // cannot wander off. With repeats the center is the copy's own cell center
     // (exact); otherwise a point just inside the picked surface. Clearance from
     // the probe only ever raises the radius, through its own smoothed offset,
-    // so it never fights the orbit. The look is locked on the centre from the
+    // so it never fights the orbit. The look is locked on the center from the
     // eye actually rendered (the smoothed pose), not the raw one.
     const I=this.insp, ease=(r)=>1-Math.exp(-r*0.5*dt);
     if(!I.C){
       const rp=this.rep;
-      // Pivot is the piece's own centre: its repeat cell, or the object origin
+      // Pivot is the piece's own center: its repeat cell, or the object origin
       // for a single fractal. The old pivot was a point just inside the tapped
       // spot, sized by how far away the tap was, so a long tap orbited wide.
       if(rp>0){ I.C=I.P.map(x=>Math.round(x/rp)*rp); I.Rg=rp*0.5; }
@@ -347,7 +347,7 @@ class CamFly{
     I.T+=dt;
     const rad0=I.rad;
     if(!I.ax){ let a=V.cross(rad0,this.up); if(V.len(a)<1e-3)a=V.cross(rad0,[0,1,0]); if(V.len(a)<1e-3)a=V.cross(rad0,[1,0,0]); I.ax=V.nrm(a); }
-    // Orbit plane precesses about the line to the centre: passes sweep the form.
+    // Orbit plane precesses about the line to the center: passes sweep the form.
     I.ax=V.nrm(rotAround(I.ax,rad0,dt*0.1));
     I.ax=V.nrm(V.sub(I.ax,V.sc(rad0,V.dot(I.ax,rad0))));
     const ramp=(x=>x*x*(3-2*x))(Math.min(1,I.T/3)), w=0.2*Math.max(0.2,spd)*ramp;
@@ -381,7 +381,7 @@ class CamFly{
       this.su=V.nrm(V.add(this.su,V.sc(V.sub(this.up,this.su),ease(2))));
       this.su=V.nrm(V.sub(this.su,V.sc(this.sf,V.dot(this.su,this.sf))));
     }
-    // The rendered eye (sp) eases after p, and while p circles the centre the
+    // The rendered eye (sp) eases after p, and while p circles the center the
     // eased point cuts the chord — inside the orbit sphere, which is what cut
     // through the surface. Hold it on (or outside) the sphere, and never let
     // it sit closer to the surface than the floor.
@@ -542,7 +542,7 @@ class CamFly{
     pl.pts.push(V.add(q.P,V.sc(q.dirs[bi],len)));
   }
   cancelTap(){this.plan=null;this.insp=null;this.chg=null;this.autoT=null;this.autoGo=false;this.aim=null;this.go=null;this.tapReq=null;this.arr=null;}
-  // Marker for the host overlay: screen position of the aimed or travelled-to point.
+  // Marker for the host overlay: screen position of the aimed or traveled-to point.
   mark(W,H){
     if(!this.go&&!this.aim&&this.arr&&this.B){
       // Arrived: keep the marker on the point for the closing flash and fade.
