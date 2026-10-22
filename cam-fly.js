@@ -87,7 +87,7 @@ class CamFly{
     // popped the fog/glow scale and snapped the pitch.
     const carry=keep?{vs:this.vs||0,scale:this.scale,tilt:this.tilt||0,t:this.t||0,ns:this.ns}:null;
     this.w=keep?(this.w??1):0;this.ret=false;this.needPush=!keep&&!!seed;
-    this.key=mode+':'+scene;this.scene=scene;this.mode=mode;this.t=0;this.dfar0=dfar;this.sp=null;this.dS=null;this.tilt=0;this.d0=null;this.aim=null;this.go=null;this.tapReq=null;this.pTap=null;this.insp=null;this.safe=null;this.pPos=null;
+    this.key=mode+':'+scene;this.scene=scene;this.mode=mode;this.t=0;this.dA=null;this.dfar0=dfar;this.sp=null;this.dS=null;this.tilt=0;this.d0=null;this.aim=null;this.go=null;this.tapReq=null;this.pTap=null;this.insp=null;this.safe=null;this.pPos=null;
     const s=cur||seed||{p:[0,0,-dfar],f:[0,0,1],up:[0,1,0]};
     this.p=s.p.slice();this.f=V.nrm(s.f);this.up=V.nrm(s.up);
     this.scale=dfar*0.12;this.alt=dfar*0.05;this.altMax=dfar*0.05;this.altDir=-1;
@@ -291,16 +291,28 @@ class CamFly{
       this.tilt=Math.min(1,(this.tilt||0)+dt/6);
       // Surface skim: hold an altitude over the surface, glide along it, and
       // drift the altitude slowly between a high and a low pass.
-      const hi=F*0.2,lo=Math.min(F*0.09,this.d0*0.9); this.lo=lo;
-      if(this.altS==null){this.alt=Math.max(lo,d);this.altDir=-1;}
+      // The floor is in scene units. It used to follow the entry clearance
+      // down, so a close entry left the skim hugging the surface.
+      const hi=F*0.2,lo=F*0.08; this.lo=lo;
+      // Entering from far out starts the hold no higher than the top of the
+      // range rather than at the current distance.
+      if(this.altS==null){this.alt=Math.min(hi,Math.max(lo,d));this.altDir=-1;}
       if(this.alt>hi)this.alt=Math.max(hi,this.alt*Math.exp(-dt*0.12));
       if(this.alt<lo*0.5)this.alt=lo;
       if(this.alt<=hi){this.alt*=Math.exp(this.altDir*dt*0.03*spd);
       if(this.alt<lo){this.alt=lo;this.altDir=1;} if(this.alt>hi){this.alt=hi;this.altDir=-1;}}
       this.altS=this.altS==null?this.alt:this.altS+(this.alt-this.altS)*ease(0.3);
-      this.ns=this.ns?V.nrm(V.add(this.ns,V.sc(V.sub(n,this.ns),ease(0.3)))):n;
+      // Easing toward the opposite direction never turns a vector round, so a
+      // smoothed normal that ended up facing into the surface stayed there
+      // and the altitude hold pushed the camera off into space. Past a right
+      // angle from the probe's normal it starts again from that normal.
+      this.ns=this.ns&&V.dot(this.ns,n)>0?V.nrm(V.add(this.ns,V.sc(V.sub(n,this.ns),ease(0.3)))):n;
       const N=this.ns;
-      const step=Math.max(-d*0.15,Math.min(d*0.3,(this.altS-d)*ease(0.5)));
+      // Height read from its own smoothed clearance. The shared reading drops
+      // to every low sample at once, and following it stepped the camera up
+      // and down over the fractal's fine detail.
+      this.dA=this.dA==null?dR:this.dA+(dR-this.dA)*ease(dR<this.dA?3:1.2);
+      const step=Math.max(-this.dA*0.15,Math.min(this.dA*0.3,(this.altS-this.dA)*ease(0.5)));
       this.p=V.add(this.p,V.sc(N,step));
       if(dR<lo*0.3)this.p=V.add(this.p,V.sc(n,(lo*0.3-dR)*ease(4)));
       let ft=V.sub(this.tf,V.sc(N,V.dot(this.tf,N)));
@@ -315,7 +327,7 @@ class CamFly{
       // Ease off as the way ahead closes, so a rising wall is climbed rather
       // than run into while the heading is still pitching up.
       const ahead=Math.min(1,Math.max(0.2,(D.free[0]*0.6-this.altS)/(this.altS*3)));
-      const vt=spd*ramp*Math.min(this.altS,d)*0.7*ahead;
+      const vt=spd*ramp*Math.min(this.altS,this.dA)*0.7*ahead;
       this.vs+=(vt-this.vs)*ease(0.8);
       this.p=V.add(this.p,V.sc(this.f,this.vs*dt));
       this.scale+=(Math.min(F*0.3,this.altS)-this.scale)*ease(0.7);
@@ -360,13 +372,16 @@ class CamFly{
     // bounded to the piece so the camera stays in its pull.
     // Altitude is fixed in scene units, not tied to the piece's size, and the
     // radius can only shrink below the arrival radius: the pull is inward.
-    const alt=F*0.0028;
+    const alt=F*0.008;
     if(I.rMax==null){ I.r0=V.len(V.sub(this.sp||this.p,I.C)); I.rMax=I.r0*1.08; if(this.rep>0) I.rMax=Math.min(I.rMax,this.rep*0.7); I.rMin=alt*0.8; }
-    I.r0+=(alt-dR)*ease(dR>alt?2.2:4.5);
+    // Pulled by a smoothed clearance, so the orbit rides over the fine detail
+    // instead of following every bump of it.
+    I.dA=I.dA==null?dR:I.dA+(dR-I.dA)*ease(dR<I.dA?5:1.5);
+    I.r0+=(alt-I.dA)*ease(I.dA>alt?2.2:4.5);
     I.r0=Math.min(I.rMax, Math.max(I.rMin, I.r0));
     // Hard floor: inside 70% of the altitude the push-out is immediate, so a
     // ridge rising under the orbit lifts the camera before it can cut through.
-    const clr=alt*0.7;
+    const clr=alt*0.5;
     if(dR<clr)I.rOff+=(clr-dR)*Math.min(1,ease(10)*2); else I.rOff*=Math.exp(-dt*1.2);
     I.rOff=Math.min(I.rOff, alt*5);
     const r=I.r0+I.rOff, np=V.add(I.C,V.sc(I.rad,r));
@@ -399,21 +414,36 @@ class CamFly{
     const g=this.go, ease=(r)=>1-Math.exp(-r*0.5*dt);
     g.t=(g.t||0)+dt;
     const to=V.sub(g.S,this.p), L=V.len(to);
-    if(L<g.stop*0.25||g.t>40){ this.arr={P:g.P,hit:g.hit,R:g.R,Rg:g.Rg,n:g.n||0,t0:performance.now()};
+    if(L<g.stop*0.25||g.t>40+(g.n||0)*8){ this.arr={P:g.P,hit:g.hit,R:g.R,Rg:g.Rg,n:g.n||0,t0:performance.now()};
       // Surface: the piece you landed on stays marked while you look at it.
       if(this.mode===2&&g.Rg)this.insp={P:g.P,R:g.R,Rg:g.Rg,dir:V.nrm(V.sub(g.P,g.S)),t0:performance.now()}; this.go=null; this.tf=this.f; this.altS=null; this.d0=Math.max(F*0.004,d); this.t=Math.min(this.t,4); return; }
-    // Fly through the planned rings in order: aim at the next one, and count
-    // it passed once it is close or already behind the camera.
+    // Fly through the planned hoops in order, down the middle of each. A hoop
+    // counts as passed once the camera crosses its plane (the plane mark()
+    // draws it in), not when it gets near, so the turn toward the next one
+    // starts at the center instead of cutting inside the rim.
     const pl=g.plan, pts=pl&&pl.pts;
-    let W=g.S;
+    // The planner checks the end point last and may have moved it out of a
+    // solid: the flight and its marker follow it there.
+    if(pl&&pl.done&&!g.endOk){ g.endOk=true; const dS=V.sub(pts[pts.length-1],g.S); if(V.len(dS)>1e-9){ g.S=V.add(g.S,dS); g.P=V.add(g.P,dS); } }
+    let tf=V.nrm(V.sub(g.S,this.p)), follow=false;
     if(pts){ g.k=g.k||1;
-      while(g.k<pts.length-1){ const Q=pts[g.k], A=pts[g.k-1], dq=V.sub(Q,this.p);
-        if(V.len(dq)<Math.max(pl.u*0.35,g.stop)||V.dot(dq,V.sub(Q,A))<0)g.k++; else break; }
-      if(g.k<pts.length-1)W=pts[g.k]; }
-    let tf=V.nrm(V.sub(W,this.p));
+      while(g.k<pts.length-1){ const Q=pts[g.k], t=V.sub(pts[g.k+1],pts[g.k-1]);
+        if(V.dot(V.sub(this.p,Q),t)>=0)g.k++; else break; }
+      const end=g.k>=pts.length-1;
+      // Hold to the line between the last hoop and the next: aim a little way
+      // down it from the nearest point, and take out sideways drift directly.
+      // Past the planned hoops while the plan is still growing, the old
+      // straight-at-the-target steering applies.
+      follow=pl.done||!end;
+      if(follow){ const A=pts[g.k-1], B=end?g.S:pts[g.k], ab=V.sub(B,A), l=V.len(ab);
+        if(l>1e-9){ const t=V.sc(ab,1/l), s=Math.min(l,Math.max(0,V.dot(V.sub(this.p,A),t))), C=V.add(A,V.sc(t,s));
+          const ahead=Math.min(pl.u*0.5,l-s), aim=ahead>pl.u*0.05?V.add(C,V.sc(t,ahead)):B;
+          tf=V.nrm(V.sub(aim,this.p));
+          this.p=V.add(this.p,V.sc(V.sub(C,this.p),ease(3))); } } }
     // Geometry between camera and destination: bend toward the open heading
     // that still points most at the target, then straighten once it clears.
-    if(D.free&&D.dirs){ const reach=Math.min(L,F*0.12), f0=D.free[0];
+    // A planned route already goes round it.
+    if(!follow&&D.free&&D.dirs){ const reach=Math.min(L,F*0.12), f0=D.free[0];
       if(f0<reach*0.95){ let bi=0,bs=-1; for(let i=0;i<17;i++){const c=Math.max(0,V.dot(D.dirs[i],tf));const s=Math.min(D.free[i],reach)*c*c;if(s>bs){bs=s;bi=i;}}
         const k=Math.min(1,Math.max(0,1-f0/reach))*0.85; tf=V.nrm(V.add(V.sc(tf,1-k),V.sc(D.dirs[bi],k))); } }
     this.tf=tf;
@@ -451,22 +481,27 @@ class CamFly{
     const r=this.tap(sx,sy,W,H); if(r==='aim')this.autoGo=true; return r;
   }
   // Press-and-hold range: the ring starts one step out along the pressed ray
-  // and steps further each second held (under 1 s = 1 step, up to 8). A step
-  // is sized to the detail around the camera; a surface on the ray caps it.
+  // and steps further each second held (under 1 s = 1 step, up to 8). With
+  // Repeat on a step is one lattice cell, so n steps is n fractals away;
+  // without it a step is a fixed share of the scene's framing distance. Either
+  // way the same hold always means the same distance in a scene. Fly goes the
+  // full range and routes round whatever is in the way; Surface picks the
+  // point on the fractal instead.
   charge(sx,sy,W,H,t0){
     if(!this.sp||!this.B)return 'none';
     const ux=(2*sx-W)/H, uy=(H-2*sy)/H, B=this.B, F=this.dfar0||5;
     const dir=V.nrm(V.add(V.add(V.sc(B.r,ux),V.sc(B.u,uy)),V.sc(B.f,B.fl)));
-    this.chg={t0:t0||performance.now(),dir,u:Math.min(F*0.35,Math.max(F*0.06,(this.scale||F*0.1)*4)),P:null,Lmax:Infinity,hit:false,n:1,nT:performance.now()};
+    const cell=this.rep>0;
+    this.chg={t0:t0||performance.now(),dir,u:cell?this.rep:F*0.15,cell,P:null,Lmax:Infinity,hit:false,n:1,nT:performance.now()};
     this.tapReq={dir,chg:true};this.aim=null;this.autoGo=false;return 'charge';
   }
   chargeN(){ const c=this.chg; if(!c)return 0; if(c.done)return c.n; return Math.min(8,Math.max(1,Math.ceil((performance.now()-c.t0)/1000-0.15))); }
   _chgAim(){
     const c=this.chg, F=this.dfar0||5; let n=this.chargeN();
     if(n!==c.n){c.n=n;c.nT=performance.now();}
-    const sel=this.mode===2&&c.hit, want=n*c.u, cap=c.hit&&(sel||want>=c.Lmax), L=cap?c.Lmax:want;
+    const sel=this.mode===2&&c.hit, L=sel?c.Lmax:n*c.u;
     if(sel)n=0;
-    this.aim={P:V.add(c.P,V.sc(c.dir,L)),dir:c.dir,L,hit:cap,t0:this.aim?this.aim.t0:performance.now(),R:Math.min(Math.max(L*0.07,F*0.003),F*0.2),n,cap,chg:true};
+    this.aim={P:V.add(c.P,V.sc(c.dir,L)),dir:c.dir,L,hit:sel,t0:this.aim?this.aim.t0:performance.now(),R:Math.min(Math.max(L*0.07,F*0.003),F*0.2),n,cap:sel,cell:c.cell,chg:true};
   }
   release(){
     const c=this.chg; if(!c)return 'none';
@@ -516,7 +551,7 @@ class CamFly{
     const pl=this.plan; if(!pl||pl.done||this.pTap||this.tapReq)return null;
     this._plFlip=!this._plFlip; if(!this._plFlip&&this.data)return null;
     const P=pl.pts[pl.pts.length-1], to=V.sub(pl.T,P), L=V.len(to);
-    return {id:pl.id,P,f:V.nrm(to),L,sc:pl.sc};
+    return {id:pl.id,P,f:pl.end?pl.ef:V.nrm(to),L,sc:pl.sc};
   }
   _planStep(q,v){
     const pl=this.plan; if(!pl||pl.id!==q.id||pl.done)return;
@@ -527,7 +562,14 @@ class CamFly{
     if(last>0&&d<keep&&(pl.nudge||0)<3){ pl.nudge=(pl.nudge||0)+1;
       const n=V.nrm([v[1]-v[2],v[3]-v[4],v[5]-v[6]]); pl.pts[last]=V.add(q.P,V.sc(n,keep-d)); return; }
     pl.nudge=0;
-    if(q.L<=st||pl.pts.length>=pl.max){ pl.pts.push(pl.T); pl.done=true; return; }
+    if(pl.end){ pl.done=true; return; }
+    // The end goes in like any ring and gets one more probe, so a range held
+    // past a surface ends in open space rather than inside the fractal.
+    // A ring that already landed on the end is replaced by it, so no hoop
+    // sits under the target marker.
+    const end=()=>{ const A=pl.pts[pl.pts.length-1]; pl.ef=V.nrm(V.sub(pl.T,A)); if(V.len(pl.ef)<0.5)pl.ef=q.f;
+      if(pl.pts.length>1&&V.len(V.sub(pl.T,A))<st*0.3)pl.pts[pl.pts.length-1]=pl.T; else pl.pts.push(pl.T); pl.end=true; };
+    if(q.L<=st||pl.pts.length>=pl.max){ end(); return; }
     // Pixel 24 is the reach toward the destination (negative: nothing hit).
     // Clear for the next two steps: one step straight on.
     if(v[24]<0||Math.abs(v[24])>=Math.min(q.L,st*2)*0.98){ pl.pts.push(V.add(q.P,V.sc(q.f,st))); return; }
@@ -538,7 +580,7 @@ class CamFly{
       if(c<0.05||fr<st*0.5)continue; const sc=Math.min(fr,st*2)*c*c; if(sc>bs){bs=sc;bi=i;} }
     if(bi<0)for(let i=0;i<17;i++){ const fr=Math.abs(v[7+i]); if(fr>bs){bs=fr;bi=i;} }
     const len=bi<0?0:Math.min(st,Math.abs(v[7+bi])*0.6);
-    if(len<st*0.15){ pl.pts.push(pl.T); pl.done=true; return; }
+    if(len<st*0.15){ end(); return; }
     pl.pts.push(V.add(q.P,V.sc(q.dirs[bi],len)));
   }
   cancelTap(){this.plan=null;this.insp=null;this.chg=null;this.autoT=null;this.autoGo=false;this.aim=null;this.go=null;this.tapReq=null;this.arr=null;}
@@ -562,11 +604,21 @@ class CamFly{
     const B=this.B, v=V.sub(a.P,B.P), z=V.dot(v,B.f); if(z<=1e-6)return null;
     const x=V.dot(v,B.r)/z*B.fl, y=V.dot(v,B.u)/z*B.fl;
     const prog=(!this.aim&&this.go)?Math.min(1,Math.max(0,1-V.len(V.sub(this.go.S,B.P))/this.go.L0)):0;
-    // The rings still ahead on the route (the last one is the marker itself).
+    // The hoops still ahead on the route (the last ring is the marker itself).
+    // Each is a circle in space square to the route there, projected point by
+    // point, so it shows in perspective and opens round the view as the camera
+    // flies through it. The one just passed stays until it is behind the eye.
     const pl=this.aim?this.plan:this.go&&this.go.plan, path=[];
-    if(pl)for(let i=this.aim?1:(this.go.k||1);i<pl.pts.length-1;i++){ const q=V.sub(pl.pts[i],B.P), qz=V.dot(q,B.f); if(qz<=1e-6)continue;
-      path.push({x:(V.dot(q,B.r)/qz*B.fl*H+W)/2, y:(H-V.dot(q,B.u)/qz*B.fl*H)/2, r:pl.u*0.22/qz*B.fl*H/2}); }
-    return {path, x:(x*H+W)/2, y:(H-y*H)/2, state:this.aim?'aim':'go', hit:a.hit, prog, goAge:this.go?(performance.now()-(this.go.t1||0))/1000:99, age:this.aim&&!this.aim.chg?(performance.now()-this.aim.t0)/5000:0, chg:!!(this.aim&&this.aim.chg), n:(this.aim?this.aim.n:this.go&&this.go.n)||0, cap:!!(this.aim&&this.aim.cap), stepAge:this.chg?(performance.now()-this.chg.nT)/1000:9};
+    if(pl){ const R=pl.u*0.28, pj=q=>{ const v=V.sub(q,B.P), z=V.dot(v,B.f); return z<R*0.15?null:[(V.dot(v,B.r)/z*B.fl*H+W)/2,(H-V.dot(v,B.u)/z*B.fl*H)/2,z]; };
+      for(let i=this.aim?1:Math.max(1,(this.go.k||1)-1);i<pl.pts.length-1;i++){
+        const C=pl.pts[i], t=V.nrm(V.sub(pl.pts[i+1],pl.pts[i-1])), a=V.nrm(V.cross(t,Math.abs(V.dot(t,B.u))<0.9?B.u:B.r)), b=V.cross(t,a);
+        const c=pj(C); if(!c)continue;
+        const ring=[], tabs=[]; let ok=true;
+        for(let j=0;j<24;j++){ const th=j*Math.PI/12, o=V.add(V.sc(a,Math.cos(th)),V.sc(b,Math.sin(th))), p=pj(V.add(C,V.sc(o,R)));
+          if(!p){ok=false;break;} ring.push(p);
+          if(j%6===3){ const p1=pj(V.add(C,V.sc(o,R*0.78))), p2=pj(V.add(C,V.sc(o,R*1.22))); if(p1&&p2)tabs.push([p1[0],p1[1],p2[0],p2[1]]); } }
+        if(ok)path.push({x:c[0], y:c[1], z:c[2], r:R/c[2]*B.fl*H/2, ring, tabs}); } }
+    return {path, x:(x*H+W)/2, y:(H-y*H)/2, state:this.aim?'aim':'go', hit:a.hit, prog, goAge:this.go?(performance.now()-(this.go.t1||0))/1000:99, age:this.aim&&!this.aim.chg?(performance.now()-this.aim.t0)/5000:0, chg:!!(this.aim&&this.aim.chg), cell:!!(this.aim?this.aim.cell:this.chg&&this.chg.cell), n:(this.aim?this.aim.n:this.go&&this.go.n)||0, cap:!!(this.aim&&this.aim.cap), stepAge:this.chg?(performance.now()-this.chg.nT)/1000:9};
   }
   // Leaving Fly/Surface for Orbit: glide from the current pose to the orbit
   // eye while the blend falls back to 0. Returns false once it has arrived.
@@ -601,7 +653,10 @@ class CamFly{
   pose(dt){
     const bad=a=>!a||a.some(x=>!isFinite(x));
     if(bad(this.p)||bad(this.f)||bad(this.up)||V.len(this.f)<0.5||V.len(this.up)<0.5){ this.reset(this.mode,this.key.split(':').slice(1).join(':'),this.dfar0||5); return; }
-    const k=1-Math.exp(-1.1*Math.max(0,dt||0));
+    // On a planned route the eye trails the pose by a quarter second, not a
+    // second, so at a bend it still passes through the hoop rather than
+    // cutting the corner inside it.
+    const k=1-Math.exp(-(this.go&&this.go.plan?4:1.1)*Math.max(0,dt||0));
     if(!this.sp){this.sp=this.p.slice();this.sf=this.f.slice();this.su=this.up.slice();return;}
     this.sp=V.add(this.sp,V.sc(V.sub(this.p,this.sp),k));
     this.sf=V.nrm(V.add(this.sf,V.sc(V.sub(this.f,this.sf),k)));
@@ -650,7 +705,9 @@ class CamFly{
   probe(gl,prog,u){
     if(this.fence||!u.uCamProbe)return;
     const fb=gl.getParameter(gl.FRAMEBUFFER_BINDING),vp=gl.getParameter(gl.VIEWPORT);
-    const res=u.uRes?gl.getUniform(prog,u.uRes):null;
+    // From the recorded uniforms: gl.getUniform is a synchronous GPU round
+    // trip, and this runs every frame in Fly and Surface.
+    const uc=gl.__uc, rc=u.uRes&&uc&&uc.get(u.uRes), res=u.uRes?(rc||gl.getUniform(prog,u.uRes)):null;
     const pl=this._planProbe();
     if(pl){
       // Planning round: from the last ring, headings around the destination,

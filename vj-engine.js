@@ -420,6 +420,13 @@ uniform sampler2D uOrb;
 // 2 surface; the eye and basis come from the host. uRep repeats space with that
 // period (0 off). uCamProbe draws the steering probe instead of the frame.
 uniform float uCamMode,uCamScale,uRep,uCamProbe;
+// Eye clearance push, solved once per frame. It depends only on the camera,
+// never on the pixel, but was seven estimator calls in EVERY pixel. The host
+// draws one pixel with uClrPass 1, which writes the push's float bits into a
+// 1x1 RGBA8 texture, and the frame then reads it with uClrOn 1. Any other draw
+// of the program leaves uClrOn at 0 and solves it inline as before.
+uniform float uClrPass,uClrOn;
+uniform sampler2D uClrTex;
 // Repeat variation: x = smallest copy (fraction of full size), y = turn amount,
 // z = per-copy parameter spread, w = off-center drift of the smaller copies.
 uniform vec4 uRepV;
@@ -2132,7 +2139,11 @@ vec3 render3(vec2 uv){
   // point. On angular sets (Sierpinski, Menger) the raw distance jumps every
   // time the eye passes a face or corner, and a hard push on it jerked the
   // camera back and forth; the shell average and the soft curve remove that.
-  {
+  float push;
+  if(uClrOn>0.5){
+    highp uvec4 cb=uvec4(texelFetch(uClrTex,ivec2(0),0)*255.0+0.5);
+    push=uintBitsToFloat(cb.r|(cb.g<<8)|(cb.b<<16)|(cb.a<<24));
+  } else {
     float clr=fc?mix(dfar*0.14,uCamScale*0.35,cw):dfar*0.14;
     float tqc, hs=0.0, hm=1e9;
     for(int i=NZERO;i<7;i++){
@@ -2144,8 +2155,10 @@ vec3 render3(vec2 uv){
     float k=1.0-smoothstep(0.0, clr*1.6, hav);
     // The flying views keep their own stand-off on the host; a second push here
     // along the view axis fought it and read as the camera bobbing.
-    ro-=f*clr*1.4*k*k*(3.0-2.0*k)*(1.0-cw);
+    push=clr*1.4*k*k*(3.0-2.0*k)*(1.0-cw);
+    if(uClrPass>0.5){ gProbe=vec4(push,0.0,0.0,0.0); return vec3(0.0); }
   }
+  ro-=f*push;
   float d=0.0,trap=0.0,glow=0.0; bool hit=false; vec3 p=ro;
   // The tesseract's thin tubes cost steps on every near miss, so it keeps a low
   // cap — raised under Repeat, where the copies sit behind the home cell.
@@ -3776,6 +3789,11 @@ void main(){
   else col=sc2(uv);
   col=videoLayer(uv,suv,scn=col);
   col*=plF;
+  if(uClrPass>0.5 && is3){
+    highp uint cb=floatBitsToUint(gProbe.x);
+    fragColor=vec4(float(cb&255u),float((cb>>8)&255u),float((cb>>16)&255u),float(cb>>24))/255.0;
+    return;
+  }
   if(uCamProbe>0.5 && is3 && gProbeC.a>0.5){ fragColor=vec4(gProbeC.rgb,1.0); return; }
   if(uCamProbe>0.5 && is3){
     float e=clamp((log2(max(abs(gProbe.x),1e-12))+40.0)/64.0,0.0,1.0)*65535.0;

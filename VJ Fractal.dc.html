@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<script src="./support.js?v=b33"></script>
+<script src="./support.js?v=b34"></script>
 <meta name="ext-resource-dependency" content="./csi.js" data-resource-id="csiJs">
 </head>
 <body>
@@ -34,12 +34,12 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
   @keyframes vjspin{to{transform:rotate(360deg)}}
   @keyframes vjscan{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
 </style>
-<script src="vj-engine.js?v=b33"></script>
-<script src="deep-zoom.js?v=b33"></script>
-<script src="cam-fly.js?v=b33"></script>
-<script src="wave-mesh.js?v=b33"></script>
-<script src="wave-gl.js?v=b33"></script>
-<script src="scene-thumbs.js?v=b33"></script>
+<script src="vj-engine.js?v=b34"></script>
+<script src="deep-zoom.js?v=b34"></script>
+<script src="cam-fly.js?v=b34"></script>
+<script src="wave-mesh.js?v=b34"></script>
+<script src="wave-gl.js?v=b34"></script>
+<script src="scene-thumbs.js?v=b34"></script>
 </helmet>
 <template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#08090A"/><circle cx="50" cy="50" r="22" fill="none" stroke="#C8FF2E" stroke-width="3"/><circle cx="50" cy="50" r="11" fill="none" stroke="#C8FF2E" stroke-width="2" opacity="0.6"/><circle cx="50" cy="50" r="3.5" fill="#C8FF2E"/></svg></template>
 <div style="position:relative;width:100vw;height:100dvh;overflow:hidden;background:#08090A;font-family:'JetBrains Mono',ui-monospace,monospace;color:#F2F3F0;user-select:none;-webkit-user-select:none;">
@@ -106,7 +106,7 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
           <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.42);">A SWRV Systems production</div>
           <div style="width:18px;height:1px;background:rgba(242,243,240,0.25);"></div>
         </div>
-        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 33 · 21 Oct 2026</div>
+        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 34 · 22 Oct 2026</div>
       </div>
       <div style="max-width:420px;text-align:center;font-size:12.5px;line-height:1.7;color:rgba(242,243,240,0.55);">The visuals are driven entirely by what the microphone hears. Nothing is recorded or sent anywhere.</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:10px;width:100%;max-width:470px;">
@@ -180,7 +180,7 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
     <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
       <div style="font-family:Archivo,sans-serif;font-weight:700;font-size:54px;letter-spacing:-0.03em;line-height:1;">SPECTRA</div>
       <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.36);">A SWRV Systems production</div>
-      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 33 · 21 Oct 2026</div>
+      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 34 · 22 Oct 2026</div>
     </div>
     <div ref="{{ warmWrapRef }}" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
       <div style="width:260px;height:2px;background:rgba(255,255,255,0.1);">
@@ -2112,7 +2112,8 @@ class Component extends DCLogic {
       const T = this.touch = {};
       // Fly / Surface targeting: press a point and hold to set how far to go.
       // Under a second is one step, each further second one more; the ring
-      // steps out along the ray while held and releasing sets off. A short tap
+      // steps out along the ray while held and releasing sets off. With Repeat
+      // on a step is one fractal of the lattice. A short tap
       // is held back briefly so a double-tap still only toggles the menu.
       // Orbit on a 3D scene: touch is a rotation rig (see touchstart below).
       const orb3=()=>!(this.state.camView>0) && !this.is2D() && !this.isCanvasScene();
@@ -2481,7 +2482,7 @@ class Component extends DCLogic {
         const n = m.n||0, passed = m.state==='arr' ? n : m.state==='go' ? Math.min(n, Math.floor((m.prog||0)*n+0.02)) : 0;
         if(lbl){ const show = m.state==='aim' || (m.state==='go' && (n>0 || goAge<1.4)) || (m.state==='arr' && n>0); lbl.style.display = show ? 'flex' : 'none';
           const t1=lbl.querySelector('[data-l1]'), t2=lbl.querySelector('[data-l2]'), dots=lbl.querySelector('[data-dots]');
-          if(t1) t1.textContent = m.state==='aim' ? (m.chg ? (m.cap ? (n ? 'Surface · range '+n : 'Fractal selected') : 'Range '+n) : what) : m.state==='arr' ? 'Arrived' : (n ? 'Step '+passed+' / '+n : 'Destination set');
+          if(t1) t1.textContent = m.state==='aim' ? (m.chg ? (m.cap ? 'Fractal selected' : 'Range '+n+(m.cell ? (n===1 ? ' fractal' : ' fractals') : '')) : what) : m.state==='arr' ? 'Arrived' : (n ? 'Step '+passed+' / '+n : 'Destination set');
           if(t2){ t2.textContent = m.chg ? (m.cap ? (n ? 'Release to go' : 'Release to inspect') : 'Hold for farther') : (gap && !m.hit ? 'Tap or hold to go through' : 'Tap or hold to go'); t2.style.display = m.state==='aim' ? 'block' : 'none'; }
           if(dots){ const on = n>0 && (m.chg || m.state==='go' || m.state==='arr'); dots.style.display = on ? 'flex' : 'none';
             if(on){ const slots = m.state==='aim' ? 8 : n, fill = m.state==='aim' ? n : passed;
@@ -2491,21 +2492,35 @@ class Component extends DCLogic {
     }
     if(this._tapVis){ el.style.display='none'; this._tapVis=false; this.drawFlyPath(null); }
   }
-  // The route to the aimed point: a ring at each step the flight will pass
-  // through, nearer rings larger and stronger, in the target's color. The
-  // route bends where the probe found the fractal in the way.
+  // The route to the aimed point: a hoop at each step the flight will pass
+  // through, drawn as a circle in space so it reads as a gate to fly through,
+  // not as another target ring. A wide faint band, a crisp edge brighter on
+  // its near side, and four tabs round the rim. Nearer hoops are stronger and
+  // drawn on top. The route bends where the probe found the fractal in the way.
   drawFlyPath(path, op){
     const host=this.tapMarkRef && this.tapMarkRef.current; if(!host || !host.parentNode) return;
+    const NS='http://www.w3.org/2000/svg';
     let box=this._pathBox;
-    if(!box){ box=this._pathBox=document.createElement('div'); box.style.cssText='position:absolute;left:0;top:0;width:0;height:0;z-index:13;pointer-events:none;'; host.parentNode.insertBefore(box,host); }
+    if(!box){ box=this._pathBox=document.createElementNS(NS,'svg'); box.setAttribute('style','position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;z-index:13;pointer-events:none;'); host.parentNode.insertBefore(box,host); }
     const P=path||[], kids=box.children;
     if(this._tgtCss) box.style.setProperty('--tgt', this._tgtCss);
-    while(kids.length<P.length){ const d=document.createElement('div'); d.style.cssText='position:absolute;box-sizing:border-box;border:1.5px solid var(--tgt,#F2F3F0);border-radius:50%;transform:translate(-50%,-50%);'; box.appendChild(d); }
-    for(let i=0;i<kids.length;i++){ const d=kids[i], p=P[i];
-      if(!p){ if(d.style.display!=='none') d.style.display='none'; continue; }
-      const sz=Math.round(Math.min(160,Math.max(10,p.r*2)));
-      d.style.display='block'; d.style.left=p.x+'px'; d.style.top=p.y+'px'; d.style.width=sz+'px'; d.style.height=sz+'px';
-      d.style.opacity=String((op==null?1:op)*(0.9-0.55*i/Math.max(1,P.length)));
+    while(kids.length<P.length){ const g=document.createElementNS(NS,'g');
+      ['band','far','near','tabs'].forEach(k=>{ const e=document.createElementNS(NS,'path'); e.setAttribute('fill','none'); e.setAttribute('stroke-linecap','round'); e.setAttribute('stroke-linejoin','round'); e.style.stroke='var(--tgt,#F2F3F0)'; g.appendChild(e); });
+      box.appendChild(g); }
+    const f=v=>v.toFixed(1);
+    for(let i=0;i<kids.length;i++){ const g=kids[i], k=P.length-1-i, p=P[k];
+      if(!p){ if(g.style.display!=='none') g.style.display='none'; continue; }
+      const R=p.ring, w=Math.min(12,Math.max(1.5,p.r*0.09));
+      let band='', near='', far='';
+      for(let j=0;j<R.length;j++){ const A=R[j], B=R[(j+1)%R.length], seg='M'+f(A[0])+' '+f(A[1])+'L'+f(B[0])+' '+f(B[1]);
+        band+=(j?'L':'M')+f(A[0])+' '+f(A[1]);
+        if(A[2]+B[2]<p.z*2) near+=seg; else far+=seg; }
+      const [eb,ef,en,et]=g.children;
+      eb.setAttribute('d',band+'Z'); eb.setAttribute('stroke-width',f(w*2.4)); eb.style.opacity='0.16';
+      ef.setAttribute('d',far); ef.setAttribute('stroke-width',f(Math.max(1,w*0.35))); ef.style.opacity='0.5';
+      en.setAttribute('d',near); en.setAttribute('stroke-width',f(Math.max(1.5,w*0.6)));
+      et.setAttribute('d',p.tabs.map(t=>'M'+f(t[0])+' '+f(t[1])+'L'+f(t[2])+' '+f(t[3])).join('')); et.setAttribute('stroke-width',f(Math.max(2,w*0.8)));
+      g.style.display=''; g.style.opacity=String((op==null?1:op)*(0.95-0.5*k/Math.max(1,P.length)));
     }
   }
   componentDidUpdate(){
@@ -3618,7 +3633,7 @@ class Component extends DCLogic {
      'uTex','uVidMix','uHasTex','uVidFlip','uVidFlipV','uVidMode','uVidMode2','uPrev','uFeed','uDrift','uCamYaw','uCamPitch','uCamAuto','uPan','uOrbit','uCA','uCB','uCC','uIter','uXfade','uXfMode','uCtr','uFocus','uPalSel','uSpec',
      'uRepV','uSceneOff','uLook','uZX','uZLoop','uZAnc','uZRat','uZRot','uZBase','uIOR','uZIter','uTravel','uStrobe','uSat','uGam','uSpan','uWarm','uFill','uField','uLine','uDOF','uRim','uCoCOut','uSpin','uSmooth','uChroma','uNote','uNoteConf','uTonal','uChordChg','uBeatPh','uCtr3','uDepthOut','uCamRoll',
      'uGly',
-     'uTxt','uTxtOn','uTxtDepth','uTxtScale','uTxtY','uTxtX','uTxtZ','uTxtRot','uTxtRx','uTxtRy','uTxtHue','uTxtWeight','uTxtWarp','uTxtInk','uTxtLit','uTxtJit','uTxtAsp','uPlane','uDeep','uDeepPix','uDeepBase','uDeepShade','uDeepMax','uRefLen','uDeepOff','uOrb','uCamMode','uCamScale','uRep','uCamProbe','uCamPos','uCamF','uCamR','uCamU','uCamTap','uTgt','uTgtK','uTgtC','uCamFog'];
+     'uTxt','uTxtOn','uTxtDepth','uTxtScale','uTxtY','uTxtX','uTxtZ','uTxtRot','uTxtRx','uTxtRy','uTxtHue','uTxtWeight','uTxtWarp','uTxtInk','uTxtLit','uTxtJit','uTxtAsp','uPlane','uDeep','uDeepPix','uDeepBase','uDeepShade','uDeepMax','uRefLen','uDeepOff','uOrb','uCamMode','uCamScale','uRep','uCamProbe','uCamPos','uCamF','uCamR','uCamU','uCamTap','uTgt','uTgtK','uTgtC','uCamFog','uClrPass','uClrOn','uClrTex'];
     // A canvas scene has no shader family — compile mode 0 so the GL path is
     // still initialized for whenever the user switches back to a fractal.
     // Safe start on weak GPUs (integrated / software). Compiling a raymarch
@@ -11876,7 +11891,7 @@ class Component extends DCLogic {
       // The preview builds ONE object from outside. Repeat (and the flying
       // views' camera) filled the whole preview with solid, so the lattice
       // scenes, usually flown repeated, showed no build at all.
-      if(u.name === 'uRep' || u.name === 'uCamMode' || u.name === 'uCamProbe'){ gl.uniform1f(u.loc, 0); continue; }
+      if(u.name === 'uRep' || u.name === 'uCamMode' || u.name === 'uCamProbe' || u.name === 'uClrPass' || u.name === 'uClrOn'){ gl.uniform1f(u.loc, 0); continue; }
       const v = L.vals[u.name];
       if(v == null) continue;
       switch(u.type){
@@ -12138,7 +12153,7 @@ class Component extends DCLogic {
     // glRaw and glLoseExt are deliberately NOT cleared here — they are the only
     // route back to a lost context, and this method is called from the loss
     // handler itself.
-    this.gl = null; this.prog = null; this.vfx = null; this.vec = null; this.vecCache = null; this.vecFB = null; this.vpickFB = null; this.vpick = null; this.vpost = null; this._ucap = null; this.u = null; this.fam = null; this.deep = null; this.camFly = null;
+    this.gl = null; this.prog = null; this.vfx = null; this.vec = null; this.vecCache = null; this.vecFB = null; this.vpickFB = null; this.vpick = null; this.vpost = null; this._ucap = null; this.u = null; this.fam = null; this.deep = null; this.camFly = null; this.clrT = null; this.clrF = null;
     this.progs = {}; this.us = {};
     this.pend = null; this.warmInflight = null; this._pext = undefined;
     this.fb = null; this.fbSize = {w:0,h:0}; this.postProg = null;
@@ -12336,8 +12351,48 @@ class Component extends DCLogic {
     const vidOn = !!(this.state.vid.on && this.video && (this.video.readyState >= 2 || this._texOk));
     if(vOnly && !vidOn){ gl.clearColor(0,0,0,1); gl.clear(gl.COLOR_BUFFER_BIT); return; }
     if(vOnly && u && u.uSceneOff) gl.uniform1f(u.uSceneOff, 1);
+    const clr = !vOnly && this.clrPre();
     gl.drawArrays(gl.TRIANGLES,0,3);
+    if(clr) gl.uniform1f(u.uClrOn, 0);
     if(vOnly && u && u.uSceneOff) gl.uniform1f(u.uSceneOff, 0);
+  }
+  // Eye clearance for the 3D frame, solved in one pixel before it (see uClrPass
+  // in the engine): seven estimator calls once instead of in every pixel. The
+  // result stays on the GPU in a 1x1 texture on unit 7, so nothing is read back.
+  // Returns true when the frame should read it; on any failure the frame
+  // solves it inline exactly as before.
+  clrPre(){
+    const gl = this.gl, u = this.u;
+    if(this._clrFail || !u || !u.uClrPass || !u.uClrOn || !u.uClrTex || this.is2D() || this.isCanvasScene()) return false;
+    if(!this.clrT){
+      const t = gl.createTexture(), f = gl.createFramebuffer();
+      gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      const fb0 = gl.getParameter(gl.FRAMEBUFFER_BINDING);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+      const ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fb0); gl.activeTexture(gl.TEXTURE0);
+      if(!ok){ gl.deleteFramebuffer(f); gl.deleteTexture(t); this._clrFail = true; return false; }
+      this.clrT = t; this.clrF = f;
+    }
+    const fb0 = gl.getParameter(gl.FRAMEBUFFER_BINDING), vp = gl.getParameter(gl.VIEWPORT);
+    const blend = gl.isEnabled(gl.BLEND), dith = gl.isEnabled(gl.DITHER);
+    // Unbound while it is the target: a texture both sampled and drawn into is
+    // a feedback loop and WebGL refuses the draw.
+    gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, null);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.clrF); gl.viewport(0, 0, 1, 1);
+    // The bytes are a float's bits, so nothing may blend or dither them.
+    if(blend) gl.disable(gl.BLEND); if(dith) gl.disable(gl.DITHER);
+    gl.uniform1f(u.uClrOn, 0); gl.uniform1f(u.uClrPass, 1);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    gl.uniform1f(u.uClrPass, 0);
+    if(blend) gl.enable(gl.BLEND); if(dith) gl.enable(gl.DITHER);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb0); gl.viewport(vp[0], vp[1], vp[2], vp[3]);
+    gl.bindTexture(gl.TEXTURE_2D, this.clrT); gl.uniform1i(u.uClrTex, 7);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.uniform1f(u.uClrOn, 1);
+    return true;
   }
   // Video effects on canvas scenes (Spectrum Mesh, Fire ...): the canvas frame
   // is uploaded as a texture and run through the same videoLayer as the
@@ -12540,7 +12595,7 @@ class Component extends DCLogic {
       }
       if(u.name === 'uVEdge'){ gl.uniform1f(u.loc, cfg.den || 1); continue; }
       if(u.name === 'uRes') gl.uniform2f(u.loc, w, h);
-      else if(u.name === 'uDepthOut' || u.name === 'uCamProbe' || u.name === 'uCoCOut') gl.uniform1f(u.loc, 0);
+      else if(u.name === 'uDepthOut' || u.name === 'uCamProbe' || u.name === 'uCoCOut' || u.name === 'uClrPass' || u.name === 'uClrOn') gl.uniform1f(u.loc, 0);
     }
     gl.viewport(0, 0, w, h);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -13404,7 +13459,10 @@ class Component extends DCLogic {
 
   // Start screen: the notes for this build. Keep it to what a returning user
   // would notice, newest first, and replace it on every release.
-  WHATS_NEW = {b:33, date:'21 Oct 2026', items:[
+  WHATS_NEW = {b:34, date:'22 Oct 2026', items:[
+    'Faster 3D: the camera clearance is solved once per frame instead of in every pixel. Up to nearly twice the frame rate on some scenes, with an identical picture.',
+    'Fly targeting: the route shows as hoops in space that the camera flies through the middle of. A step is now one fractal with Repeat on, or a fixed distance without it, and a long hold goes the full range around anything in the way.',
+    'Surface: a higher, steadier skim, and the orbit round a picked fractal sits further off.',
     'Water in its own hue: Depth Terrain water and, with Depth off, the black empty space of 2D scenes now fill with moving water. Pick its color harmony in Look: analogous, complementary, split complementary, triadic or monochromatic.',
     'American spelling throughout the app.',
     'Starfield Warp: the projector is gone; the people in the clip lift off the hologram with parallax, as in the Reflection Pool.',
