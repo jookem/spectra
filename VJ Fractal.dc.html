@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<script src="./support.js?v=b34"></script>
+<script src="./support.js?v=b35"></script>
 <meta name="ext-resource-dependency" content="./csi.js" data-resource-id="csiJs">
 </head>
 <body>
@@ -34,12 +34,12 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
   @keyframes vjspin{to{transform:rotate(360deg)}}
   @keyframes vjscan{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
 </style>
-<script src="vj-engine.js?v=b34"></script>
-<script src="deep-zoom.js?v=b34"></script>
-<script src="cam-fly.js?v=b34"></script>
-<script src="wave-mesh.js?v=b34"></script>
-<script src="wave-gl.js?v=b34"></script>
-<script src="scene-thumbs.js?v=b34"></script>
+<script src="vj-engine.js?v=b35"></script>
+<script src="deep-zoom.js?v=b35"></script>
+<script src="cam-fly.js?v=b35"></script>
+<script src="wave-mesh.js?v=b35"></script>
+<script src="wave-gl.js?v=b35"></script>
+<script src="scene-thumbs.js?v=b35"></script>
 </helmet>
 <template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#08090A"/><circle cx="50" cy="50" r="22" fill="none" stroke="#C8FF2E" stroke-width="3"/><circle cx="50" cy="50" r="11" fill="none" stroke="#C8FF2E" stroke-width="2" opacity="0.6"/><circle cx="50" cy="50" r="3.5" fill="#C8FF2E"/></svg></template>
 <div style="position:relative;width:100vw;height:100dvh;overflow:hidden;background:#08090A;font-family:'JetBrains Mono',ui-monospace,monospace;color:#F2F3F0;user-select:none;-webkit-user-select:none;">
@@ -106,7 +106,7 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
           <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.42);">A SWRV Systems production</div>
           <div style="width:18px;height:1px;background:rgba(242,243,240,0.25);"></div>
         </div>
-        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 34 · 22 Oct 2026</div>
+        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 35 · 23 Oct 2026</div>
       </div>
       <div style="max-width:420px;text-align:center;font-size:12.5px;line-height:1.7;color:rgba(242,243,240,0.55);">The visuals are driven entirely by what the microphone hears. Nothing is recorded or sent anywhere.</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:10px;width:100%;max-width:470px;">
@@ -180,7 +180,7 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
     <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
       <div style="font-family:Archivo,sans-serif;font-weight:700;font-size:54px;letter-spacing:-0.03em;line-height:1;">SPECTRA</div>
       <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.36);">A SWRV Systems production</div>
-      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 34 · 22 Oct 2026</div>
+      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 35 · 23 Oct 2026</div>
     </div>
     <div ref="{{ warmWrapRef }}" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
       <div style="width:260px;height:2px;background:rgba(255,255,255,0.1);">
@@ -1613,12 +1613,15 @@ class Component extends DCLogic {
       {key:'dof',  label:'DOF',  min:0,    max:1,   def:0,   fmt:v=>Math.round(v*100).toString()},
       // Depth for the 2D scenes; the Look menu picks Relief, Parallax or Terrain.
       // On the 3D scenes the same slider is Rim (a silhouette light).
-      {key:'dpth', label:'Depth', min:0,   max:1,   def:0,   fmt:v=>Math.round(v*100).toString()}
+      {key:'dpth', label:'Depth', min:0,   max:1,   def:0,   fmt:v=>Math.round(v*100).toString()},
+      // Lit windows set into the 3D fractals, and bloom on every scene so
+      // bright light spills into the dark around it.
+      {key:'lit',  label:'Lights', min:0,  max:1,   def:0,   fmt:v=>Math.round(v*100).toString()}
     ];
     this.state = {
       preset:0, layout:props.panelLayout||'deck', deckTab:'scenes', chrome:true, mic:'idle',
       // Global color trim, unity-at-default so a fresh load looks unchanged.
-      trim:{smth:0.55, sat:1, gam:1, span:1, warm:0, dof:0, dpth:0}, dmode:0, fieldFx:0, lineFx:0,
+      trim:{smth:0.55, sat:1, gam:1, span:1, warm:0, dof:0, dpth:0, lit:0}, dmode:0, fieldFx:0, lineFx:0,
       micHint:'Your browser will ask for permission.', auto:props.autopilot!==false,
       p:{morph:0.45,detail:0.55,speed:0.9,zoom:0.42,react:0.8,hue:0.08,iter:0.5,ca:0.5,cb:0.5,cc:0.3,spinr:0.5,lite:0.5},
       qual:'min', rate:'free', pal:0, fx:0, spin:1, accentSel:null,
@@ -3631,7 +3634,7 @@ class Component extends DCLogic {
     this.progs = {}; this.us = {};
     this.UNAMES = ['uRes','uTime','uBass','uMid','uHigh','uLoud','uBeat','uJump','uHue','uMorph','uDetail','uZoom','uReact','uSpeed','uMode',
      'uTex','uVidMix','uHasTex','uVidFlip','uVidFlipV','uVidMode','uVidMode2','uPrev','uFeed','uDrift','uCamYaw','uCamPitch','uCamAuto','uPan','uOrbit','uCA','uCB','uCC','uIter','uXfade','uXfMode','uCtr','uFocus','uPalSel','uSpec',
-     'uRepV','uSceneOff','uLook','uZX','uZLoop','uZAnc','uZRat','uZRot','uZBase','uIOR','uZIter','uTravel','uStrobe','uSat','uGam','uSpan','uWarm','uFill','uField','uLine','uDOF','uRim','uCoCOut','uSpin','uSmooth','uChroma','uNote','uNoteConf','uTonal','uChordChg','uBeatPh','uCtr3','uDepthOut','uCamRoll',
+     'uRepV','uSceneOff','uLook','uZX','uZLoop','uZAnc','uZRat','uZRot','uZBase','uIOR','uZIter','uTravel','uStrobe','uSat','uGam','uSpan','uWarm','uFill','uField','uLine','uDOF','uRim','uLights','uCoCOut','uSpin','uSmooth','uChroma','uNote','uNoteConf','uTonal','uChordChg','uBeatPh','uCtr3','uDepthOut','uCamRoll',
      'uGly',
      'uTxt','uTxtOn','uTxtDepth','uTxtScale','uTxtY','uTxtX','uTxtZ','uTxtRot','uTxtRx','uTxtRy','uTxtHue','uTxtWeight','uTxtWarp','uTxtInk','uTxtLit','uTxtJit','uTxtAsp','uPlane','uDeep','uDeepPix','uDeepBase','uDeepShade','uDeepMax','uRefLen','uDeepOff','uOrb','uCamMode','uCamScale','uRep','uCamProbe','uCamPos','uCamF','uCamR','uCamU','uCamTap','uTgt','uTgtK','uTgtC','uCamFog','uClrPass','uClrOn','uClrTex'];
     // A canvas scene has no shader family — compile mode 0 so the GL path is
@@ -3760,7 +3763,7 @@ class Component extends DCLogic {
       this.postProg = pp;
       this.pu = {};
       gl.useProgram(pp);
-      ['uRes','uTime','uFx','uLoud','uBeat','uBass','uScene','uBokeh','uDofDepth','uDepth','uDMode','uDTilt','uTerrZ','uTerrFog','uTerrLow','uWater','uWaterHue','uWaterMono','uDenoise'].forEach(n => this.pu[n] = gl.getUniformLocation(pp, n));
+      ['uRes','uTime','uFx','uLoud','uBeat','uBass','uScene','uBokeh','uDofDepth','uDepth','uDMode','uDTilt','uTerrZ','uTerrFog','uTerrLow','uWater','uWaterHue','uWaterMono','uDenoise','uBloom'].forEach(n => this.pu[n] = gl.getUniformLocation(pp, n));
       gl.uniform1i(this.pu.uScene, 0);
       const loc2 = gl.getAttribLocation(pp,'a');
       gl.enableVertexAttribArray(loc2);
@@ -13459,18 +13462,8 @@ class Component extends DCLogic {
 
   // Start screen: the notes for this build. Keep it to what a returning user
   // would notice, newest first, and replace it on every release.
-  WHATS_NEW = {b:34, date:'22 Oct 2026', items:[
-    'Faster 3D: the camera clearance is solved once per frame instead of in every pixel. Up to nearly twice the frame rate on some scenes, with an identical picture.',
-    'Fly targeting: the route shows as hoops in space that the camera flies through the middle of. A step is now one fractal with Repeat on, or a fixed distance without it, and a long hold goes the full range around anything in the way.',
-    'Surface: a higher, steadier skim, and the orbit round a picked fractal sits further off.',
-    'Water in its own hue: Depth Terrain water and, with Depth off, the black empty space of 2D scenes now fill with moving water. Pick its color harmony in Look: analogous, complementary, split complementary, triadic or monochromatic.',
-    'American spelling throughout the app.',
-    'Starfield Warp: the projector is gone; the people in the clip lift off the hologram with parallax, as in the Reflection Pool.',
-    'Reflection Pool: water that reflects the sky and catches glints, eight-sided fluted columns, and three mountain ranges that pass at different speeds.',
-    'Mountains in Reflection Pool and Drive-in now scroll past properly instead of appearing to turn on the spot.',
-    'Sphere: the ferris wheel lights hide behind buildings, the tower and the dome.',
-    'Drive-in: a flat screen with the picture to its edges, and the film reflected in the car windows.',
-    'A new tour of every page, Install as app, video playback modes, stacked looks, randomize and shake, terrain water and mist.'
+  WHATS_NEW = {b:35, date:'23 Oct 2026', items:[
+    'Lights: a new Trim slider. On 3D scenes it sets lit windows into the fractal at every scale, in the palette colors, over darkened metal, and they flicker and pulse with the music. On every scene it adds bloom, so bright light spills into the dark around it.'
   ]};
 
   // Installed means running from the home screen or app list, not a tab.
@@ -16075,6 +16068,7 @@ class Component extends DCLogic {
     // Depth on a 3D scene is surface relief (a bump map); on 2D it is the
     // post pass's Relief / Parallax / Terrain, and the scene shader ignores it.
     if(u.uRim) gl.uniform1f(u.uRim, (!this.is2D() && !this.isCanvasScene()) ? (tm.dpth ?? 0) : 0);
+    if(u.uLights) gl.uniform1f(u.uLights, (!this.is2D() && !this.isCanvasScene()) ? (tm.lit ?? 0) : 0);
     // Engraving is no longer on the strip, so it is pinned at the default it
     // shipped with — the 2D interiors keep the look they had.
     gl.uniform1f(u.uFill, 0.7);
@@ -16104,7 +16098,8 @@ class Component extends DCLogic {
     const depthOn = (tm.dpth ?? 0) > 0.001 && this.is2D();
     // Smth above its default turns on the post denoise, which needs the offscreen frame.
     const dnAmt = Math.max(0, Math.min(1, ((tm.smth ?? 0.55) - 0.55)/1.05));
-    const wantPrev = (dnAmt > 0.001) || (fx > 0.001) || (feed > 0.001) || this.state.xfadeOn !== false || this.xfade > 0.001 || dofOn || depthOn;
+    const bloomOn = (tm.lit ?? 0) > 0.001;
+    const wantPrev = (dnAmt > 0.001) || (fx > 0.001) || (feed > 0.001) || this.state.xfadeOn !== false || this.xfade > 0.001 || dofOn || depthOn || bloomOn;
     const useFB = wantPrev && this.postProg && this.fb && this.fb.length===2 && this.fbSize.w===W && this.fbSize.h===H;
     // Alpha only carries the circle of confusion when the post pass is actually
     // about to read it. On the direct path alpha is opacity, and a 3D frame that
@@ -16138,6 +16133,7 @@ class Component extends DCLogic {
         : (this.is2D() ? 0.35 + 0.65*(tm.smth ?? 0.55) : 0));
       if(pu.uDofDepth) gl.uniform1f(pu.uDofDepth, is3dof ? 1 : 0);
       if(pu.uDenoise) gl.uniform1f(pu.uDenoise, dnAmt);
+      if(pu.uBloom) gl.uniform1f(pu.uBloom, bloomOn ? tm.lit : 0);
       // Flat water fills the empty space of the shader 2D scenes with Depth
       // off. The canvas scenes keep their night skies, which sit near black.
       if(pu.uWater) gl.uniform1f(pu.uWater, (!depthOn && this.state.voidWater !== false && this.is2D() && !this.isCanvasScene()) ? 1 : 0);
@@ -16160,9 +16156,10 @@ class Component extends DCLogic {
       }
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, cur.t);
-      // Terrain reads its height from a coarse mip, so the frame is mipmapped
-      // while it is on and returned to plain linear filtering otherwise.
-      if(depthOn && (this.state.dmode||0) > 0.5){
+      // Terrain reads its height from a coarse mip, and bloom its halos, so the
+      // frame is mipmapped while either is on and returned to plain linear
+      // filtering otherwise.
+      if((depthOn && (this.state.dmode||0) > 0.5) || bloomOn){
         gl.generateMipmap(gl.TEXTURE_2D);
         if(!cur.mip){ gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR); cur.mip = true; }
       } else if(cur.mip){ gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); cur.mip = false; }

@@ -47,6 +47,9 @@ uniform vec2 uDTilt;
 // the range of its 8 neighbors (kills single-pixel speckle and crawling
 // sparkle) and then blends toward a luminance-weighted 3x3 average.
 uniform float uDenoise;
+// Bloom, 0..1, from the Lights trim. Reads coarse mips of the frame, which the
+// host generates while it is on.
+uniform float uBloom;
 float h2(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float Lm(vec2 p){ return dot(texture(uScene,p).rgb, vec3(0.2126,0.7152,0.0722)); }
 vec2 MR(vec2 p){ return 1.0-abs(1.0-mod(p,2.0)); }
@@ -359,6 +362,19 @@ void main(){
       col=mix(col,acc/wsum,clamp(coc,0.0,1.0));
     }
   }
+  // Bloom: whatever is near white spills light into its surroundings, a tight
+  // halo from a fine mip and a wide one from coarse mips. The coarse levels are
+  // sampled four times on a small cross so their texels don't show as blocks.
+  if(uBloom>0.001){
+    vec2 bp=vec2(1.0,uRes.x/uRes.y)*0.012;
+    vec3 b=max(textureLod(uScene,uv,2.0).rgb-0.55,0.0)*0.8;
+    for(int i=0;i<4;i++){
+      vec2 o=vec2(i==0?1.0:(i==1?-1.0:0.0), i==2?1.0:(i==3?-1.0:0.0))*bp;
+      b+=max(textureLod(uScene,uv+o,3.5).rgb-0.42,0.0)*0.28;
+      b+=max(textureLod(uScene,uv+o*2.5,5.0).rgb-0.3,0.0)*0.32;
+    }
+    col+=b*uBloom*(0.8+uLoud*0.6);
+  }
   if(uFx>0.01){
     vec3 bl=vec3(0.0);
     float r=(2.0+uBass*4.0);
@@ -528,6 +544,9 @@ uniform float uDOF;
 // Rim light on the 3D families, 0..1, from the Depth trim (which shapes the 2D
 // scenes). It replaced a bump map there that the fractals' own detail drowned.
 uniform float uRim;
+// Lights on the 3D families, 0..1, from the Lights trim: some of the surface
+// turns into lit windows (see the shading in render3).
+uniform float uLights;
 // Scene text. The message is baked to a signed distance field on the CPU (R =
 // distance, G = letter index) so the shader can treat it as real geometry
 // instead of a sprite: extruded in 3D it unions into the raymarch and occludes
@@ -1674,27 +1693,31 @@ float gLod=0.0;
 // step at each cell wall; glow measured on the capped value lit every wall and
 // drew the cell grid into the fog.
 float gDR=1e9;
+// The point map() last looked at, in the family's own frame (after its spin),
+// so surface detail drawn at the hit rides the fractal instead of sliding
+// over it as it turns. Read by the Lights windows.
+vec3 gQ=vec3(0.0);
 float map(vec3 p,out float trap){
-  trap=0.0;
+  trap=0.0; gQ=p;
   if(uMode==0){
     return bulb(p, mix(3.0,11.0,uMorph)+(uCA-0.5)*4.0+uMid*uReact*2.4, trap);
   } else if(uMode==12){
-    p.xz*=rot(uTime*0.05*uSpeed*uSpin);
+    p.xz*=rot(uTime*0.05*uSpeed*uSpin); gQ=p;
     return mandelbox(p,trap);
   } else if(uMode==13){
-    p.xy*=rot(uTime*0.04*uSpeed*uSpin);
+    p.xy*=rot(uTime*0.04*uSpeed*uSpin); gQ=p;
     return kleinian(p,trap);
   } else if(uMode==14){
-    p.xz*=rot(uTime*0.08*uSpeed*uSpin);
+    p.xz*=rot(uTime*0.08*uSpeed*uSpin); gQ=p;
     return juliabulb(p,trap);
   } else if(uMode==15){
     trap=clamp(length(p)*0.4,0.0,1.0);
     return octa(p, uTime*0.07*uSpeed*uSpin+uMid*uReact*0.5);
   } else if(uMode==16){
-    p.yz*=rot(uTime*0.06*uSpeed*uSpin);
+    p.yz*=rot(uTime*0.06*uSpeed*uSpin); gQ=p;
     return hybrid(p,trap);
   } else if(uMode==30){
-    p.xz*=rot(uTime*0.04*uSpeed*uSpin);
+    p.xz*=rot(uTime*0.04*uSpeed*uSpin); gQ=p;
     vec3 cs=vec3(0.92,0.92,1.1)+(uCA-0.5)*vec3(0.12,0.12,0.24);
     float kk=0.24+(uCB-0.5)*0.2, df=1.0, r2=1.0;
     int N=int(clamp(7.0*fi(),2.0,16.0));
@@ -1727,7 +1750,7 @@ float map(vec3 p,out float trap){
     // model space. Dividing by the LARGEST local stretch keeps the estimate
     // conservative; sin() is floored so the poles, where the mapping is
     // singular, do not stall the march at zero.
-    p.xz*=rot(uTime*0.03*uSpeed*uSpin);
+    p.xz*=rot(uTime*0.03*uSpeed*uSpin); gQ=p;
     float sc=1.5+uMorph*0.6+(uCA-0.5)*0.4;
     float fo=1.0+(uCB-0.5)*0.5;
     float mr=0.5+(uCC-0.5)*0.4;
@@ -1787,7 +1810,7 @@ float map(vec3 p,out float trap){
     return d;
   } else if(uMode==34){
     p.xz*=rot(uTime*0.06*uSpeed*uSpin);
-    p.yz*=rot(uTime*0.04*uSpeed*uSpin);
+    p.yz*=rot(uTime*0.04*uSpeed*uSpin); gQ=p;
     // Gyroid: sin x cos y + sin y cos z + sin z cos x = t. A minimal surface,
     // infinitely periodic, hollowed into a shell of finite thickness and
     // clipped to a ball so the raymarcher has something bounded to hit.
@@ -1804,7 +1827,7 @@ float map(vec3 p,out float trap){
     // view at every depth.
     return max(shell, length(p)-(1.5+uCC*1.4)*(1.0+clamp(uZoom,0.0,1.0)*2.2));
   } else if(uMode==35){
-    p.xz*=rot(uTime*0.045*uSpeed*uSpin);
+    p.xz*=rot(uTime*0.045*uSpeed*uSpin); gQ=p;
     float sc=2.0+uMorph*0.7+(uCA-0.5)*0.5;
     float dr=1.0; trap=1.0;
     // Spudsville: base iteration count lowered (8 -> 6), and detail stops at the
@@ -1827,7 +1850,7 @@ float map(vec3 p,out float trap){
     }
     return (length(p)-2.0)/abs(dr);
   } else if(uMode==36){
-    p.xy*=rot(uTime*0.05*uSpeed*uSpin);
+    p.xy*=rot(uTime*0.05*uSpeed*uSpin); gQ=p;
     vec4 z=vec4(0.0), qc=vec4(p,(uCA-0.5)*0.7);
     // The 4D slice. p fills three components and the fourth is the constant that
     // chooses WHICH 3D slice of the quaternion Mandelbrot you are looking at —
@@ -1849,7 +1872,7 @@ float map(vec3 p,out float trap){
     }
     return 0.5*log(max(r,1e-6))*r/max(dr,1e-6);
   } else if(uMode==1){
-    p.xz*=rot(uTime*0.12*uSpeed*uSpin); p.yz*=rot(uTime*0.07*uSpeed*uSpin);
+    p.xz*=rot(uTime*0.12*uSpeed*uSpin); p.yz*=rot(uTime*0.07*uSpeed*uSpin); gQ=p;
     trap=clamp(length(p)*0.42,0.0,1.0);
     float sc=0.85+uMorph*0.35+(uCA-0.5)*0.3;
     return menger(p/sc)*sc;
@@ -1857,16 +1880,16 @@ float map(vec3 p,out float trap){
     trap=clamp(length(p)*0.5,0.0,1.0);
     return ifs(p+vec3(1.0,0.92,1.08)*(1.0+(uCB-0.5)*0.55), 0.2+sin(uTime*0.09*uSpeed*uSpin)*0.18+(uCA-0.5)*0.3, 1.6+uMorph*0.45+(uCC-0.5)*0.3);
   } else if(uMode==3){
-    p.xz*=rot(uTime*0.05*uSpeed*uSpin);
+    p.xz*=rot(uTime*0.05*uSpeed*uSpin); gQ=p;
     return apollonian(p,trap);
   } else if(uMode==4){
-    p.xy*=rot(uTime*0.07*uSpeed*uSpin);
+    p.xy*=rot(uTime*0.07*uSpeed*uSpin); gQ=p;
     float d=qjulia(p,trap);
     trap=clamp(sqrt(trap)*0.9,0.0,1.0);
     return d;
   } else if(uMode==41){
     p.xz*=rot(uTime*0.03*uSpeed*uSpin);
-    p.yz*=rot(uTime*0.02*uSpeed*uSpin);
+    p.yz*=rot(uTime*0.02*uSpeed*uSpin); gQ=p;
     return tessFrac(p,trap);
   } else if(uMode==43){
     return dna(p,trap,uMorph,uCA,uCB,uCC);
@@ -1876,11 +1899,11 @@ float map(vec3 p,out float trap){
     // A corner of the box toward the camera: the middle of a face is a hollow
     // recess, the arcades and ornament gather on the edges and corners.
     p.xz*=rot(uTime*0.03*uSpeed*uSpin);
-    p.yz*=rot(0.6155); p.xz*=rot(0.7854);
+    p.yz*=rot(0.6155); p.xz*=rot(0.7854); gQ=p;
     return cathedral(p,trap);
   } else if(uMode==42){
     p.xz*=rot(uTime*0.035*uSpeed*uSpin);
-    p.yz*=rot(uTime*0.022*uSpeed*uSpin);
+    p.yz*=rot(uTime*0.022*uSpeed*uSpin); gQ=p;
     return cubeKM(p,trap);
   } else {
     trap=clamp(length(p)*0.36,0.0,1.0);
@@ -2179,7 +2202,7 @@ vec3 render3(vec2 uv){
   // The first surface the ray meets is the one that gets shaded — refraction
   // bends at that interface and samples the environment, so the march has no
   // reason to continue into the body the way the old thickness walk did.
-  vec3 hp = ro; float htrap = 0.0, hd = 0.0, mtrap = 0.0;
+  vec3 hp = ro, hq = vec3(0.0); float htrap = 0.0, hd = 0.0, mtrap = 0.0;
   for(int i=NZERO;i<256;i++){
     if(i>=steps) break;
     p=ro+rd*d;
@@ -2196,7 +2219,7 @@ vec3 render3(vec2 uv){
     float eps = max(pxw*d*epsK*(1.0+uDOF*3.0*abs(d-dist)/max(dist,0.5)), fc?max(uCamScale*2e-3,1e-6):2.0e-5);
     float rt = h/eps;
     if(rt<minr){ minr=rt; mind=d; mtrap=trap; }
-    if(h<eps){ hit=true; hp=p; htrap=trap; hd=d; break; }
+    if(h<eps){ hit=true; hp=p; hq=gQ; htrap=trap; hd=d; break; }
     d+=h*relax;
     // Orbit stops 7 units past the camera. The tesseract's camera sits inside
     // the home cell, so under Repeat that cut off every neighbor.
@@ -2315,6 +2338,11 @@ vec3 render3(vec2 uv){
     }
   }
   vec3 col=vec3(0.0);
+  // The hit in the fractal's own frame, its surface normal there and its pixel
+  // footprint, for the Lights windows below. Out here for the same reason as
+  // dn: derivatives need the whole quad.
+  vec3 qn=cross(dFdx(hq),dFdy(hq));
+  float qpx=max(length(fwidth(hq)),1e-6);
 #ifdef FAST_SHADE
   // Fast tier: normal from the screen-space change in hit position. Taken here,
   // outside the branch, because derivatives need every pixel of the quad.
@@ -2362,6 +2390,50 @@ vec3 render3(vec2 uv){
         emis=sv*sl*uVidMix*2.4;
         base=mix(base, base*0.5, uVidMix*0.7);
       }
+    }
+    if(uLights>0.001 && trap>-0.5){
+      // Lights: lit windows set into the fractal, the look of a lit-up city
+      // flown through at night. The face the hit sits on is split like a
+      // facade: a square cell either divides into four smaller ones or ends as
+      // a panel, and a panel has a die roll for holding a lit window — an
+      // inset rectangle of its own proportions in one of the palette colors.
+      // Dividing all the way down gives windows at every scale, the way the
+      // fractal itself has detail at every scale. Everything is laid out in
+      // the fractal's own frame (gQ), so the windows ride it as it turns, on
+      // the plane its surface faces there, so a box fractal's flat faces get
+      // square-on panes.
+      vec3 an=abs(qn);
+      int ax=(an.x>an.y && an.x>an.z)?0:((an.y>an.z)?1:2);
+      vec2 fu=ax==0?hq.yz:(ax==1?hq.xz:hq.xy);
+      float fz=ax==0?hq.x:(ax==1?hq.y:hq.z);
+      float dens=mix(0.22,0.6,uLights);
+      float lit=0.0; vec3 wc=vec3(0.0);
+      float cs=0.5;
+      for(int i=0;i<6;i++){
+        vec3 cid=vec3(floor(fu/cs),floor(fz/cs+0.5))+float(ax*7+i)*vec3(13.1,7.7,3.3);
+        vec3 r=fract(sin(vec3(dot(cid,vec3(127.1,311.7,74.7)),dot(cid,vec3(269.5,183.3,246.1)),dot(cid,vec3(113.5,271.9,124.6))))*43758.5453);
+        // Cells smaller than a few pixels can't be drawn one by one, so they
+        // settle to their average: far detail becomes a lit haze, not sparkle.
+        float px=qpx/cs;
+        if(px>0.12){ lit=dens*0.18; wc=pal(fract(r.y*3.7)); break; }
+        if(i<5 && r.x<0.55){ cs*=0.5; continue; }
+        vec2 lf=fract(fu/cs)-0.5;
+        vec2 hw=vec2(mix(0.18,0.42,r.z),mix(0.18,0.42,fract(r.z*7.3+r.y)));
+        vec2 e=hw-abs(lf);
+        float win=smoothstep(0.0,px*1.5,min(e.x,e.y));
+        // A few windows keep switching on and off so the city flickers.
+        float tick=floor(uTime*(0.3+uSpeed*0.9)+r.x*11.0);
+        float on=step(fract(r.y+step(0.85,r.z)*tick*0.37),dens);
+        // Hot in the middle of the pane, falling off to the frame.
+        float core=1.0+0.6*clamp(min(e.x/hw.x,e.y/hw.y),0.0,1.0);
+        lit=on*win*core;
+        wc=mix(pal(fract(r.y*3.7)+uHigh*0.1), vec3(1.0), 0.1+0.25*r.z);
+        break;
+      }
+      emis+=wc*lit*smoothstep(0.0,0.3,uLights)*(1.5+uLoud*1.4+uBeat*0.5);
+      // The structure around the windows goes toward dark metal, so the light
+      // is what carries the color.
+      base=mix(base, vec3(dot(base,vec3(0.3333)))*0.45+0.02, uLights*0.8);
     }
     if(uMode==42 && trap>-0.5){
       // Self-illumination rather than a light. The trap arrives quantized per
@@ -4290,7 +4362,7 @@ const _normFor = m => {
   const a = [n[0]/_NT, n[1]/_NT, n[2]/_NT];
   return {def:'#define NORM3D 1\n', a:'vec3('+a.map(f).join(',')+')', c:'vec3('+[n[3],n[4],n[5]].map(f).join(',')+')', k:f(Math.max(...a))};
 };
-const _mapFor = m => _normFor(m).def + 'float mapG(vec3 p,out float trap){\n  trap=0.0;\n' + _fillFor(m) + (_BRANCH[String(m)] || _BRANCH['0']) + '\n}\n'
+const _mapFor = m => _normFor(m).def + 'float mapG(vec3 p,out float trap){\n  trap=0.0;\n' + _fillFor(m) + '  gQ=p;\n' + (_BRANCH[String(m)] || _BRANCH['0']) + '\n}\n'
   // Repeat space with per-cell variation: each tile hashes its cell id into a
   // turn (any angle about a tilted axis), a size (26-100%, biased small, and
   // off-center in its cell so small ones don't sit in a grid), a mirror fold on a
