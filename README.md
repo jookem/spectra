@@ -115,3 +115,7 @@ corresponds to something the operator asked for.
 
 Chromium-based browser with WebGL2. HID controller support is Chromium-only;
 everything else works anywhere.
+
+## License
+
+MIT, see [LICENSE](LICENSE).
