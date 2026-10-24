@@ -561,9 +561,12 @@ uniform float uDOF;
 // Rim light on the 3D families, 0..1, from the Depth trim (which shapes the 2D
 // scenes). It replaced a bump map there that the fractals' own detail drowned.
 uniform float uRim;
-// Lights on the 3D families, 0..1, from the Lights trim: the fractal's core
-// becomes a light source shining out through its structure (see render3).
+// Lights on the 3D families, 0..1, from the Lights dial: lights set into the
+// fractal's surfaces, one per recursion level (see render3).
 uniform float uLights;
+// Phase of the Lights front through the recursion levels, 0..1 per cycle,
+// integrated on the host from Flow (parameter 12 on the 3D scenes).
+uniform float uLvPh;
 // Scene text. The message is baked to a signed distance field on the CPU (R =
 // distance, G = letter index) so the shader can treat it as real geometry
 // instead of a sprite: extruded in 3D it unions into the raymarch and occludes
@@ -1099,6 +1102,12 @@ float sdText3(vec3 p){
   return d*sc;
 }
 
+// Recursion level of the surface map() last looked at, for the Lights: gLv is
+// the level, gLvN how many the estimator ran (0 when it has no notion of one).
+// Carving fractals report the iteration whose cut made the face; escape-time
+// and fold families the iteration where the orbit came closest in, the usual
+// way their nested structure is read. Reset at the top of map().
+float gLv=0.0, gLvN=0.0;
 float sdBox(vec3 p,vec3 b){vec3 d=abs(p)-b;return min(max(d.x,max(d.y,d.z)),0.0)+length(max(d,0.0));}
 
 float bulb(vec3 p,float power,out float trap){
@@ -1122,6 +1131,11 @@ float bulb(vec3 p,float power,out float trap){
     z=zr*vec3(sin(th)*cos(ph),sin(th)*sin(ph),cos(th))+addc;
     trap=min(trap,r);
   }
+  // Level from how close the orbit came to the origin. A bulb's nesting has
+  // no clean step count — the escape count leaves nearly the whole visible
+  // surface on one or two values — but the closest approach bands it into the
+  // shells and lobes-on-lobes it is made of, inner structure lowest.
+  gLvN=6.0; gLv=floor(clamp((trap-0.62)/0.45,0.0,0.999)*gLvN);
   return 0.5*log(max(r,1e-6))*r/dr;
 }
 float menger(vec3 p){
@@ -1132,13 +1146,16 @@ float menger(vec3 p){
   // they thin to a cage. Centered so 0.5 is the classical sponge.
   float xw=3.0+(uCB-0.5)*0.9;
   int mi=int(clamp((4.0+uZoom*3.0)*fi(),2.0,12.0));
+  gLv=-1.0;   // the outer hull, which no cut made
   for(int m=0;m<12;m++){
     if(m>=mi) break;
     vec3 a=mod(p*s,2.0)-1.0; s*=3.0;
     vec3 r=abs(1.0-xw*abs(a));
     float da=max(r.x,r.y),db=max(r.y,r.z),dc=max(r.z,r.x);
-    d=max(d,(min(da,min(db,dc))-1.0)/s);
+    float c=(min(da,min(db,dc))-1.0)/s;
+    if(c>d){ d=c; gLv=float(m); }
   }
+  gLvN=float(mi);
   return d;
 }
 float ifs(vec3 z,float ang,float scale){
@@ -1167,13 +1184,16 @@ float apollonian(vec3 p,out float trap){
   float kk=1.05+uMorph*0.5+(uCA-0.5)*0.42;
   float per=0.5+(uCB-0.5)*0.14;
   int N=int(clamp(fi()*5.0,2.0,12.0));
+  float ab=1e9;
   for(int i=0;i<12;i++){
     if(i>=N) break;
     p=-1.0+2.0*fract(per*p+0.5);
     float r2=dot(p,p);
+    if(r2<ab){ ab=r2; gLv=float(i); }
     float k=kk/max(r2,0.0001);
     p*=k; scale*=k;
   }
+  gLvN=float(N);
   trap=clamp(log(max(scale,1.0001))*0.09,0.0,1.0);
   return 0.25*abs(p.y)/scale;
 }
@@ -1197,8 +1217,11 @@ float qjulia(vec3 pos,out float trap){
     z=vec4(z.x*z.x-dot(z.yzw,z.yzw), 2.0*z.x*z.yzw)+c;
     mz2=dot(z,z);
     trap=min(trap,mz2);
+    gLv=float(i);
     if(mz2>4.0) break;
   }
+  // Escape count, counted inward-first as the Mandelbulb.
+  gLvN=float(N-1); gLv=max(gLvN-1.0-(gLv-1.0),0.0);
   return 0.25*sqrt(mz2/max(md2,1e-8))*log(max(mz2,1.0001));
 }
 float sierp(vec3 z,float ang){
@@ -1209,10 +1232,12 @@ float sierp(vec3 z,float ang){
   // narrow and this stays inside it.
   float scale=2.0+(uCB-0.5)*0.42;
   int mi=int(clamp(12.0*fi(),4.0,26.0));
-  float sum=0.0;
+  float sum=0.0, gb=1e9;
   for(int i=0;i<26;i++){
     if(i>=mi) break;
     z.xz*=rot(ang*0.12);
+    float gd=abs(abs(z.x)+abs(z.y)+abs(z.z)-1.0)*pow(scale,-float(i));
+    if(gd<gb){ gb=gd; gLv=float(i); }
     vec3 c=a1; float dist=length(z-a1);
     float d=length(z-a2); if(d<dist){c=a2;dist=d;}
     d=length(z-a3); if(d<dist){c=a3;dist=d;}
@@ -1221,6 +1246,7 @@ float sierp(vec3 z,float ang){
     sum+=1.0;
     if(dot(z,z)>4096.0) break;
   }
+  gLvN=float(mi);
   return length(z)*pow(scale,-sum);
 }
 float mandelbox(vec3 p,out float trap){
@@ -1233,11 +1259,12 @@ float mandelbox(vec3 p,out float trap){
     if(i>=mi) break;
     z=clamp(z,-fold,fold)*2.0-z;
     float r2=dot(z,z);
-    trap=min(trap,r2);
+    if(r2<trap){ trap=r2; gLv=float(i); }
     if(r2<mr){ z*=1.0/mr; dr/=mr; }
     else if(r2<1.0){ z/=r2; dr/=r2; }
     z=z*s+off; dr=dr*abs(s)+1.0;
   }
+  gLvN=float(mi);
   return length(z)/abs(dr);
 }
 // Cathedral (45). The Mandelbox at NEGATIVE scale. A negative scale flips
@@ -1258,12 +1285,14 @@ float cathedral(vec3 p,out float trap){
     if(i>=mi) break;
     z=clamp(z,-fold,fold)*2.0-z;
     float r2=dot(z,z);
-    trap=min(trap,r2*0.6+abs(z.y)*0.25);
+    float tq=r2*0.6+abs(z.y)*0.25;
+    if(tq<trap){ trap=tq; gLv=float(i); }
     if(r2<mr){ z*=1.0/mr; dr/=mr; }
     else if(r2<1.0){ z/=r2; dr/=r2; }
     z.xz*=rot(tw);
     z=z*s+off; dr=dr*abs(s)+1.0;
   }
+  gLvN=float(mi);
   return length(z)/abs(dr);
 }
 float kleinian(vec3 p,out float trap){
@@ -1274,10 +1303,11 @@ float kleinian(vec3 p,out float trap){
     if(i>=mi) break;
     p=2.0*clamp(p,-cs,cs)-p;
     float r2=dot(p,p);
-    trap=min(trap,r2);
+    if(r2<trap){ trap=r2; gLv=float(i); }
     float k=max(0.72/max(r2,1e-6),1.0);
     p*=k; scale*=k;
   }
+  gLvN=float(mi);
   float l=length(p.xy);
   return 0.7*max(l-3.6,-(l*p.z)/4.0)/scale;
 }
@@ -1295,6 +1325,11 @@ float juliabulb(vec3 p,out float trap){
     z=zr*vec3(sin(th)*cos(ph),sin(th)*sin(ph),cos(th))+c;
     trap=min(trap,r);
   }
+  // Level from how close the orbit came to the origin. A bulb's nesting has
+  // no clean step count — the escape count leaves nearly the whole visible
+  // surface on one or two values — but the closest approach bands it into the
+  // shells and lobes-on-lobes it is made of, inner structure lowest.
+  gLvN=6.0; gLv=floor(clamp((trap-0.62)/0.45,0.0,0.999)*gLvN);
   return 0.5*log(max(r,1e-6))*r/dr;
 }
 float octa(vec3 z,float ang){
@@ -1325,12 +1360,13 @@ float hybrid(vec3 p,out float trap){
     z.xz*=rot(0.35);
     z=clamp(z,-1.0,1.0)*2.0-z;
     float r2=dot(z,z);
-    trap=min(trap,r2);
+    if(r2<trap){ trap=r2; gLv=float(i); }
     if(r2<mr){ float k=1.0/mr; z*=k; dr*=k; }
     else if(r2<1.0){ float k=1.0/r2; z*=k; dr*=k; }
     z=z*s+p;
     dr=dr*abs(s)+1.0;
   }
+  gLvN=float(mi);
   return length(z)/abs(dr);
 }
 
@@ -1679,6 +1715,7 @@ float cubeKM(vec3 p,out float trap){
   const vec2 R=vec2(1.0,1.7320508), H=vec2(0.5,0.8660254);
   const vec2 n1=vec2(0.0,1.0), n2=vec2(0.8660254,0.5), n3=vec2(-0.8660254,0.5);
   float s=0.5;
+  gLv=-1.0;
   for(int i=0;i<6;i++){
     if(i>=lvl) break;
     vec2 q=p.xz*s;
@@ -1694,9 +1731,11 @@ float cubeKM(vec3 p,out float trap){
     // (|n·g| and |y| bounded separately), which cut square windows into every
     // side face.
     float sl=min(min(sdHex2(vec2(dot(g,n1),ly),hr),sdHex2(vec2(dot(g,n2),ly),hr)),sdHex2(vec2(dot(g,n3),ly),hr));
-    d=max(d,-min(tube,sl)/s);
+    float c=-min(tube,sl)/s;
+    if(c>d){ d=c; gLv=float(i); }
     s*=3.0;
   }
+  gLvN=float(lvl);
   vec3 ax=normalize(vec3(cos(uCC*6.28318),0.55,sin(uCC*6.28318)));
   trap=clamp(0.5+0.5*dot(cen,ax),0.0,1.0);
   return d*0.86;
@@ -1711,7 +1750,7 @@ float gLod=0.0;
 // drew the cell grid into the fog.
 float gDR=1e9;
 float map(vec3 p,out float trap){
-  trap=0.0;
+  trap=0.0; gLv=0.0; gLvN=0.0;
   if(uMode==0){
     return bulb(p, mix(3.0,11.0,uMorph)+(uCA-0.5)*4.0+uMid*uReact*2.4, trap);
   } else if(uMode==12){
@@ -1732,15 +1771,17 @@ float map(vec3 p,out float trap){
   } else if(uMode==30){
     p.xz*=rot(uTime*0.04*uSpeed*uSpin);
     vec3 cs=vec3(0.92,0.92,1.1)+(uCA-0.5)*vec3(0.12,0.12,0.24);
-    float kk=0.24+(uCB-0.5)*0.2, df=1.0, r2=1.0;
+    float kk=0.24+(uCB-0.5)*0.2, df=1.0, r2=1.0, lb=1e9;
     int N=int(clamp(7.0*fi(),2.0,16.0));
     for(int i=0;i<16;i++){
       if(i>=N) break;
       p=2.0*clamp(p,-cs,cs)-p;
       r2=dot(p,p);
+      if(r2<lb){ lb=r2; gLv=float(i); }
       float s=max(kk/max(r2,1e-4),1.0);
       p*=s; df*=s;
     }
+    gLvN=float(N);
     float rxy=length(p.xy);
     trap=clamp(r2*0.22,0.0,1.0);
     return max(rxy-0.92, abs(rxy*p.z)/max(length(p),1e-4))/df;
@@ -1774,12 +1815,14 @@ float map(vec3 p,out float trap){
     float sph=clamp(p.y/rr,-1.0,1.0);
     float phi=acos(sph);
     vec3 q=vec3(th*kk, (phi-1.5707963)*kk, rr-R0);
-    float dr=1.0;
+    float dr=1.0, lb=1e9;
     int N=int(clamp(9.0*fi(),2.0,22.0));
+    gLvN=float(N);
     for(int i=0;i<22;i++){
       if(i>=N) break;
       q.xy=2.0*clamp(q.xy,-fo,fo)-q.xy;          // plane fold on xy only
       float r2=dot(q,q);
+      if(r2<lb){ lb=r2; gLv=float(i); }
       if(r2<mr){ float s=1.0/mr; q*=s; dr*=s; }   // conditional sphere fold
       else if(r2<1.0){ float s=1.0/r2; q*=s; dr*=s; }
       q=q*sc+vec3(0.0,0.0,(uCC-0.5)*0.3); dr=dr*sc+1.0;
@@ -1810,6 +1853,7 @@ float map(vec3 p,out float trap){
     float d=max(abs(p.x),max(abs(p.y),abs(p.z)))-sz;
     float s=1.0, sc=3.0+(uCA-0.5)*0.5;
     int N=int(clamp(4.5*fi(),1.0,10.0));
+    gLv=-1.0;
     for(int i=0;i<10;i++){
       if(i>=N) break;
       p.xz*=rot(a*0.17); p.xy*=rot(a*0.11);
@@ -1817,8 +1861,9 @@ float map(vec3 p,out float trap){
       s*=sc;
       vec3 rr=abs(1.0-3.0*abs(q));
       float c=(min(min(max(rr.x,rr.y),max(rr.y,rr.z)),max(rr.z,rr.x))-1.0)/s;
-      d=max(d,c);
+      if(c>d){ d=c; gLv=float(i); }
     }
+    gLvN=float(N);
     trap=clamp(length(p)*0.3,0.0,1.0);
     return d;
   } else if(uMode==34){
@@ -1859,8 +1904,9 @@ float map(vec3 p,out float trap){
       p*=k; dr*=k;
       p=p*sc+vec3(0.6,0.35,0.4)*(uCC-0.3);
       dr=dr*abs(sc)+1.0;
-      trap=min(trap,r2);
+      if(r2<trap){ trap=r2; gLv=float(i); }
     }
+    gLvN=float(N);
     return (length(p)-2.0)/abs(dr);
   } else if(uMode==36){
     p.xy*=rot(uTime*0.05*uSpeed*uSpin);
@@ -1878,11 +1924,13 @@ float map(vec3 p,out float trap){
     int N=int(clamp((10.0+uZoom*6.0)*fi(),3.0,34.0));
     for(int i=0;i<36;i++){
       if(i>=N) break;
-      r=length(z); if(r>3.2) break;
+      r=length(z); gLv=float(i); if(r>3.2) break;
       dr=2.0*r*dr+1.0;
       z=vec4(z.x*z.x-dot(z.yzw,z.yzw), 2.0*z.x*z.yzw)+qc;
       trap=min(trap,r);
     }
+    // Escape count, counted inward-first as the Mandelbulb.
+    gLvN=float(N-2); gLv=max(gLvN-1.0-(gLv-2.0),0.0);
     return 0.5*log(max(r,1e-6))*r/max(dr,1e-6);
   } else if(uMode==1){
     p.xz*=rot(uTime*0.12*uSpeed*uSpin); p.yz*=rot(uTime*0.07*uSpeed*uSpin);
@@ -2215,34 +2263,13 @@ vec3 render3(vec2 uv){
   // The first surface the ray meets is the one that gets shaded — refraction
   // bends at that interface and samples the environment, so the march has no
   // reason to continue into the body the way the old thickness walk did.
-  vec3 hp = ro; float htrap = 0.0, hd = 0.0, mtrap = 0.0, hlod = 0.0;
-  // Lights: the fractal's core is a light source, and its light reaches the
-  // surface through the structure. After the hit this same loop walks on from
-  // the surface toward the core instead of a second march — every map() call
-  // site is a full inlined copy of the estimator — and adds up how much
-  // material lies in the way. The structure is translucent to this light, so
-  // an open lattice passes clear beams down its tunnels and a solid body
-  // glows from within through its thin parts and crevices. The core is the
-  // object's center: the origin, or the middle of the hit's cell under Repeat.
-  // The inside views have no single center in sight and skip it.
-  bool lsh=false; vec3 lso=ro, lsd=rd; float lst=0.0, lsl=0.0, lthk=0.0, lres=1.0;
+  vec3 hp = ro; float htrap = 0.0, hd = 0.0, mtrap = 0.0, hlv = 0.0, hlvN = 0.0;
   float R0=dfar/4.85;
-  vec3 lctr=vec3(0.0);
   for(int i=NZERO;i<256;i++){
     if(i>=steps) break;
-    p=lsh?lso+lsd*lst:ro+rd*d;
-    gLod=max(d+lst,1e-3)*2.0/(uRes.y*1.7);
+    p=ro+rd*d;
+    gLod=max(d,1e-3)*2.0/(uRes.y*1.7);
     float h=map(p,trap);
-    if(lsh){
-      // Inside, or brushing a surface, counts as material; the soft edge on
-      // the occupancy is the penumbra. Inside, the estimate is no guide to a
-      // step, so it walks at a fixed pace.
-      float stp=h<R0*0.01?R0*0.04:clamp(h*0.9,R0*0.01,R0*0.25);
-      lthk+=stp*clamp(1.0-h/(R0*0.03),0.0,1.0);
-      lst+=stp;
-      if(lst>lsl || lthk>R0*0.8) break;
-      continue;
-    }
     // Eye starting inside the surface: back it out along the ray. This was a
     // separate map() before the loop (a whole extra copy of the estimator).
     if(i==0 && h<0.001 && !fc){ ro-=rd*(abs(h)+0.6); continue; }
@@ -2254,27 +2281,14 @@ vec3 render3(vec2 uv){
     float eps = max(pxw*d*epsK, fc?max(uCamScale*2e-3,1e-6):2.0e-5);
     float rt = h/eps;
     if(rt<minr){ minr=rt; mind=d; mtrap=trap; }
-    if(h<eps){
-      hit=true; hp=p; htrap=trap; hd=d; hlod=gLod;
-      if(uLights<=0.001 || trap<-0.5 || fc) break;
-      // Off the surface toward the eye, then on toward the core. The walk stops
-      // short of the core so the core's own surface can't shadow it.
-      lsh=true; lso=p-rd*eps*3.0;
-      if(uRep>0.0) lctr=floor(p/uRep+0.5)*uRep;
-      lsd=lctr-lso; lsl=length(lsd)-R0*0.12; lsd/=max(length(lsd),1e-6);
-      lst=eps*4.0;
-      if(lsl<=lst) break;
-      steps=min(i+1+int(mix(28.0,48.0,uDetail)),256);
-      continue;
-    }
+    if(h<eps){ hit=true; hp=p; htrap=trap; hd=d; hlv=gLv; hlvN=gLvN; break; }
     d+=h*relax;
     // Orbit stops 7 units past the camera. The tesseract's camera sits inside
     // the home cell, so under Repeat that cut off every neighbor.
     if(d>(fc?mix(dist0+7.0,max(uCamScale*60.0,uCamFog*40.0),cw):dist+((uMode==41)?max(7.0,uRep*2.5):7.0))) break;
   }
   // Shade the FIRST surface the ray met, not wherever the walk ended up.
-  if(hit){ p=hp; trap=htrap; d=hd; gLod=hlod; }
-  lres=lthk/R0;
+  if(hit){ p=hp; trap=htrap; d=hd; }
 #ifdef VEC_OUT
   // Vector render: stop after the march. Everything below (lighting, glass,
   // AO) is dead code in this build, so it compiles in a fraction of the time,
@@ -2435,36 +2449,34 @@ vec3 render3(vec2 uv){
       }
     }
     if(uLights>0.001 && trap>-0.5){
-      // Lights from the core outward. The center where the fractal begins is a
-      // hot source, and its light reaches out through the structure: faces
-      // turned toward it and in its sight (the shadow walk above) glow, falling
-      // off with distance, so the deep recesses and the walls of the passages
-      // that lead in carry the light and the outside shell stays dark. Waves
-      // leave the core on the beat and travel out along the same surfaces.
-      // Everything follows the fractal's own shape, whatever the family.
-      vec3 lv=lctr-p; float lr=length(lv)/R0;
-      // Two parts. Line of sight: faces turned to the core and clear of
-      // material (the tunnels, the inner walls) take it full, so open
-      // structure carries beams. Through the material: a dimmer glow that
-      // leaves the surface whichever way it faces, so a solid body lights
-      // from within at its thin parts and crevices. lres is the material in
-      // the way, in object radii.
-      float fac=clamp(dot(n,lv/max(length(lv),1e-6))*0.5+0.5,0.0,1.0);
-      float ndl=fac*fac*exp(-lres/0.06)+0.45*exp(-lres/mix(0.15,0.35,uLights));
-      float fall=1.0/(1.0+lr*lr*mix(5.0,1.5,uLights));
-      float ph=uTime*0.25*(0.5+uSpeed);
-      float wave=exp(-pow((lr-fract(ph)*1.6)*7.0,2.0))*(0.5+uBeat*1.5);
-      // Orbits that fell back toward the start of the iteration (low trap) are
-      // the inner structure; they hold the light a little longer.
-      float vein=0.6+0.8*pow(1.0-clamp(trap,0.0,1.0),2.0);
-      vec3 lc=mix(gP[5], vec3(1.0,0.96,0.9), clamp(1.0-lr*1.4,0.0,1.0)*0.6);
-      lc=mix(lc, pal(lr*0.5+uHigh*0.15), 0.35);
-      float li=ndl*(fall*vein*(1.4+uLoud*1.6)+wave*fall*2.0);
-      emis+=lc*li*smoothstep(0.0,0.3,uLights)*1.6;
-      // The structure goes toward dark metal so the core's light carries the
-      // color, and the outside light dims with it.
+      // Lights set into the structure, level by level. Every surface belongs to
+      // the recursion level that made it (gLv, recorded at the hit): the first
+      // cut at the center, then each finer set outward. Each level carries its
+      // own light in its own palette color, and a lit front steps through the
+      // levels — out from the center where the fractal begins, or back in —
+      // as Flow (uLvPh, integrated on the host) moves it, surging on the beat.
+      // Flow centered holds it on one level. Families with no notion of a
+      // level fall back to concentric bands from the center (the origin, or
+      // the hit's cell under Repeat).
+      float N=hlvN>0.5?min(hlvN,8.0):6.0;
+      vec3 lctr=uRep>0.0?floor(p/uRep+0.5)*uRep:vec3(0.0);
+      float L=hlvN>0.5?min(hlv,N-1.0):floor(clamp(length(p-lctr)/(R0*1.1),0.0,0.999)*N);
+      // One extra slot past the finest level is a dark beat before the front
+      // starts over, so the cycle reads as a sweep rather than a loop.
+      float M=N+1.0, pos=uLvPh*M;
+      float cur=floor(pos)+smoothstep(0.7,1.0,fract(pos));
+      float dl=mod(L-cur+M*0.5,M)-M*0.5;
+      // L below 0 is a carving fractal's outer hull, which no level made: it
+      // stays unlit so the light lives in the cuts.
+      float on=L<-0.5?0.0:exp(-dl*dl*2.2);
+      float u=clamp(L/max(N-1.0,1.0),0.0,1.0);
+      float rest=L<-0.5?0.0:0.12*(1.0-0.6*u);
+      vec3 lc=mix(pal(0.06+L*0.17+uHigh*0.1), vec3(1.0,0.97,0.92), 0.22*on);
+      float li=on*(0.9+uLoud*1.0+uBeat*0.6)+rest;
+      emis+=lc*li*smoothstep(0.0,0.3,uLights)*uLights;
+      // The structure goes toward dark metal so the lights carry the color.
       base=mix(base, vec3(dot(base,vec3(0.3333)))*0.4+0.015, uLights*0.75);
-      dif*=1.0-uLights*0.6;
+      dif*=1.0-uLights*0.5;
     }
     if(uMode==42 && trap>-0.5){
       // Self-illumination rather than a light. The trap arrives quantized per
@@ -2602,16 +2614,6 @@ vec3 render3(vec2 uv){
     col=mix(col, gP[10]*0.07+vec3(0.010,0.012,0.018), fk*cw);
   }
   col+=glow*uLook.y*gP[11]*(0.7+uLoud*1.6)*((uMode==41)?0.3:1.0);
-  // The core itself, seen through the gaps: the glow of the source along the
-  // part of the ray in front of the surface. A ray that passes near the center
-  // (down a passage) lights up; one stopped by the shell never gets close.
-  if(uLights>0.001 && !fc){
-    vec3 cc=uRep>0.0?floor((ro+rd*dot(-ro,rd))/uRep+0.5)*uRep:vec3(0.0);
-    float tc=clamp(dot(cc-ro,rd),0.0,hit?d:1e9);
-    float bb=length(ro+rd*tc-cc)/R0;
-    vec3 hot=mix(gP[5], vec3(1.0,0.97,0.92), 0.55);
-    col+=hot*(exp(-bb*bb*40.0)*1.0+exp(-bb*bb*7.0)*0.25)*smoothstep(0.0,0.3,uLights)*(0.8+uLoud*1.2+uBeat*0.6);
-  }
   // Depth of field. The defocus is a gather in the post pass; all this pass
   // owes it is depth. Alpha carries d/(d+dist): 0.5 at the orbit's focus
   // distance, toward 0 in front, 1 for a ray that hit nothing. Relative to dist
@@ -4396,7 +4398,7 @@ const _normFor = m => {
   const a = [n[0]/_NT, n[1]/_NT, n[2]/_NT];
   return {def:'#define NORM3D 1\n', a:'vec3('+a.map(f).join(',')+')', c:'vec3('+[n[3],n[4],n[5]].map(f).join(',')+')', k:f(Math.max(...a))};
 };
-const _mapFor = m => _normFor(m).def + 'float mapG(vec3 p,out float trap){\n  trap=0.0;\n' + _fillFor(m) + (_BRANCH[String(m)] || _BRANCH['0']) + '\n}\n'
+const _mapFor = m => _normFor(m).def + 'float mapG(vec3 p,out float trap){\n  trap=0.0; gLv=0.0; gLvN=0.0;\n' + _fillFor(m) + (_BRANCH[String(m)] || _BRANCH['0']) + '\n}\n'
   // Repeat space with per-cell variation: each tile hashes its cell id into a
   // turn (any angle about a tilted axis), a size (26-100%, biased small, and
   // off-center in its cell so small ones don't sit in a grid), a mirror fold on a
