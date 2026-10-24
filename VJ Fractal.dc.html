@@ -6094,15 +6094,17 @@ class Component extends DCLogic {
     for(let r=0;r<3;r++){ const z=1+r*5.6; for(let i=0;i<=6;i++){ const x=(i-3)*3.4-1.7+(r%2)*0.4; S.decal(lot,[[x-0.06,0.01,z-2.2],[x+0.06,0.01,z-2.2],[x+0.06,0.01,z+2.2],[x-0.06,0.01,z+2.2]],[190,185,215],{emit:1}); } }
     // screen
     const swd=17*(0.8+(e.detail??0.5)*0.4), sht=swd*0.5;
-    for(const sx of [-0.3,0.3]) S.box([sx*swd,2.4,22.6],[0.8,4.8,0.8],0,rgb(hu,0.3,0.32));
-    const bk=S.box([0,4.8+sht/2-0.1,23.4],[swd*0.92,sht*0.9,0.4],0,rgb(hu,0.3,0.2));
-    // From behind, the picture shows through mirrored, as a projection on a
-    // screen would.
-    if(bk.pz) S.vid(bk.pz,bk.on('pz',0.03,0.04,0.97,0.96,0.02),Object.assign({},V,{flip:!V.flip}),{alpha:0.85});
     // The screen is a flat projection sheet, not a set: a thin panel with the
     // picture running to its edges, no bezel and no black border.
     const scr=S.box([0,4.8+sht/2,22.6],[swd+1.2,sht+1.0,0.16],0,rgb(hu+5,0.3,0.5));
-    if(scr.nz) S.vid(scr.nz,scr.on('nz',0.004,0.006,0.996,0.994,0.01),V,{alpha:0.9+(A.beat||0)*0.1});
+    const sa=0.9+(A.beat||0)*0.1;
+    if(scr.nz) S.vid(scr.nz,scr.on('nz',0.004,0.006,0.996,0.994,0.01),V,{alpha:sa});
+    // From behind, the same picture shows through mirrored on the sheet's own
+    // back face, edge to edge like the front, as a projection on a screen would.
+    if(scr.pz) S.vid(scr.pz,scr.on('pz',0.004,0.006,0.996,0.994,0.01),Object.assign({},V,{flip:!V.flip}),{alpha:sa});
+    // Posts are legs under the sheet, as thin as it and in its plane, stopping
+    // at its bottom edge: nothing passes through it or covers either face.
+    for(const sx of [-0.3,0.3]) S.box([sx*swd,4.3/2,22.6],[0.6,4.3,0.16],0,rgb(hu,0.3,0.32));
     // booth
     // The booth is drawn in its own pass after the beam, so the light comes
     // out of the lens on the far face instead of washing over the box.
