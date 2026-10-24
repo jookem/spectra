@@ -5762,7 +5762,7 @@ class Component extends DCLogic {
             const qw=Math.hypot(q[1][0]-q[0][0],q[1][1]-q[0][1],q[1][2]-q[0][2]), qh=Math.hypot(q[3][0]-q[0][0],q[3][1]-q[0][1],q[3][2]-q[0][2]);
             const C=o.crop||self._vcrop(Vd,qw/Math.max(1e-4,qh)), Wt=Vd.w||Vd.src.width||1, Ht=Vd.h||Vd.src.height||1;
             const su=u=>(C.sx+(Vd.flip?1-u:u)*C.sw)/Wt, sv=v=>(C.sy+(Vd.flipV?1-v:v)*C.sh)/Ht, a=o.alpha==null?1:o.alpha;
-            state(1,'alpha',t,zw,off);
+            state(1,o.comp==='lighter'?'add':'alpha',t,zw,off);
             const cs=q.map(toC), uv=[[su(0),sv(0)],[su(1),sv(0)],[su(1),sv(1)],[su(0),sv(1)]], one=[255,255,255];
             for(const k of [0,1,2,0,2,3]) vert(cs[k],one,a,uv[k][0],uv[k][1]);
           };
@@ -6015,13 +6015,13 @@ class Component extends DCLogic {
             G.push(row); }
           const sb=f.sub||[0,1,0,1];
           const su=u=>{ const U=sb[0]+u*(sb[1]-sb[0]); return C.sx+(V.flip?1-U:U)*C.sw; }, sv=v=>{ const Q=sb[2]+v*(sb[3]-sb[2]); return C.sy+(V.flipV?1-Q:Q)*C.sh; };
-          ctx.globalAlpha=o.alpha==null?1:o.alpha;
+          ctx.globalAlpha=o.alpha==null?1:o.alpha; if(o.comp) ctx.globalCompositeOperation=o.comp;
           for(let j=0;j<n;j++) for(let i=0;i<n;i++){
             const u0=su(i/n), u1=su((i+1)/n), v0=sv(j/n), v1=sv((j+1)/n);
             tri(V.src,G[j][i],G[j][i+1],G[j+1][i+1],u0,v0,u1,v0,u1,v1);
             tri(V.src,G[j][i],G[j+1][i+1],G[j+1][i],u0,v0,u1,v1,u0,v1);
           }
-          ctx.globalAlpha=1;
+          ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over';
         };
         const draw=f=>{
           if(f.vid) drawVid(f);
@@ -6576,6 +6576,11 @@ class Component extends DCLogic {
       const files=this._mpFiles||(this._mpFiles=await mp.FilesetResolver.forVisionTasks(V+'/wasm'));
       S.task=await mp.ImageSegmenter.createFromOptions(files,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/1/selfie_segmenter.tflite',delegate:'CPU'},
         runningMode:'VIDEO',outputConfidenceMasks:true,outputCategoryMask:false});
+      // Everything else: DeepLab v3 knows twenty kinds of object (vehicles,
+      // animals, furniture, plants, bottles, screens); whatever it does not
+      // call background joins the people. Optional: without it, people only.
+      try{ S.task2=await mp.ImageSegmenter.createFromOptions(files,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/image_segmenter/deeplab_v3/float32/1/deeplab_v3.tflite',delegate:'CPU'},
+        runningMode:'VIDEO',outputConfidenceMasks:true,outputCategoryMask:false}); }catch(e){ S.task2=null; }
     }catch(e){ S.fail=true; }
     S.busy=false;
   }
@@ -6585,42 +6590,114 @@ class Component extends DCLogic {
     const S=this._seg||(this._seg={});
     if(!S.task){ this.segLoad(); return null; }
     const mk=()=>document.createElement('canvas');
-    const w=192, h=Math.max(2,Math.round(w*V.h/Math.max(1,V.w))), W2=480, H2=Math.max(2,Math.round(W2*V.h/Math.max(1,V.w)));
-    if(!S.inp){ S.inp=mk(); S.msk=mk(); S.out=mk(); S.sh=mk(); }
-    if(S.inp.width!==w||S.inp.height!==h){ S.inp.width=w; S.inp.height=h; S.ok=false; }
-    if(S.out.width!==W2||S.out.height!==H2){ S.out.width=S.sh.width=W2; S.out.height=S.sh.height=H2; }
+    const w=256, h=Math.max(2,Math.round(w*V.h/Math.max(1,V.w))), W2=480, H2=Math.max(2,Math.round(W2*V.h/Math.max(1,V.w)));
+    if(!S.inp){ S.inp=mk(); S.msk=mk(); S.mP=mk(); S.mO=mk(); S.soft=mk(); S.out=mk(); S.sh=mk(); }
+    if(S.inp.width!==w||S.inp.height!==h){ S.inp.width=w; S.inp.height=h; S.ok=false; S.accP=S.accO=null; S.okO=false; }
+    if(S.out.width!==W2||S.out.height!==H2){ S.out.width=S.sh.width=S.soft.width=W2; S.out.height=S.sh.height=S.soft.height=H2; }
+    // One model's confidence into its mask canvas. Confidence is eased toward
+    // each new mask rather than replaced by it, quicker to grow than to
+    // shrink: the edge stops boiling from one pass to the next without
+    // trailing behind a moving arm. inv takes 1 - background as foreground.
+    const toMask=(r,cv,key,inv)=>{
+      const m=r && r.confidenceMasks && r.confidenceMasks[0]; if(!m) return false;
+      const a=m.getAsFloat32Array();
+      if(cv.width!==m.width||cv.height!==m.height){ cv.width=m.width; cv.height=m.height; S[key]=null; }
+      let c=S[key];
+      if(!c||c.length!==a.length){ c=S[key]=new Float32Array(a.length); for(let i=0;i<a.length;i++) c[i]=inv?1-a[i]:a[i]; }
+      else for(let i=0;i<a.length;i++){ const v=inv?1-a[i]:a[i], p=c[i]; c[i]=p+(v-p)*(v>p?0.7:0.45); }
+      const mx=cv.getContext('2d'), id=mx.createImageData(m.width,m.height), d=id.data;
+      // A tight window (0.4..0.75) leaves little background on the edge,
+      // which read as a dirty halo round the figure.
+      for(let i=0;i<c.length;i++){ const k=Math.max(0,Math.min(1,(c[i]-0.4)/0.35)); d[i*4]=d[i*4+1]=d[i*4+2]=255; d[i*4+3]=k*k*(3-2*k)*255; }
+      mx.putImageData(id,0,0); return true;
+    };
     const now=performance.now();
-    if(now-(S.t||0)>=66){
-      S.t=now;
+    const runP=now-(S.t||0)>=40, runO=S.task2 && now-(S.t2||0)>=120;
+    if(runP||runO){
       try{
         S.inp.getContext('2d').drawImage(V.src,0,0,w,h);
-        S.task.segmentForVideo(S.inp,now,r=>{
-          const m=r && r.confidenceMasks && r.confidenceMasks[0]; if(!m) return;
-          const a=m.getAsFloat32Array();
-          if(S.msk.width!==m.width||S.msk.height!==m.height){ S.msk.width=m.width; S.msk.height=m.height; }
-          const mx=S.msk.getContext('2d'), id=mx.createImageData(m.width,m.height), d=id.data;
-          for(let i=0;i<a.length;i++){ const k=Math.max(0,Math.min(1,(a[i]-0.3)/0.4)); d[i*4]=d[i*4+1]=d[i*4+2]=255; d[i*4+3]=k*k*(3-2*k)*255; }
-          mx.putImageData(id,0,0); S.ok=true;
-        });
+        if(runP){ S.t=now; S.task.segmentForVideo(S.inp,now,r=>{ if(toMask(r,S.mP,'accP',false)) S.ok=true; }); }
       }catch(e){ S.fail=true; S.task=null; return null; }
-      if(S.ok){
-        // shadow: the silhouette, black and soft
-        const sx=S.sh.getContext('2d'); sx.clearRect(0,0,W2,H2);
-        sx.filter='blur(6px)'; sx.drawImage(S.msk,0,0,W2,H2); sx.filter='none';
-        sx.globalCompositeOperation='source-in'; sx.fillStyle='#000'; sx.fillRect(0,0,W2,H2); sx.globalCompositeOperation='source-over';
-        // cut-out: the frame through the mask, then a rim glow behind it
-        const ox=S.out.getContext('2d'); ox.globalCompositeOperation='source-over'; ox.clearRect(0,0,W2,H2);
-        ox.drawImage(V.src,0,0,W2,H2);
-        ox.globalCompositeOperation='destination-in'; ox.drawImage(S.msk,0,0,W2,H2);
-        ox.globalCompositeOperation='destination-over';
-        ox.shadowColor='rgb('+rim.map(v=>v|0).join(',')+')'; ox.shadowBlur=12;
-        ox.drawImage(S.out,0,0); ox.drawImage(S.out,0,0); ox.drawImage(S.out,0,0);
-        ox.shadowBlur=0; ox.globalCompositeOperation='source-over';
-      }
+      if(runO){ S.t2=now; try{ S.task2.segmentForVideo(S.inp,now,r=>{ if(toMask(r,S.mO,'accO',true)) S.okO=true; }); }catch(e){ S.task2=null; S.okO=false; } }
+      // the people and the objects together, at the people mask's size
+      if(S.ok){ if(S.msk.width!==S.mP.width||S.msk.height!==S.mP.height){ S.msk.width=S.mP.width; S.msk.height=S.mP.height; }
+        const cx=S.msk.getContext('2d'); cx.clearRect(0,0,S.msk.width,S.msk.height); cx.drawImage(S.mP,0,0);
+        if(S.okO && S.task2) cx.drawImage(S.mO,0,0,S.msk.width,S.msk.height); }
     }
     if(!S.ok) return null;
+    // The look is rebuilt once per frame from the latest mask and the current
+    // picture (the four faces share it), so the figure moves at the video's
+    // rate even though the mask only updates every few frames.
+    if(S.ft!==M.mtick){
+      S.ft=M.mtick;
+      const t=now/1000, A=this.a||{}, hs=k=>this.hsh1(k);
+      // soft mask at full size: the low-res mask's stair-steps blurred into
+      // a clean edge
+      const fx=S.soft.getContext('2d'); fx.clearRect(0,0,W2,H2);
+      fx.filter='blur(1.5px)'; fx.drawImage(S.msk,0,0,W2,H2); fx.filter='none';
+      // Clean plate: the person's place on the screen painted over with the
+      // background around them, so the figure floating in front is the only
+      // copy. On a quarter-size copy, the frame with the person (and a margin)
+      // cut out is blurred wider and wider and stacked, so the surrounding
+      // colors flow into the hole; the sharp frame goes back on top where it
+      // was never covered.
+      const w3=Math.max(2,W2>>2), h3=Math.max(2,H2>>2);
+      if(!S.bg){ S.bg=mk(); S.fill=mk(); }
+      if(S.bg.width!==w3||S.bg.height!==h3){ S.bg.width=S.fill.width=w3; S.bg.height=S.fill.height=h3; }
+      const bx=S.bg.getContext('2d'); bx.globalCompositeOperation='source-over'; bx.clearRect(0,0,w3,h3);
+      bx.drawImage(V.src,0,0,w3,h3);
+      bx.globalCompositeOperation='destination-out'; bx.filter='blur(1.5px)';
+      bx.drawImage(S.msk,0,0,w3,h3); bx.drawImage(S.msk,0,0,w3,h3); bx.filter='none'; bx.globalCompositeOperation='source-over';
+      const lx=S.fill.getContext('2d'); lx.clearRect(0,0,w3,h3);
+      for(const b of [24,12,6,3]){ lx.filter='blur('+b+'px)'; lx.drawImage(S.bg,0,0); lx.drawImage(S.bg,0,0); }
+      lx.filter='none'; lx.drawImage(S.bg,0,0);
+      // the patch: that fill, only over the person (widened a little to take
+      // the edge halo with it), feathered, and a touch darker for a shadow
+      if(!S.wm) S.wm=mk();
+      if(S.wm.width!==W2||S.wm.height!==H2){ S.wm.width=W2; S.wm.height=H2; }
+      const wx=S.wm.getContext('2d'); wx.clearRect(0,0,W2,H2);
+      wx.filter='blur(4px)'; wx.drawImage(S.soft,0,0); wx.drawImage(S.soft,0,0); wx.drawImage(S.soft,0,0); wx.filter='none';
+      const sx=S.sh.getContext('2d'); sx.globalCompositeOperation='source-over'; sx.clearRect(0,0,W2,H2);
+      sx.drawImage(S.fill,0,0,W2,H2);
+      sx.fillStyle='rgba(0,0,0,0.18)'; sx.fillRect(0,0,W2,H2);
+      sx.globalCompositeOperation='destination-in'; sx.drawImage(S.wm,0,0);
+      sx.globalCompositeOperation='source-over';
+      const ox=S.out.getContext('2d'); ox.globalCompositeOperation='source-over'; ox.clearRect(0,0,W2,H2);
+      ox.drawImage(V.src,0,0,W2,H2);
+      // glitch: now and then (more often on the beat) a band of rows slips
+      // sideways for a few frames
+      const gk=Math.floor(t*12);
+      if(hs(gk*1.37)<0.06+(A.beat||0)*0.18){ const gy=hs(gk*2.9)*H2*0.9, gh=4+hs(gk*5.3)*H2*0.12, gd=(hs(gk*7.1)-0.5)*W2*0.08;
+        ox.drawImage(S.out,0,gy,W2,gh,gd,gy,W2,gh); }
+      ox.globalCompositeOperation='destination-in'; ox.drawImage(S.soft,0,0);
+      // The hologram's color comes from what it is made of: the cut-out's
+      // average color, pushed to a bright saturated version of its hue and
+      // eased over time. A near-gray cut-out keeps the scene's rim color.
+      { if(!S.avg){ S.avg=mk(); S.avg.width=S.avg.height=8; }
+        const ax=S.avg.getContext('2d',{willReadFrequently:true}); ax.clearRect(0,0,8,8); ax.drawImage(S.out,0,0,8,8);
+        const p=ax.getImageData(0,0,8,8).data; let r=0,g=0,b=0,wt=0;
+        for(let i=0;i<p.length;i+=4){ const a=p[i+3]; r+=p[i]*a; g+=p[i+1]*a; b+=p[i+2]*a; wt+=a; }
+        let tgt=rim;
+        if(wt>0){ r/=wt; g/=wt; b/=wt; const mxc=Math.max(r,g,b), mnc=Math.min(r,g,b), ch=mxc-mnc;
+          if(ch>12){ let hh=mxc===r?((g-b)/ch)%6:mxc===g?(b-r)/ch+2:(r-g)/ch+4; hh=(hh*60+360)%360;
+            tgt=this.hrgb(hh,0.9,0.72); } }
+        const cur=S.rc||tgt; S.rc=cur.map((v,i)=>v+(tgt[i]-v)*0.08); }
+      const hc=S.rc.map(v=>v|0).join(',');
+      // tinted toward that color, as projected light is
+      ox.globalCompositeOperation='source-atop'; ox.fillStyle='rgba('+hc+',0.32)'; ox.fillRect(0,0,W2,H2);
+      // scanlines: thin see-through rows drifting upward
+      ox.globalCompositeOperation='destination-out'; ox.fillStyle='rgba(0,0,0,0.5)';
+      for(let y=4-(t*24)%4; y<H2; y+=4) ox.fillRect(0,y,W2,1.5);
+      // rim glow behind the figure
+      ox.globalCompositeOperation='destination-over';
+      ox.shadowColor='rgb('+hc+')'; ox.shadowBlur=10;
+      ox.drawImage(S.out,0,0); ox.drawImage(S.out,0,0);
+      ox.shadowBlur=0; ox.globalCompositeOperation='source-over';
+      // flicker: a fast shimmer and a rare dip
+      S.fl=0.9+0.1*Math.sin(t*37)*Math.sin(t*13.7)-(hs(Math.floor(t*20)*3.3)<0.03?0.35:0);
+    }
     const o={w:W2,h:H2,flip:V.flip,flipV:V.flipV,mix:V.mix};
-    return {cut:Object.assign({src:S.out},o), shade:Object.assign({src:S.sh},o)};
+    return {cut:Object.assign({src:S.out},o), shade:Object.assign({src:S.sh},o), fl:S.fl==null?1:S.fl};
   }
   drawPool(ctx,W,H,tick){
     const M=this.MESH, e=this.eff||{}, A=this.a||{}, Vw=this.canvasView(W,H), t=(M.mtick||0)/60, rgb=(h,s,l)=>this.hrgb(h,s,l), hs=k=>this.hsh1(k);
@@ -6695,13 +6772,16 @@ class Component extends DCLogic {
     }
     // the screen block
     tier(sw+0.24,sd+0.24,0.12,stoneL);
-    const body=tier(sw,sd,sh+0.24,stoneD), mt=this.segMatte(V,this.hrgb(hu+180,0.9,0.75)), dep=0.15+(e.cb??0.5)*1.2;
+    const body=tier(sw,sd,sh+0.24,stoneD), mt=this.segMatte(V,this.hrgb(hu+180,0.9,0.75)), dep=0.08+(e.cb??0.5)*0.6;
     for(const k of ['nz','pz','nx','px']){ if(!body[k]) continue;
       const wd=(k==='nz'||k==='pz')?sw:sd, mu=0.12/wd, mv=0.12/(sh+0.24);
       S.decal(body[k],body.on(k,mu*0.4,mv*0.4,1-mu*0.4,1-mv*0.4,0.01),[14,13,16],{emit:1});
       const pnl=off=>body.on(k,mu,mv,1-mu,1-mv,off);
       S.vid(body[k],pnl(0.02),V,{alpha:0.97});
-      if(mt){ S.vid(body[k],pnl(0.03),mt.shade,{alpha:0.6}); S.vid(body[k],pnl(dep),mt.cut,{alpha:1}); }
+      // The figure is drawn twice at the same spot: once over the scene to keep
+      // its body, once added on as light, so it glows and the screen behind
+      // shows faintly through it.
+      if(mt){ S.vid(body[k],pnl(0.03),mt.shade,{alpha:1}); S.vid(body[k],pnl(dep),mt.cut,{alpha:0.55*mt.fl}); S.vid(body[k],pnl(dep+0.004),mt.cut,{alpha:0.6*mt.fl,comp:'lighter'}); }
     }
     const fz=tier(sw+0.1,sd+0.1,0.24,stone);
     for(const k of ['nz','pz','nx','px']) if(fz[k]){ const nm=(k==='nz'||k==='pz')?7:4; for(let m=0;m<nm;m++){ const u0=(m+0.2)/nm, u1=(m+0.8)/nm; S.decal(fz[k],fz.on(k,u0,0.2,u1,0.8,0.01),teal); } }
