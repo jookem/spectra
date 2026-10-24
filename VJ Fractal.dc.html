@@ -6639,10 +6639,6 @@ class Component extends DCLogic {
     this.lpRidge(ctx,W,hz,H*0.09,21,'hsl('+hu+',30%,9%)','hsl('+hu+',28%,12%)',-cam.yaw*F*1.6);
     this.lpRidge(ctx,W,hz,H*0.045,53,'hsl('+(hu-10)+',32%,6%)','hsl('+(hu-10)+',30%,8%)',-cam.yaw*F*2.5);
     const S=this.lp3(Object.assign(cam,{f:F,cx:OX,cy:OY,L1:[-0.4,0.7,-0.5],C1:[0.28,0.3,0.45],amb:[0.2,0.2,0.3],fogC:rgb(hu+20,0.45,0.12),fogK:0.02}));
-    { const wg=ctx.createLinearGradient(0,hz,0,H);
-      wg.addColorStop(0,'hsl('+(hu+20)+',40%,15%)'); wg.addColorStop(0.18,'hsl('+(hu+10)+',35%,8%)'); wg.addColorStop(1,'hsl('+hu+',30%,4%)');
-      ctx.fillStyle=wg; ctx.fillRect(0,hz,W,H-hz);
-      this.poolGlints(ctx,W,hz,hz+(H-hz)*0.35,t,hu,1); }
     // A Doric temple on a rocky island, columns on all four sides under a
     // gabled roof. In the middle of the floor stands a pedestal (stepped
     // plinth, fluted drum, a capital of leaves and corner volutes, a square
@@ -6652,9 +6648,14 @@ class Component extends DCLogic {
     const sw=5.6*(0.75+(e.detail??0.5)*0.5), sh=sw*9/16, sd=sw*0.6;
     const stone=rgb(40,0.22,0.72), stoneD=rgb(38,0.2,0.6), stoneL=rgb(42,0.25,0.8), teal=rgb(180,0.45,0.42), rock=rgb(28,0.3,0.42), sand=rgb(32,0.35,0.5), grass=rgb(115,0.5,0.38);
     const fl=0.65, PH=2.04, SB=sh+0.6, CH=PH+SB+0.9, TW=sw+5, hw=TW/2, ci=sw/2+0.75, fy=fl;
-    // island
-    S.box([0,-0.5,Z],[TW+9,1.2,TW+9],0.04,sand,{taper:[0.92,0.92]});
-    S.box([0,-1.4,Z],[TW+12,1.0,TW+12],0.1,rock,{taper:[0.9,0.9]});
+    // The whole set is built by one function, drawn twice: once from the
+    // camera mirrored in the water plane wy (the reflection) and once for real.
+    // Nothing reaches below wy, so the mirrored pass has nothing to show that
+    // the water should hide.
+    const wy=-0.2, build=(S,cam)=>{
+    // island: a sandy rise on a rocky shelf, both standing on the water
+    S.box([0,(wy+0.1)/2,Z],[TW+9,0.1-wy,TW+9],0.04,sand,{taper:[0.92,0.92]});
+    S.box([0,wy+0.06,Z],[TW+12,0.12,TW+12],0.1,rock,{taper:[0.9,0.9]});
     // stylobate steps
     for(let k=0;k<3;k++){ const g=(2-k)*0.55; S.box([0,0.1+k*0.22,Z],[TW+1.6+g*2,0.22,TW+1.6+g*2],0,k%2?stone:stoneD); }
     const flute=(B,n,c)=>{ for(const k of ['nz','px','nx','pz']) if(B[k]) for(let u=0;u<n;u++){ const m=(u+0.5)/n; S.decal(B[k],B.on(k,m-0.03,0.04,m+0.03,0.96,0.005),c); } };
@@ -6732,21 +6733,39 @@ class Component extends DCLogic {
       S.box([Math.sin(a)*r,s*0.32,Z+Math.cos(a)*r],[s*1.3,s*0.8,s],hs(i*5)*3,rock,{taper:[0.5,0.6],topShift:(hs(i*9)-0.5)*0.4}); }
     for(let i=0;i<18;i++){ const a=hs(i*8.3)*6.2832, r=hw+1.2+hs(i*2.9)*(isle-hw-1.6), s=0.2+hs(i)*0.25;
       S.box([Math.sin(a)*r,0.1+s*1.1,Z+Math.cos(a)*r],[s*0.5,s*2.2,s*0.5],hs(i*3)*3,grass,{taper:[0.1,0.1]}); }
-    S.paint(ctx);
-    // The waterline is the island's edge nearest the camera.
-    const dx=cam.x, dz=cam.z-Z, dl=Math.hypot(dx,dz)||1, ux=dx/dl, uz=dz/dl, ir=isle/Math.max(Math.abs(ux),Math.abs(uz));
-    const wl=S.P([ux*ir,-0.3,Z+uz*ir]), hz2=wl?Math.max(hz,wl[1]):hz;
-    const n=Math.max(40,Math.round((H-hz2)/4)), amp=W*(0.002+(e.ca??0.5)*0.006+(A.bass||0)*0.008), spd=0.6+(e.speed??0.6)*3;
-    { const wg=ctx.createLinearGradient(0,hz2,0,H);
-      wg.addColorStop(0,'hsl('+(hu+15)+',38%,11%)'); wg.addColorStop(1,'hsl('+hu+',32%,4%)');
-      ctx.fillStyle=wg; ctx.fillRect(0,hz2,W,H-hz2); }
-    if((A.beat||0)>0.6 && !M.plB){ M.plB=1; (M.rings||(M.rings=[])).push({x:0.3+Math.random()*0.4,r:0,a:1}); if(M.rings.length>8) M.rings.shift(); } else if((A.beat||0)<0.3) M.plB=0;
-    for(let j=0;j<n;j++){
-      const d=(j+0.5)/n, y=hz2+(H-hz2)*j/n, rh=(H-hz2)/n+1, src=hz2-hz2*0.98*Math.pow(d,0.8)-1;
-      const dx=Math.sin(d*55-t*spd*2.2)*amp*(0.4+d*2.4)+Math.sin(d*131+t*spd*3.1)*amp*0.6*d;
-      ctx.globalAlpha=0.62*(1-d*0.6); ctx.drawImage(ctx.canvas,0,Math.max(0,src),W,Math.max(1,hz2*0.98/n),dx,y,W,rh);
+    };
+    // Open water from the horizon down, on every side of the island.
+    const y0=Math.max(0,hz);
+    { const wg=ctx.createLinearGradient(0,y0,0,H);
+      wg.addColorStop(0,'hsl('+(hu+20)+',40%,15%)'); wg.addColorStop(0.18,'hsl('+(hu+10)+',35%,8%)'); wg.addColorStop(1,'hsl('+hu+',30%,4%)');
+      ctx.fillStyle=wg; ctx.fillRect(0,y0,W,H-y0); }
+    // The reflection: sky, ranges and temple seen from the camera mirrored in
+    // the water plane. That view flips about the frame's middle row onto the
+    // true reflection (its horizon lands on the real one), so the image lies
+    // under the island's whole outline instead of being cut off at one line.
+    if(y0<H){
+      const OC=M.poolCv||(M.poolCv=document.createElement('canvas')); if(OC.width!==W||OC.height!==H){ OC.width=W; OC.height=H; }
+      const oc=OC.getContext('2d'), hzm=2*OY-hz, mc=Object.assign({},cam,{y:2*wy-cam.y,pitch:-cam.pitch});
+      oc.clearRect(0,0,W,H);
+      this.skyGrad(oc,W,hzm,'hsl('+hu+',40%,4%)','hsl('+(hu+20)+',45%,13%)');
+      this.lpRidge(oc,W,hzm,H*0.14,37,'hsl('+(hu+15)+',26%,13%)','hsl('+(hu+15)+',24%,16%)',-cam.yaw*F);
+      this.lpRidge(oc,W,hzm,H*0.09,21,'hsl('+hu+',30%,9%)','hsl('+hu+',28%,12%)',-cam.yaw*F*1.6);
+      this.lpRidge(oc,W,hzm,H*0.045,53,'hsl('+(hu-10)+',32%,6%)','hsl('+(hu-10)+',30%,8%)',-cam.yaw*F*2.5);
+      const SM=this.lp3(mc); build(SM,mc); SM.paint(oc);
+      // Laid on in thin rows, each nudged sideways by the swell: more toward
+      // the camera, barely at the horizon.
+      const n=Math.max(40,Math.round((H-y0)/4)), amp=W*(0.002+(e.ca??0.5)*0.006+(A.bass||0)*0.008), spd=0.6+(e.speed??0.6)*3;
+      for(let j=0;j<n;j++){
+        const y=y0+(H-y0)*j/n, rh=(H-y0)/n+1, d=(y-hz)/Math.max(1,H-hz), sb=2*OY-y;
+        if(sb<=0) break;
+        const dx=Math.sin(d*55-t*spd*2.2)*amp*(0.4+d*2.4)+Math.sin(d*131+t*spd*3.1)*amp*0.6*d;
+        ctx.globalAlpha=0.62*(1-d*0.6);
+        ctx.save(); ctx.translate(dx,y+rh); ctx.scale(1,-1); ctx.drawImage(OC,0,sb-rh,W,rh,0,0,W,rh); ctx.restore();
+      }
+      ctx.globalAlpha=1;
     }
-    ctx.globalAlpha=1;
+    const hz2=y0;
+    if((A.beat||0)>0.6 && !M.plB){ M.plB=1; (M.rings||(M.rings=[])).push({x:0.3+Math.random()*0.4,r:0,a:1}); if(M.rings.length>8) M.rings.shift(); } else if((A.beat||0)<0.3) M.plB=0;
     // Water color over the reflection so the sand and rock come back cool
     // and dark rather than brown, then the sheen and its glints.
     ctx.save(); ctx.globalCompositeOperation='color'; ctx.fillStyle='hsla('+(hu+10)+',45%,30%,0.45)'; ctx.fillRect(0,hz2,W,H-hz2); ctx.restore();
@@ -6757,6 +6776,8 @@ class Component extends DCLogic {
     (M.rings||[]).forEach(R=>{ R.r+=this.sceneDt()*0.25; R.a*=0.975; const rx=W*R.r, ry=(H-hz2)*R.r*0.18, x=W*R.x, y=hz2+(H-hz2)*0.45;
       ctx.strokeStyle='hsla('+(hu+20)+',70%,75%,'+(R.a*0.35).toFixed(3)+')'; ctx.beginPath(); ctx.ellipse(x,y,rx,Math.max(1,ry),0,0,6.2832); ctx.stroke(); });
     ctx.restore();
+    // The island and temple last, standing in the water over their reflection.
+    build(S,cam); S.paint(ctx);
   }
 
   // Thin bright ripples on open water between y0 and y1: short horizontal
