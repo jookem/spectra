@@ -6719,10 +6719,11 @@ class Component extends DCLogic {
     // A Doric temple on a rocky island, columns on all four sides under a
     // gabled roof. In the middle of the floor stands a pedestal (stepped
     // plinth, fluted drum, a capital of leaves and corner volutes, a square
-    // abacus) and on it the screen: a stone-framed block with the clip on all
-    // four faces, so it reads from any side. The people in the clip float a
+    // abacus) and on it the screen: a stone-framed block on a square plan with
+    // the clip on all four faces, each picture cropped to a perfect square
+    // (bw less its frame is sh), so it reads from any side. The people in the clip float a
     // little off each face (Depth), rimmed in light, over their own shadow.
-    const sw=5.6*(0.75+(e.detail??0.5)*0.5), sh=sw*9/16, sd=sw*0.6;
+    const sw=5.6*(0.75+(e.detail??0.5)*0.5), sh=sw*0.68, bw=sh+0.24;
     const stone=rgb(40,0.22,0.72), stoneD=rgb(38,0.2,0.6), stoneL=rgb(42,0.25,0.8), teal=rgb(180,0.45,0.42), rock=rgb(28,0.3,0.42), sand=rgb(32,0.35,0.5), grass=rgb(115,0.5,0.38);
     const fl=0.65, PH=2.04, SB=sh+0.6, CH=PH+SB+0.9, TW=sw+5, hw=TW/2, ci=sw/2+0.75, fy=fl;
     // The whole set is built by one function, drawn twice: once from the
@@ -6771,10 +6772,10 @@ class Component extends DCLogic {
         S.decal(VB[k],pts,c); }
     }
     // the screen block
-    tier(sw+0.24,sd+0.24,0.12,stoneL);
-    const body=tier(sw,sd,sh+0.24,stoneD), mt=this.segMatte(V,this.hrgb(hu+180,0.9,0.75)), dep=0.08+(e.cb??0.5)*0.6;
+    tier(bw+0.24,bw+0.24,0.12,stoneL);
+    const body=tier(bw,bw,sh+0.24,stoneD), mt=this.segMatte(V,this.hrgb(hu+180,0.9,0.75)), dep=0.08+(e.cb??0.5)*0.6;
     for(const k of ['nz','pz','nx','px']){ if(!body[k]) continue;
-      const wd=(k==='nz'||k==='pz')?sw:sd, mu=0.12/wd, mv=0.12/(sh+0.24);
+      const wd=bw, mu=0.12/wd, mv=0.12/(sh+0.24);
       S.decal(body[k],body.on(k,mu*0.4,mv*0.4,1-mu*0.4,1-mv*0.4,0.01),[14,13,16],{emit:1});
       const pnl=off=>body.on(k,mu,mv,1-mu,1-mv,off);
       S.vid(body[k],pnl(0.02),V,{alpha:0.97});
@@ -6783,9 +6784,9 @@ class Component extends DCLogic {
       // shows faintly through it.
       if(mt){ S.vid(body[k],pnl(0.03),mt.shade,{alpha:1}); S.vid(body[k],pnl(dep),mt.cut,{alpha:0.55*mt.fl}); S.vid(body[k],pnl(dep+0.004),mt.cut,{alpha:0.6*mt.fl,comp:'lighter'}); }
     }
-    const fz=tier(sw+0.1,sd+0.1,0.24,stone);
+    const fz=tier(bw+0.1,bw+0.1,0.24,stone);
     for(const k of ['nz','pz','nx','px']) if(fz[k]){ const nm=(k==='nz'||k==='pz')?7:4; for(let m=0;m<nm;m++){ const u0=(m+0.2)/nm, u1=(m+0.8)/nm; S.decal(fz[k],fz.on(k,u0,0.2,u1,0.8,0.01),teal); } }
-    tier(sw+0.36,sd+0.36,0.12,stoneL);
+    tier(bw+0.36,bw+0.36,0.12,stoneL);
     // entablature, all round
     const ey=fy+CH, eW=TW+1.1;
     S.box([0,ey+0.18,Z],[eW,0.36,eW],0,stone);
