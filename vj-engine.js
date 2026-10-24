@@ -315,48 +315,65 @@ void main(){
   if(plx) col=mix(col,pcol,smoothstep(0.0,0.12,dA));
   // Shallow focal plane. A macro lens on something this small holds only a
   // narrow band sharp, and that limit is most of why a fractal photograph reads
-  // as an object in space rather than a plot. There is no depth buffer here, so
-  // focus falls off with distance from frame center — which is where the scenes
-  // keep their subject anyway. Six taps on a golden-angle spiral rather than a
-  // ring: a ring at this few samples shows as a visible halo, the spiral just
-  // reads as blur. Weighting the taps by their own brightness is what makes the
-  // highlights bloom into discs instead of averaging away, which is the part
-  // the eye reads as bokeh.
-  if(uBokeh>0.004 && !terr){
-    // Two ways in. With real depth the circle of confusion arrives per pixel in
-    // the alpha channel, so focus sits on the surface the camera is actually
-    // orbiting and the background goes as soft as a macro lens makes it. Without
-    // depth it falls off from frame center, which is where the 2D scenes keep
-    // their subject anyway.
-    float coc = uDofDepth>0.5
-      ? texture(uScene,uv).a*uBokeh
-      : uBokeh*smoothstep(0.12,0.62,length(cc))*(1.0+uBass*0.5);
+  // as an object in space rather than a plot.
+  if(uBokeh>0.004 && !terr && uDofDepth>0.5){
+    // Lens defocus on the 3D families. Alpha holds depth as e = d/(d+dist)
+    // (see render3). Focus is pulled to the nearest surface around the middle
+    // of the frame: thirteen taps on two rings, so a hole at dead center (a
+    // tunnel, a gap between lobes) doesn't throw focus to the far wall behind
+    // the subject. Each pixel's circle of confusion is then a thin lens's,
+    // 1 - focus/depth: signed, negative in front of the focal plane and
+    // positive behind, growing without limit toward the eye and toward the
+    // aperture's full size at infinity.
+    float rc=1e9;
+    for(int i=0;i<13;i++){
+      float a=float(i)*1.0471976+(i>6?0.5235988:0.0);
+      vec2 o=i==0?vec2(0.0):vec2(cos(a),sin(a))*vec2(uRes.y/uRes.x,1.0)*(i>6?0.22:0.07);
+      float e=texture(uScene,vec2(0.5)+o).a;
+      if(e<0.985) rc=min(rc,e/max(1.0-e,1e-3));
+    }
+    if(rc>1e8) rc=1.0;
+    float maxpx=uRes.y*0.03*uBokeh;
+    vec4 c0=texture(uScene,uv);
+    float cs=clamp(1.0-rc*(1.0-c0.a)/max(c0.a,1e-3),-1.0,1.0)*maxpx, ca=abs(cs);
+    // Scatter-as-gather on a golden-angle spiral whose step widens with the
+    // radius, about 48 taps out to the largest circle. A sample lands on this
+    // pixel when its OWN circle reaches this far, so a blurred foreground spills
+    // across the sharp subject behind it, the way a real lens does. A sample
+    // behind this pixel may spread over it no further than this pixel's own
+    // blur, which keeps a defocused background from bleeding onto a sharp edge.
+    // The spiral starts at a per-pixel angle so its pattern dissolves into
+    // grain instead of showing as ghost copies.
+    vec3 acc=col; float tot=1.0;
+    float k=max(maxpx*maxpx/96.0,0.35);
+    float r=sqrt(k), ang=fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(0.06711056,0.00583715))))*6.2831853;
+    vec2 px=1.0/uRes;
+    for(int i=0;i<64;i++){
+      if(r>maxpx) break;
+      vec4 sp=texture(uScene,uv+vec2(cos(ang),sin(ang))*r*px);
+      float ss=clamp(1.0-rc*(1.0-sp.a)/max(sp.a,1e-3),-1.0,1.0)*maxpx, sa=abs(ss);
+      if(ss>cs) sa=min(sa,ca*2.0);
+      float m=smoothstep(r-0.5,r+0.5,sa);
+      acc+=mix(acc/tot,sp.rgb,m); tot+=1.0;
+      ang+=2.39996323; r+=k/r;
+    }
+    col=acc/tot;
+  } else if(uBokeh>0.004 && !terr){
+    // No depth (the 2D scenes): focus falls off from frame center, which is
+    // where those scenes keep their subject.
+    float coc=uBokeh*smoothstep(0.12,0.62,length(cc))*(1.0+uBass*0.5);
     if(coc>0.001){
-      // Tap count and radius both follow the depth path, because that is the one
-      // asked to produce real bokeh rather than a general softening. 18 taps on
-      // the golden-angle spiral fill a disc evenly enough that a bright point
-      // spreads into a round highlight instead of a ring or a streak, and the
-      // brightness weighting is what keeps it a DISC: weighting each tap by its
-      // own luma means a small highlight dominates the average over its whole
-      // circle of confusion rather than being diluted into gray. That single
-      // term is most of what the eye reads as a photographic defocus.
-      int N = uDofDepth>0.5 ? 18 : 6;
-      float rmax = uDofDepth>0.5 ? 0.075 : 0.035;
+      // Six taps on the golden-angle spiral, each weighted by its own
+      // brightness so a small highlight dominates its circle instead of being
+      // diluted into gray.
       vec3 acc=col; float wsum=1.0;
-      for(int i=0;i<18;i++){
-        if(i>=N) break;
+      for(int i=0;i<6;i++){
         float fi2=float(i)+0.5;
         float ang=fi2*2.39996323;
-        float rad=sqrt(fi2/float(N))*coc*rmax;
-        vec2 suv=uv+vec2(cos(ang),sin(ang))*rad*vec2(1.0,uRes.x/uRes.y);
-        vec4 s=texture(uScene,suv);
-        // A sample only bleeds onto this pixel if it is at least as defocused as
-        // the pixel is — otherwise a sharp foreground smears over the blurred
-        // field behind it, which is the classic gather artifact and reads as a
-        // halo around every in-focus edge.
-        float ok = uDofDepth>0.5 ? smoothstep(-0.25,0.10,s.a*uBokeh-coc*0.55) : 1.0;
+        float rad=sqrt(fi2/6.0)*coc*0.035;
+        vec4 s=texture(uScene,uv+vec2(cos(ang),sin(ang))*rad*vec2(1.0,uRes.x/uRes.y));
         float lum=dot(s.rgb,vec3(0.2126,0.7152,0.0722));
-        float w=(1.0+lum*lum*7.0)*ok;
+        float w=1.0+lum*lum*7.0;
         acc+=s.rgb*w; wsum+=w;
       }
       col=mix(col,acc/wsum,clamp(coc,0.0,1.0));
@@ -544,8 +561,8 @@ uniform float uDOF;
 // Rim light on the 3D families, 0..1, from the Depth trim (which shapes the 2D
 // scenes). It replaced a bump map there that the fractals' own detail drowned.
 uniform float uRim;
-// Lights on the 3D families, 0..1, from the Lights trim: some of the surface
-// turns into lit windows (see the shading in render3).
+// Lights on the 3D families, 0..1, from the Lights trim: the fractal's core
+// becomes a light source shining out through its structure (see render3).
 uniform float uLights;
 // Scene text. The message is baked to a signed distance field on the CPU (R =
 // distance, G = letter index) so the shader can treat it as real geometry
@@ -1693,31 +1710,27 @@ float gLod=0.0;
 // step at each cell wall; glow measured on the capped value lit every wall and
 // drew the cell grid into the fog.
 float gDR=1e9;
-// The point map() last looked at, in the family's own frame (after its spin),
-// so surface detail drawn at the hit rides the fractal instead of sliding
-// over it as it turns. Read by the Lights windows.
-vec3 gQ=vec3(0.0);
 float map(vec3 p,out float trap){
-  trap=0.0; gQ=p;
+  trap=0.0;
   if(uMode==0){
     return bulb(p, mix(3.0,11.0,uMorph)+(uCA-0.5)*4.0+uMid*uReact*2.4, trap);
   } else if(uMode==12){
-    p.xz*=rot(uTime*0.05*uSpeed*uSpin); gQ=p;
+    p.xz*=rot(uTime*0.05*uSpeed*uSpin);
     return mandelbox(p,trap);
   } else if(uMode==13){
-    p.xy*=rot(uTime*0.04*uSpeed*uSpin); gQ=p;
+    p.xy*=rot(uTime*0.04*uSpeed*uSpin);
     return kleinian(p,trap);
   } else if(uMode==14){
-    p.xz*=rot(uTime*0.08*uSpeed*uSpin); gQ=p;
+    p.xz*=rot(uTime*0.08*uSpeed*uSpin);
     return juliabulb(p,trap);
   } else if(uMode==15){
     trap=clamp(length(p)*0.4,0.0,1.0);
     return octa(p, uTime*0.07*uSpeed*uSpin+uMid*uReact*0.5);
   } else if(uMode==16){
-    p.yz*=rot(uTime*0.06*uSpeed*uSpin); gQ=p;
+    p.yz*=rot(uTime*0.06*uSpeed*uSpin);
     return hybrid(p,trap);
   } else if(uMode==30){
-    p.xz*=rot(uTime*0.04*uSpeed*uSpin); gQ=p;
+    p.xz*=rot(uTime*0.04*uSpeed*uSpin);
     vec3 cs=vec3(0.92,0.92,1.1)+(uCA-0.5)*vec3(0.12,0.12,0.24);
     float kk=0.24+(uCB-0.5)*0.2, df=1.0, r2=1.0;
     int N=int(clamp(7.0*fi(),2.0,16.0));
@@ -1750,7 +1763,7 @@ float map(vec3 p,out float trap){
     // model space. Dividing by the LARGEST local stretch keeps the estimate
     // conservative; sin() is floored so the poles, where the mapping is
     // singular, do not stall the march at zero.
-    p.xz*=rot(uTime*0.03*uSpeed*uSpin); gQ=p;
+    p.xz*=rot(uTime*0.03*uSpeed*uSpin);
     float sc=1.5+uMorph*0.6+(uCA-0.5)*0.4;
     float fo=1.0+(uCB-0.5)*0.5;
     float mr=0.5+(uCC-0.5)*0.4;
@@ -1810,7 +1823,7 @@ float map(vec3 p,out float trap){
     return d;
   } else if(uMode==34){
     p.xz*=rot(uTime*0.06*uSpeed*uSpin);
-    p.yz*=rot(uTime*0.04*uSpeed*uSpin); gQ=p;
+    p.yz*=rot(uTime*0.04*uSpeed*uSpin);
     // Gyroid: sin x cos y + sin y cos z + sin z cos x = t. A minimal surface,
     // infinitely periodic, hollowed into a shell of finite thickness and
     // clipped to a ball so the raymarcher has something bounded to hit.
@@ -1827,7 +1840,7 @@ float map(vec3 p,out float trap){
     // view at every depth.
     return max(shell, length(p)-(1.5+uCC*1.4)*(1.0+clamp(uZoom,0.0,1.0)*2.2));
   } else if(uMode==35){
-    p.xz*=rot(uTime*0.045*uSpeed*uSpin); gQ=p;
+    p.xz*=rot(uTime*0.045*uSpeed*uSpin);
     float sc=2.0+uMorph*0.7+(uCA-0.5)*0.5;
     float dr=1.0; trap=1.0;
     // Spudsville: base iteration count lowered (8 -> 6), and detail stops at the
@@ -1850,7 +1863,7 @@ float map(vec3 p,out float trap){
     }
     return (length(p)-2.0)/abs(dr);
   } else if(uMode==36){
-    p.xy*=rot(uTime*0.05*uSpeed*uSpin); gQ=p;
+    p.xy*=rot(uTime*0.05*uSpeed*uSpin);
     vec4 z=vec4(0.0), qc=vec4(p,(uCA-0.5)*0.7);
     // The 4D slice. p fills three components and the fourth is the constant that
     // chooses WHICH 3D slice of the quaternion Mandelbrot you are looking at —
@@ -1872,7 +1885,7 @@ float map(vec3 p,out float trap){
     }
     return 0.5*log(max(r,1e-6))*r/max(dr,1e-6);
   } else if(uMode==1){
-    p.xz*=rot(uTime*0.12*uSpeed*uSpin); p.yz*=rot(uTime*0.07*uSpeed*uSpin); gQ=p;
+    p.xz*=rot(uTime*0.12*uSpeed*uSpin); p.yz*=rot(uTime*0.07*uSpeed*uSpin);
     trap=clamp(length(p)*0.42,0.0,1.0);
     float sc=0.85+uMorph*0.35+(uCA-0.5)*0.3;
     return menger(p/sc)*sc;
@@ -1880,16 +1893,16 @@ float map(vec3 p,out float trap){
     trap=clamp(length(p)*0.5,0.0,1.0);
     return ifs(p+vec3(1.0,0.92,1.08)*(1.0+(uCB-0.5)*0.55), 0.2+sin(uTime*0.09*uSpeed*uSpin)*0.18+(uCA-0.5)*0.3, 1.6+uMorph*0.45+(uCC-0.5)*0.3);
   } else if(uMode==3){
-    p.xz*=rot(uTime*0.05*uSpeed*uSpin); gQ=p;
+    p.xz*=rot(uTime*0.05*uSpeed*uSpin);
     return apollonian(p,trap);
   } else if(uMode==4){
-    p.xy*=rot(uTime*0.07*uSpeed*uSpin); gQ=p;
+    p.xy*=rot(uTime*0.07*uSpeed*uSpin);
     float d=qjulia(p,trap);
     trap=clamp(sqrt(trap)*0.9,0.0,1.0);
     return d;
   } else if(uMode==41){
     p.xz*=rot(uTime*0.03*uSpeed*uSpin);
-    p.yz*=rot(uTime*0.02*uSpeed*uSpin); gQ=p;
+    p.yz*=rot(uTime*0.02*uSpeed*uSpin);
     return tessFrac(p,trap);
   } else if(uMode==43){
     return dna(p,trap,uMorph,uCA,uCB,uCC);
@@ -1899,11 +1912,11 @@ float map(vec3 p,out float trap){
     // A corner of the box toward the camera: the middle of a face is a hollow
     // recess, the arcades and ornament gather on the edges and corners.
     p.xz*=rot(uTime*0.03*uSpeed*uSpin);
-    p.yz*=rot(0.6155); p.xz*=rot(0.7854); gQ=p;
+    p.yz*=rot(0.6155); p.xz*=rot(0.7854);
     return cathedral(p,trap);
   } else if(uMode==42){
     p.xz*=rot(uTime*0.035*uSpeed*uSpin);
-    p.yz*=rot(uTime*0.022*uSpeed*uSpin); gQ=p;
+    p.yz*=rot(uTime*0.022*uSpeed*uSpin);
     return cubeKM(p,trap);
   } else {
     trap=clamp(length(p)*0.36,0.0,1.0);
@@ -2202,12 +2215,34 @@ vec3 render3(vec2 uv){
   // The first surface the ray meets is the one that gets shaded — refraction
   // bends at that interface and samples the environment, so the march has no
   // reason to continue into the body the way the old thickness walk did.
-  vec3 hp = ro, hq = vec3(0.0); float htrap = 0.0, hd = 0.0, mtrap = 0.0;
+  vec3 hp = ro; float htrap = 0.0, hd = 0.0, mtrap = 0.0, hlod = 0.0;
+  // Lights: the fractal's core is a light source, and its light reaches the
+  // surface through the structure. After the hit this same loop walks on from
+  // the surface toward the core instead of a second march — every map() call
+  // site is a full inlined copy of the estimator — and adds up how much
+  // material lies in the way. The structure is translucent to this light, so
+  // an open lattice passes clear beams down its tunnels and a solid body
+  // glows from within through its thin parts and crevices. The core is the
+  // object's center: the origin, or the middle of the hit's cell under Repeat.
+  // The inside views have no single center in sight and skip it.
+  bool lsh=false; vec3 lso=ro, lsd=rd; float lst=0.0, lsl=0.0, lthk=0.0, lres=1.0;
+  float R0=dfar/4.85;
+  vec3 lctr=vec3(0.0);
   for(int i=NZERO;i<256;i++){
     if(i>=steps) break;
-    p=ro+rd*d;
-    gLod=max(d,1e-3)*2.0/(uRes.y*1.7);
+    p=lsh?lso+lsd*lst:ro+rd*d;
+    gLod=max(d+lst,1e-3)*2.0/(uRes.y*1.7);
     float h=map(p,trap);
+    if(lsh){
+      // Inside, or brushing a surface, counts as material; the soft edge on
+      // the occupancy is the penumbra. Inside, the estimate is no guide to a
+      // step, so it walks at a fixed pace.
+      float stp=h<R0*0.01?R0*0.04:clamp(h*0.9,R0*0.01,R0*0.25);
+      lthk+=stp*clamp(1.0-h/(R0*0.03),0.0,1.0);
+      lst+=stp;
+      if(lst>lsl || lthk>R0*0.8) break;
+      continue;
+    }
     // Eye starting inside the surface: back it out along the ray. This was a
     // separate map() before the loop (a whole extra copy of the estimator).
     if(i==0 && h<0.001 && !fc){ ro-=rd*(abs(h)+0.6); continue; }
@@ -2216,17 +2251,30 @@ vec3 render3(vec2 uv){
     // so leaving this unguarded added a twelfth of a unit per interior step and
     // the object went to white. It only accumulates before the first hit.
     if(!hit) glow+=exp(-(uRep>0.0?min(gDR,1e3):h)*22.0/(fc?mix(1.0,uCamScale*3.0,cw):1.0))*0.012;
-    float eps = max(pxw*d*epsK*(1.0+uDOF*3.0*abs(d-dist)/max(dist,0.5)), fc?max(uCamScale*2e-3,1e-6):2.0e-5);
+    float eps = max(pxw*d*epsK, fc?max(uCamScale*2e-3,1e-6):2.0e-5);
     float rt = h/eps;
     if(rt<minr){ minr=rt; mind=d; mtrap=trap; }
-    if(h<eps){ hit=true; hp=p; hq=gQ; htrap=trap; hd=d; break; }
+    if(h<eps){
+      hit=true; hp=p; htrap=trap; hd=d; hlod=gLod;
+      if(uLights<=0.001 || trap<-0.5 || fc) break;
+      // Off the surface toward the eye, then on toward the core. The walk stops
+      // short of the core so the core's own surface can't shadow it.
+      lsh=true; lso=p-rd*eps*3.0;
+      if(uRep>0.0) lctr=floor(p/uRep+0.5)*uRep;
+      lsd=lctr-lso; lsl=length(lsd)-R0*0.12; lsd/=max(length(lsd),1e-6);
+      lst=eps*4.0;
+      if(lsl<=lst) break;
+      steps=min(i+1+int(mix(28.0,48.0,uDetail)),256);
+      continue;
+    }
     d+=h*relax;
     // Orbit stops 7 units past the camera. The tesseract's camera sits inside
     // the home cell, so under Repeat that cut off every neighbor.
     if(d>(fc?mix(dist0+7.0,max(uCamScale*60.0,uCamFog*40.0),cw):dist+((uMode==41)?max(7.0,uRep*2.5):7.0))) break;
   }
   // Shade the FIRST surface the ray met, not wherever the walk ended up.
-  if(hit){ p=hp; trap=htrap; d=hd; }
+  if(hit){ p=hp; trap=htrap; d=hd; gLod=hlod; }
+  lres=lthk/R0;
 #ifdef VEC_OUT
   // Vector render: stop after the march. Everything below (lighting, glass,
   // AO) is dead code in this build, so it compiles in a fraction of the time,
@@ -2338,11 +2386,6 @@ vec3 render3(vec2 uv){
     }
   }
   vec3 col=vec3(0.0);
-  // The hit in the fractal's own frame, its surface normal there and its pixel
-  // footprint, for the Lights windows below. Out here for the same reason as
-  // dn: derivatives need the whole quad.
-  vec3 qn=cross(dFdx(hq),dFdy(hq));
-  float qpx=max(length(fwidth(hq)),1e-6);
 #ifdef FAST_SHADE
   // Fast tier: normal from the screen-space change in hit position. Taken here,
   // outside the branch, because derivatives need every pixel of the quad.
@@ -2392,48 +2435,36 @@ vec3 render3(vec2 uv){
       }
     }
     if(uLights>0.001 && trap>-0.5){
-      // Lights: lit windows set into the fractal, the look of a lit-up city
-      // flown through at night. The face the hit sits on is split like a
-      // facade: a square cell either divides into four smaller ones or ends as
-      // a panel, and a panel has a die roll for holding a lit window — an
-      // inset rectangle of its own proportions in one of the palette colors.
-      // Dividing all the way down gives windows at every scale, the way the
-      // fractal itself has detail at every scale. Everything is laid out in
-      // the fractal's own frame (gQ), so the windows ride it as it turns, on
-      // the plane its surface faces there, so a box fractal's flat faces get
-      // square-on panes.
-      vec3 an=abs(qn);
-      int ax=(an.x>an.y && an.x>an.z)?0:((an.y>an.z)?1:2);
-      vec2 fu=ax==0?hq.yz:(ax==1?hq.xz:hq.xy);
-      float fz=ax==0?hq.x:(ax==1?hq.y:hq.z);
-      float dens=mix(0.22,0.6,uLights);
-      float lit=0.0; vec3 wc=vec3(0.0);
-      float cs=0.5;
-      for(int i=0;i<6;i++){
-        vec3 cid=vec3(floor(fu/cs),floor(fz/cs+0.5))+float(ax*7+i)*vec3(13.1,7.7,3.3);
-        vec3 r=fract(sin(vec3(dot(cid,vec3(127.1,311.7,74.7)),dot(cid,vec3(269.5,183.3,246.1)),dot(cid,vec3(113.5,271.9,124.6))))*43758.5453);
-        // Cells smaller than a few pixels can't be drawn one by one, so they
-        // settle to their average: far detail becomes a lit haze, not sparkle.
-        float px=qpx/cs;
-        if(px>0.12){ lit=dens*0.18; wc=pal(fract(r.y*3.7)); break; }
-        if(i<5 && r.x<0.55){ cs*=0.5; continue; }
-        vec2 lf=fract(fu/cs)-0.5;
-        vec2 hw=vec2(mix(0.18,0.42,r.z),mix(0.18,0.42,fract(r.z*7.3+r.y)));
-        vec2 e=hw-abs(lf);
-        float win=smoothstep(0.0,px*1.5,min(e.x,e.y));
-        // A few windows keep switching on and off so the city flickers.
-        float tick=floor(uTime*(0.3+uSpeed*0.9)+r.x*11.0);
-        float on=step(fract(r.y+step(0.85,r.z)*tick*0.37),dens);
-        // Hot in the middle of the pane, falling off to the frame.
-        float core=1.0+0.6*clamp(min(e.x/hw.x,e.y/hw.y),0.0,1.0);
-        lit=on*win*core;
-        wc=mix(pal(fract(r.y*3.7)+uHigh*0.1), vec3(1.0), 0.1+0.25*r.z);
-        break;
-      }
-      emis+=wc*lit*smoothstep(0.0,0.3,uLights)*(1.5+uLoud*1.4+uBeat*0.5);
-      // The structure around the windows goes toward dark metal, so the light
-      // is what carries the color.
-      base=mix(base, vec3(dot(base,vec3(0.3333)))*0.45+0.02, uLights*0.8);
+      // Lights from the core outward. The center where the fractal begins is a
+      // hot source, and its light reaches out through the structure: faces
+      // turned toward it and in its sight (the shadow walk above) glow, falling
+      // off with distance, so the deep recesses and the walls of the passages
+      // that lead in carry the light and the outside shell stays dark. Waves
+      // leave the core on the beat and travel out along the same surfaces.
+      // Everything follows the fractal's own shape, whatever the family.
+      vec3 lv=lctr-p; float lr=length(lv)/R0;
+      // Two parts. Line of sight: faces turned to the core and clear of
+      // material (the tunnels, the inner walls) take it full, so open
+      // structure carries beams. Through the material: a dimmer glow that
+      // leaves the surface whichever way it faces, so a solid body lights
+      // from within at its thin parts and crevices. lres is the material in
+      // the way, in object radii.
+      float fac=clamp(dot(n,lv/max(length(lv),1e-6))*0.5+0.5,0.0,1.0);
+      float ndl=fac*fac*exp(-lres/0.06)+0.45*exp(-lres/mix(0.15,0.35,uLights));
+      float fall=1.0/(1.0+lr*lr*mix(5.0,1.5,uLights));
+      float ph=uTime*0.25*(0.5+uSpeed);
+      float wave=exp(-pow((lr-fract(ph)*1.6)*7.0,2.0))*(0.5+uBeat*1.5);
+      // Orbits that fell back toward the start of the iteration (low trap) are
+      // the inner structure; they hold the light a little longer.
+      float vein=0.6+0.8*pow(1.0-clamp(trap,0.0,1.0),2.0);
+      vec3 lc=mix(gP[5], vec3(1.0,0.96,0.9), clamp(1.0-lr*1.4,0.0,1.0)*0.6);
+      lc=mix(lc, pal(lr*0.5+uHigh*0.15), 0.35);
+      float li=ndl*(fall*vein*(1.4+uLoud*1.6)+wave*fall*2.0);
+      emis+=lc*li*smoothstep(0.0,0.3,uLights)*1.6;
+      // The structure goes toward dark metal so the core's light carries the
+      // color, and the outside light dims with it.
+      base=mix(base, vec3(dot(base,vec3(0.3333)))*0.4+0.015, uLights*0.75);
+      dif*=1.0-uLights*0.6;
     }
     if(uMode==42 && trap>-0.5){
       // Self-illumination rather than a light. The trap arrives quantized per
@@ -2571,23 +2602,26 @@ vec3 render3(vec2 uv){
     col=mix(col, gP[10]*0.07+vec3(0.010,0.012,0.018), fk*cw);
   }
   col+=glow*uLook.y*gP[11]*(0.7+uLoud*1.6)*((uMode==41)?0.3:1.0);
-  // Depth of field. A real one costs a ray bundle per pixel, which this cannot
-  // afford — so the defocus is built from the two things a cone-tracer already
-  // has. The hit threshold above widens with distance from the focal plane, so
-  // a defocused silhouette genuinely spreads and softens rather than being
-  // blurred after the fact; and here the out-of-focus depths are washed toward
-  // the aerial color and given back a share of the proximity glow, which is
-  // what turns a soft edge into a bloomed one. Focus sits on the orbit pivot —
-  // the surface facing the viewer — so the subject is sharp and the field falls
-  // away both in front of it and behind.
-  // Depth of field. The defocus itself is a gather in the post pass, which is
-  // the only place a bright point can actually spread into a round highlight;
-  // all this pass owes it is an honest circle of confusion per pixel. Focus sits
-  // on the orbit pivot — the surface facing the viewer — so the subject is sharp
-  // and the field falls away both in front of it and behind. A ray that hit
-  // nothing is background and takes the full aperture.
+  // The core itself, seen through the gaps: the glow of the source along the
+  // part of the ray in front of the surface. A ray that passes near the center
+  // (down a passage) lights up; one stopped by the shell never gets close.
+  if(uLights>0.001 && !fc){
+    vec3 cc=uRep>0.0?floor((ro+rd*dot(-ro,rd))/uRep+0.5)*uRep:vec3(0.0);
+    float tc=clamp(dot(cc-ro,rd),0.0,hit?d:1e9);
+    float bb=length(ro+rd*tc-cc)/R0;
+    vec3 hot=mix(gP[5], vec3(1.0,0.97,0.92), 0.55);
+    col+=hot*(exp(-bb*bb*40.0)*1.0+exp(-bb*bb*7.0)*0.25)*smoothstep(0.0,0.3,uLights)*(0.8+uLoud*1.2+uBeat*0.6);
+  }
+  // Depth of field. The defocus is a gather in the post pass; all this pass
+  // owes it is depth. Alpha carries d/(d+dist): 0.5 at the orbit's focus
+  // distance, toward 0 in front, 1 for a ray that hit nothing. Relative to dist
+  // so 8 bits spend their precision around the subject at any zoom. The post
+  // pass refocuses on whatever sits at the center of the frame and turns this
+  // into a thin-lens circle of confusion, signed near/far. The march no longer
+  // widens its hit threshold off the focal plane: that eroded the geometry
+  // instead of defocusing it.
   if(uDOF>0.001){
-    gCoC = hit ? clamp(uDOF*abs(d-dist)/max(dist,0.5)*2.4,0.0,1.0) : uDOF;
+    gCoC = hit ? d/(d+max(dist,1e-4)) : 1.0;
   }
   // Tap target. Surface view marks the picked spot on the geometry: a bright
   // point, an outline circle drawn on the surface itself (so it wraps edges and
@@ -4362,7 +4396,7 @@ const _normFor = m => {
   const a = [n[0]/_NT, n[1]/_NT, n[2]/_NT];
   return {def:'#define NORM3D 1\n', a:'vec3('+a.map(f).join(',')+')', c:'vec3('+[n[3],n[4],n[5]].map(f).join(',')+')', k:f(Math.max(...a))};
 };
-const _mapFor = m => _normFor(m).def + 'float mapG(vec3 p,out float trap){\n  trap=0.0;\n' + _fillFor(m) + '  gQ=p;\n' + (_BRANCH[String(m)] || _BRANCH['0']) + '\n}\n'
+const _mapFor = m => _normFor(m).def + 'float mapG(vec3 p,out float trap){\n  trap=0.0;\n' + _fillFor(m) + (_BRANCH[String(m)] || _BRANCH['0']) + '\n}\n'
   // Repeat space with per-cell variation: each tile hashes its cell id into a
   // turn (any angle about a tilted axis), a size (26-100%, biased small, and
   // off-center in its cell so small ones don't sit in a grid), a mirror fold on a

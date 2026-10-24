@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<script src="./support.js?v=b35"></script>
+<script src="./support.js?v=b36"></script>
 <meta name="ext-resource-dependency" content="./csi.js" data-resource-id="csiJs">
 </head>
 <body>
@@ -34,12 +34,12 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
   @keyframes vjspin{to{transform:rotate(360deg)}}
   @keyframes vjscan{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
 </style>
-<script src="vj-engine.js?v=b35"></script>
-<script src="deep-zoom.js?v=b35"></script>
-<script src="cam-fly.js?v=b35"></script>
-<script src="wave-mesh.js?v=b35"></script>
-<script src="wave-gl.js?v=b35"></script>
-<script src="scene-thumbs.js?v=b35"></script>
+<script src="vj-engine.js?v=b36"></script>
+<script src="deep-zoom.js?v=b36"></script>
+<script src="cam-fly.js?v=b36"></script>
+<script src="wave-mesh.js?v=b36"></script>
+<script src="wave-gl.js?v=b36"></script>
+<script src="scene-thumbs.js?v=b36"></script>
 </helmet>
 <template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#08090A"/><circle cx="50" cy="50" r="22" fill="none" stroke="#C8FF2E" stroke-width="3"/><circle cx="50" cy="50" r="11" fill="none" stroke="#C8FF2E" stroke-width="2" opacity="0.6"/><circle cx="50" cy="50" r="3.5" fill="#C8FF2E"/></svg></template>
 <div style="position:relative;width:100vw;height:100dvh;overflow:hidden;background:#08090A;font-family:'JetBrains Mono',ui-monospace,monospace;color:#F2F3F0;user-select:none;-webkit-user-select:none;">
@@ -106,7 +106,7 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
           <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.42);">A SWRV Systems production</div>
           <div style="width:18px;height:1px;background:rgba(242,243,240,0.25);"></div>
         </div>
-        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 35 · 23 Oct 2026</div>
+        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 36 · 24 Oct 2026</div>
       </div>
       <div style="max-width:420px;text-align:center;font-size:12.5px;line-height:1.7;color:rgba(242,243,240,0.55);">The visuals are driven entirely by what the microphone hears. Nothing is recorded or sent anywhere.</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:10px;width:100%;max-width:470px;">
@@ -180,7 +180,7 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
     <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
       <div style="font-family:Archivo,sans-serif;font-weight:700;font-size:54px;letter-spacing:-0.03em;line-height:1;">SPECTRA</div>
       <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.36);">A SWRV Systems production</div>
-      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 35 · 23 Oct 2026</div>
+      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 36 · 24 Oct 2026</div>
     </div>
     <div ref="{{ warmWrapRef }}" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
       <div style="width:260px;height:2px;background:rgba(255,255,255,0.1);">
@@ -820,7 +820,7 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
            thin tick marks each trim's neutral point. -->
       <div style="display:{{ tabParamsGrid }};grid-template-columns:{{ deckCtlCols }};gap:12px 14px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);box-sizing:border-box;padding:12px 14px;">
         <span style="grid-column:1/-1;font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);">Trim</span>
-        <sc-for list="{{ trims }}" as="c" hint-placeholder-count="7">
+        <sc-for list="{{ trims }}" as="c" hint-placeholder-count="5">
           <div style="display:flex;flex-direction:column;gap:4px;min-width:0;">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0;font-size:9.5px;letter-spacing:0.13em;text-transform:uppercase;color:rgba(242,243,240,0.6);">
               <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1 1 auto;min-width:0;">{{ c.label }}</span>
@@ -1283,7 +1283,7 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
       </div>
       <div style="display:flex;flex-direction:column;gap:14px;">
         <div style="font-size:9.5px;letter-spacing:0.24em;text-transform:uppercase;color:rgba(242,243,240,0.55);text-shadow:0 0 3px rgba(8,9,10,0.95),0 0 7px rgba(8,9,10,0.85),0 1px 2px rgba(8,9,10,0.9);">Trim</div>
-        <sc-for list="{{ trims }}" as="c" hint-placeholder-count="7">
+        <sc-for list="{{ trims }}" as="c" hint-placeholder-count="5">
           <div style="display:flex;flex-direction:column;gap:4px;">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:9.5px;letter-spacing:0.13em;text-transform:uppercase;color:rgba(242,243,240,0.6);text-shadow:0 0 3px rgba(8,9,10,0.95),0 0 7px rgba(8,9,10,0.85),0 1px 2px rgba(8,9,10,0.9);">
               <span style="white-space:nowrap;">{{ c.label }}</span>
@@ -1557,8 +1557,12 @@ class Component extends DCLogic {
       {key:'morph',label:'Morph'},{key:'detail',label:'Detail'},{key:'speed',label:'Speed'},
       {key:'zoom',label:'Zoom'},{key:'react',label:'React'},{key:'hue',label:'Hue'},
       {key:'iter',label:'Iter'},{key:'ca',label:'Cst A'},{key:'cb',label:'Cst B'},
-      {key:'cc',label:'Cst C'},{key:'spinr',label:'Spin'},{key:'lite',label:'Light'}
+      {key:'cc',label:'Cst C'},{key:'spinr',label:'Spin'},{key:'lite',label:'Light'},
+      {key:'dof',label:'DOF'},{key:'dpth',label:'Depth'},{key:'lit',label:'Lights'}
     ];
+    // Where a dial rests when nothing has set it. The last three are effects
+    // that are off until asked for; everything else centers.
+    this.PDEF = {dof:0, dpth:0, lit:0};
     this.QUAL = [
       {id:'auto', tag:'Auto'},
       // High is adaptive: it climbs to full native resolution (device pixels, up
@@ -1604,31 +1608,20 @@ class Component extends DCLogic {
       {key:'sat',  label:'Sat',  min:0,    max:2.0, def:1, fmt:v=>Math.round(v*100).toString()},
       {key:'gam',  label:'Gam',  min:0.45, max:2.2, def:1, fmt:v=>v.toFixed(2).slice(1)},
       {key:'span', label:'Span', min:0.15, max:3.0, def:1, fmt:v=>v.toFixed(2).slice(0,4)},
-      {key:'warm', label:'Warm', min:-1,   max:1,   def:0, fmt:v=>(v>=0?'+':'')+Math.round(v*100)},
-      // Depth of field on the 3D families: aperture, focused on the orbit pivot.
-      // This slot used to be Fill, the engraving density for the 2D interiors —
-      // which reads as nothing at all on the 3D scenes, where the strip spends
-      // most of its time. The engraving is pinned at its old default in the
-      // shader, so the 2D sets look exactly as they did.
-      {key:'dof',  label:'DOF',  min:0,    max:1,   def:0,   fmt:v=>Math.round(v*100).toString()},
-      // Depth for the 2D scenes; the Look menu picks Relief, Parallax or Terrain.
-      // On the 3D scenes the same slider is Rim (a silhouette light).
-      {key:'dpth', label:'Depth', min:0,   max:1,   def:0,   fmt:v=>Math.round(v*100).toString()},
-      // Lit windows set into the 3D fractals, and bloom on every scene so
-      // bright light spills into the dark around it.
-      {key:'lit',  label:'Lights', min:0,  max:1,   def:0,   fmt:v=>Math.round(v*100).toString()}
+      {key:'warm', label:'Warm', min:-1,   max:1,   def:0, fmt:v=>(v>=0?'+':'')+Math.round(v*100)}
     ];
     this.state = {
       preset:0, layout:props.panelLayout||'deck', deckTab:'scenes', chrome:true, mic:'idle',
       // Global color trim, unity-at-default so a fresh load looks unchanged.
-      trim:{smth:0.55, sat:1, gam:1, span:1, warm:0, dof:0, dpth:0, lit:0}, dmode:0, fieldFx:0, lineFx:0,
+      trim:{smth:0.55, sat:1, gam:1, span:1, warm:0}, dmode:0, fieldFx:0, lineFx:0,
       micHint:'Your browser will ask for permission.', auto:props.autopilot!==false,
-      p:{morph:0.45,detail:0.55,speed:0.9,zoom:0.42,react:0.8,hue:0.08,iter:0.5,ca:0.5,cb:0.5,cc:0.3,spinr:0.5,lite:0.5},
+      p:{morph:0.45,detail:0.55,speed:0.9,zoom:0.42,react:0.8,hue:0.08,iter:0.5,ca:0.5,cb:0.5,cc:0.3,spinr:0.5,lite:0.5,dof:0,dpth:0,lit:0},
       qual:'min', rate:'free', pal:0, fx:0, spin:1, accentSel:null,
       mod:{morph:{src:'off',depth:0.30},detail:{src:'off',depth:0.20},speed:{src:'off',depth:0.20},
            zoom:{src:'off',depth:0.25},react:{src:'off',depth:0.20},hue:{src:'off',depth:0.35},
            iter:{src:'off',depth:0.2},ca:{src:'off',depth:0.2},cb:{src:'off',depth:0.2},
-           cc:{src:'off',depth:0.2},spinr:{src:'off',depth:0.2},lite:{src:'off',depth:0.2}},
+           cc:{src:'off',depth:0.2},spinr:{src:'off',depth:0.2},lite:{src:'off',depth:0.2},
+           dof:{src:'off',depth:0.2},dpth:{src:'off',depth:0.2},lit:{src:'off',depth:0.2}},
       // Scene text. Off until there is something to say; the message list and
       // look settings persist so a rig comes back up with the venue name ready.
       txtOn:false, txtList:[], txtIdx:0,
@@ -1724,9 +1717,13 @@ class Component extends DCLogic {
     this.state.vid = {on:false, mode:0, mode2:0, mix:0.5, flip:false, flipV:false, hide:false, rev:false, devices:[], deviceId:'', err:'', trail:0, drift:true,
       vtrail:0, vdrift:false, auto:true, shuf:false, link:false, fxc:false, tx:'fade'};
     this.loadSettings();
-    // Settings saved before parameters 11 and 12 existed have no entry for them.
-    this.state.p = Object.assign({spinr:0.5, lite:0.5}, this.state.p); delete this.state.p.sat;
-    this.state.mod = Object.assign({spinr:{src:'off',depth:0.2}, lite:{src:'off',depth:0.2}}, this.state.mod); delete this.state.mod.sat;
+    // Settings saved before parameters 11-15 existed have no entry for them.
+    // DOF, Depth and Lights were trims before they were dials; carry those over.
+    const tr = this.state.trim || {};
+    this.state.p = Object.assign({spinr:0.5, lite:0.5, dof:tr.dof||0, dpth:tr.dpth||0, lit:tr.lit||0}, this.state.p); delete this.state.p.sat;
+    this.state.mod = Object.assign({spinr:{src:'off',depth:0.2}, lite:{src:'off',depth:0.2},
+      dof:{src:'off',depth:0.2}, dpth:{src:'off',depth:0.2}, lit:{src:'off',depth:0.2}}, this.state.mod); delete this.state.mod.sat;
+    this.state.trim = Object.assign({}, tr); delete this.state.trim.dof; delete this.state.trim.dpth; delete this.state.trim.lit;
   }
 
   // Rig settings — how the machine is set up, as opposed to what it is currently
@@ -4725,6 +4722,10 @@ class Component extends DCLogic {
     const fam = this.E ? String(this.E.FAM_OF(mode)) : '';
     if(fam.slice(0,3) !== '3d:') r.spinr = '\u2014';
     if(fam === 'can') r.lite = '\u2014';
+    // 14 is the silhouette Rim on the 3D families and Depth (relief, parallax,
+    // terrain) on the 2D ones. Canvas scenes have no post defocus, so no DOF.
+    if(fam.slice(0,3) === '3d:') r.dpth = 'Rim';
+    if(fam === 'can') r.dof = '\u2014';
     return r;
   }
   paramLabels0(mode){
@@ -11007,14 +11008,14 @@ class Component extends DCLogic {
     // touch points at most, so the third bank is click-and-drag:
     //   1 finger:        ↕ Smth   ↔ Sat
     //   2 fingers:       ↕ Gam    ↔ Span   (the pair's midpoint)
-    //   click + 1 finger: ↕ Warm   ↔ DOF
+    //   click + 1 finger: ↕ Warm   ↔ Span
     // Each gesture starts from the trim's current value; up and right raise.
     const f1 = H.f1, f2 = H.f2;
     const n = (f1 && f2) ? 2 : (f1 || f2) ? 1 : 0;
     if(n){
       const pt = n === 2 ? {x:(f1.x+f2.x)/2, y:(f1.y+f2.y)/2} : (f1 || f2);
       const bank = n === 2 ? 'two' : (this.tpWas ? 'click' : 'one');
-      const ks = bank === 'two' ? ['gam','span'] : bank === 'click' ? ['warm','dof'] : ['smth','sat'];
+      const ks = bank === 'two' ? ['gam','span'] : bank === 'click' ? ['warm','span'] : ['smth','sat'];
       if(!H.tdrag || H.tdrag.bank !== bank){
         const tm = this.state.trim;
         H.tdrag = {bank, x:pt.x, y:pt.y, v:tm[ks[0]], h:tm[ks[1]]};
@@ -11408,7 +11409,7 @@ class Component extends DCLogic {
   // last thing touched is doing to the picture, in the scene's own names.
   tutFeedback(I){
     const P = (k)=>!!(I.bt[k] && I.bt[k].pressed);
-    const DEF = {morph:'Morph', detail:'Detail', speed:'Speed', zoom:'Zoom', react:'React', hue:'Hue', iter:'Iterations', ca:'Cst A', cb:'Cst B', cc:'Cst C', spinr:'Spin', lite:'Light'};
+    const DEF = {morph:'Morph', detail:'Detail', speed:'Speed', zoom:'Zoom', react:'React', hue:'Hue', iter:'Iterations', ca:'Cst A', cb:'Cst B', cc:'Cst C', spinr:'Spin', lite:'Light', dof:'DOF', dpth:'Depth', lit:'Lights'};
     const lab = this.paramLabels(this.curMode()) || {};
     const N = k => (lab[k] && lab[k] !== '\u2014') ? lab[k] : DEF[k];
     const V = k => { const v = this.state.p[k]; return v == null ? '' : Math.round((k==='hue' ? ((v%1)+1)%1 : Math.min(1,Math.max(0,v)))*100)+'%'; };
@@ -16067,15 +16068,15 @@ class Component extends DCLogic {
     gl.uniform1f(u.uSmooth, Math.min(1, tm.smth ?? 0.55));
     // Depth on a 3D scene is surface relief (a bump map); on 2D it is the
     // post pass's Relief / Parallax / Terrain, and the scene shader ignores it.
-    if(u.uRim) gl.uniform1f(u.uRim, (!this.is2D() && !this.isCanvasScene()) ? (tm.dpth ?? 0) : 0);
-    if(u.uLights) gl.uniform1f(u.uLights, (!this.is2D() && !this.isCanvasScene()) ? (tm.lit ?? 0) : 0);
+    if(u.uRim) gl.uniform1f(u.uRim, (!this.is2D() && !this.isCanvasScene()) ? (this.eff.dpth ?? 0) : 0);
+    if(u.uLights) gl.uniform1f(u.uLights, (!this.is2D() && !this.isCanvasScene()) ? (this.eff.lit ?? 0) : 0);
     // Engraving is no longer on the strip, so it is pinned at the default it
     // shipped with — the 2D interiors keep the look they had.
     gl.uniform1f(u.uFill, 0.7);
     // Exterior structure on the escape-time families: 1 grid, 2 orbits, 3 both.
     if(u.uField) gl.uniform1f(u.uField, this.state.fieldFx || 0);
     if(u.uLine) gl.uniform1f(u.uLine, this.lineOk(this.curMode()) ? (this.state.lineFx || 0) : 0);
-    gl.uniform1f(u.uDOF, tm.dof ?? 0);
+    gl.uniform1f(u.uDOF, this.eff.dof ?? 0);
     const fx = this.state.fx || 0;
     // The ping-pong pass is what fills uPrev with the previous composited frame.
     // It used to run only when FX or trail was up, which is why the first cut
@@ -16090,16 +16091,19 @@ class Component extends DCLogic {
     // fast path taken there is nothing to gather in — the slider would sit there
     // inert. Asking for depth of field is therefore also asking for the offscreen
     // target, and the cost is the same extra blit transitions already pay for.
-    const dofOn = (tm.dof ?? 0) > 0.001 && !this.is2D() && !this.isCanvasScene();
+    const dofOn = (this.eff.dof ?? 0) > 0.001 && !this.is2D() && !this.isCanvasScene();
+    // On the 2D scenes DOF deepens the radial focus falloff, which also needs
+    // the offscreen frame.
+    const dof2On = (this.eff.dof ?? 0) > 0.001 && this.is2D() && !this.isCanvasScene();
     const vecCfg = this.vecCfg();
     const vC = this.vecCache && this.vecCache.get(this.drawMode);
     const vOnly = !!(vecCfg.style && vecCfg.only && vC && vC.ready);
     this._vOnly = vOnly;
-    const depthOn = (tm.dpth ?? 0) > 0.001 && this.is2D();
+    const depthOn = (this.eff.dpth ?? 0) > 0.001 && this.is2D();
     // Smth above its default turns on the post denoise, which needs the offscreen frame.
     const dnAmt = Math.max(0, Math.min(1, ((tm.smth ?? 0.55) - 0.55)/1.05));
-    const bloomOn = (tm.lit ?? 0) > 0.001;
-    const wantPrev = (dnAmt > 0.001) || (fx > 0.001) || (feed > 0.001) || this.state.xfadeOn !== false || this.xfade > 0.001 || dofOn || depthOn || bloomOn;
+    const bloomOn = (this.eff.lit ?? 0) > 0.001;
+    const wantPrev = (dnAmt > 0.001) || (fx > 0.001) || (feed > 0.001) || this.state.xfadeOn !== false || this.xfade > 0.001 || dofOn || dof2On || depthOn || bloomOn;
     const useFB = wantPrev && this.postProg && this.fb && this.fb.length===2 && this.fbSize.w===W && this.fbSize.h===H;
     // Alpha only carries the circle of confusion when the post pass is actually
     // about to read it. On the direct path alpha is opacity, and a 3D frame that
@@ -16124,16 +16128,17 @@ class Component extends DCLogic {
       gl.uniform1f(pu.uBeat, pq.beat);
       gl.uniform1f(pu.uBass, pq.bass);
       // 2D scenes have no depth, so their defocus is the radial guess and rides
-      // on Smth — already the "soften everything" master. The 3D families write a
-      // real circle of confusion into the frame's alpha during the march, so the
-      // DOF slider drives the gather directly and focus sits on the orbit pivot.
+      // on Smth — already the "soften everything" master — with DOF on top. The
+      // 3D families write depth into the frame's alpha during the march, so the
+      // DOF slider is the aperture of a real lens gather that focuses on the
+      // middle of the frame.
       const is3dof = dofOn;
       gl.uniform1f(pu.uBokeh, is3dof
-        ? (tm.dof ?? 0)
-        : (this.is2D() ? 0.35 + 0.65*(tm.smth ?? 0.55) : 0));
+        ? (this.eff.dof ?? 0)
+        : (this.is2D() ? 0.35 + 0.65*(tm.smth ?? 0.55) + 1.2*(this.eff.dof ?? 0) : 0));
       if(pu.uDofDepth) gl.uniform1f(pu.uDofDepth, is3dof ? 1 : 0);
       if(pu.uDenoise) gl.uniform1f(pu.uDenoise, dnAmt);
-      if(pu.uBloom) gl.uniform1f(pu.uBloom, bloomOn ? tm.lit : 0);
+      if(pu.uBloom) gl.uniform1f(pu.uBloom, bloomOn ? this.eff.lit : 0);
       // Flat water fills the empty space of the shader 2D scenes with Depth
       // off. The canvas scenes keep their night skies, which sit near black.
       if(pu.uWater) gl.uniform1f(pu.uWater, (!depthOn && this.state.voidWater !== false && this.is2D() && !this.isCanvasScene()) ? 1 : 0);
@@ -16141,7 +16146,7 @@ class Component extends DCLogic {
         if(pu.uWaterHue) gl.uniform1f(pu.uWaterHue, ws[2]);
         if(pu.uWaterMono) gl.uniform1f(pu.uWaterMono, ws[0]==='mono' ? 1 : 0); }
       if(pu.uDepth){
-        gl.uniform1f(pu.uDepth, depthOn ? tm.dpth : 0);
+        gl.uniform1f(pu.uDepth, depthOn ? this.eff.dpth : 0);
         gl.uniform1f(pu.uDMode, this.state.dmode || 0);
         const ip = this.imuPlane || {x:0, y:0};
         gl.uniform2f(pu.uDTilt, ip.y || 0, ip.x || 0);
@@ -16151,7 +16156,7 @@ class Component extends DCLogic {
         this.terrT = tnow;
         if(this.state.auto !== false) this.terrZ = (this.terrZ || 0) + tdt*0.05*(0.3 + (this.eff.speed ?? 0.5)*1.4);
         if(pu.uTerrZ) gl.uniform1f(pu.uTerrZ, this.terrZ || 0);
-        if(pu.uTerrFog) gl.uniform1f(pu.uTerrFog, tm.dof ?? 0.35);
+        if(pu.uTerrFog) gl.uniform1f(pu.uTerrFog, this.eff.dof ?? 0.35);
         if(pu.uTerrLow) gl.uniform1f(pu.uTerrLow, this.state.terrLow ?? 3);
       }
       gl.activeTexture(gl.TEXTURE0);
@@ -16677,7 +16682,7 @@ class Component extends DCLogic {
     const snap = this.effSnap; this.effSnap = false;
     this.SD.forEach((d,i) => {
       const m = mod[d.key] || {src:'off',depth:0};
-      let v = p[d.key] ?? 0.5;
+      let v = p[d.key] ?? (this.PDEF[d.key] ?? 0.5);
       if(auto && m.src!=='off' && m.depth>0) v += m.depth * this.signal(m.src, tt, i, m.div);
       // Zoom is the one parameter that may leave [0,1]: with a solved anchor it
       // is a loop PHASE, and clamping it here was the wall the slider hit at
@@ -16893,6 +16898,18 @@ class Component extends DCLogic {
       // Selected: an accent edge and tint, the text stays white over the still.
       }, i===s.preset ? {bg:this.accA(0.18), fg:'#F2F3F0', border:accent} : Object.assign(chip(false), {fg:'#F2F3F0'}));
     });
+    const trimRow = d=>{
+      const v = s.trim[d.key];
+      const n = (v - d.min) / (d.max - d.min);
+      return {
+        label: d.label,
+        pct: (n*100).toFixed(1)+'%',
+        mid: (((d.def - d.min)/(d.max - d.min))*100).toFixed(1)+'%',
+        read: d.fmt(v),
+        drag: this.drag(x => this.setTrim(d.key, d.min + x*(d.max - d.min))),
+        reset: () => this.setTrim(d.key, d.def)
+      };
+    };
     return {
       hidLabel: s.hid==='on' ? (s.imu ? 'imu · touch' : 'touch') : (s.hid==='unsupported' ? 'no hid' : (s.hid==='error' ? 'hid failed' : 'hid')),
       hidColor: s.hid==='on' ? accent : 'rgba(242,243,240,0.4)',
@@ -17091,23 +17108,23 @@ class Component extends DCLogic {
       fxSel: String(s.fx||0),
       fxOptions: [{v:'0',tag:'FX Off'},{v:'0.35',tag:'FX Low'},{v:'0.7',tag:'FX Mid'},{v:'1',tag:'FX High'}],
       setFx: (e)=>this.setState({fx: parseFloat(e.target.value)||0}),
-      dmodeSel: (s.trim.dpth||0) > 0.001 ? String(s.dmode||0) : 'off',
+      dmodeSel: (s.p.dpth||0) > 0.001 ? String(s.dmode||0) : 'off',
       waterOnSel: s.voidWater === false ? '0' : '1',
       waterOnOptions: [{v:'1',tag:'Empty: Water'},{v:'0',tag:'Empty: Black'}],
       setWaterOn: (e)=>this.setState({voidWater: e.target.value !== '0'}),
-      waterOnDisp: ((s.trim.dpth||0) <= 0.001 && this.E && !this.isCanvasScene()) ? 'block' : 'none',
+      waterOnDisp: ((s.p.dpth||0) <= 0.001 && this.E && !this.isCanvasScene()) ? 'block' : 'none',
       // Water hue as a color harmony against the scene: how far round the
       // wheel the water's tint turns, or the same hue made deeper (mono).
       waterHueSel: s.waterScheme || 'split',
       waterHueOptions: this.WATER_SCHEMES.map(([v,tag])=>({v, tag:'Water: '+tag})),
       setWaterHue: (e)=>this.setState({waterScheme: e.target.value}),
-      waterHueDisp: (((s.trim.dpth||0) <= 0.001 && s.voidWater !== false && this.E && !this.isCanvasScene()) || ((s.trim.dpth||0) > 0.001 && String(s.dmode)==='2' && ((s.terrLow ?? 3) & 1))) ? 'block' : 'none',
+      waterHueDisp: (((s.p.dpth||0) <= 0.001 && s.voidWater !== false && this.E && !this.isCanvasScene()) || ((s.p.dpth||0) > 0.001 && String(s.dmode)==='2' && ((s.terrLow ?? 3) & 1))) ? 'block' : 'none',
       terrLowSel: String(s.terrLow ?? 3),
       terrLowOptions: [{v:'3',tag:'Water + Mist'},{v:'1',tag:'Water'},{v:'2',tag:'Mist'},{v:'0',tag:'Dark water'}],
       setTerrLow: (e)=>this.setState({terrLow: parseInt(e.target.value,10)||0}),
-      terrLowDisp: ((s.trim.dpth||0) > 0.001 && String(s.dmode)==='2') ? 'block' : 'none',
+      terrLowDisp: ((s.p.dpth||0) > 0.001 && String(s.dmode)==='2') ? 'block' : 'none',
       dmodeOptions: [{v:'off',tag:'Depth Off'},{v:'0',tag:'Depth Relief'},{v:'1',tag:'Depth Parallax'},{v:'2',tag:'Depth Terrain'}],
-      setDMode: (e)=>{ if(e.target.value==='off'){ this.setState(st=>({trim:Object.assign({}, st.trim, {dpth:0})})); return; } const v = parseInt(e.target.value,10)||0; this.setState(st=>({dmode:v, trim: (st.trim.dpth||0) > 0.001 ? st.trim : Object.assign({}, st.trim, {dpth:0.5})})); },
+      setDMode: (e)=>{ if(e.target.value==='off'){ this.setState(st=>({p:Object.assign({}, st.p, {dpth:0})})); return; } const v = parseInt(e.target.value,10)||0; this.setState(st=>({dmode:v, p: (st.p.dpth||0) > 0.001 ? st.p : Object.assign({}, st.p, {dpth:0.5})})); },
       fieldSel: String(s.fieldFx || 0),
       fieldOptions: [{v:'0',tag:'Field Off'},{v:'1',tag:'Field Grid'},{v:'2',tag:'Field Orbits'},{v:'3',tag:'Field Both'}],
       setField: (e)=>this.setState({fieldFx: parseInt(e.target.value,10)||0}),
@@ -17203,18 +17220,7 @@ class Component extends DCLogic {
       cueEmptyDisp: (s.cues||[]).length ? 'none' : 'block',
       setXfLen: (e)=>this.setState({xfLen: parseFloat(e.target.value)||1.6}),
       trimH: s.touch ? '30px' : '16px',
-      trims: this.TRIM.map(d=>{
-        const v = s.trim[d.key];
-        const n = (v - d.min) / (d.max - d.min);
-        return {
-          label: d.key==='dpth' && !this.is2D() && !this.isCanvasScene() ? 'Rim' : d.label,
-          pct: (n*100).toFixed(1)+'%',
-          mid: (((d.def - d.min)/(d.max - d.min))*100).toFixed(1)+'%',
-          read: d.fmt(v),
-          drag: this.drag(x => this.setTrim(d.key, d.min + x*(d.max - d.min))),
-          reset: () => this.setTrim(d.key, d.def)
-        };
-      }),
+      trims: this.TRIM.map(trimRow),
       palBg: chip((s.pal||0)>0).bg, palFg: chip((s.pal||0)>0).fg, palBorder: chip((s.pal||0)>0).border,
       palCycle: () => this.setState(st=>({pal: ((st.pal||0)+1) % (this.E ? this.E.PAL_NAMES.length : 6)})),
       spinTag: 'Spin ' + ((s.spin ?? 1) === 0 ? 'Off' : ((s.spin ?? 1) > 0 ? '↻' : '↺')),
