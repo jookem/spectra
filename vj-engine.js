@@ -3920,7 +3920,10 @@ void main(){
   // Declared ahead of the "vec3 col;" line: everything from there to the
   // videoLayer call is the per-family dispatch, which each program swaps out for
   // its own single call — anything declared inside it is gone from the others.
-  bool is3 = (uMode<=5) || (uMode>=12 && uMode<=16) || (uMode>=30 && uMode<=36) || (uMode==41) || (uMode==42);
+  // Every 3D preset mode must be listed. DNA Field, Romanesco and Cathedral
+  // (43-45) were missing, so the clearance pass wrote a color instead of the
+  // push's float bits and the frame decoded it as a push of ~1e38: black.
+  bool is3 = (uMode<=5) || (uMode>=12 && uMode<=16) || (uMode>=30 && uMode<=36) || (uMode>=41 && uMode<=45);
   // Text in the flat families is not drawn on top of the picture — it deforms
   // it. Pushing the sampling point along the field's gradient makes every
   // stripe, rib and filament bend around the letterforms, so the type is
