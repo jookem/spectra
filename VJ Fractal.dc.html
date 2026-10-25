@@ -975,7 +975,7 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
                   <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
                 </sc-for>
               </select>
-              <select value="{{ camRepSel }}" onChange="{{ setCamRep }}" title="Repeat space: tile the 3D fractal into an endless lattice" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid {{ camRepBorder }};background:rgba(8,9,10,0.34);color:{{ camRepFg }};appearance:none;-webkit-appearance:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+              <select value="{{ camRepSel }}" onChange="{{ setCamRep }}" title="Repeat: tile the 3D fractal into an endless lattice, or a 2D scene into a wall of copies" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid {{ camRepBorder }};background:rgba(8,9,10,0.34);color:{{ camRepFg }};appearance:none;-webkit-appearance:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
                 <sc-for list="{{ camRepOptions }}" as="o" hint-placeholder-count="3">
                   <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
                 </sc-for>
@@ -1392,7 +1392,7 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
               <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
             </sc-for>
           </select>
-          <select value="{{ camRepSel }}" onChange="{{ setCamRep }}" title="Repeat space: tile the 3D fractal into an endless lattice" style="flex:1 1 0;min-width:0;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;padding:8px 4px;min-height:{{ selH }};box-sizing:border-box;cursor:pointer;appearance:none;-webkit-appearance:none;text-align:center;border:1px solid {{ camRepBorder }};color:{{ camRepFg }};background:rgba(8,9,10,0.34);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+          <select value="{{ camRepSel }}" onChange="{{ setCamRep }}" title="Repeat: tile the 3D fractal into an endless lattice, or a 2D scene into a wall of copies" style="flex:1 1 0;min-width:0;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;padding:8px 4px;min-height:{{ selH }};box-sizing:border-box;cursor:pointer;appearance:none;-webkit-appearance:none;text-align:center;border:1px solid {{ camRepBorder }};color:{{ camRepFg }};background:rgba(8,9,10,0.34);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
             <sc-for list="{{ camRepOptions }}" as="o" hint-placeholder-count="3">
               <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
             </sc-for>
@@ -1863,6 +1863,8 @@ class Component extends DCLogic {
     this.forceUpdate();
     this.bootStage('Starting graphics');
     this.initGL();
+    this.pextProbe();
+    this.safeOpen();
     this.glWatch();
     let framed=false; try{ framed = window.self!==window.top; }catch(e){ framed=true; }
     let blocked=false; try{ blocked = document.featurePolicy ? !document.featurePolicy.allowsFeature('microphone') : false; }catch(e){}
@@ -2553,6 +2555,8 @@ class Component extends DCLogic {
   guardStep(ms){
     if(this.safeK == null){ this.safeK = 1; this.rampK = 1; this.gSlow = 0; this.gGood = 0; this.gBig = 0; }
     if(!(ms > 0) || ms > 3000) return;               // hidden tab / resumed from sleep
+    // Frame interval average: what stripN goes on where there is no GPU timer.
+    this.frameMsEma = this.frameMsEma == null ? ms : this.frameMsEma + (ms - this.frameMsEma)*0.1;
     if(this.is2D() || this.isCanvasScene()){ this.rampK = 1; return; }
     // Frames stalled by a shader build on the main thread say nothing about the
     // scene's own cost. Counting them is what pinned the scale low once the
@@ -2589,7 +2593,11 @@ class Component extends DCLogic {
     if(pct !== this._gPct){ this._gPct = pct; try{ this.setState({guardPct: pct}); }catch(e){} }
   }
   guardK(){
-    if(this.safeK == null || this.is2D() || this.isCanvasScene()) return 1;
+    if(this.isCanvasScene()) return 1;
+    // The 2D scenes back off on the GPU timer only (gpuGuard, safeK2); the
+    // interval guard and its ramp stay 3D-only, as they always were.
+    if(this.is2D()) return Math.max(0.3, this.safeK2 ?? 1);
+    if(this.safeK == null) return 1;
     return Math.max(0.09, this.safeK * (this.rampK ?? 1));
   }
 
@@ -2780,7 +2788,7 @@ class Component extends DCLogic {
     // borrow their scene's name.
     const LBL = {syn:'Synth set', can:'Canvas scenes',
       '2d:P_E2A':'Mandelbrot set', '2d:P_E2B':'Burning ship set',
-      '2d:P_E2C':'Lyapunov set', '2d:P_TUN':'Tunnel', '2d:P_FLW':'Flow field'};
+      '2d:P_E2C37':'Lyapunov set', '2d:P_E2C38':'Spider set', '2d:P_E2C39':'Harmony set', '2d:P_TUN':'Tunnel', '2d:P_FLW':'Flow field'};
     const label = f => LBL[f] || first[f] || f;
     // Pacing. With the extension a short timer is fine — nothing blocks. Without
     // it every link is a synchronous stall, and a fixed timer between stalls is
@@ -3364,7 +3372,8 @@ class Component extends DCLogic {
                 95:'drawPascal', 96:'drawChaosSeq', 97:'drawLerpGon', 98:'drawBird',
                 99:'drawLorenz', 100:'drawThomas', 101:'drawSwirl', 102:'drawHole',
                 103:'drawRobot', 104:'drawAizawa', 105:'drawFlameSpiral', 106:'drawFlameDragon',
-                107:'drawFlameFern', 108:'drawFlameGalaxy', 109:'drawDriveIn', 110:'drawCity', 111:'drawTVWall', 112:'drawMirage', 113:'drawFrames', 114:'drawPool', 115:'drawWarp', 116:'drawSphere'}[mode];
+                107:'drawFlameFern', 108:'drawFlameGalaxy', 109:'drawDriveIn', 110:'drawCity', 111:'drawTVWall', 112:'drawMirage', 113:'drawFrames', 114:'drawPool', 115:'drawWarp', 116:'drawSphere',
+                117:'drawQuadMap', 118:'drawClifford', 119:'drawHalvorsen', 120:'drawRossler'}[mode];
     if(!fn || typeof this[fn]!=='function') return;
     const keepMesh=this.MESH, keepEff=this.eff, keepStat=this.meshStatRef;
     try{
@@ -3594,6 +3603,18 @@ class Component extends DCLogic {
     c.addEventListener('webglcontextlost', (ev)=>{
       ev.preventDefault();
       this.glLost = performance.now();
+      // Remember which family was building (or, failing that, drawing) when the
+      // GPU reset. From then on it is built in the slim variant, which is a
+      // much smaller program to link and draw, so picking it again does not
+      // reset the card a second time. Kept across sessions; read in buildFamily.
+      try{
+        const fam = (this.pend && this.pend.fam) || (this.lastMode != null && this.E ? this.E.FAM_OF(this.lastMode) : null);
+        if(fam && fam !== 'can'){
+          const S = this.gpuSuspects();
+          S[fam] = (S[fam]||0) + 1;
+          localStorage.setItem('spectra.gpuSuspect', JSON.stringify(S));
+        }
+      }catch(e){}
       this.releaseGL();
       // Say so. A silent black canvas is indistinguishable from a broken app,
       // and this is the one failure the user can do nothing about from inside.
@@ -4727,8 +4748,11 @@ class Component extends DCLogic {
     // button, so it is hidden. Canvas scenes never read 11 or Light (12) either.
     const r = Object.assign({}, this.paramLabels0(mode) || {});
     const fam = this.E ? String(this.E.FAM_OF(mode)) : '';
-    if(fam.slice(0,3) !== '3d:') r.spinr = '\u2014';
-    if(fam === 'can') r.lite = '\u2014';
+    // A canvas scene that names 11 or 12 in its own row reads it (the
+    // attractors and flames spend them on color), so only unnamed ones hide.
+    const own = this.paramLabels0(mode) || {};
+    if(fam.slice(0,3) !== '3d:' && !own.spinr) r.spinr = '\u2014';
+    if(fam === 'can' && !own.lite) r.lite = '\u2014';
     // 14 is the silhouette Rim on the 3D families and Depth (relief, parallax,
     // terrain) on the 2D ones. Canvas scenes have no post defocus, so no DOF.
     if(fam.slice(0,3) === '3d:') r.dpth = 'Rim';
@@ -4803,13 +4827,21 @@ class Component extends DCLogic {
     if(mode===95) return {morph:'Shear', ca:'—', cb:'Bloom', cc:'—', detail:'Depth', iter:'Modulo'};
     if(mode===96) return {morph:'Points', ca:'Ratio', cb:'Bloom', cc:'Sequence', detail:'Depth', iter:'Vertices'};
     if(mode===97) return {morph:'Points', ca:'Ratio A', cb:'Ratio B', cc:'No-repeat', detail:'Depth', iter:'Vertices'};
-    if(mode===98) return {morph:'Tilt', ca:'Damping', cb:'Bloom', cc:'Trail', detail:'Depth', iter:'Threads'};
-    if(mode===99) return {morph:'Tilt', ca:'Rho', cb:'Bloom', cc:'Trail', detail:'Depth', iter:'Threads'};
-    if(mode===100) return {morph:'Tilt', ca:'Damping', cb:'Bloom', cc:'Trail', detail:'Depth', iter:'Threads'};
+    // Flows: 11 is how far round the wheel the speed coloring runs, 12 blends
+    // the color source from speed (0) to height along the attractor (1).
+    const FC={spinr:'Spread', lite:'Speed↔Height'};
+    if(mode===98) return Object.assign({morph:'Tilt', ca:'Damping', cb:'Bloom', cc:'Trail', detail:'Depth', iter:'Threads'}, FC);
+    if(mode===99) return Object.assign({morph:'Tilt', ca:'Rho', cb:'Bloom', cc:'Trail', detail:'Depth', iter:'Threads'}, FC);
+    if(mode===100) return Object.assign({morph:'Tilt', ca:'Damping', cb:'Bloom', cc:'Trail', detail:'Depth', iter:'Threads'}, FC);
+    if(mode===119) return Object.assign({morph:'Tilt', ca:'Damping', cb:'Bloom', cc:'Trail', detail:'Depth', iter:'Threads'}, FC);
+    if(mode===120) return Object.assign({morph:'Tilt', ca:'Fold', cb:'Bloom', cc:'Trail', detail:'Depth', iter:'Threads'}, FC);
+    // 2D maps: 12 blends from step length (0) to step direction (1).
+    if(mode===117) return {morph:'Wobble', ca:'Attractor', cb:'Bloom', cc:'Trail', detail:'Exposure', iter:'Cycle', spinr:'Spread', lite:'Stretch↔Angle'};
+    if(mode===118) return {morph:'Shape B', ca:'Shape A', cb:'Bloom', cc:'Trail', detail:'Exposure', iter:'Drift', spinr:'Spread', lite:'Stretch↔Angle'};
     if(mode===101) return {morph:'Twist', ca:'Arms', cb:'Bloom', cc:'Spectrum', detail:'Warp', iter:'Serration'};
     if(mode===102) return {morph:'Tilt', ca:'Spin', cb:'Bloom', cc:'Turbulence', detail:'Depth', iter:'Horizon'};
     if(mode===103) return {morph:'Drift', ca:'Ball', cb:'Haze', cc:'Beams', detail:'Tiles', iter:'Groove'};
-    if(mode===104) return {morph:'Tilt', ca:'Winding', cb:'Bloom', cc:'Trail', detail:'Depth', iter:'Shell'};
+    if(mode===104) return Object.assign({morph:'Tilt', ca:'Winding', cb:'Bloom', cc:'Trail', detail:'Depth', iter:'Shell'}, FC);
     if(mode===109) return {morph:'Horizon', ca:'Hills', detail:'Screen'};
     if(mode===110) return {morph:'Street width', detail:'Detail'};
     if(mode===111) return {ca:'Static', detail:'Screens'};
@@ -4819,7 +4851,7 @@ class Component extends DCLogic {
     if(mode===115) return {morph:'Screen', cb:'Streaks', detail:'Stars'};
     if(mode===116) return {morph:'Height', ca:'Spin'};
     if(mode===111) return {ca:'Static', detail:'Screens'};
-    if(mode>=105 && mode<=108) return {morph:'Curl', ca:'Scale', cb:'Twist', cc:'Variation', detail:'Exposure', iter:'Symmetry'};
+    if(mode>=105 && mode<=108) return {morph:'Curl', ca:'Scale', cb:'Twist', cc:'Variation', detail:'Exposure', iter:'Symmetry', spinr:'Color speed', lite:'Detail maps'};
     // Backstop. The host swaps the Detail slider onto refraction for every 3D
     // scene except the tesseract, so a mode with no row above would once again
     // display "Detail" while driving refraction. Rather than rely on this table
@@ -4899,7 +4931,11 @@ class Component extends DCLogic {
       113:['Frame corridor','frames at a·f/z','every frame and the far wall show the video'],
       114:['Reflection pool','mirror rows displaced by ripples','the video is reflected in rippling water; beats drop rings'],
       115:['Starfield warp','stars at x/z streaking out','the video sits at the vanishing point and swells on the level'],
-      116:['Sphere','faceted dome, two screens round it','two frames wrap the dome, one per half turn; Spin turns them round']
+      116:['Sphere','faceted dome, two screens round it','two frames wrap the dome, one per half turn; Spin turns them round'],
+      117:['Quadratic map','x′ = a₁ + a₂x + a₃x² + a₄xy + a₅y + a₆y²  (y′ likewise, a₇…a₁₂)','Sprott’s codes, A…Y = −1.2…1.2; 24 chaotic ones, Cycle steps through them on the bar'],
+      118:['Clifford attractor','x′ = sin(ay) + c cos(ax),  y′ = sin(bx) + d cos(by)','a, b, c, d drift, so one attractor melts into the next'],
+      119:['Halvorsen attractor','ẋ = −ax − 4y − 4z − y²  (cyclic in x,y,z)','three interlocked wings; damping a on Cst A'],
+      120:['Rössler attractor','ẋ = −y − z,  ẏ = x + ay,  ż = b + z(x − c)','one stretch and one fold; c on Cst A runs period-doubling into chaos']
     };
     return F[mode] || null;
   }
@@ -4908,7 +4944,7 @@ class Component extends DCLogic {
   canvasMode(){
     if(!this.E) return null;
     const m = this.E.PRESETS[this.state.preset].mode;
-    const T={90:'mesh',91:'outrun',92:'code',93:'pipe',94:'shore',95:'pascal',96:'chaos',97:'lerpgon',98:'bird',99:'lorenz',100:'thomas',101:'swirl',102:'hole',103:'robot',104:'aizawa',105:'flame',106:'flame',107:'flame',108:'flame',109:'drivein',110:'city',111:'tvwall',112:'mirage',113:'frames',114:'pool',115:'warp',116:'sphere'};
+    const T={90:'mesh',91:'outrun',92:'code',93:'pipe',94:'shore',95:'pascal',96:'chaos',97:'lerpgon',98:'bird',99:'lorenz',100:'thomas',101:'swirl',102:'hole',103:'robot',104:'aizawa',105:'flame',106:'flame',107:'flame',108:'flame',109:'drivein',110:'city',111:'tvwall',112:'mirage',113:'frames',114:'pool',115:'warp',116:'sphere',117:'quad',118:'cliff',119:'halvorsen',120:'rossler'};
     return T[m] || null;
   }
   meshScene(){ return this.canvasMode()==='mesh'; }
@@ -5176,6 +5212,10 @@ class Component extends DCLogic {
     if(cm==='robot'){ this.drawRobot(ctx,W,H,tick); this.drawCanvasText(ctx,W,H); return; }
     if(cm==='aizawa'){ this.drawAizawa(ctx,W,H,tick); this.drawCanvasText(ctx,W,H); return; }
     if(cm==='flame'){ this.drawFlame(ctx,W,H,tick,this.E.PRESETS[this.state.preset].mode); this.drawCanvasText(ctx,W,H); return; }
+    if(cm==='quad'){ this.drawQuadMap(ctx,W,H,tick); this.drawCanvasText(ctx,W,H); return; }
+    if(cm==='cliff'){ this.drawClifford(ctx,W,H,tick); this.drawCanvasText(ctx,W,H); return; }
+    if(cm==='halvorsen'){ this.drawHalvorsen(ctx,W,H,tick); this.drawCanvasText(ctx,W,H); return; }
+    if(cm==='rossler'){ this.drawRossler(ctx,W,H,tick); this.drawCanvasText(ctx,W,H); return; }
     const G=this.meshGeom(W,H);
     const row=M.prev;
 
@@ -8354,14 +8394,21 @@ class Component extends DCLogic {
   // so density can be tone-mapped logarithmically the way an escape count is.
   accum(W,H,div){
     const M=this.MESH;
+    // Owner tag for the shared buffer: the 2D maps set it, so any other caller
+    // clears it and the maps know to start from an empty buffer on return.
+    M.accTag=null;
     const w=Math.max(8,Math.round(W/div)), h=Math.max(8,Math.round(H/div));
     if(!M.acc || M.accW!==w || M.accH!==h){
       M.acc=new Float32Array(w*h); M.accW=w; M.accH=h;
+      // Color channel beside the density: each hit adds its color coordinate
+      // weighted by its deposit, so c/a is the average color of what landed
+      // there. Only the attractor scenes write it; the chaos games ignore it.
+      M.accC=new Float32Array(w*h);
       M.accCv=document.createElement('canvas'); M.accCv.width=w; M.accCv.height=h;
       M.accCtx=M.accCv.getContext('2d');
       M.accImg=M.accCtx.createImageData(w,h);
     }
-    return {a:M.acc, w:w, h:h, cv:M.accCv, ctx:M.accCtx, img:M.accImg};
+    return {a:M.acc, c:M.accC, w:w, h:h, cv:M.accCv, ctx:M.accCtx, img:M.accImg};
   }
   accDecay(A,k){ const a=A.a; for(let i=0;i<a.length;i++) a[i]*=k; }
   // Segment rasterizer for the accumulator. The flows deposit one cell per
@@ -8370,18 +8417,56 @@ class Component extends DCLogic {
   // continuous at any speed, and the deposit is divided along the run so a fast
   // stretch is not also a brighter one. A jump longer than the buffer is a
   // reseed or a divergence, not a path — that lands as a single cell.
-  accSeg(a,aw,ah,x0,y0,x1,y1,amt){
+  accSeg(a,aw,ah,x0,y0,x1,y1,amt,cb,col){
     const dx=x1-x0, dy=y1-y0, len=Math.max(Math.abs(dx),Math.abs(dy));
     if(!isFinite(len) || len>aw){
       const ix=x1|0, iy=y1|0;
-      if(ix>=0&&ix<aw&&iy>=0&&iy<ah) a[iy*aw+ix]+=amt;
+      if(ix>=0&&ix<aw&&iy>=0&&iy<ah){ a[iy*aw+ix]+=amt; if(cb) cb[iy*aw+ix]+=amt*col; }
       return;
     }
-    const n=Math.max(1,Math.ceil(len)), w=amt/n;
+    const n=Math.max(1,Math.ceil(len)), w=amt/n, wc=w*(col||0);
     for(let i=0;i<=n;i++){
       const ix=(x0+dx*i/n)|0, iy=(y0+dy*i/n)|0;
-      if(ix>=0&&ix<aw&&iy>=0&&iy<ah) a[iy*aw+ix]+=w;
+      if(ix>=0&&ix<aw&&iy>=0&&iy<ah){ a[iy*aw+ix]+=w; if(cb) cb[iy*aw+ix]+=wc; }
     }
+  }
+  // Colored blit for the attractors. accBlit takes hue AND brightness from the
+  // density, so every attractor came out as one hue at different lightness.
+  // Here density sets only the lightness; the hue comes from the average color
+  // coordinate of the hits in each cell (c/a), spread across `spread` turns of
+  // the wheel around the Hue setting. Dense cores still desaturate to white.
+  // The color is a 32 x 33 table rebuilt only when hue or spread move.
+  // lnorm, when given, replaces the fixed /4 log range (the maps normalize to
+  // their own peak density instead).
+  accBlitC(ctx,W,H,A,hue,gainIn,over,spread,lnorm){
+    const a=A.a, cc=A.c, d=A.img.data, gain=gainIn, M=this.MESH, ln=lnorm||0.25;
+    const key=Math.round((((hue%1)+1)%1)*512)+':'+Math.round(spread*128);
+    let T=M.accLut;
+    if(!T || M.accLk!==key){
+      T=M.accLut=new Uint8ClampedArray(32*33*3); M.accLk=key;
+      for(let ci=0;ci<32;ci++) for(let li=0;li<33;li++){
+        const l=li/32, h=hue+(ci/31-0.5)*spread;
+        const s=0.95-0.6*l*l*l, L=Math.min(0.97,0.03+l*0.78);
+        const rgb=this.hsl2rgb(h,s,L), o=(ci*33+li)*3;
+        T[o]=rgb[0]; T[o+1]=rgb[1]; T[o+2]=rgb[2];
+      }
+    }
+    for(let i=0,p=0;i<a.length;i++,p+=4){
+      const v=a[i];
+      if(v<=0.0001){
+        if(over){ d[p]=0; d[p+1]=0; d[p+2]=0; d[p+3]=0; }
+        else { d[p]=6; d[p+1]=7; d[p+2]=12; d[p+3]=255; }
+        continue;
+      }
+      const l=Math.min(1,Math.log(1+v*gain)*ln);
+      let t=cc[i]/v; t=t<0?0:(t>1?1:t);
+      const o=(((t*31+0.5)|0)*33+((l*32+0.5)|0))*3;
+      d[p]=T[o]; d[p+1]=T[o+1]; d[p+2]=T[o+2]; d[p+3]=255;
+    }
+    A.ctx.putImageData(A.img,0,0);
+    ctx.imageSmoothingEnabled=true;
+    if(!over) ctx.globalCompositeOperation='source-over';
+    ctx.drawImage(A.cv,0,0,W,H);
   }
   // over=true blits the accumulator as a TRANSPARENT additive layer instead of
   // an opaque frame: empty cells get alpha 0 and the caller's composite op is
@@ -8705,7 +8790,8 @@ class Component extends DCLogic {
     if(!M.flow || M.flowKind!==S.key || M.flow.length!==nT){
       M.flow=[]; M.flowKind=S.key;
       for(let i=0;i<nT;i++) M.flow.push(S.seed(i,nT));
-      const Ac0=this.accum(W,H,2); Ac0.a.fill(0);
+      const Ac0=this.accum(W,H,2); Ac0.a.fill(0); Ac0.c.fill(0);
+      M.flowLv=null; M.m2Kind=null;   // the 2D maps share this buffer
     }
     const P=S.params(e,{loud:loud,bass:bass,high:high});
     const dt=S.dt*(0.25+Math.pow(e.speed==null?0.5:e.speed,2)*5.0)*(1+bass*0.35);
@@ -8726,8 +8812,20 @@ class Component extends DCLogic {
     const keep=Math.max(0.6,Math.min(0.998,
       0.80+(e.cc==null?0.5:e.cc)*0.195+(S.keepBias||0)));
     const Ac=this.accum(W,H,2);
-    if(adv) this.accDecay(Ac,keep);
-    const a=Ac.a, aw=Ac.w, ah=Ac.h;
+    if(adv){ this.accDecay(Ac,keep); const cd=Ac.c; for(let i=0;i<cd.length;i++) cd[i]*=keep; }
+    const a=Ac.a, cb=Ac.c, aw=Ac.w, ah=Ac.h;
+    // Color coordinate per sample. Speed along the orbit is what separates the
+    // parts of an attractor: the flow crawls through the turns of a lobe and
+    // races along the sheets between them, so coloring by it paints the
+    // structure itself rather than one hue over everything. Spin (dial 11) is
+    // how far round the wheel that runs; Exposure (12) blends speed into
+    // height along the attractor's own axis; each thread is nudged a little
+    // so the crew stays distinguishable where they overlap.
+    const cSpread=0.06+(e.spinr==null?0.5:e.spinr)*0.9;
+    const cSrc=(e.lite==null?0.5:e.lite);
+    // Geometric mean speed (mean of the log), the center of the ramp.
+    const lv=M.flowLv==null?0:M.flowLv;
+    let vSum=0, vN=0;
 
     // Three axes, not one. Yaw (about the attractor's own z) was the only
     // continuous rotation and it ran at about a hundred seconds per revolution,
@@ -8801,9 +8899,19 @@ class Component extends DCLogic {
     heads.length=0;
     for(let k=0;k<nT;k++){
       const s=M.flow[k];
+      const kOff=(k/Math.max(1,nT)-0.5)*0.14;
       let lx=-1e9, ly=0;
       for(let i=0;adv&&i<steps;i++){
+        const ox=s.x, oy=s.y, oz=s.z;
         S.step(s,P,dt);
+        const ddx=s.x-ox, ddy=s.y-oy, ddz=s.z-oz, v=Math.sqrt(ddx*ddx+ddy*ddy+ddz*ddz)/dt;
+        const lgv=Math.log(v+1e-9);
+        if(v<1e6){ vSum+=lgv; vN++; }
+        // Log ratio to the running mean speed: a saturating curve bunched the
+        // whole attractor into the middle of the ramp.
+        const cSp=0.5+0.5*(lgv-lv), cHt=0.5+(s.z-S.zc)/S.span*1.6;
+        let col=cSp+(cHt-cSp)*cSrc+kOff;
+        col=col<0?0:(col>1?1:col);
         const X=s.x*cs-s.y*sn, D=s.x*sn+s.y*cs, Z=s.z-S.zc;
         const q=fov/Math.max(fov*0.35, fov+D*ct+Z*st2);
         const Yv=Z*ct-D*st2, Xr=X*cr-Yv*sr, Yr=X*sr+Yv*cr;
@@ -8811,7 +8919,7 @@ class Component extends DCLogic {
         let amt=0.30+0.78*q*q;
         if(mk==='line'){
           const jx=px/W*aw, jy=py/H*ah;
-          if(lx>-1e8) this.accSeg(a,aw,ah,lx,ly,jx,jy,amt);
+          if(lx>-1e8) this.accSeg(a,aw,ah,lx,ly,jx,jy,amt,cb,col);
           lx=jx; ly=jy;
           continue;
         }
@@ -8834,7 +8942,7 @@ class Component extends DCLogic {
             if(dl>1e-4){
               dx/=dl; dy/=dl;
               const bl=1.0+2.8*q;
-              this.accSeg(a,aw,ah,jx-dy*bl,jy+dx*bl,jx+dy*bl,jy-dx*bl,amt*1.5);
+              this.accSeg(a,aw,ah,jx-dy*bl,jy+dx*bl,jx+dy*bl,jy-dx*bl,amt*1.5,cb,col);
             }
           }
           lx=jx; ly=jy;
@@ -8848,11 +8956,14 @@ class Component extends DCLogic {
           // neighbors it falls between turns the same hits into a continuous
           // surface, which is the whole point of this attractor.
           const gx=fx-ix, gy=fy-iy, i2=Math.min(aw-1,ix+1), j2=Math.min(ah-1,iy+1);
-          a[iy*aw+ix]+=amt*(1-gx)*(1-gy); a[iy*aw+i2]+=amt*gx*(1-gy);
-          a[j2*aw+ix]+=amt*(1-gx)*gy;     a[j2*aw+i2]+=amt*gx*gy;
+          const w00=amt*(1-gx)*(1-gy), w10=amt*gx*(1-gy), w01=amt*(1-gx)*gy, w11=amt*gx*gy;
+          a[iy*aw+ix]+=w00; a[iy*aw+i2]+=w10;
+          a[j2*aw+ix]+=w01; a[j2*aw+i2]+=w11;
+          cb[iy*aw+ix]+=w00*col; cb[iy*aw+i2]+=w10*col;
+          cb[j2*aw+ix]+=w01*col; cb[j2*aw+i2]+=w11*col;
           continue;
         }
-        a[iy*aw+ix]+=amt;
+        a[iy*aw+ix]+=amt; cb[iy*aw+ix]+=amt*col;
       }
       const X=s.x*cs-s.y*sn, D=s.x*sn+s.y*cs, Zh=s.z-S.zc;
       const qh=fov/Math.max(fov*0.35, fov+D*ct+Zh*st2);
@@ -8871,7 +8982,10 @@ class Component extends DCLogic {
     ctx.globalCompositeOperation='lighter';
     // Additive: the threads add onto the ground furniture rather than replacing
     // the frame, so the fixed points, lattice and horizon stay visible under them.
-    this.accBlit(ctx,W,H,Ac,(e.hue==null?0.5:e.hue)+mtick*0.00015,2.6+high*3,true);
+    // Running mean speed, so the color scale follows each attractor (Lorenz
+    // moves a hundred times faster than Aizawa) and the transient's swings.
+    if(vN>0){ const m=vSum/vN; M.flowLv=M.flowLv==null?m:M.flowLv+(m-M.flowLv)*0.05; }
+    this.accBlitC(ctx,W,H,Ac,(e.hue==null?0.5:e.hue)+mtick*0.00015,2.6+high*3,true,cSpread);
     ctx.globalCompositeOperation='source-over';
     for(let k=0;k<heads.length;k++){
       const qh=heads[k][2]||1;
@@ -9002,7 +9116,61 @@ class Component extends DCLogic {
   drawFlameGalaxy(ctx,W,H,tick){ this.drawFlame(ctx,W,H,tick,108); }
   // Complex multiply as an affine map: z → r·e^{iθ}·z + (ox,oy).
   _fcm(r,th,ox,oy){ const p=r*Math.cos(th), q=r*Math.sin(th); return {a:p,b:-q,c:q,d:p,e:ox||0,f:oy||0,v:0,vw:0}; }
+  // Flame variations, the nonlinear part of each map (numbering is ours, the
+  // formulas are the standard flame set). Writes into o; r2 is |p|².
+  //   1 swirl  2 spherical  3 sinusoidal  4 polar  5 heart  6 disc  7 spiral
+  //   8 handkerchief  9 julia  10 bubble  11 horseshoe  12 fisheye
+  _fvar(v,x,y,o){
+    const r2=x*x+y*y;
+    if(v===1){ const s=Math.sin(r2), c=Math.cos(r2); o[0]=x*s-y*c; o[1]=x*c+y*s; return; }
+    if(v===2){ const k=1/(r2+1e-6); o[0]=x*k; o[1]=y*k; return; }
+    if(v===3){ o[0]=Math.sin(x); o[1]=Math.sin(y); return; }
+    const r=Math.sqrt(r2), th=Math.atan2(x,y);
+    if(v===4){ o[0]=th/Math.PI; o[1]=r-1; return; }
+    if(v===5){ o[0]=r*Math.sin(th*r); o[1]=-r*Math.cos(th*r); return; }
+    if(v===6){ const k=th/Math.PI; o[0]=k*Math.sin(Math.PI*r); o[1]=k*Math.cos(Math.PI*r); return; }
+    if(v===7){ const k=1/(r+1e-6); o[0]=k*(Math.cos(th)+Math.sin(r)); o[1]=k*(Math.sin(th)-Math.cos(r)); return; }
+    if(v===8){ o[0]=r*Math.sin(th+r); o[1]=r*Math.cos(th-r); return; }
+    if(v===9){ const sr=Math.sqrt(r), a=th*0.5+(Math.random()<0.5?0:Math.PI); o[0]=sr*Math.cos(a); o[1]=sr*Math.sin(a); return; }
+    if(v===10){ const k=4/(r2+4); o[0]=x*k; o[1]=y*k; return; }
+    if(v===11){ const k=1/(r+1e-6); o[0]=k*(x-y)*(x+y); o[1]=k*2*x*y; return; }
+    if(v===12){ const k=2/(r+1); o[0]=k*y; o[1]=k*x; return; }
+    o[0]=x; o[1]=y;
+  }
+  // Detail maps (Exposure, dial 12). Each flame keeps its designed pair as
+  // the skeleton and gains one or two small maps with their own variation and
+  // a mid-gradient color, so the structure picks up secondary filaments and
+  // the color stops being a two-tone split between the main maps. Weight 0 at
+  // the bottom of the dial is exactly the old flame.
+  flameDetail(mode,g,t,X){
+    const amt=g('lite'), cm=this._fcm, tw=g('cb');
+    if(amt<0.01) return X;
+    const add=(m,w,col,v,vw)=>{ X.push(Object.assign(m,{w:w*amt,col,v,vw})); };
+    if(mode===106){
+      // Kept inside the dragon's own hull (it spans about 0..1 on x): disc and
+      // julia here scattered it into a cloud and the fit zoomed out to match.
+      add(cm(0.38, 0.785+0.2*Math.sin(t*0.23), 0.3, 0.22+0.05*Math.sin(t*0.31)), 0.14, 0.55, 1, 0.3);
+      add(cm(0.28, -1.2+(tw-0.5)*0.8, 0.62, -0.08), 0.08, 0.35, 5, 0.22);
+    } else if(mode===107){
+      // A third family of pinnae off the stem at its own angle, and a mirror
+      // of the frond, so the leaf gains layers instead of loose copies.
+      const L4=(a2=>({a:0.17*Math.cos(a2), b:-0.22*Math.sin(a2)-0.1, c:0.17*Math.sin(a2)+0.1, d:0.2*Math.cos(a2)}))(0.5+(tw-0.5)*0.6+0.1*Math.sin(t*0.27));
+      add(Object.assign(L4,{e:0,f:0.24}), 0.06, 0.62, 1, 0.25);
+      add({a:-0.78,b:-0.04,c:-0.04,d:0.8,e:0,f:0.32}, 0.08, 0.25, 0, 0);
+    } else if(mode===108){
+      add(cm(0.5, t*0.11+1.0, -0.4, 0.3), 0.18, 0.5, 10, 0.8);
+      add(cm(0.36, 2.4+(tw-0.5), 0.2, -0.5), 0.1, 0.7, 4, 0.35);
+    } else {
+      // Small and light: at full weight these grew clumps over the spiral.
+      add(cm(0.3, 0.4+0.25*Math.sin(t*0.19), 0.3, -0.2), 0.07, 0.5, 9, 0.4);
+      add(cm(0.22, 2.1+(tw-0.5)*1.2, 0.6, 0.1), 0.05, 0.72, 1, 0.5);
+    }
+    return X;
+  }
   flameMaps(mode,g,bass,t){
+    return this.flameDetail(mode,g,t,this.flameMaps0(mode,g,bass,t));
+  }
+  flameMaps0(mode,g,bass,t){
     const curl=g('morph')-0.5, sc=g('ca'), tw=g('cb'), vv=g('cc');
     const cm=this._fcm;
     if(mode===106){
@@ -9042,11 +9210,13 @@ class Component extends DCLogic {
   }
   // Per-scene gradients, indexed by the color coordinate. Hue rotates the
   // whole gradient about the gray axis, so 0.5 is the designed palette.
+  // Each gradient carries a contrasting color through its middle (where the
+  // detail maps sit), so a flame reads as several materials, not one tint.
   FLAME_STOPS = {
-    105:[[0,8,22,96],[0.3,28,86,226],[0.55,118,186,255],[0.8,255,204,96],[1,255,150,40]],
-    106:[[0,40,6,4],[0.3,170,30,12],[0.6,250,110,30],[0.85,255,206,96],[1,255,246,210]],
-    107:[[0,30,60,20],[0.35,40,150,60],[0.65,150,220,90],[0.85,240,220,110],[1,255,170,60]],
-    108:[[0,40,20,120],[0.3,110,60,220],[0.55,170,170,255],[0.8,255,150,210],[1,255,230,240]]
+    105:[[0,8,22,96],[0.22,28,86,226],[0.4,118,186,255],[0.5,230,90,200],[0.62,150,70,230],[0.8,255,204,96],[1,255,150,40]],
+    106:[[0,40,6,4],[0.25,170,30,12],[0.42,250,110,30],[0.55,40,190,200],[0.68,120,230,220],[0.85,255,206,96],[1,255,246,210]],
+    107:[[0,30,60,20],[0.25,40,150,60],[0.45,150,220,90],[0.6,220,80,170],[0.72,170,120,240],[0.88,240,220,110],[1,255,170,60]],
+    108:[[0,40,20,120],[0.25,110,60,220],[0.42,170,170,255],[0.52,60,220,200],[0.64,255,210,90],[0.82,255,150,210],[1,255,230,240]]
   };
   flameLut(mode,hue){
     const S=this.FLAME_STOPS[mode]||this.FLAME_STOPS[105], lut=new Float32Array(256*3);
@@ -9107,6 +9277,12 @@ class Component extends DCLogic {
     const bx=w*0.5+V.ox/div, by=h*0.5+V.oy/div;
     let x=F.x, y=F.y, c=F.c, skip=F.skip, sx=0, sy=0, sxx=0, ns=0;
     const t0=performance.now(), budget=(this.weakBoot?5:7)+loud*2, cap=600000;
+    // Color speed (Spin, dial 11): how far each map pulls the color toward its
+    // own. Low gives long smooth gradients through the structure, high snaps
+    // every landing to the last map and the parts separate into hard regions.
+    // 0.5 on the dial is the classic half-step the flames always used.
+    const cs=0.18+g('spinr')*0.64;
+    const vo=[0,0];
     let it=0;
     while(it<cap){
       for(let j=0;j<2048;j++,it++){
@@ -9114,13 +9290,11 @@ class Component extends DCLogic {
         const m=X[k];
         let nx=m.a*x+m.b*y+m.e, ny=m.c*x+m.d*y+m.f;
         if(m.vw>0){
-          let vx, vy;
-          if(m.v===1){ const r2=nx*nx+ny*ny, s=Math.sin(r2), q=Math.cos(r2); vx=nx*s-ny*q; vy=nx*q+ny*s; }
-          else if(m.v===2){ const r2=1/(nx*nx+ny*ny+1e-6); vx=nx*r2; vy=ny*r2; }
-          else { vx=Math.sin(nx); vy=Math.sin(ny); }
-          nx+=(vx-nx)*m.vw; ny+=(vy-ny)*m.vw;
+          // v 0 has always meant sinusoidal here.
+          this._fvar(m.v||3,nx,ny,vo);
+          nx+=(vo[0]-nx)*m.vw; ny+=(vo[1]-ny)*m.vw;
         }
-        x=nx; y=ny; c=(c+m.col)*0.5;
+        x=nx; y=ny; c+=(m.col-c)*cs;
         if(!(x*x+y*y<1e6)){ x=Math.random()-0.5; y=Math.random()-0.5; skip=20; continue; }
         if(skip>0){ skip--; continue; }
         sx+=x; sy+=y; sxx+=x*x+y*y; ns++;
@@ -9166,6 +9340,225 @@ class Component extends DCLogic {
     this.canvasBloom(ctx,ctx.canvas,0.3+high*0.35);
     const st=this.meshStatRef && this.meshStatRef.current;
     if(st && (tick%16)===0) st.textContent=nX+' maps · '+(it/1000).toFixed(0)+'k pts · sym '+n;
+  }
+
+  // Iterated 2D maps: Quadratic Map (117) and Clifford (118). A single point is
+  // thrown through the map and every landing counted, the way the flames are,
+  // so the picture is the attractor's own density.
+  //
+  // Quadratic Map is Sprott's general quadratic map
+  //   x' = a1 + a2 x + a3 x² + a4 xy + a5 y + a6 y²
+  //   y' = a7 + a8 x + a9 x² + a10 xy + a11 y + a12 y²
+  // named by twelve letters, A..Y for -1.2..+1.2 in steps of 0.1. Almost every
+  // code diverges or settles on a fixed point, so the scene plays a catalog of
+  // codes known to be chaotic: Sprott's eight published examples, then sixteen
+  // found by his own search (bounded, Lyapunov exponent > 0, fills an area
+  // without becoming a solid blob). Cst A picks one; Cycle moves on by itself
+  // every 16 down to 1 bars. Wobble lets the bass push the constant terms, so
+  // the attractor breathes while keeping its identity.
+  //
+  // Clifford is x' = sin(a y) + c cos(a x), y' = sin(b x) + d cos(b y). It stays
+  // chaotic over wide parameter ranges, so a, b, c and d drift continuously and
+  // the form melts from one shape into the next instead of cutting.
+  SPROTT_CODES = [
+    'AMTMNQQXUYGA','CVQKGHQTPHTE','FIRCDERRPVLD','GIIETPIQRRUL',
+    'GLXOESFTTPSV','GXQSNSKEECTX','HGUHDPHNSGOH','ILIBVPKJWGRR',
+    'NRIWNLVMHECF','QDADCFQPOTNB','QGQFLHVFEVOF','SDOWNSVQCHOJ',
+    'IXXXHQTJDJTB','YKGKECIKLQYQ','WNHENTWTHGNF','ULPOKAFAWRMQ',
+    'UCDSOHDJINPS','FKYHJJHYLOSS','GXVCILFHXTMM','YMGFUBQBKPJM',
+    'HJRPIWHVJNQX','KIKHIYSARKGG','LWKXSSTRDJEA','IFPKNYFLYTDW'
+  ];
+  drawQuadMap(ctx,W,H,tick){ this.drawMap2(ctx,W,H,tick,117); }
+  drawClifford(ctx,W,H,tick){ this.drawMap2(ctx,W,H,tick,118); }
+  drawMap2(ctx,W,H,tick,mode){
+    const M=this.MESH, A=this.a||{}, e=this.eff||{};
+    const loud=A.loud||0, bass=A.bass||0, high=A.high||0, beat=A.beat||0;
+    const g=k=>e[k]==null?0.5:e[k];
+    const adv=this.state.auto!==false;
+    const V=this.canvasView(W,H);
+    const key=mode===117?'quad':'cliff';
+    // Another scene used the shared buffer since our last frame if the tag is
+    // gone; it then holds that scene's picture, not ours. Read before accum(),
+    // which clears it.
+    const gap=M.accTag!=='m2';
+    const Ac=this.accum(W,H,1.5), a=Ac.a, cb=Ac.c, aw=Ac.w, ah=Ac.h;
+    M.accTag='m2';
+    let S=M.m2;
+    if(!S || M.m2Kind!==key || gap){
+      a.fill(0); cb.fill(0);
+      M.m2Kind=key; M.flowKind=null;   // the flows rebuild their buffer on return
+      S=M.m2={x:0.05,y:0.05,skip:50,idx:-1,fade:0,bx:null,lv:null,max:1,sig:null,mv:0,name:''};
+    }
+    const t=this.clk('m2T_'+key, 0.04+Math.pow(g('speed'),2)*0.7);
+    const spin=this.clk('m2Spin_'+key, Math.pow(g('speed'),2)*0.12);
+    // Coefficients for this frame.
+    let co, f;
+    if(mode===117){
+      const N=this.SPROTT_CODES.length, it=g('iter');
+      let idx=Math.min(N-1,Math.floor(g('ca')*N));
+      // Cycle counts bars while AUTO is on; AUTO off holds the count, but the
+      // Attractor dial still picks freely.
+      if(it>0.04){
+        const bars=[16,8,4,2,1][Math.min(4,Math.floor(it*5))];
+        if(adv || S.bucket==null) S.bucket=Math.floor((this.mus||0)/(4*bars));
+        idx=(idx+S.bucket)%N;
+      }
+      if(S.idx<0 || idx!==S.idx){
+        if(S.idx>=0) S.fade=1;
+        S.idx=idx; S.code=this.SPROTT_CODES[idx]; S.co0=[...S.code].map(ch=>(ch.charCodeAt(0)-77)/10);
+        S.x=0.05; S.y=0.05; S.skip=50; S.lv=null;
+      }
+      // A push that tips the map out of its basin sends the point to infinity
+      // over and over; the reseed count backs Wobble off until it holds again.
+      S.wbK=S.wbK==null?1:S.wbK;
+      const wb=g('morph')*0.045*S.wbK;
+      co=S.co0.slice();
+      co[0]+=wb*(bass*0.8+0.35*Math.sin(t*0.9));
+      co[6]+=wb*(loud*0.6+0.35*Math.sin(t*0.7+1.3));
+      f=(x,y,o)=>{
+        o[0]=co[0]+co[1]*x+co[2]*x*x+co[3]*x*y+co[4]*y+co[5]*y*y;
+        o[1]=co[6]+co[7]*x+co[8]*x*x+co[9]*x*y+co[10]*y+co[11]*y*y;
+      };
+      S.name=S.code;
+    } else {
+      const dr=0.1+g('iter')*0.5;
+      co=[-1.4+(g('ca')-0.5)*1.1+dr*Math.sin(t*0.13),
+           1.6+(g('morph')-0.5)*1.1+dr*Math.sin(t*0.09+1.0),
+           1.0+dr*0.9*Math.sin(t*0.07+2.0)+bass*0.12,
+           0.7+dr*0.9*Math.sin(t*0.11+3.0)];
+      f=(x,y,o)=>{
+        o[0]=Math.sin(co[0]*y)+co[2]*Math.cos(co[0]*x);
+        o[1]=Math.sin(co[1]*x)+co[3]*Math.cos(co[1]*y);
+      };
+      S.name='a '+co[0].toFixed(2)+' b '+co[1].toFixed(2)+' c '+co[2].toFixed(2)+' d '+co[3].toFixed(2);
+    }
+    // Persistence, as on the flames: long while the map holds still, short
+    // while its coefficients move, and short for a moment after a cut so the
+    // outgoing attractor clears while the next one builds.
+    let mv=0;
+    if(S.sig && S.sig.length===co.length) for(let i=0;i<co.length;i++) mv+=Math.abs(co[i]-S.sig[i]);
+    S.sig=co.slice();
+    S.mv+=(mv*40-S.mv)*(mv*40>S.mv?0.6:0.15);
+    S.fade*=0.92;
+    let kd=0.80+g('cc')*0.19-Math.min(1,S.mv)*0.35-S.fade*0.4;
+    kd=Math.max(0.35,kd);
+    // Always iterated, like the flames: AUTO off already holds the clocks, so
+    // the map stands still, and stopping the iteration as well left a cut to
+    // this scene with AUTO off on an empty frame.
+    for(let i=0;i<a.length;i++){ if(a[i]!==0){ a[i]*=kd; cb[i]*=kd; } }
+    // Framing: the attractor's bounding box from last frame's points, eased,
+    // so a cut glides the view from one shape to the next.
+    const bx=S.bx||{x0:-1,x1:1,y0:-1,y1:1};
+    const bw=Math.max(1e-3,bx.x1-bx.x0), bh=Math.max(1e-3,bx.y1-bx.y0);
+    const rot=spin+(V.roll||0), cR=Math.cos(rot), sR=Math.sin(rot);
+    // Fit the box at its worst rotation, so the turning view never clips it.
+    const rr=Math.hypot(bw,bh)*0.5;
+    const SC=Math.min(aw,ah)*0.47/rr*V.sc*(1+beat*0.03);
+    const mx=(bx.x0+bx.x1)*0.5, my=(bx.y0+bx.y1)*0.5;
+    const ox=aw*0.5+V.ox*aw/W, oy=ah*0.5+V.oy*ah/H;
+    const cSrc=g('lite'), lv=S.lv==null?0:S.lv;
+    let x=S.x, y=S.y, skip=S.skip, x0=1e9, x1=-1e9, y0=1e9, y1=-1e9, vs=0, ns=0, rs=0;
+    const o=[0,0], t0=performance.now(), budget=(this.weakBoot?4:6)+loud*2;
+    let it=0;
+    while(it<500000){
+      for(let j=0;j<2048;j++,it++){
+        f(x,y,o);
+        const dx=o[0]-x, dy=o[1]-y;
+        x=o[0]; y=o[1];
+        if(!(Math.abs(x)+Math.abs(y)<1e4)){ x=0.05+(Math.random()-0.5)*0.01; y=0.05; skip=50; rs++; continue; }
+        if(skip>0){ skip--; continue; }
+        const st=Math.sqrt(dx*dx+dy*dy);
+        const lst=Math.log(st+1e-12);
+        vs+=lst; ns++;
+        if(x<x0) x0=x; if(x>x1) x1=x; if(y<y0) y0=y; if(y>y1) y1=y;
+        // Color: step length (how hard the map stretches here) blended by
+        // Exposure toward the step's direction, which bands the folds.
+        // Log ratio to the mean: half the usual step and double it land near
+        // opposite ends, where a saturating curve bunched everything mid-ramp.
+        const cA=0.5+0.5*(lst-lv), cB=Math.atan2(dy,dx)*0.159155+0.5;
+        const col=cA+(cB-cA)*cSrc;
+        const px=x-mx, py=y-my;
+        const ix=Math.floor(ox+(px*cR-py*sR)*SC), iy=Math.floor(oy-(px*sR+py*cR)*SC);
+        if(ix>=0 && ix<aw && iy>=0 && iy<ah){ const p=iy*aw+ix; a[p]+=1; cb[p]+=col; }
+      }
+      if(performance.now()-t0>budget) break;
+    }
+    S.x=x; S.y=y; S.skip=skip;
+    if(S.wbK!=null) S.wbK=rs>8?Math.max(0,S.wbK-0.25):Math.min(1,S.wbK+0.01);
+    if(ns>200){
+      const m=vs/ns; S.lv=S.lv==null?m:S.lv+(m-S.lv)*0.05;
+      const k=S.bx?(S.fade>0.05?0.12:0.04):1, B=S.bx||{x0,x1,y0,y1};
+      B.x0+=(x0-B.x0)*k; B.x1+=(x1-B.x1)*k; B.y0+=(y0-B.y0)*k; B.y1+=(y1-B.y1)*k; S.bx=B;
+    }
+    let mxd=0;
+    for(let i=0;i<a.length;i+=7) if(a[i]>mxd) mxd=a[i];
+    S.max+=(Math.max(1,mxd)-S.max)*0.2;
+    // Log tone map normalized to the peak, so the densest cell is full and
+    // Exposure lifts the sparse outer filaments, the flames' approach.
+    const gain=(20+g('detail')*600+beat*120)/S.max;
+    const cSpread=0.06+g('spinr')*0.9;
+    ctx.save();
+    ctx.globalCompositeOperation='source-over';
+    ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H);
+    this.accBlitC(ctx,W,H,Ac,g('hue')+(M.mtick||0)*0.00015,gain,true,cSpread,1/Math.log(1+S.max*gain));
+    ctx.restore();
+    this.canvasBloom(ctx,ctx.canvas,g('cb')*0.6+high*0.3);
+    const stEl=this.meshStatRef && this.meshStatRef.current;
+    if(stEl && (tick%16)===0) stEl.textContent=(mode===117?(S.idx+1)+'/'+this.SPROTT_CODES.length+' · ':'')+S.name+' · '+(it/1000).toFixed(0)+'k pts';
+  }
+
+  // Halvorsen (119). Cyclically symmetric like Thomas, but polynomial: three
+  // lobes, each one coordinate's quadratic pulling against the other two, so
+  // the orbit swaps between three interlocked wings.
+  drawHalvorsen(ctx,W,H,tick){
+    this.flowScene(ctx,W,H,tick,{
+      key:'halvorsen', dt:0.0035, steps:820, span:30, zc:-2.2, bail:80,
+      mark:'line', keepBias:0.0,
+      seed:(i,n)=>{ const q=i/Math.max(1,n)*6.2832; return {x:-1.48+Math.cos(q)*0.3, y:-1.51+Math.sin(q)*0.3, z:2.04}; },
+      // a sets the damping; the attractor is chaotic roughly from 1.27 to 2.0
+      // and thins toward a cycle at the top, so the range stays inside that.
+      params:(e,A)=>({ a:1.3+(e.ca==null?0.5:e.ca)*0.6-A.bass*0.05 }),
+      step:(s,P,h)=>{
+        const f=(x,y,z,o)=>{ o[0]=-P.a*x-4*y-4*z-y*y; o[1]=-P.a*y-4*z-4*x-z*z; o[2]=-P.a*z-4*x-4*y-x*x; };
+        const k1=[0,0,0],k2=[0,0,0],k3=[0,0,0],k4=[0,0,0];
+        f(s.x,s.y,s.z,k1);
+        f(s.x+h*0.5*k1[0], s.y+h*0.5*k1[1], s.z+h*0.5*k1[2], k2);
+        f(s.x+h*0.5*k2[0], s.y+h*0.5*k2[1], s.z+h*0.5*k2[2], k3);
+        f(s.x+h*k3[0], s.y+h*k3[1], s.z+h*k3[2], k4);
+        s.x+=h/6*(k1[0]+2*k2[0]+2*k3[0]+k4[0]);
+        s.y+=h/6*(k1[1]+2*k2[1]+2*k3[1]+k4[1]);
+        s.z+=h/6*(k1[2]+2*k2[2]+2*k3[2]+k4[2]);
+      },
+      stat:(P,n,s)=>'a '+P.a.toFixed(2)+' · '+n+' threads · '+s+' steps/f'
+    });
+  }
+
+  // Rössler (120). The simplest chaotic flow: a spiral out in the x-y plane,
+  // then the z term lifts the orbit, folds it over and drops it back in the
+  // middle. One stretch and one fold, drawn as a band twisted once.
+  drawRossler(ctx,W,H,tick){
+    this.flowScene(ctx,W,H,tick,{
+      key:'rossler', dt:0.018, steps:700, span:30, zc:5, bail:200,
+      // Line, not surface: the orbit is fast against this step, and single
+      // deposits beaded into dotted rings.
+      mark:'line', keepBias:0.04,
+      seed:(i,n)=>{ const q=i/Math.max(1,n)*6.2832; return {x:1+Math.cos(q)*0.5, y:Math.sin(q)*0.5, z:0}; },
+      // c from period-doubling (about 4.2) into full chaos (past 9); the fold
+      // deepens and the band gains layers as it climbs.
+      params:(e,A)=>({ a:0.2, b:0.2, c:4.4+(e.ca==null?0.5:e.ca)*4.8+A.bass*0.4 }),
+      step:(s,P,h)=>{
+        const f=(x,y,z,o)=>{ o[0]=-y-z; o[1]=x+P.a*y; o[2]=P.b+z*(x-P.c); };
+        const k1=[0,0,0],k2=[0,0,0],k3=[0,0,0],k4=[0,0,0];
+        f(s.x,s.y,s.z,k1);
+        f(s.x+h*0.5*k1[0], s.y+h*0.5*k1[1], s.z+h*0.5*k1[2], k2);
+        f(s.x+h*0.5*k2[0], s.y+h*0.5*k2[1], s.z+h*0.5*k2[2], k3);
+        f(s.x+h*k3[0], s.y+h*k3[1], s.z+h*k3[2], k4);
+        s.x+=h/6*(k1[0]+2*k2[0]+2*k3[0]+k4[0]);
+        s.y+=h/6*(k1[1]+2*k2[1]+2*k3[1]+k4[1]);
+        s.z+=h/6*(k1[2]+2*k2[2]+2*k3[2]+k4[2]);
+      },
+      stat:(P,n,s)=>'c '+P.c.toFixed(2)+' · '+n+' threads · '+s+' steps/f'
+    });
   }
 
   // Aizawa attractor (104). The one flow in this set whose orbit is a surface
@@ -10799,6 +11192,11 @@ class Component extends DCLogic {
         return pct + '% of ' + b.toFixed(1) + ' ms' + (pct>100 ? '  OVER' : '');
       })(),
       'jank      ' + (this.jankN||0) + ' frames over 2x budget since load',
+      'gpu       ' + (this._gpuT === null ? 'no timer (frame interval used)'
+            : (this.gpuEma != null ? this.gpuEma.toFixed(1) + ' ms   strips ' + this.stripN() : 'waiting'))
+            + '   guard ' + Math.round(this.guardK()*100) + '%',
+      'gpu reset ' + (()=>{ const s = this.gpuSuspects(), k = Object.keys(s);
+            return k.length ? k.map(f => f + '×' + s[f]).join(' ') + '  (slim build)' : 'none recorded'; })(),
       'scene     ' + (this.noCtxFrame
             ? (this.E.PRESETS[this.state.preset].name + '   (canvas-only, no GL context)')
             : (this.dPreset ? this.dPreset.name : '—'))
@@ -11753,6 +12151,96 @@ class Component extends DCLogic {
   // loop the browser gets to paint and process input between them, so a slow
   // build is a stutter rather than a hang. stage 0 compiles, stage 1 links;
   // buildStep does one and says whether more remains.
+  // Build marker. A shader link on a slow driver can hang the GPU process
+  // or the page outright (Chrome killed, nothing else runs), and then no
+  // event handler gets to say which build did it. So the family is written
+  // down BEFORE its build starts and cleared when finishFamily sees it
+  // through; one still there at the next launch is the build that killed
+  // the last session. safeOpen reads it.
+  markBuild(fam){
+    try{
+      if(fam) localStorage.setItem('spectra.building', fam + '|' + Date.now());
+      else localStorage.removeItem('spectra.building');
+    }catch(e){}
+  }
+  // Opening scene. The app always opens on the first preset, the Mandelbulb,
+  // which is the heaviest program in the set: on an integrated GPU whose
+  // driver links synchronously (KHR_parallel_shader_compile never ready), its
+  // link held the page for longer than Chrome would wait, so the app hung on
+  // every launch before the operator could pick anything. Integrated and
+  // mobile GPUs, and any machine whose last session died mid-build, open on
+  // the Mandelbrot instead, a 2D program that links in a fraction of the
+  // time. A 3D scene is then built only when the operator picks one.
+  safeOpen(){
+    let hung = null;
+    try{ hung = localStorage.getItem('spectra.building'); localStorage.removeItem('spectra.building'); }catch(e){}
+    if(hung){
+      const fam = hung.split('|')[0], S = this.gpuSuspects();
+      S[fam] = (S[fam]||0) + 1;
+      try{ localStorage.setItem('spectra.gpuSuspect', JSON.stringify(S)); }catch(e){}
+      console.warn('[spectra] last session ended while building ' + fam + ' — it builds slim from now on');
+    }
+    if(!this.E) return;
+    const pr = this.E.PRESETS[this.state.preset];
+    const fam = pr && pr.kind !== '2DC' ? String(this.E.FAM_OF(pr.mode)) : '';
+    const weak = !this.plat || this.plat.kind !== 'desktop-dgpu';
+    if(fam.slice(0,3) === '3d:' && (weak || hung)){
+      const i = this.E.PRESETS.findIndex(p => p.name === 'Mandelbrot');
+      if(i >= 0){ this.state.preset = i; this.setState({preset: i}); }
+    }
+  }
+  // One rule for every wait on a link: 'ready' (safe to read LINK_STATUS
+  // now), 'wait' (poll again next frame) or 'drop' (give up on it). A driver
+  // whose extension reports completion is NEVER read with a blocking call
+  // before it says done, however long that takes, because that read freezes
+  // the page for the rest of the link; past five minutes the program is
+  // dropped instead. Only a driver that reports nothing at all (pextProbe
+  // 'dead') falls back to the blocking read after 4 s, as it always did.
+  linkWait(p, t0){
+    const gl = this.gl, ext = this.parallelExt();
+    if(!ext || this._extSuspect) return 'ready';
+    if(gl.getProgramParameter(p, ext.COMPLETION_STATUS_KHR)){ this._pextOK = true; return 'ready'; }
+    this.pextProbe();
+    const w = performance.now() - t0;
+    if(this._pextOK) return w > 300000 ? 'drop' : 'wait';
+    return (w > 4000 && this._pextCal === 'dead') ? 'ready' : 'wait';
+  }
+  // Does KHR_parallel_shader_compile actually report completion here? Judged
+  // on a trivial program linked at startup, before any scene build is queued
+  // ahead of it: it completes in milliseconds where the extension works.
+  // _pextCal: undefined (not started), an object (pending), 'ok', or 'dead'
+  // (no report within 3 s). 'ok' marks the extension trusted.
+  pextProbe(){
+    const gl = this.gl, ext = gl && this.parallelExt();
+    if(!ext || this._pextCal === 'ok' || this._pextCal === 'dead') return;
+    let C = this._pextCal;
+    if(!C){
+      try{
+        const sh = (t, s) => { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); return o; };
+        const p = gl.createProgram();
+        gl.attachShader(p, sh(gl.VERTEX_SHADER, '#version 300 es\nvoid main(){ gl_Position = vec4(0.0, 0.0, 0.0, 1.0); }'));
+        gl.attachShader(p, sh(gl.FRAGMENT_SHADER, '#version 300 es\nprecision mediump float;\nout vec4 o;\nvoid main(){ o = vec4(1.0); }'));
+        gl.linkProgram(p);
+        this._pextCal = {p, t0: performance.now()};
+      }catch(e){ this._pextCal = 'dead'; }
+      return;
+    }
+    if(gl.getProgramParameter(C.p, ext.COMPLETION_STATUS_KHR)){
+      try{ gl.deleteProgram(C.p); }catch(e){}
+      this._pextCal = 'ok'; this._pextOK = true;
+    } else if(performance.now() - C.t0 > 3000){
+      try{ gl.deleteProgram(C.p); }catch(e){}
+      this._pextCal = 'dead';
+    }
+  }
+  // Families implicated in a GPU reset, {family: count}, from localStorage.
+  gpuSuspects(){
+    if(!this._gpuSus){
+      try{ this._gpuSus = JSON.parse(localStorage.getItem('spectra.gpuSuspect') || '{}') || {}; }
+      catch(e){ this._gpuSus = {}; }
+    }
+    return this._gpuSus;
+  }
   buildFamily(mode){
     const gl = this.gl;
     const p = gl.createProgram();
@@ -11762,6 +12250,9 @@ class Component extends DCLogic {
     // (normals from screen derivatives), so the scene appears sooner. The full
     // program is built afterwards by upgradeStep and swapped in place.
     p._fast = this.E.FAM_OF(mode).slice(0,3) === '3d:' && ['auto','fast'].includes(this.props.shading ?? 'full');
+    // A family that was building or drawing when the GPU last reset gets the
+    // slim program (see the context-lost handler).
+    if(this.gpuSuspects()[this.E.FAM_OF(mode)]) p._safe = true;
     // Only boot compiles on the spot. Everything else is stepped later by the
     // paced ticker, so a click or hover never pays a compile in its own handler.
     if(this._bootSync) this.buildStep(p);
@@ -11880,11 +12371,9 @@ class Component extends DCLogic {
       return 'PREPARING';
     }
     if(!L.ready){
-      const ext = this.parallelExt();
-      if(ext && !this._extSuspect){
-        if(gl.getProgramParameter(L.p, ext.COMPLETION_STATUS_KHR)) this._pextOK = true;
-        else if(now - L.linkT < 5000) return 'PREPARING';
-      }
+      const lw = this.linkWait(L.p, L.linkT);
+      if(lw === 'wait') return 'PREPARING';
+      if(lw === 'drop'){ try{ gl.deleteProgram(L.p); }catch(e){} L.fail = true; return ''; }
       if(!gl.getProgramParameter(L.p, gl.LINK_STATUS)){
         console.warn('[spectra] preview program failed:', gl.getProgramInfoLog(L.p), gl.getShaderInfoLog(L.fs));
         L.fail = true; return '';
@@ -12278,6 +12767,9 @@ class Component extends DCLogic {
     this.probeFB = null; this.probeTex = null; this.thumbFB = null; this.thumbTex = null;
     this.tex = null; this.specTex = null; this.txtTex = null; this.glyTex = null;
     this.lastMode = null; this._drawnMode = null;
+    // Queries and extensions die with the context.
+    this._gpuT = undefined; this._gpuQ = null; this._drawProg = null; this.gpuEma = null;
+    this._pextCal = undefined;
     clearTimeout(this.warmDrawT);
   }
 
@@ -12355,6 +12847,7 @@ class Component extends DCLogic {
   // when the caller has no choice, as on an immediate scene switch).
   finishFamily(fam, p){
     const gl = this.gl;
+    this.markBuild(null);
     if(!gl.getProgramParameter(p, gl.LINK_STATUS)){
       // Ask the shaders themselves, not just the program. This is the only place
       // the driver will tell us WHY, and the answer has to reach the operator:
@@ -12470,9 +12963,84 @@ class Component extends DCLogic {
     if(vOnly && !vidOn){ gl.clearColor(0,0,0,1); gl.clear(gl.COLOR_BUFFER_BIT); return; }
     if(vOnly && u && u.uSceneOff) gl.uniform1f(u.uSceneOff, 1);
     const clr = !vOnly && this.clrPre();
-    gl.drawArrays(gl.TRIANGLES,0,3);
+    this.gpuPoll();
+    const T = this.gpuTimer(), q = T && !this._gpuQ ? gl.createQuery() : null;
+    if(q){ gl.beginQuery(T.TIME_ELAPSED_EXT, q); }
+    const n = this.stripN();
+    if(n <= 1) gl.drawArrays(gl.TRIANGLES,0,3);
+    else {
+      // Strips. Windows resets the GPU when one submission runs about two
+      // seconds; a heavy frame drawn as one triangle is one submission. Drawn
+      // as n scissored bands, each flushed on its own, the same pixels arrive
+      // in pieces no one of which comes near the limit.
+      const vp = gl.getParameter(gl.VIEWPORT), H = vp[3];
+      gl.enable(gl.SCISSOR_TEST);
+      for(let k=0;k<n;k++){
+        const y0 = Math.floor(H*k/n), y1 = Math.floor(H*(k+1)/n);
+        gl.scissor(vp[0], vp[1]+y0, vp[2], y1-y0);
+        gl.drawArrays(gl.TRIANGLES,0,3);
+        gl.flush();
+      }
+      gl.disable(gl.SCISSOR_TEST);
+    }
+    if(q){ gl.endQuery(T.TIME_ELAPSED_EXT); this._gpuQ = q; }
+    this._drawProg = this.prog;
     if(clr) gl.uniform1f(u.uClrOn, 0);
     if(vOnly && u && u.uSceneOff) gl.uniform1f(u.uSceneOff, 0);
+  }
+  // GPU timer for the scene draw (EXT_disjoint_timer_query_webgl2). The frame
+  // interval the guard used to go on is a CPU view of the GPU, several frames
+  // late and blurred by everything else in the frame; the query is the GPU's
+  // own count for the one draw that can reset it. Null where the browser does
+  // not expose it; the interval guard still runs there.
+  gpuTimer(){
+    if(this._gpuT === undefined){
+      try{ this._gpuT = this.gl.getExtension('EXT_disjoint_timer_query_webgl2') || null; }catch(e){ this._gpuT = null; }
+    }
+    return this._gpuT;
+  }
+  // Read the last query when it has landed (a frame or two later, never
+  // waited on), and feed it to the guard.
+  gpuPoll(){
+    const gl = this.gl, T = this._gpuT, q = this._gpuQ;
+    if(!T || !q) return;
+    if(!gl.getQueryParameter(q, gl.QUERY_RESULT_AVAILABLE)) return;
+    const disjoint = gl.getParameter(T.GPU_DISJOINT_EXT);
+    const ms = gl.getQueryParameter(q, gl.QUERY_RESULT)/1e6;
+    gl.deleteQuery(q); this._gpuQ = null;
+    if(disjoint || !(ms >= 0)) return;
+    this.gpuMs = ms;
+    this.gpuEma = this.gpuEma == null ? ms : this.gpuEma + (ms - this.gpuEma)*0.3;
+    this.gpuGuard(ms);
+  }
+  // How many strips this draw takes. A program's first draw carries the
+  // driver's one-off work on top of the scene's own cost, so it always goes
+  // in pieces. After that it follows the measured GPU time: one strip per
+  // ~25 ms, so no strip is expected to run past that. Without the timer the
+  // frame interval stands in, coarsely.
+  stripN(){
+    if(this.prog !== this._drawProg) return 8;
+    const ms = this.gpuEma != null ? this.gpuEma : (this.frameMsEma || 0);
+    if(ms <= 30) return 1;
+    return Math.min(12, Math.ceil(ms/25));
+  }
+  // GPU-time guard, every GL scene, 2D included: a deep Harmony or Mandelbrot
+  // zoom is as able to reset the card as a 3D march. One frame past 120 ms of
+  // GPU time cuts the resolution at once (the reset is at about 2000 ms, and
+  // the next octave of zoom can multiply the cost); a run of frames past 45 ms
+  // steps it down; a long run under 20 ms lets it climb back.
+  gpuGuard(ms){
+    if(this.safeK == null){ this.safeK = 1; this.rampK = 1; this.gSlow = 0; this.gGood = 0; this.gBig = 0; }
+    if(this.isCanvasScene()) return;
+    if(performance.now() < (this.gGrace || 0)) return;
+    // 2D keeps its own factor, so a 3D back-off does not carry into a 2D
+    // scene (or the other way round).
+    const k = this.is2D() ? 'safeK2' : 'safeK';
+    if(this[k] == null) this[k] = 1;
+    if(ms > 120){ this[k] = Math.max(0.3, this[k]*0.6); this.gSnap = true; this.gpuSlow = 0; this.gpuGood = 0; }
+    else if(ms > 45){ this.gpuGood = 0; if(++this.gpuSlow >= 6){ this[k] = Math.max(0.3, this[k] - 0.1); this.gpuSlow = 0; this.gSnap = true; } }
+    else { this.gpuSlow = 0; if(ms < 20 && ++this.gpuGood >= 30){ this[k] = Math.min(1, this[k] + 0.1); this.gpuGood = 0; } }
+    this.guardPub();
   }
   // Eye clearance for the 3D frame, solved in one pixel before it (see uClrPass
   // in the engine): seven estimator calls once instead of in every pixel. The
@@ -12586,8 +13154,8 @@ class Component extends DCLogic {
       return null;
     }
     if(!V.ready){
-      const ext = this.parallelExt();
-      if(ext && !this._extSuspect && now - V.t0 < 45000 && !gl.getProgramParameter(V.p, ext.COMPLETION_STATUS_KHR)) return null;
+      const lw = this.linkWait(V.p, V.t0);
+      if(lw === 'wait') return null;
       // Without the extension this read blocks until the link is done, so the
       // background path never gets here (see vecPrebuild).
       if(!gl.getProgramParameter(V.p, gl.LINK_STATUS)){
@@ -12821,11 +13389,15 @@ class Component extends DCLogic {
   // since the picture is already up. 'fast' never upgrades.
   upgradeStep(){
     const gl = this.gl, P = this.prog;
+    if(document.hidden) return;
     if(!gl || !P || this.pend || this.scan) { if(this.upg && this.upg.fam !== this.fam) this.dropUpg(); return; }
     const mode = (this.props.shading ?? 'full');
     if(this.upg && (this.upg.fam !== this.fam || mode === 'fast')){ this.dropUpg(); return; }
     if(!this.upg){
       if(!P._fast || mode === 'fast') return;   // only 'auto' builds fast-first, so only it upgrades
+      // A family implicated in a GPU reset stays on its slim build: the full
+      // program is the thing that reset the card.
+      if(P._safe) return;
       const now = performance.now();
       if(this._upgFam !== this.fam){ this._upgFam = this.fam; this._upgAt = now; return; }
       if(now - this._upgAt < (mode === 'full' ? 0 : 3500)) return;
@@ -12838,8 +13410,9 @@ class Component extends DCLogic {
       if(now - (this.lastBuildStepT||0) >= (this.BUILD_GAP||280)){ this.buildStep(U.p); U.t0 = performance.now(); }
       return;
     }
-    const ext = this.parallelExt();
-    if(ext && !this._extSuspect && now - U.t0 < (this._pextOK ? 45000 : 4000) && !gl.getProgramParameter(U.p, ext.COMPLETION_STATUS_KHR)) return;
+    const lw = this.linkWait(U.p, U.t0);
+    if(lw === 'wait') return;
+    if(lw === 'drop'){ try{ gl.deleteProgram(U.p); }catch(e){} this.upg = null; this._upgFam = null; return; }
     this.upg = null;
     const old = this.progs[U.fam];
     if(!this.finishFamily(U.fam, U.p)){ this.progs[U.fam] = old; return; }
@@ -12897,6 +13470,7 @@ class Component extends DCLogic {
         this.pend = qi >= 0
           ? {fam, p: q.splice(qi,1)[0].p, t0: performance.now() - 1}
           : {fam, p: this.buildFamily(mode), t0: performance.now()};
+        this.markBuild(fam);
       }
       const P = this.pend;
       // Staged build (see buildFamily): the compile and the link are submitted on
@@ -12918,7 +13492,9 @@ class Component extends DCLogic {
         } else {
           // Paced: one piece at most every BUILD_GAP ms, so the browser gets
           // several painted frames and input between each synchronous chunk.
-          if(performance.now() - (this.lastBuildStepT||0) >= (this.BUILD_GAP||280)) this.buildStep(P.p);
+          // Never while the tab is hidden: nothing is drawn there anyway, and a
+          // link the user cannot see is a GPU reset they cannot explain.
+          if(!document.hidden && performance.now() - (this.lastBuildStepT||0) >= (this.BUILD_GAP||280)) this.buildStep(P.p);
           P.t0 = performance.now();
           return 'wait';
         }
@@ -12940,18 +13516,37 @@ class Component extends DCLogic {
       // back to the blocking LINK_STATUS read) is what turned every slow 3D build
       // into a frozen screen with nothing moving. Trusted: wait up to 45 s with
       // the app live. Never seen reporting: the old 4 s escape still applies.
+      //
+      // Measured on an Iris Xe: Harmony's program takes ~84 s to link, and the
+      // driver reports it complete when it is. Two things here turned that
+      // honest slow link into a frozen page. A first build over 4 s condemned
+      // the extension outright (every later link then blocked the page), and
+      // a trusted wait past 45 s fell back to the blocking LINK_STATUS read,
+      // which held the page for the rest of the link. Now the extension is
+      // judged on a trivial program linked at startup (pextProbe), which
+      // completes in milliseconds wherever the extension works; and a trusted
+      // driver is never waited on with a blocking read. A link that is still
+      // running after five minutes is dropped instead, with a message.
       const waited = performance.now() - P.t0;
-      const lim = this._pextOK ? 45000 : 4000;
-      if(ext && !this._extSuspect && gl.getProgramParameter(P.p, ext.COMPLETION_STATUS_KHR)){ this._pextOK = true; }
-      else if(ext && waited > lim && !this._extSuspect){
-        // One such program is enough to condemn the extension: stop trusting it
-        // for the rest of the session so nothing else has to wait this out.
+      this.pextProbe();
+      const done = !!(ext && !this._extSuspect && gl.getProgramParameter(P.p, ext.COMPLETION_STATUS_KHR));
+      if(done) this._pextOK = true;
+      else if(ext && !this._pextOK && !this._extSuspect && waited > 4000 && this._pextCal === 'dead'){
+        // The trivial probe never reported either: the extension really is
+        // silent here, so stop waiting on it for the rest of the session.
         this._extSuspect = true;
         this._pext = null;
         console.warn('[spectra] KHR_parallel_shader_compile never reported ready — ignoring it from now on');
       }
-      const ready = !ext || this._bootSync || this._extSuspect || waited > lim
-                    || gl.getProgramParameter(P.p, ext.COMPLETION_STATUS_KHR);
+      if(ext && this._pextOK && !done && waited > 300000){
+        try{ gl.deleteProgram(P.p); }catch(err){}
+        this.pend = null; this.progs[fam] = null; this.markBuild(null);
+        const nm = ((this.E.PRESETS.find(q => q.mode === mode)) || {}).name || fam;
+        console.warn('[spectra] ' + fam + ' still linking after 5 min — dropped');
+        try{ this.setState({glMsg: nm + ' took too long to build on this GPU — skipped'}); }catch(err){}
+        return false;
+      }
+      const ready = !ext || this._bootSync || this._extSuspect || done;
       if(!ready) return 'wait';
       this.pend = null;
       if(!this.finishFamily(fam, P.p)) return false;
@@ -13688,14 +14283,16 @@ class Component extends DCLogic {
     gl.viewport(0,0,gl.drawingBufferWidth,gl.drawingBufferHeight);
     const px = this.probePx, n = W*N;
     const L = i => 0.299*px[i*4] + 0.587*px[i*4+1] + 0.114*px[i*4+2];
+    const bm = this._probeBusy && this._probeBusy.length >= n ? this._probeBusy : (this._probeBusy = new Uint8Array(n));
     let s=0, s2=0, busy=0, cells=0;
     for(let y=0;y<N;y++){
       for(let x=0;x<W;x++){
         const i = y*W + x, l = L(i);
         s += l; s2 += l*l;
+        bm[i] = 0;
         if(x+1 < W && y+1 < N){
           cells++;
-          if(Math.abs(l - L(i+1)) + Math.abs(l - L(i+W)) > 9) busy++;
+          if(Math.abs(l - L(i+1)) + Math.abs(l - L(i+W)) > 9){ busy++; bm[i] = 1; }
         }
       }
     }
@@ -13703,7 +14300,67 @@ class Component extends DCLogic {
     const sd = Math.sqrt(Math.max(0, s2/n - m*m));
     const cov = cells ? busy/cells : 0;
     this.probeCov = cov;
+    // Aim: where the frame's center should move so the detail fills it, in
+    // screen units from the point the center maps to (the golden focus). The
+    // frame is cut into 4x4-pixel tiles, each scored by how busy it is; every
+    // tile then gets a neighborhood score, the busy tiles within half a frame
+    // height weighted down with distance. The aim is the tile with the best
+    // neighborhood, a little penalized for how far away it is. That is the
+    // middle of the densest REGION of detail: not the nearest edge, which puts
+    // structure on one side of the frame only, and not the centroid of all
+    // detail, which for filaments on both sides of a lobe is the flat middle
+    // of the lobe. Null when the focus is already within 85% of the best, so
+    // a good frame is left alone instead of being nudged forever.
+    const T = 4, tw = Math.floor(W/T), th = Math.floor(N/T);
+    const fo = this.goldFocus(zoom);
+    const fx = (fo[0]*N + W)/2, fy = (fo[1]*N + N)/2;      // focus in probe pixels
+    const tb = this._probeTB && this._probeTB.length >= tw*th ? this._probeTB : (this._probeTB = new Float32Array(tw*th));
+    for(let ty=0;ty<th;ty++) for(let tx=0;tx<tw;tx++){
+      let b = 0;
+      for(let yy=0;yy<T;yy++){ const r=(ty*T+yy)*W + tx*T; for(let xx=0;xx<T;xx++) b += bm[r+xx]; }
+      tb[ty*tw+tx] = Math.min(1, b/(T*T*0.5));
+    }
+    const R = th*0.5;
+    const nb = (cx, cy) => {   // neighborhood score round a point in tile units
+      let sc = 0;
+      for(let ty=0;ty<th;ty++) for(let tx=0;tx<tw;tx++){
+        const v = tb[ty*tw+tx]; if(!v) continue;
+        const d = Math.hypot(tx+0.5-cx, ty+0.5-cy); if(d < R) sc += v*(1 - d/R);
+      }
+      return sc;
+    };
+    const ftx = fx/T, fty = fy/T, here = nb(ftx, fty);
+    let best = -1, aim = null;
+    for(let ty=0;ty<th;ty++) for(let tx=0;tx<tw;tx++){
+      const d = Math.hypot(tx+0.5-ftx, ty+0.5-fty);
+      const s = nb(tx+0.5, ty+0.5)*(1 - 0.25*d/th);
+      if(s > best){ best = s; aim = [(tx+0.5-ftx)*T*2/N, (ty+0.5-fty)*T*2/N]; }
+    }
+    this.probeAim = (aim && best > 0 && here < best*0.85) ? aim : null;
     return sd * Math.min(1, cov/0.40);
+  }
+  // The plane rotation a 2D family applies to the screen point, read from the
+  // uniforms the frame just set (same formulas as esc2at / escape2b / c), so a
+  // screen-space aim can be turned into a move of the center.
+  rot2(md){
+    const gl = this.gl, p = this.prog, u = this.u;
+    const g = l => { try{ return l ? (gl.getUniform(p, l) || 0) : 0; }catch(e){ return 0; } };
+    const t = g(u.uTime), sp = g(u.uSpin), yaw = g(u.uCamYaw), roll = g(u.uCamRoll);
+    if(md <= 9) return (md !== 8 ? t*0.03*sp : 0) + yaw + roll;
+    return t*0.02*sp + yaw;
+  }
+  // Glide the dive's center a fraction of the way onto the detail the last
+  // probe found (probeAim). Continuous, small and eased on screen, so it reads
+  // as the camera drifting to keep the structure in frame, never as a jump.
+  ctrAim(md, zoom, k){
+    const a = this.probeAim;
+    // Harmony frames its own figure in the shader (and spins by its key), so it
+    // is left alone.
+    if(!a || !this.ctrVal || md === 39) return false;
+    const r = this.rot2(md), c = Math.cos(r), s = Math.sin(r), sc = this.view2(md, zoom);
+    const dx = (a[0]*c - a[1]*s)*sc, dy = (a[0]*s + a[1]*c)*sc;
+    this.ctrVal = [this.ctrVal[0] + dx*k, this.ctrVal[1] + dy*k];
+    return true;
   }
 
   // The three numbers the endless zoom runs on: a point the set is LINEARLY
@@ -13931,12 +14588,59 @@ class Component extends DCLogic {
         || mode===17 || mode===18 || mode===20 || mode===37;
   }
 
+  // Half-height of the 2D view in plane units at a slider zoom, exactly as the
+  // shader frames it (esc2at, escape2b, escape2c, bounded slider). The search
+  // used 2^(-17·zoom), a range from an older build: about twice the real view
+  // at the Mandelbrot's opening depth and nine times too small by mid-slider,
+  // so it measured patches that were not what the screen showed.
+  view2(mode, zoom){
+    const z = Math.min(1, Math.max(0, zoom));
+    const ex = mode===7 ? 0.75 + z*7.75 : (mode===39 ? 1.0 : 2.1) + z*6.4;
+    return (mode>=17 ? 2.8 : 2.6) * Math.pow(2, -ex);
+  }
+  // One step of the auto dive, to slider depth nz. This is what used to make
+  // zooming jittery: every step (every 14 ms) re-ran the search and took its
+  // favorite cell anywhere in a wide grid, so the target hopped between
+  // candidates while the zoom moved. Now the frame stays where it is as long as
+  // there is still detail there; only when it goes flat does it look nearby,
+  // closest ring first, then the wide search. Returns 'ok', 'fail' or 'starved'.
+  ctrStep(md, e, tt, nz, MIN){
+    const base = this.ctrVal || [0,0];
+    const sd0 = this.probeSd(nz, base);
+    if(sd0 < 0) return 'starved';
+    // Staying put alone dives straight into a fixed point, and a point a hair
+    // inside a lobe becomes a frame of flat lobe a few octaves later. Steering
+    // onto the nearest detail as it goes keeps the dive on the boundary.
+    if(sd0 >= MIN){ this.ctrAim(md, nz, 0.3); this.ctrZoom = nz; return 'ok'; }
+    const vh = this.view2(md, nz);
+    const RR = [[1,0],[-1,0],[0,1],[0,-1],[0.7,0.7],[-0.7,0.7],[0.7,-0.7],[-0.7,-0.7]];
+    // The outer ring reaches past the frame edge; the move is eased on screen
+    // (ctrShow), so even that one glides rather than jumps.
+    for(const rad of [0.35, 0.7, 1.3]){
+      let best = null, bestSd = MIN;
+      for(let i=0;i<RR.length;i++){
+        const c = [base[0]+RR[i][0]*vh*rad, base[1]+RR[i][1]*vh*rad];
+        const sd = this.probeSd(nz, c);
+        if(sd < 0) return 'starved';
+        if(sd > bestSd){ bestSd = sd; best = c; }
+      }
+      if(best){ this.ctrVal = best; this.ctrZoom = nz; return 'ok'; }
+    }
+    const rc = this.recenter(md, e.ca, e.cb, tt, nz, base);
+    if(rc){
+      const sd = this.probeSd(nz, rc);
+      if(sd < 0) return 'starved';
+      if(sd >= MIN){ this.ctrVal = rc; this.ctrZoom = nz; return 'ok'; }
+    }
+    return 'fail';
+  }
+
   recenter(mode, ca, cb, t, zoom, from){
     const is2 = this.is2Mode(mode);
     if(!is2) return [0,0];
     if(this.juliaCentered(mode)) return this.anchorFor(mode);
     if(zoom < 0.04 && !from) return this.anchorFor(mode);
-    const sc = (mode>=17 ? 2.8 : 2.6) * Math.pow(2, -Math.min(1,Math.max(0,zoom))*17);
+    const sc = this.view2(mode, zoom);
     let cx, cy;
     if(from){ cx = from[0]; cy = from[1]; }
     else { const a = this.anchorFor(mode); cx = a[0]; cy = a[1]; }
@@ -14809,6 +15513,10 @@ class Component extends DCLogic {
         {k:'DNA', d:'An endless field of double helices to fly through. Twist sets the pitch, Groove the gap between strands, Spacing how dense the field is, Grain the surface texture, Pairs the rungs per turn, Thickness the strands'},
         {k:'Romanesco', d:'One golden-angle spiral of florets wrapped round the head, each floret a smaller head with its own spiral. Florets sets their size, Profile pointed to domed, Tilt how they lean, Grow drifts them out from the tips, Detail adds a level'},
         {k:'Cathedral', d:'The Mandelbox at negative scale: arcades of arches and ogee windows. Scale, Inner R, Fold and Twist reshape it; zoom in to dive into the arcades'},
+        {k:'Quadratic Map', d:'Sprott’s 12-letter quadratic-map attractors: 24 chaotic codes. Attractor picks one, Cycle moves on every 16 to 1 bars (bottom of the dial holds), Wobble lets the bass bend it'},
+        {k:'Clifford', d:'A sine-map attractor whose four constants keep drifting, so the shape melts continuously. Shape A and B steer it, Drift sets how far it wanders'},
+        {k:'Attractor color', d:'Attractors color each part by how fast the orbit moves there. Spread sets how far round the wheel that runs; the next dial blends to height (flows) or step direction (Quadratic Map, Clifford)'},
+        {k:'Flame color', d:'Color speed: low gives long smooth gradients, high splits the flame into hard-edged parts. Detail maps adds secondary maps with their own shapes and colors; at zero it is the plain flame'},
         {k:'Touch gestures', d:'One finger: drag up/down for the chosen parameter, left/right for color. Two fingers: drag to move the view, pinch to zoom, twist to turn — each touch does one of the three, picked by how the fingers first move. Three fingers: pan. Double-tap: hide or show the controls'},
         {k:'Diagnostics (J)', d:'Live controller, timing and render values. Drag it anywhere, double-click to put it back, × or J to close'}
       ]
@@ -15744,25 +16452,13 @@ class Component extends DCLogic {
         let guard0 = 0;
         while(!this.manual2D && !this.state.levels && this.ctrZoom < e.zoom - 0.02 && this.ctrZoom < this.zoomCap && guard0++ < 60){
           if(this.pStarved) break;
-          const nz = Math.min(e.zoom, this.ctrZoom + 0.04);
-          const base = this.ctrVal || [0,0];
-          const vw = (md>=17 ? 2.8 : 2.6) * Math.pow(2, -nz*17);
-          let best = this.recenter(md, e.ca, e.cb, tt, nz, base), bestSd = -1;
-          if(best) bestSd = this.probeSd(nz, best);
-          if(bestSd < MINSD0){
-            const R = [[0,0],[1,0],[-1,0],[0,1],[0,-1],[0.7,0.7],[-0.7,0.7],[0.7,-0.7],[-0.7,-0.7]];
-            for(let i=0;i<R.length;i++){
-              const cc2 = [base[0]+R[i][0]*vw*0.85, base[1]+R[i][1]*vw*0.85];
-              const sd = this.probeSd(nz, cc2);
-              if(sd > bestSd){ bestSd = sd; best = cc2; }
-              if(bestSd >= MINSD0*1.6) break;
-            }
-          }
-          if(best && bestSd >= MINSD0){ this.ctrVal = best; this.ctrZoom = nz; }
-          else if(this.pStarved) break;
-          else { this.zoomCap = this.ctrZoom; break; }
+          const r = this.ctrStep(md, e, tt, Math.min(e.zoom, this.ctrZoom + 0.04), MINSD0);
+          if(r === 'starved') break;
+          if(r === 'fail'){ this.zoomCap = this.ctrZoom; break; }
         }
       }
+      // A new scene opens on its frame, not gliding in from the last one.
+      this._ctrSnap = true;
     }
     const is2 = this.is2Mode(md);
     const MINSD = 7.0;
@@ -15777,38 +16473,18 @@ class Component extends DCLogic {
     if(is2 && !this.manual2D && !this.state.levels && descentDue && e.zoom > this.ctrZoom + 0.008 && this.ctrZoom < this.zoomCap){
       this.lastDescent = t;
       const nz = Math.min(e.zoom, this.ctrZoom + Math.min(0.05, Math.max(0.014, (e.zoom - this.ctrZoom)*0.4)));
-      const base = this.ctrVal || [0,0];
-      const vw = (md>=17 ? 2.8 : 2.6) * Math.pow(2, -nz*17);
-      const cand = this.recenter(md, e.ca, e.cb, tt, nz, base);
-      let best = null, bestSd = -1;
-      if(cand){ const sd = this.probeSd(nz, cand); if(sd > bestSd){ bestSd = sd; best = cand; } }
-      if(bestSd < MINSD){
-        const R = [[0,0],[1,0],[-1,0],[0,1],[0,-1],[0.7,0.7],[-0.7,0.7],[0.7,-0.7],[-0.7,-0.7]];
-        for(let i=0;i<R.length;i++){
-          const cc = [base[0]+R[i][0]*vw*0.85, base[1]+R[i][1]*vw*0.85];
-          const sd = this.probeSd(nz, cc);
-          if(sd > bestSd){ bestSd = sd; best = cc; }
-          if(bestSd >= MINSD*1.6) break;
-        }
-      }
-      if(best && bestSd >= MINSD){
-        this.ctrVal = best; this.ctrZoom = nz;
-        if(this.zoomCap < 1) this.zoomCap = 1;
-      } else if(!this.pStarved) {
-        this.zoomCap = this.ctrZoom;
-      }
+      const r = this.ctrStep(md, e, tt, nz, MINSD);
+      if(r === 'ok'){ if(this.zoomCap < 1) this.zoomCap = 1; }
+      else if(r === 'fail') this.zoomCap = this.ctrZoom;
     }
 
-    // With the loop armed the zoom slider is a phase, not a depth, and it rolls
-    // over every sweep. The center search reads that rollover as a big zoom OUT
-    // and re-picks a center — which is a real jump to a real different place,
-    // and was what made the loop read as snapping back out instead of matching.
-    // The loop needs a pinned center, so the search sits out while it runs.
+    // Zooming out keeps the center. It is valid at any shallower depth (what
+    // was on screen is still in the middle of a wider view), and re-picking a
+    // center from scratch on the way out was the other half of the camera
+    // hopping about: every frame of a pull-back could land somewhere new.
     if(is2 && !this.state.levels && e.zoom < this.ctrZoom - 0.008){
       this.ctrZoom = e.zoom;
       this.zoomCap = 1;
-      const nc = this.recenter(md, e.ca, e.cb, tt, e.zoom, null);
-      if(nc && this.probeSd(e.zoom, nc) >= MINSD) this.ctrVal = nc;
     }
 
     if(is2 && !this.ctrOk){
@@ -15904,8 +16580,13 @@ class Component extends DCLogic {
        && Math.hypot(this.pan.x||0, this.pan.y||0) < 0.35 && this.ctrVal){
       this.washT = t;
       const zg = zEff, base = this.ctrTo || this.ctrVal;
-      if(this.probeSd(zg, base) < MINSD){
-        const vw = (md>=17 ? 2.8 : 2.6) * Math.pow(2, -zg*17);
+      const sdW = this.probeSd(zg, base);
+      // Holding still, the frame keeps drifting onto the nearest detail too,
+      // so a scene that opens with its structure off to one side settles it
+      // into the frame over a second or two.
+      if(sdW >= MINSD && !this.ctrTo && !this.manual2D) this.ctrAim(md, zg, 0.25);
+      if(sdW >= 0 && sdW < MINSD){
+        const vw = this.view2(md, zg);
         const RR = [[1,0],[-1,0],[0,1],[0,-1],[0.7,0.7],[-0.7,0.7],[0.7,-0.7],[-0.7,-0.7]];
         let best = null, bestSd = MINSD;
         for(const rad of [0.6, 1.4]){
@@ -15929,7 +16610,18 @@ class Component extends DCLogic {
       this.ctrVal = [this.ctrVal[0] + (this.ctrTo[0]-this.ctrVal[0])*0.07, this.ctrVal[1] + (this.ctrTo[1]-this.ctrVal[1])*0.07];
       if(Math.abs(this.ctrTo[0]-this.ctrVal[0]) + Math.abs(this.ctrTo[1]-this.ctrVal[1]) < 1e-9) this.ctrTo = null;
     }
-    const cv = this.ctrVal || [0,0];
+    // The frame glides to the center the search settled on rather than taking
+    // it in one jump. Exponential, so the glide covers the same fraction of
+    // the way each frame at any depth (a third of a second time constant).
+    // Probes and the search keep using ctrVal itself.
+    const cvT = this.ctrVal || [0,0];
+    if(!this.ctrShow || this._ctrSnap || !is2 || this.manual2D){ this.ctrShow = cvT.slice(); this._ctrSnap = false; }
+    else {
+      const kc = 1 - Math.exp(-zdt/0.3);
+      this.ctrShow[0] += (cvT[0]-this.ctrShow[0])*kc;
+      this.ctrShow[1] += (cvT[1]-this.ctrShow[1])*kc;
+    }
+    const cv = this.ctrShow;
     gl.uniform2f(u.uCtr, cv[0], cv[1]);
     if(u.uFocus){ const fo = this.goldFocus(); gl.uniform2f(u.uFocus, fo[0], fo[1]); }
     gl.uniform1i(u.uMode, this.drawMode);
@@ -16101,7 +16793,9 @@ class Component extends DCLogic {
     // Camera views on the 3D families: Orbit (the turntable above), Fly-through
     // and Surface skim, steered from the scene's own distance field (cam-fly.js).
     // Repeat tiles space with a period taken from the scene's framing distance.
-    if(u.uCamMode){
+    // uRep too: the 2D programs read Repeat but have no camera views, so their
+    // uCamMode is stripped as unused and the block was skipped entirely.
+    if(u.uCamMode || u.uRep){
       const fam3 = this.E.FAM_OF(md).slice(0,3)==='3d:';
       const DF = {0:4.85,1:2.78,2:7.38,3:3.28,4:1.05,5:12.01,12:3.09,13:1.68,14:1.15,15:8.15,16:7.17,30:1.24,31:6.64,32:8.61,33:3.03,34:1.09,35:5.89,36:1.42,41:9.11,42:4.29};
       const dfar = DF[md] || 4.85;
@@ -16109,7 +16803,13 @@ class Component extends DCLogic {
       // Spacing scales the preset cell: 0.6x to 1.6x of Tight/Loose.
       const rk = rk0 > 0 ? rk0*(0.6 + (this.state.repGap ?? 0.4)*1.0) : 0;
       this.repP = fam3 && rk>0 ? dfar*rk : 0;
-      gl.uniform1f(u.uRep, this.repP);
+      // The 2D families tile the frame itself: the cell is in screen units
+      // (the frame is 2 tall), three rows on Tight and two on Loose, scaled by
+      // Spacing. this.repP stays 0 there, since it means a 3D lattice to the
+      // camera code below.
+      const rep2D = !fam3 && this.is2D() && !this.isCanvasScene() && rk0 > 0
+        ? [0, 2/3, 1][this.state.camRep||0]*(0.6 + (this.state.repGap ?? 0.4)) : 0;
+      gl.uniform1f(u.uRep, fam3 ? this.repP : rep2D);
       if(u.uRepV) gl.uniform4f(u.uRepV, this.state.repSize ?? 0.26, this.state.repTurn ?? 1, this.state.repVar ?? 1, this.state.repDrift ?? 0.5);
       const cmv = fam3 ? (this.state.camView||0) : 0;
       let camOk = false;
@@ -16398,14 +17098,14 @@ class Component extends DCLogic {
     if(this.scan) return;
     const fam = this.E.FAM_OF(p.mode);
     if(this.progs[fam] !== undefined || this.pend) return;
-    try { this.pend = {fam, p: this.buildFamily(p.mode), t0: performance.now()}; }
+    try { this.pend = {fam, p: this.buildFamily(p.mode), t0: performance.now()}; this.markBuild(fam); }
     catch(err){ console.error('preheat '+fam+':', err); this.pend = null; return; }
     // Step the pending build in the background, slowly, until it is linked.
     clearInterval(this.heatTick);
     this.heatTick = setInterval(()=>{
       const P = this.pend;
       if(!this.gl || !P || !P.p || P.p._stage == null || P.p._stage >= 3){ clearInterval(this.heatTick); return; }
-      if(performance.now() - (this.lastBuildStepT||0) < (this.BUILD_GAP||280)) return;
+      if(document.hidden || performance.now() - (this.lastBuildStepT||0) < (this.BUILD_GAP||280)) return;
       try{ this.buildStep(P.p); P.t0 = performance.now(); }catch(err){ clearInterval(this.heatTick); }
     }, 120);
   }
@@ -17444,7 +18144,8 @@ class Component extends DCLogic {
       camRepBorder: (s.camRep||0) ? 'var(--acc30)' : 'rgba(255,255,255,0.11)',
       camRepFg: (s.camRep||0) ? 'var(--acc)' : 'rgba(242,243,240,0.5)',
       repOn: !!(s.camRep||0),
-      repStripOn: !!(s.camRep||0) && (()=>{ try{ const p=this.E.PRESETS[s.preset]; return !!p && p.kind!=='2DC' && String(this.E.FAM_OF(p.mode)).slice(0,3)==='3d:'; }catch(e){ return false; } })(),
+      // 3D lattices and the 2D frame wall both read the strip; canvas scenes do not.
+      repStripOn: !!(s.camRep||0) && (()=>{ try{ const p=this.E.PRESETS[s.preset]; return !!p && p.kind!=='2DC' && String(this.E.FAM_OF(p.mode)).slice(0,3)!=='syn'; }catch(e){ return false; } })(),
       busyRef: this.busyRef, busyTextRef: this.busyTextRef,
       lookFlex: (this.E && (this.E.PRESETS[s.preset]||{}).kind === '3D') ? '2 1 144px' : '4 1 288px',
       ...(()=>{ const vs = this.vecCfg && this.vecCfg().style; const n = vs ? 5 : 3; return {
@@ -17463,13 +18164,21 @@ class Component extends DCLogic {
         setVecStyle: (ev) => this.setVec({style: parseInt(ev.target.value)||0}),
         setVecMode: (ev) => { const [b, sc] = ev.target.value.split('-'); this.setVec({only: b === 'only'}, sc === 'one'); },
       }; })(),
-      repSliders: [
+      // On the 2D scenes Repeat is a wall of the frame: the same five values,
+      // read as a border, cell size, turn, per-copy zoom and color, and a slide.
+      repSliders: ((this.is2D && this.is2D() && !this.isCanvasScene()) ? [
+        ['repSize','Border',0.26,'Dark gap between copies; zero makes the wall seamless',v=>Math.round(v*100)+'%'],
+        ['repGap','Spacing',0.4,'Size of each copy',v=>(0.6+v).toFixed(2)+'x'],
+        ['repTurn','Turn',1,'How far each copy is rotated; at zero neighbors mirror each other',v=>Math.round(v*100)+'%'],
+        ['repVar','Variety',1,'How much each copy differs in depth and color',v=>Math.round(v*100)+'%'],
+        ['repDrift','Drift',0.5,'How fast the wall slides across the frame',v=>Math.round(v*100)+'%'],
+      ] : [
         ['repSize','Min size',0.26,'Smallest copy, as a fraction of full size',v=>Math.round(v*100)+'%'],
         ['repGap','Spacing',0.4,'Distance between copies',v=>(0.6+v).toFixed(2)+'x'],
         ['repTurn','Turn',1,'How far each copy is rotated and mirrored',v=>Math.round(v*100)+'%'],
         ['repVar','Variety',1,'How much each copy varies its shape and color',v=>Math.round(v*100)+'%'],
         ['repDrift','Drift',0.5,'Off-center offset of the smaller copies',v=>Math.round(v*100)+'%'],
-      ].map(([k,label,def,tip,fmt])=>{ const v = s[k] ?? def; return {label, tip, value:v, read:fmt(v), pct:(v*100).toFixed(1)+'%', drag:this.drag(nv=>this.setState({[k]: nv}))}; }),
+      ]).map(([k,label,def,tip,fmt])=>{ const v = s[k] ?? def; return {label, tip, value:v, read:fmt(v), pct:(v*100).toFixed(1)+'%', drag:this.drag(nv=>this.setState({[k]: nv}))}; }),
       rollSel: String(s.vspin || 0),
       rollOptions: [{v:'1',tag:'Roll ⤵ Fwd'},{v:'0',tag:'Roll Off'},{v:'-1',tag:'Roll ⤴ Back'}],
       setRoll: (e)=>this.setState({vspin: parseInt(e.target.value,10)||0}),

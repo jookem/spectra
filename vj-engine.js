@@ -33,14 +33,21 @@ uniform float uTerrLow;
 // own color, in turns, so water and subject never share a hue.
 uniform float uWater, uWaterHue, uWaterMono;
 vec3 hueRot(vec3 c, float a){ const vec3 k=vec3(0.57735); float ca=cos(a); return c*ca+cross(k,c)*sin(a)+k*dot(k,c)*(1.0-ca); }
-// The water's tint: the scene's tint turned round the wheel. A near-gray
-// scene has no hue to turn, so it falls back to a cool cyan.
+// The water's tint: the scene's hue turned round the wheel by the scheme.
+// The tint is the whole frame's average, which for most scenes is a faint cast
+// on gray, and the old version faded to a fixed cyan below 0.08 saturation
+// AFTER the turn, so on those scenes every scheme gave the same cyan and the
+// menu did nothing. The hue is taken at full strength first, however faint the
+// cast, and the scheme turns that; only a truly neutral frame starts from cyan,
+// and even that is still turned, so each scheme is a different color.
 vec3 waterTint(vec3 tint){
-  vec3 w=max(hueRot(tint, uWaterHue*6.28318), vec3(0.0));
+  float mx=max(tint.r,max(tint.g,tint.b)), mn=min(tint.r,min(tint.g,tint.b)), sat=mx-mn;
+  vec3 base=mix(vec3(0.3,0.68,1.0), (tint-mn)/max(sat,1e-4), smoothstep(0.004,0.03,sat));
+  vec3 w=max(hueRot(base, uWaterHue*6.28318), vec3(0.0));
+  w/=max(max(w.r,max(w.g,w.b)),0.02);
   // Monochromatic keeps the hue and goes deeper and richer instead.
-  if(uWaterMono>0.5) w=pow(w/max(max(w.r,max(w.g,w.b)),0.02), vec3(2.2));
-  float sat=max(tint.r,max(tint.g,tint.b))-min(tint.r,min(tint.g,tint.b));
-  return mix(vec3(0.3,0.68,1.0), w/max(max(w.r,max(w.g,w.b)),0.02), smoothstep(0.08,0.3,sat));
+  if(uWaterMono>0.5) w=pow(w, vec3(2.2));
+  return w;
 }
 uniform vec2 uDTilt;
 // Post denoise, 0..1, from the top half of the Smth trim. Clamps each pixel to
@@ -613,6 +620,39 @@ vec2 wvLR(float x){ return texture(uSpec, vec2(clamp(x,0.0,1.0),0.75)).rg*2.0-1.
 float wvL(float x){ return wvLR(x).x; }
 
 mat2 rot(float a){float c=cos(a),s=sin(a);return mat2(c,-s,s,c);}
+// Repeat on the 2D families: the frame tiled into a wall of copies. uRep is the
+// cell size in screen units (0 off), uRepV is (border, turn, variety, drift).
+// Alternate cells are mirrored, so with Turn and Variety at zero neighboring
+// copies meet edge to edge as one seamless pattern. Turn adds a rotation per
+// copy, Variety a per-copy zoom (a scale of the screen point is exactly a zoom
+// about the frame's center) and a hue shift, Drift slides the whole wall, and
+// the border separates the copies. Returns the point in full-frame units, so
+// each cell shows the middle of the frame as it would be without Repeat.
+float gRepH=0.0, gRepB=1.0;
+vec2 rep2(vec2 uv){
+  gRepH=0.0; gRepB=1.0;
+  if(uRep<=0.0) return uv;
+  vec2 q=uv+vec2(1.0,0.618)*uTime*0.04*uRepV.w;
+  vec2 id=floor(q/uRep+0.5), lp=q-id*uRep;
+  vec2 h=fract(sin(vec2(dot(id,vec2(127.1,311.7)),dot(id,vec2(269.5,183.3))))*43758.5453);
+  if(uRepV.x>0.004){
+    vec2 e=abs(lp)-uRep*0.5*(1.0-uRepV.x*0.24);
+    float px=2.0/max(uRes.y,1.0);
+    gRepB=1.0-smoothstep(-px,px,max(e.x,e.y));
+  }
+  if(mod(id.x,2.0)>0.5) lp.x=-lp.x;
+  if(mod(id.y,2.0)>0.5) lp.y=-lp.y;
+  lp*=rot((h.x-0.5)*6.2831853*uRepV.y);
+  lp*=exp2((h.y-0.5)*1.8*uRepV.z);
+  gRepH=(fract(h.x*7.31+h.y*3.17)-0.5)*0.4*uRepV.z;
+  return lp/(uRep*0.5);
+}
+// Rotate a color's hue about the gray axis by a radians.
+vec3 hueRot(vec3 c,float a){
+  float co=cos(a), si=sin(a), k=(1.0-co)/3.0, q=0.57735027*si;
+  vec3 m=vec3(co+k, k-q, k+q);
+  return max(vec3(dot(c,m.xyz), dot(c,m.zxy), dot(c,m.yzx)), 0.0);
+}
 // Principal complex square root. Only the endless zoom needs it, to solve for
 // the repelling fixed point a Julia set is self-similar about.
 vec2 csqrt(vec2 w){
@@ -3093,6 +3133,15 @@ vec3 flow(vec2 uv){
 // Spider (kind 1) is escape-time with c drifting along the orbit.
 #endif
 #ifdef P_E2C
+// Each of Lyapunov (E2C_K 0), Spider (1) and Harmony (2) is compiled as its own
+// program with only its own code, chosen by E2C_K at compile time. As one
+// program with a runtime switch, every scene carried all three: Lyapunov's
+// lighting takes screen derivatives after a variable-length loop inside a
+// branch, the D3D compiler's worst case, and Harmony's link ran for minutes
+// and took the GPU process with it.
+#ifndef E2C_K
+#define E2C_K 1
+#endif
 vec3 escape2c(vec2 uv,int kind){
   bool lp=uZLoop>=0.5;
   float zt=lp ? uZoom-floor(uZoom) : clamp(uZoom,0.0,1.0);
@@ -3123,7 +3172,8 @@ vec3 escape2c(vec2 uv,int kind){
   // point is its symmetry cannot be rolling.
   float hspin = uMode==39 ? -hth/3.0 : uTime*0.02*uSpeed*uSpin;
   vec2 ctr3=lp?uZAnc:uCtr;
-  if(uMode==39){
+#if E2C_K==2
+  {
     // Zoomed out the figure stays centered; zooming in, the frame glides off the
     // origin (a flat interior with banding) onto the most repelling fixed point
     // of z^4+c. That point lies on the set itself, so detail never runs out.
@@ -3135,9 +3185,11 @@ vec3 escape2c(vec2 uv,int kind){
     }
     ctr3=mix(ctr3,best,smoothstep(1.7,3.4,ex));
   }
+#endif
   vec2 p=uv*sc*rot(hspin+uCamYaw+rt3)+ctr3+(uPan*rot(rt3))*sc*2.0;
   gPx=max(max(fwidth(p.x),fwidth(p.y)),1e-9);
-    if(kind==0){
+#if E2C_K==0
+  {
     vec2 ab=p*0.55+vec2(3.1,3.1)+vec2((uCA-0.5),(uCB-0.5))*0.5;
     float x=0.5, sum=0.0;
     int N=int(clamp(70.0*fi(),30.0,160.0));
@@ -3165,119 +3217,39 @@ vec3 escape2c(vec2 uv,int kind){
                        : mix(pal(0.06+tv*0.55+uMid*0.25), comp(sk), 0.55)*(0.06+0.55*tv)*(0.55+0.6*ldif);
     return col*(0.8+0.5*uLoud)+uBeat*0.1;
   }
-  if(kind==2){
-    // Circle of fifths mapped onto the c = r*e^(i0) Julia family. Every point on
-    // that circle gives a connected, structured Julia set, and neighboring
-    // angles look like neighbors — so a IV-V-I is a short continuous walk
-    // through shape space rather than a cut. The tonal centroid is already an
-    // angle on the fifths circle, so the mapping is direct, not arbitrary.
-    // Quarter turn on the mapping. The angle is the key center, and with no
-    // signal it reads zero, which put c on the POSITIVE REAL axis at radius
-    // 0.7 -- outside the cardioid, where the Julia set is dust. That is what
-    // the scene opened on. Offset by a quarter turn and silence lands on the
-    // imaginary axis instead, the one line where a quadratic Julia is mirror
-    // symmetric about the vertical, so the resting shape is a symmetric one.
-    float th=hth;
-    float clar=hclar;
-    // Radius decides how filamentary the set is: 0.7885 sits on the boundary
-    // where the arms are thinnest and most detailed, and pulling inward gives a
-    // rounder, calmer shape. Driving it from tonal clarity means a clear triad
-    // renders as intricate structure and an ambiguous or noisy passage collapses
-    // toward a blob, so consonance reads as form and not only as color.
-    // 0.63 on the imaginary axis is just inside the connected region: the set
-    // still has interior, so it reads as a filled body with feathered arms
-    // rather than a scatter of filaments. Measured, the interior vanishes
-    // above about 0.66i, so this is close to the boundary without crossing it,
-    // and clarity still carries the set out to 0.7885 where the arms thin to a
-    // dendrite. Consonance reads as intricacy exactly as before; it now starts
-    // from a shape with mass.
-    float rad=hrad;
-    vec2 c2=rad*vec2(cos(th),sin(th));
-    vec2 zz=p*(1.0-uChordChg*0.05);
-    int mi2=int(min(max((56.0+iex*46.0)*fi()*uZIter, 32.0), mix(400.0,260.0,uSmooth)));
-    float i2=0.0,m2=0.0;
-    vec2 d2=vec2(1.0,0.0);
-    float sf2=4.0+uCC*10.0, s2=0.0, sn2=0.0, tr2=1e9;
-    for(int k=0;k<mi2;k++){
-      // z <- z^4 + c. The quartic is what gives the figure its shape: a
-      // quadratic Julia is invariant under a half turn only, so it can be
-      // symmetric about one axis but never carries a cleft and an apex at the
-      // same time. z^4+c is invariant under every quarter turn, so with c on
-      // the axis the arms fall two above and two below, the pair above opening
-      // a notch between them. Derivative is 4z^3 by the chain rule, which the
-      // relief shading needs as much as the escape test does.
-      vec2 zq=cmul(zz,zz);
-      d2=4.0*cmul(cmul(zz,zq),d2);
-      zz=cmul(zq,zq)+c2;
-      m2=dot(zz,zz);
-      s2+=0.5+0.5*sin(sf2*atan(zz.y,zz.x)); sn2+=1.0;
-      tr2=min(tr2,min(length(zz-vec2(0.0,1.0)),min(abs(zz.x),abs(zz.y))));
-      if(m2>256.0) break;
-      i2+=1.0;
-    }
-    if(i2>=float(mi2)-0.5) return esc_in(tr2,s2,sn2,d2,float(mi2));
-    return esc_shade(i2,float(mi2),m2,zz,d2,s2,sn2,tr2);
-  }
-  if(kind==3){
-    // Golden Wave. The Fibonacci ratio enters twice, both times structurally.
-    //
-    // (1) The parameter. c(t) = e^(2pi i t)/2 - e^(4pi i t)/4 traces the boundary
-    // of the main cardioid, where t is the rotation number of the fixed point at
-    // the origin. At t = 1/phi — the limit of consecutive Fibonacci ratios, and
-    // the hardest number to approximate by rationals — the Julia set carries a
-    // Siegel disk and its arms spiral without ever closing. A rational t would
-    // give a closed flower with p-fold symmetry instead; it is specifically the
-    // golden mean that produces an endlessly curling, self-similar arm.
-    float PHI=1.6180339887;
-    float t=1.0/PHI + (uCB-0.5)*0.004 + uMid*uReact*0.0012;
-    float a1=6.2831853*t;
-    vec2 cw=0.5*vec2(cos(a1),sin(a1))-0.25*vec2(cos(2.0*a1),sin(2.0*a1));
-
-    // Framing is its own: the other Julia scenes start several octaves in to
-    // land on filigree, but this one has to read as a whole composition, so the
-    // floor sits back far enough to hold the entire set at low Zoom.
-    float exw=-0.55+clamp(uZoom,0.0,1.0)*8.0;
-    float scw=2.6*exp2(-exw);
-    vec2 pw=uv*scw*rot(uTime*0.02*uSpeed*uSpin+uCamYaw)+uCtr+uPan*scw*2.0;
-    
-    // (2) The frame. A golden spiral grows by phi every quarter turn: r = e^(b*th)
-    // with b = ln(phi)/(pi/2). Rotating the plane by ln(r)/b therefore maps rays
-    // onto exactly that spiral, so the set's radial arms curl into the breaking
-    // crest — and because the winding rate goes as log r, the curl tightens
-    // without limit toward the center, which is the eye of the wave. Bass drives
-    // the curl: the wave pitches over on the beat instead of merely brightening.
-    float b=log(PHI)/1.5707963;
-    float curl=uMorph*1.35+uBass*uReact*0.30;
-    vec2 zw=pw*rot(log(max(length(pw),1e-7))/b*curl);
-
-    // Stripe count from the Fibonacci numbers rather than a continuous knob:
-    // the angular stripe term is what draws the foam claws, and 8 / 13 / 21 of
-    // them keeps the count inside the same sequence as the rest of the scene.
-    float sfw = uCC<0.34 ? 8.0 : (uCC<0.67 ? 13.0 : 21.0);
-    int miw=int(clamp((72.0+max(exw,0.0)*48.0)*fi(), 60.0, mix(400.0,260.0,uSmooth)));
-    float iw=0.0,mw=0.0,sw=0.0,snw=0.0,trw=1e9;
-    vec2 dw=vec2(1.0,0.0);
-    for(int k=0;k<miw;k++){
-      dw=2.0*cmul(zw,dw);
-      zw=cmul(zw,zw)+cw;
-      mw=dot(zw,zw);
-      sw+=0.5+0.5*sin(sfw*atan(zw.y,zw.x)); snw+=1.0;
-      trw=min(trw,min(length(zw-vec2(0.0,1.0)),min(abs(zw.x),abs(zw.y))));
-      if(mw>256.0) break;
-      iw+=1.0;
-    }
-    if(iw>=float(miw)-0.5) return esc_in(trw,sw,snw,dw,float(miw));
-    return esc_shade(iw,float(miw),mw,zw,dw,sw,snw,trw);
-  }
-  vec2 z=p, c=p+vec2((uCA-0.5),(uCB-0.5))*0.4;
+#else
+  // Spider (kind 1) and Harmony (kind 2) share ONE escape loop and one call
+  // to each shading function. They used to be separate loops, each with its
+  // own esc_in/esc_shade call (plus a third loop for a Golden Wave scene that
+  // no preset reaches). D3D inlines every call site and every loop body, so
+  // that program took long enough to link that the GPU reset while Harmony
+  // was building. The step differs by kind; the bookkeeping is shared.
+  //
+  // Harmony: circle of fifths mapped onto z <- z^4 + c with c = r*e^(i0). The
+  // tonal centroid is already an angle on the fifths circle, so a IV-V-I is a
+  // short continuous walk through shape space. The quartic is invariant under
+  // every quarter turn, so with c on the axis the arms fall two above and two
+  // below with a cleft between the upper pair. Radius (hrad) rides tonal
+  // clarity: a clear triad sits near the connectedness boundary, where the
+  // arms are thinnest. Derivative 4z^3 by the chain rule, for the relief.
+  // Spider: z <- z^2 + c, c <- c/2 + z.
+  const bool hq = E2C_K==2;   // compile-time: the other step is dropped
+  vec2 z = hq ? p*(1.0-uChordChg*0.05) : p;
+  vec2 c = hq ? hrad*vec2(cos(hth),sin(hth)) : p+vec2((uCA-0.5),(uCB-0.5))*0.4;
   int maxi=int(min(max((56.0+iex*46.0)*fi()*uZIter, 32.0), mix(400.0,260.0,uSmooth)));
   float i=0.0,m=0.0;
   vec2 dz=vec2(1.0,0.0);
   float sf=4.0+uCC*10.0, st=0.0, sn=0.0, tr=1e9;
   for(int k=0;k<maxi;k++){
-    dz=2.0*cmul(z,dz)+vec2(1.0,0.0);
-    z=cmul(z,z)+c;
-    c=c*0.5+z;
+    if(hq){
+      vec2 zq=cmul(z,z);
+      dz=4.0*cmul(cmul(z,zq),dz);
+      z=cmul(zq,zq)+c;
+    } else {
+      dz=2.0*cmul(z,dz)+vec2(1.0,0.0);
+      z=cmul(z,z)+c;
+      c=c*0.5+z;
+    }
     m=dot(z,z);
     st+=0.5+0.5*sin(sf*atan(z.y,z.x)); sn+=1.0;
     tr=min(tr,min(length(z-vec2(0.0,1.0)),min(abs(z.x),abs(z.y))));
@@ -3286,6 +3258,7 @@ vec3 escape2c(vec2 uv,int kind){
   }
   if(i>=float(maxi)-0.5) return esc_in(tr,st,sn,dz,float(maxi));
   return esc_shade(i,float(maxi),m,z,dz,st,sn,tr);
+#endif
 }
 
 #endif
@@ -4197,7 +4170,11 @@ const PRESETS = [
   {name:'Sphere',grp:'SCN', kind:'2DC', mode:116,p:{morph:0.5,detail:0.5,speed:0.5,zoom:0.5,hue:0.75,ca:0.3,cb:0.5,cc:0.3,iter:0.5}},
   // Added last so the stored slots and cues, which name scenes by index, keep theirs.
   {name:'Cathedral',grp:'LATT', kind:'3D', mode:45,p:{morph:0.45,detail:0.75,speed:0.4,zoom:0.58,hue:0.08,ca:0.5,cb:0.5,cc:0.3,iter:0.7}},
-  {name:'Romanesco',grp:'BULB', kind:'3D', mode:44,p:{morph:0.5,detail:0.3,speed:0.5,zoom:0.42,hue:0.25,ca:0.5,cb:0.45,cc:0.35,iter:0.5}}
+  {name:'Romanesco',grp:'BULB', kind:'3D', mode:44,p:{morph:0.5,detail:0.3,speed:0.5,zoom:0.42,hue:0.25,ca:0.5,cb:0.45,cc:0.35,iter:0.5}},
+  {name:'Quadratic Map', grp:'ATTR', kind:'2DC', mode:117,p:{morph:0.3,detail:0.5,speed:0.3,zoom:0.5,hue:0.02,ca:0.0,cb:0.45,cc:0.85,iter:0.3}},
+  {name:'Clifford',      grp:'ATTR', kind:'2DC', mode:118,p:{morph:0.5,detail:0.5,speed:0.4,zoom:0.5,hue:0.55,ca:0.5,cb:0.45,cc:0.8,iter:0.4}},
+  {name:'Halvorsen',     grp:'ATTR', kind:'2DC', mode:119,p:{morph:0.5,detail:0.55,speed:0.5,zoom:0.5,hue:0.75,ca:0.5,cb:0.45,cc:0.6,iter:0.45}},
+  {name:'Rössler',       grp:'ATTR', kind:'2DC', mode:120,p:{morph:0.55,detail:0.55,speed:0.5,zoom:0.5,hue:0.12,ca:0.4,cb:0.45,cc:0.7,iter:0.45}}
 ];
 
 const SLIDER_DEFS = [
@@ -4483,20 +4460,23 @@ const _mapFor = m => _normFor(m).def + 'float mapG(vec3 p,out float trap){\n  tr
 const _2D_PATH = m => m<=9 ? ['P_E2A','escape2(uv,uMode-6)']
   : m===10 ? ['P_TUN','tunnel(uv)']
   : m===11 ? ['P_FLW','flow(uv)']
-  : (m>=37 && m<=39) ? ['P_E2C','escape2c(uv,uMode-37)']
+  : (m>=37 && m<=39) ? ['P_E2C','escape2c(uv,'+(m-37)+')', 'P_E2C'+m]
            : ['P_E2B','escape2b(uv,uMode-17)'];
 const _frag2D = m => {
   const [def, call] = _2D_PATH(m);
   // Single call site. A two-copy blend here doubled the inlined escape loop and
   // hung the driver's compile (the reload loop). The endless loop for these
   // scenes zooms the view by uZX and the host crossfades at the wrap.
-  return _HEAD + '#define '+def+' 1\n' + _B2 + _VID
-    + _TAILSRC.replace(_DISPATCH, '  vec3 col='+call.replace('(uv', '((uv-uFocus)*exp2(-uZX.x*uZX.y*uZX.z)')+';\n');
+  // Repeat goes on the screen point before the family sees it (rep2), and its
+  // per-copy hue and border on the color after — still one call site.
+  return _HEAD + '#define '+def+' 1\n' + (def==='P_E2C' ? '#define E2C_K '+(m-37)+'\n' : '') + _B2 + _VID
+    + _TAILSRC.replace(_DISPATCH, '  vec3 col='+call.replace('(uv', '((rep2(uv)-uFocus)*exp2(-uZX.x*uZX.y*uZX.z)')+';\n'
+      + '  if(uRep>0.0) col=hueRot(col,gRepH*6.2831853)*gRepB;\n');
 };
 const FRAG_SYN = _HEAD + _BS + _VID + _tail('synth(uv,uMode-22)');
 const FAM_OF = m => m>=90 ? 'can'
   : (m<=5 || (m>=12 && m<=16) || (m>=30 && m<=36) || m===41 || m===42 || m===43 || m===44 || m===45) ? ('3d:'+m)
-  : (m>=22 && m<30 ? 'syn' : '2d:'+_2D_PATH(m)[0]);
+  : (m>=22 && m<30 ? 'syn' : '2d:'+(_2D_PATH(m)[2] || _2D_PATH(m)[0]));
 // Drop every function main() can never reach. Each program carries the whole
 // helper library (every family's estimator, every 2D shader), and on Windows the
 // D3D11 compiler optimizes all of it at link time whether called or not — on an
