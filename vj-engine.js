@@ -164,9 +164,12 @@ void main(){
       tp=t; t+=max(0.0025+t*0.0015,(p.y-h)*0.42); if(t>9.0) break;
     }
     float dofk=clamp(uTerrFog,0.0,1.0);
-    // Horizon glow in the scene's own color, fading up into the void.
+    // Horizon haze, fading up into the void. The haze and the low mist take
+    // their hue from the same color scheme as the water (waterTint), at the
+    // scene's average brightness, so the three read as one designed palette.
     float hz=clamp(rd.y+0.08,0.0,1.0);
-    vec3 sky=mix(tint*(0.18+0.25*uLoud)+avg*0.6, voidc, smoothstep(0.0,0.35,hz));
+    vec3 fogc=waterTint(tint); float fogL=dot(avg,vec3(0.2126,0.7152,0.0722));
+    vec3 sky=mix(fogc*(0.18+0.25*uLoud+fogL*0.6), voidc, smoothstep(0.0,0.35,hz));
     vec3 ld=normalize(vec3(0.55,0.42,0.35));
     if(hit){
       for(int k=0;k<6;k++){ float tm=0.5*(tp+t); vec3 p=ro+rd*tm; if(p.y<max(TH(p.xz)*Hh,wl)) t=tm; else tp=tm; }
@@ -260,7 +263,7 @@ void main(){
       vec2 mx=(ro.xz+rd.xz*min(T,3.0))*2.2;
       float br=0.65+0.35*sin(mx.x+uTime*0.35)*sin(mx.y*0.8-uTime*0.27);
       float fa=1.0-exp(-max(od,0.0)*(0.8+uLoud*0.8)*br);
-      vec3 mc=tint*(0.12+0.18*uLoud)+avg*0.55+vec3(0.015);
+      vec3 mc=fogc*(0.12+0.18*uLoud+fogL*0.55)+vec3(0.015);
       tcol=mix(tcol, mc, clamp(fa,0.0,0.5));
     }
     terr=true;
@@ -620,31 +623,24 @@ vec2 wvLR(float x){ return texture(uSpec, vec2(clamp(x,0.0,1.0),0.75)).rg*2.0-1.
 float wvL(float x){ return wvLR(x).x; }
 
 mat2 rot(float a){float c=cos(a),s=sin(a);return mat2(c,-s,s,c);}
-// Repeat on the 2D families: the frame tiled into a wall of copies. uRep is the
-// cell size in screen units (0 off), uRepV is (border, turn, variety, drift).
-// Alternate cells are mirrored, so with Turn and Variety at zero neighboring
-// copies meet edge to edge as one seamless pattern. Turn adds a rotation per
-// copy, Variety a per-copy zoom (a scale of the screen point is exactly a zoom
-// about the frame's center) and a hue shift, Drift slides the whole wall, and
-// the border separates the copies. Returns the point in full-frame units, so
-// each cell shows the middle of the frame as it would be without Repeat.
+// Repeat on the 2D families: the frame tiled into an even wall of whole copies.
+// uRep is the cell height in screen units (2/n for n rows, 0 off), uRepV.w the
+// drift. Each cell has the frame's own shape and shows the entire frame scaled
+// down, and n rows by n columns fill the screen exactly, so no copy is cut at
+// the screen edge (an even count shifts the grid half a cell so a seam, not a
+// copy, sits at the center). Alternate cells are mirrored, so neighbors meet
+// edge to edge as one seamless pattern. No per-copy border, turn or variety:
+// those broke the illusion of a tiled wall.
 float gRepH=0.0, gRepB=1.0;
 vec2 rep2(vec2 uv){
   gRepH=0.0; gRepB=1.0;
   if(uRep<=0.0) return uv;
-  vec2 q=uv+vec2(1.0,0.618)*uTime*0.04*uRepV.w;
-  vec2 id=floor(q/uRep+0.5), lp=q-id*uRep;
-  vec2 h=fract(sin(vec2(dot(id,vec2(127.1,311.7)),dot(id,vec2(269.5,183.3))))*43758.5453);
-  if(uRepV.x>0.004){
-    vec2 e=abs(lp)-uRep*0.5*(1.0-uRepV.x*0.24);
-    float px=2.0/max(uRes.y,1.0);
-    gRepB=1.0-smoothstep(-px,px,max(e.x,e.y));
-  }
+  float asp=uRes.x/max(uRes.y,1.0), n=floor(2.0/uRep+0.5);
+  vec2 cell=vec2(uRep*asp,uRep);
+  vec2 q=uv+(mod(n,2.0)<0.5 ? cell*0.5 : vec2(0.0))+vec2(1.0,0.618)*uTime*0.04*uRepV.w;
+  vec2 id=floor(q/cell+0.5), lp=q-id*cell;
   if(mod(id.x,2.0)>0.5) lp.x=-lp.x;
   if(mod(id.y,2.0)>0.5) lp.y=-lp.y;
-  lp*=rot((h.x-0.5)*6.2831853*uRepV.y);
-  lp*=exp2((h.y-0.5)*1.8*uRepV.z);
-  gRepH=(fract(h.x*7.31+h.y*3.17)-0.5)*0.4*uRepV.z;
   return lp/(uRep*0.5);
 }
 // Rotate a color's hue about the gray axis by a radians.

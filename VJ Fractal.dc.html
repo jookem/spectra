@@ -948,7 +948,7 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
                   <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
                 </sc-for>
               </select>
-              <select value="{{ waterHueSel }}" onChange="{{ setWaterHue }}" title="How far the water hue turns from the scene, so the two stay apart" style="display:{{ waterHueDisp }};font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid var(--acc30);background:rgba(8,9,10,0.34);color:var(--acc);appearance:none;-webkit-appearance:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+              <select value="{{ waterHueSel }}" onChange="{{ setWaterHue }}" title="Color scheme for the water and the terrain fog: how far their hue turns from the scene, so they stay apart" style="display:{{ waterHueDisp }};font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid var(--acc30);background:rgba(8,9,10,0.34);color:var(--acc);appearance:none;-webkit-appearance:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
                 <sc-for list="{{ waterHueOptions }}" as="o" hint-placeholder-count="4">
                   <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
                 </sc-for>
@@ -960,6 +960,11 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
               </select>
               <select value="{{ lineSel }}" onChange="{{ setLine }}" title="{{ lineTitle }}" style="display:{{ lineDisp }};font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid var(--acc30);background:rgba(8,9,10,0.34);color:var(--acc);appearance:none;-webkit-appearance:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
                 <sc-for list="{{ lineOptions }}" as="o" hint-placeholder-count="4">
+                  <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
+                </sc-for>
+              </select>
+              <select value="{{ camRepSel }}" onChange="{{ setCamRep }}" title="Repeat: tile the 2D scene into an even wall of whole copies of the frame" style="display:{{ rep2Disp }};font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid {{ camRepBorder }};background:rgba(8,9,10,0.34);color:{{ camRepFg }};appearance:none;-webkit-appearance:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+                <sc-for list="{{ camRepOptions }}" as="o" hint-placeholder-count="3">
                   <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
                 </sc-for>
               </select>
@@ -1368,7 +1373,7 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
               <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
             </sc-for>
           </select>
-          <select value="{{ waterHueSel }}" onChange="{{ setWaterHue }}" title="How far the water hue turns from the scene, so the two stay apart" style="display:{{ waterHueDisp }};flex:1 1 0;min-width:0;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;padding:8px 4px;min-height:{{ selH }};box-sizing:border-box;cursor:pointer;appearance:none;-webkit-appearance:none;text-align:center;border:1px solid var(--acc30);color:var(--acc);background:rgba(8,9,10,0.34);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+          <select value="{{ waterHueSel }}" onChange="{{ setWaterHue }}" title="Color scheme for the water and the terrain fog: how far their hue turns from the scene, so they stay apart" style="display:{{ waterHueDisp }};flex:1 1 0;min-width:0;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;padding:8px 4px;min-height:{{ selH }};box-sizing:border-box;cursor:pointer;appearance:none;-webkit-appearance:none;text-align:center;border:1px solid var(--acc30);color:var(--acc);background:rgba(8,9,10,0.34);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
             <sc-for list="{{ waterHueOptions }}" as="o" hint-placeholder-count="4">
               <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
             </sc-for>
@@ -1380,6 +1385,11 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
           </select>
           <select value="{{ lineSel }}" onChange="{{ setLine }}" title="{{ lineTitle }}" style="display:{{ lineDisp }};flex:1 1 0;min-width:0;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;padding:8px 4px;min-height:{{ selH }};box-sizing:border-box;cursor:pointer;appearance:none;-webkit-appearance:none;text-align:center;border:1px solid var(--acc30);color:var(--acc);background:rgba(8,9,10,0.34);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
             <sc-for list="{{ lineOptions }}" as="o" hint-placeholder-count="4">
+              <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
+            </sc-for>
+          </select>
+          <select value="{{ camRepSel }}" onChange="{{ setCamRep }}" title="Repeat: tile the 2D scene into an even wall of whole copies of the frame" style="display:{{ rep2Disp }};flex:1 1 0;min-width:0;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;padding:8px 4px;min-height:{{ selH }};box-sizing:border-box;cursor:pointer;appearance:none;-webkit-appearance:none;text-align:center;border:1px solid {{ camRepBorder }};color:{{ camRepFg }};background:rgba(8,9,10,0.34);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+            <sc-for list="{{ camRepOptions }}" as="o" hint-placeholder-count="3">
               <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
             </sc-for>
           </select>
@@ -1398,7 +1408,8 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
             </sc-for>
           </select>
         </div>
-        <sc-if value="{{ repOn }}" hint-placeholder-val="{{ false }}">
+        </sc-if>
+        <sc-if value="{{ repStripOn }}" hint-placeholder-val="{{ false }}">
         <div style="display:flex;flex-direction:column;gap:4px;padding:6px 8px;border:1px solid rgba(255,255,255,0.11);background:rgba(8,9,10,0.34);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
           <sc-for list="{{ repSliders }}" as="rs" hint-placeholder-count="5">
             <div title="{{ rs.tip }}" style="display:flex;align-items:center;gap:8px;">
@@ -1413,7 +1424,6 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
             </div>
           </sc-for>
         </div>
-        </sc-if>
         </sc-if>
       </div>
       <div style="display:flex;flex-direction:column;gap:6px;">
@@ -14179,7 +14189,7 @@ class Component extends DCLogic {
     'New attractors: Quadratic Map (Sprott’s 12-letter codes, 24 of them, stepping on the bar), Clifford, Halvorsen and Rössler.',
     'Attractors are colored by how fast the orbit moves, and flames gain detail maps and more color. Dials 11 and 12 set the spread and the color source.',
     'Zooming the Fields scenes no longer jitters: the camera holds its spot while there is detail and glides to the nearest busy area when it must move.',
-    'Repeat now tiles the 2D scenes into a wall of copies, or a seamless mirrored pattern with Turn and Variety at zero.',
+    'Repeat now tiles the 2D scenes into an even wall of whole copies of the frame, mirrored so neighbors meet seamlessly.',
     'Fewer GPU freezes: slow shader builds no longer lock the page, heavy frames are drawn in strips, and integrated GPUs open on the Mandelbrot. Water color schemes now work on every scene.'
   ]};
 
@@ -15382,6 +15392,13 @@ class Component extends DCLogic {
     if(d < 1e-5) return 0;                    // parked: nothing to dissolve
     const W = 0.06, near = Math.min(ph, 1 - ph);
     return near < W ? 0.55*(1 - near/W) : 0;
+  }
+
+  // Rows (and columns) of whole copies on the 2D Repeat wall: three on Tight
+  // and two on Loose at the default Copies setting, more as Copies goes down.
+  rep2Rows(){
+    const base = (this.state.camRep||0) === 1 ? 3 : 2;
+    return Math.max(2, Math.round(base/(0.6 + (this.state.repGap ?? 0.4))));
   }
 
   is2D(){
@@ -16803,12 +16820,11 @@ class Component extends DCLogic {
       // Spacing scales the preset cell: 0.6x to 1.6x of Tight/Loose.
       const rk = rk0 > 0 ? rk0*(0.6 + (this.state.repGap ?? 0.4)*1.0) : 0;
       this.repP = fam3 && rk>0 ? dfar*rk : 0;
-      // The 2D families tile the frame itself: the cell is in screen units
-      // (the frame is 2 tall), three rows on Tight and two on Loose, scaled by
-      // Spacing. this.repP stays 0 there, since it means a 3D lattice to the
-      // camera code below.
+      // The 2D families tile the frame itself: a whole number of rows (the
+      // frame is 2 tall), so the copies fill the screen evenly. this.repP
+      // stays 0 there, since it means a 3D lattice to the camera code below.
       const rep2D = !fam3 && this.is2D() && !this.isCanvasScene() && rk0 > 0
-        ? [0, 2/3, 1][this.state.camRep||0]*(0.6 + (this.state.repGap ?? 0.4)) : 0;
+        ? 2/this.rep2Rows() : 0;
       gl.uniform1f(u.uRep, fam3 ? this.repP : rep2D);
       if(u.uRepV) gl.uniform4f(u.uRepV, this.state.repSize ?? 0.26, this.state.repTurn ?? 1, this.state.repVar ?? 1, this.state.repDrift ?? 0.5);
       const cmv = fam3 ? (this.state.camView||0) : 0;
@@ -17984,21 +18000,16 @@ class Component extends DCLogic {
       waterOnSel: s.voidWater === false ? '0' : '1',
       waterOnOptions: [{v:'1',tag:'Empty: Water'},{v:'0',tag:'Empty: Black'}],
       setWaterOn: (e)=>this.setState({voidWater: e.target.value !== '0'}),
-      waterOnDisp: ((s.p.dpth||0) <= 0.001 && this.E && !this.isCanvasScene()) ? 'block' : 'none',
       // Water hue as a color harmony against the scene: how far round the
       // wheel the water's tint turns, or the same hue made deeper (mono).
       waterHueSel: s.waterScheme || 'split',
       waterHueOptions: this.WATER_SCHEMES.map(([v,tag])=>({v, tag:'Water: '+tag})),
       setWaterHue: (e)=>this.setState({waterScheme: e.target.value}),
-      waterHueDisp: (((s.p.dpth||0) <= 0.001 && s.voidWater !== false && this.E && !this.isCanvasScene()) || ((s.p.dpth||0) > 0.001 && String(s.dmode)==='2' && ((s.terrLow ?? 3) & 1))) ? 'block' : 'none',
       terrLowSel: String(s.terrLow ?? 3),
       terrLowOptions: [{v:'3',tag:'Water + Mist'},{v:'1',tag:'Water'},{v:'2',tag:'Mist'},{v:'0',tag:'Dark water'}],
       setTerrLow: (e)=>this.setState({terrLow: parseInt(e.target.value,10)||0}),
-      terrLowDisp: ((s.p.dpth||0) > 0.001 && String(s.dmode)==='2') ? 'block' : 'none',
       dmodeOptions: [{v:'off',tag:'Depth Off'},{v:'0',tag:'Depth Relief'},{v:'1',tag:'Depth Parallax'},{v:'2',tag:'Depth Terrain'}],
       setDMode: (e)=>{ if(e.target.value==='off'){ this.setState(st=>({p:Object.assign({}, st.p, {dpth:0})})); return; } const v = parseInt(e.target.value,10)||0; this.setState(st=>({dmode:v, p: (st.p.dpth||0) > 0.001 ? st.p : Object.assign({}, st.p, {dpth:0.5})})); },
-      fieldSel: String(s.fieldFx || 0),
-      fieldOptions: [{v:'0',tag:'Field Off'},{v:'1',tag:'Field Grid'},{v:'2',tag:'Field Orbits'},{v:'3',tag:'Field Both'}],
       setField: (e)=>this.setState({fieldFx: parseInt(e.target.value,10)||0}),
       lineSel: String(s.lineFx || 0),
       lineOptions: [{v:'0',tag:'Line Off'},{v:'1.5',tag:'Line Fine'},{v:'6',tag:'Line Soft'},{v:'18',tag:'Line Single'}],
@@ -18117,15 +18128,31 @@ class Component extends DCLogic {
         // Field structure is drawn by the escape-time shading only.
         const p = (this.E && this.E.PRESETS[s.preset]) || {}, md = p.mode;
         const can = p.kind === '2DC', k3 = !can && this.E && String(this.E.FAM_OF(md)).slice(0,3) === '3d:';
+        // Spin is dead on Sine Lambda (its escape path skips the turn) and on
+        // Mirror Tunnel and Flow, which never read it. Repeat reaches the 3D
+        // lattices and the shader 2D wall, not the synth or canvas scenes.
         const NO = ' — no effect on this scene';
-        const spinOk = !can, rollOk = k3 || md === 93, trailOk = !can, dmodeOk = !can && !k3, fieldOk = p.grp === 'FLD' && md <= 9, lineOk = this.lineOk(md);   // grid + orbit traces exist only on the escape2 path
+        const spinOk = !can && md !== 8 && md !== 10 && md !== 11, rollOk = k3 || md === 93, trailOk = !can, dmodeOk = !can && !k3, fieldOk = p.grp === 'FLD' && md <= 9, lineOk = this.lineOk(md);   // grid + orbit traces exist only on the escape2 path
+        const rep2Ok = !can && !k3 && p.kind === '2D';
+        const dpOn = (s.p.dpth||0) > 0.001;
+        const waterOn = dmodeOk && !dpOn, terrOn = dmodeOk && dpOn && String(s.dmode) === '2';
+        // The terrain's haze and mist share the water's color scheme, so the
+        // scheme applies on Terrain whatever fills the low ground.
+        const hueOn = (waterOn && s.voidWater !== false) || terrOn;
         return {
+          rep2Disp: rep2Ok ? 'block' : 'none',
+          waterOnDisp: waterOn ? 'block' : 'none',
+          terrLowDisp: terrOn ? 'block' : 'none',
+          waterHueDisp: hueOn ? 'block' : 'none',
+          // Sine Lambda's escape path draws the grid but not the orbit traces.
+          fieldOptions: [{v:'0',tag:'Field Off'},{v:'1',tag:'Field Grid'}].concat(md === 8 ? [] : [{v:'2',tag:'Field Orbits'},{v:'3',tag:'Field Both'}]),
+          fieldSel: md === 8 ? ((s.fieldFx|0) & 1 ? '1' : '0') : String(s.fieldFx || 0),
           rotGroupDisp: (spinOk || rollOk) ? 'flex' : 'none',
           spinDisp: spinOk ? 'block' : 'none', spinTitle: 'Ambient rotation: clockwise, off, counter-clockwise — rate follows Speed (R)' + (spinOk ? '' : NO),
           rollDisp: rollOk ? 'block' : 'none', rollTitle: 'Vertical roll: forward, off, backward — rate follows Speed (Shift-R)' + (rollOk ? (s.auto ? '' : ' — runs while Auto is on') : NO),
           trailDisp: trailOk ? 'flex' : 'none', trailTitle: trailOk ? 'Frame feedback trail; Drift zooms and turns it' : 'Trail and Drift' + NO,
           dmodeDisp: dmodeOk ? 'block' : 'none', dmodeTitle: 'How the Depth trim shows on 2D scenes' + (dmodeOk ? '' : NO),
-          lookCols: k3 ? 'repeat(2,minmax(0,1fr))' : 'repeat('+(2+(dmodeOk?1:0)+(fieldOk?1:0)+(lineOk?1:0))+',minmax(0,1fr))',
+          lookCols: k3 ? 'repeat(2,minmax(0,1fr))' : 'repeat('+(2+(dmodeOk?1:0)+(waterOn?1:0)+(terrOn?1:0)+(hueOn?1:0)+(fieldOk?1:0)+(lineOk?1:0)+(rep2Ok?1:0))+',minmax(0,1fr))',
           lineDisp: lineOk ? 'block' : 'none', lineTitle: 'Draw the set as one glowing outline' + (lineOk ? '' : NO),
           fieldDisp: fieldOk ? 'block' : 'none', fieldTitle: 'Structure drawn in the empty space around Fields scenes' + (fieldOk ? '' : NO),
         };
@@ -18164,13 +18191,10 @@ class Component extends DCLogic {
         setVecStyle: (ev) => this.setVec({style: parseInt(ev.target.value)||0}),
         setVecMode: (ev) => { const [b, sc] = ev.target.value.split('-'); this.setVec({only: b === 'only'}, sc === 'one'); },
       }; })(),
-      // On the 2D scenes Repeat is a wall of the frame: the same five values,
-      // read as a border, cell size, turn, per-copy zoom and color, and a slide.
+      // On the 2D scenes Repeat is an even wall of whole copies of the frame:
+      // only the count and the slide apply.
       repSliders: ((this.is2D && this.is2D() && !this.isCanvasScene()) ? [
-        ['repSize','Border',0.26,'Dark gap between copies; zero makes the wall seamless',v=>Math.round(v*100)+'%'],
-        ['repGap','Spacing',0.4,'Size of each copy',v=>(0.6+v).toFixed(2)+'x'],
-        ['repTurn','Turn',1,'How far each copy is rotated; at zero neighbors mirror each other',v=>Math.round(v*100)+'%'],
-        ['repVar','Variety',1,'How much each copy differs in depth and color',v=>Math.round(v*100)+'%'],
+        ['repGap','Copies',0.4,'How many copies fill the screen; each holds the whole frame',()=>{ const n = this.rep2Rows(); return n+'×'+n; }],
         ['repDrift','Drift',0.5,'How fast the wall slides across the frame',v=>Math.round(v*100)+'%'],
       ] : [
         ['repSize','Min size',0.26,'Smallest copy, as a fraction of full size',v=>Math.round(v*100)+'%'],
