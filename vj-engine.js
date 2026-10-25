@@ -683,6 +683,12 @@ vec3 pal(float t){
   c=pow(max(c,0.0),vec3(uGam));
   return c;
 }
+// Hue complement at the same luma-ish level: a half turn about the gray axis,
+// which for any RGB is just 2*mean - c. The 2D shading uses it so shadow light,
+// haze and the set interior sit opposite the accent on the color wheel instead
+// of on another arbitrary point of the ramp — arbitrary taps summed together
+// were most of what turned the Fields brown.
+vec3 comp(vec3 c){ return max(vec3(dot(c,vec3(0.6667)))-c, 0.0); }
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
   float a=hash(i),b=hash(i+vec2(1,0)),c=hash(i+vec2(0,1)),d=hash(i+vec2(1,1));
@@ -836,15 +842,24 @@ vec3 esc_shade(float i,float maxi,float m,vec2 z,vec2 dz,float st,float sn,float
   float bw=clamp(pfw*mix(0.5,1.8,uSmooth),0.0,0.30);
   float stAmt=uCC*mix(1.0,0.38,uSmooth)*res;
   float band=fract(ph+stripe*stAmt*0.55);
-  // The mean is taken from the two ramp taps this function already needed — a
-  // dedicated four-tap average cost 4 extra pal() calls per pixel, and pal() is
-  // a long branch chain over every palette, which is what made the shader too
-  // heavy to link in reasonable time. Two antipodal taps are a good enough
-  // average for a cyclic ramp and here they are free.
+  // Where the cycle is unresolvable the color falls back to a SLOW depth ramp,
+  // not the cycle's mean. The mean of a hue ramp is gray — two antipodal taps
+  // averaged is a color and its complement mixed — and that gray was most of
+  // the frame on a deep view, which is what read as dull. The slow ramp moves
+  // a fraction of a cycle across the whole depth range, so it is always
+  // resolvable and keeps full chroma.
   vec3 pA=pal(ph+uHigh*0.3+stripe*stAmt*1.1);
-  vec3 pB=pal(ph+0.5+uHigh*0.3);
-  vec3 col=mix((pA+pB)*0.5, pA, res);
-  col=mix(col, pB, smoothstep(0.42-bw,0.58+bw,band)*0.35*stAmt);
+  vec3 pB=pal(pow(tt,0.42)*0.85+uHigh*0.3);
+  vec3 col=mix(pB, pA, res);
+  // Stripes in value, not hue: blending toward a second hue desaturates, a
+  // darker step of the same hue keeps the band clean and reads as a groove.
+  col*=1.0-smoothstep(0.42-bw,0.58+bw,band)*0.38*stAmt;
+  // Value rhythm along the cycle. A cosine ramp holds nearly even luma round
+  // its loop, so neighboring shells only differ in hue and the eye cannot sort
+  // them into forms. A light-to-dark swing per cycle, as a hand-made gradient
+  // has, gives every shell a lit crest and a shaded trough. Faded with res so
+  // it never aliases.
+  col*=mix(1.0, 0.58+0.42*(0.5+0.5*cos(6.2831853*(ph+0.15))), res*mix(0.85,0.40,fillw));
 
   // Harmony scene: each escape shell is assigned one of the twelve pitch
   // classes, so a ring lights only while its note is actually sounding. The
@@ -883,7 +898,22 @@ vec3 esc_shade(float i,float maxi,float m,vec2 z,vec2 dz,float st,float sn,float
   // not punch holes in the field.
   col*=mix(shTint,liTint,dif)*mix(0.07+1.45*dif, 0.62+0.30*dif, fillw)
       *pow(ao,mix(1.35,0.40,fillw));
-  col+=pal(0.62)*bak*0.18*ao;
+  // Two color roles, not five. Every additive term used to tap the ramp at its
+  // own arbitrary offset, so on a rainbow the light, rim, trap and haze landed
+  // on unrelated hues and summed to brown. Now there is one accent — the light
+  // the boundary emits — and its complement, which carries everything on the
+  // shadow side. Warm light against a complementary shadow is the oldest
+  // separation there is, and it holds on any palette.
+  vec3 acc=pal(0.55+uBass*0.3);
+  vec3 cpl=comp(acc);
+  col+=cpl*bak*0.22*ao;
+  // Edge from the distance estimate, measured in pixels. A dark contact band
+  // a few pixels wide lies just outside the boundary, so the set and its
+  // filaments stand off the field as a drawn line does, instead of melting
+  // into the shells around them — the classic DEM look. Damped on the fill,
+  // whose subject is the bands rather than the outline.
+  float dePx=de/max(gPx,1e-12);
+  col*=mix(mix(0.22,1.0,smoothstep(0.5,3.5,dePx)), 1.0, fillw*0.6);
   // The additive boundary terms were tuned against the lit-relief exposure,
   // where the field under them sits near 0.1 and they read as highlights. On the
   // fill the field is already near 1.0, so the same terms push the bands past
@@ -892,13 +922,15 @@ vec3 esc_shade(float i,float maxi,float m,vec2 z,vec2 dz,float st,float sn,float
   // removed: a trace keeps the boundary from going dead.
   float addf=mix(1.0,0.22,fillw);
   col+=spec*0.55*(0.4+uHigh)*addf;
-  col+=pal(0.08+uMid*0.25)*rim*0.32*(0.5+uCB)*addf;
+  col+=mix(acc,vec3(1.0),0.25+uMid*0.25)*rim*0.32*(0.5+uCB)*addf;
   // This is the term that made the far field black: prox goes to zero as soon
   // as the shells stop being resolvable, leaving a 0.14 multiplier over most of
   // the frame. The fill holds it near one.
   col*=mix(0.14+1.25*prox, 0.94+0.16*prox, fillw);
-  col+=pal(0.55+uBass*0.3)*fil*2.1*fadeHF*res*addf;   // boundary filament
-  col+=pal(0.18+uMid*0.3)*exp(-tr*16.0)*0.75*fadeHF*res*addf;          // orbit-trap filigree
+  col+=acc*fil*2.1*fadeHF*res*addf;   // boundary filament
+  // Filigree is the accent a step paler — the same hue at a higher value, so it
+  // reads as a highlight on the filament rather than a third color.
+  col+=mix(acc,vec3(1.0),0.35+uMid*0.2)*exp(-tr*16.0)*0.75*fadeHF*res*addf;   // orbit-trap filigree
   // Depth haze. Aerial perspective is what tells the eye that one part of an
   // image is further away than another, and an escape-time plot has a perfect
   // depth channel sitting unused: the smooth iteration count. Shells the orbit
@@ -906,14 +938,24 @@ vec3 esc_shade(float i,float maxi,float m,vec2 z,vec2 dz,float st,float sn,float
   // tint and lose contrast, while the boundary filaments stay full strength in
   // front of them. prox keeps the near structure out of the fog.
   float fogd=clamp(pow(tt,0.70),0.0,1.0)*(1.0-prox*0.55);
-  vec3 fogc=pal(0.60+uCB*0.12)*0.30;
-  col=mix(col,fogc,fogd*mix(0.20,0.58,uSpan)*mix(1.0,0.14,fillw));
+  // The haze is the shadow color, cooled: distance in a painting goes toward
+  // the complement and toward blue, never toward a mid gray, which is what
+  // the old ramp tap at 0.60 amounted to once the palette cycled past it.
+  // Deep and saturated rather than light and gray: on a wide view most of the
+  // frame IS far field, and a pale haze over all of it is a gray screen. A dark
+  // jewel tone behind a bright accent is the figure-ground contrast wanted.
+  float cl=dot(cpl,vec3(0.3333));
+  vec3 fogc=mix(vec3(cl)+(cpl-cl)*1.7, vec3(cl)*vec3(0.70,0.88,1.30), 0.25+uCB*0.2);
+  fogc=max(fogc,0.0)*0.17;
+  col=mix(col,fogc,fogd*mix(0.12,0.36,uSpan)*mix(1.0,0.14,fillw));
   float lm=dot(col,vec3(0.2126,0.7152,0.0722));
   // Aerial desaturation is a depth cue for the relief read. A fill plot is flat
   // by intention and wants full chroma edge to edge, so the fill skips it and
   // instead pushes chroma slightly PAST the palette to get the saturated
   // yellow-into-red sweeps rather than a pastel wash.
-  col=mix(vec3(lm)*vec3(0.86,0.92,1.06),col,mix(0.55+0.45*prox,1.0,fillw));
+  // Held to a light touch: at 0.55 the far field lost almost half its chroma,
+  // which with the fog on top left it gray-olive whatever the palette.
+  col=mix(vec3(lm)*vec3(0.86,0.92,1.06),col,mix(0.80+0.20*prox,1.0,fillw));
   // Saturate BEFORE the tone map has anything to clip: pulling the luma down as
   // chroma goes up keeps the band inside the knee, so a hot band turns redder
   // instead of turning white.
@@ -1030,6 +1072,21 @@ vec3 esc_in(float tr,float st,float sn,vec2 dz,float maxi){
     ic += pal(0.16+dome*0.42+uCB*0.10)*(dl*0.30+tl*0.20+hl*0.14)*amt;
     ic *= 1.0-0.22*amt*(1.0-dl)*(1.0-tl);
   }
+  // Figure and ground by hue as well as value. The interior drew from the same
+  // ramp as the exterior at similar brightness, so the set's silhouette — the
+  // one shape everyone knows — dissolved into the field. Pulling it toward the
+  // complement of the exterior's accent, a step darker, keeps the shape legible
+  // at a glance while the contour work above still reads inside it.
+  float il=dot(ic,vec3(0.2126,0.7152,0.0722));
+  // The complement is saturated up before use, since the complement of a
+  // pastel is itself near gray, and the whole body sits low in value: a deep
+  // jewel-toned silhouette the lit boundary glows against, not a pale plate.
+  // Opposite the color the exterior takes AT the boundary — its slow depth
+  // ramp at full depth, pal(0.85) — since that is the color the body touches,
+  // and the edge between them is where the contrast has to be.
+  vec3 ik=comp(pal(0.85+uHigh*0.3)); float ikl=dot(ik,vec3(0.3333));
+  ik=max(vec3(ikl)+(ik-ikl)*1.8, 0.0);
+  ic=mix(ic, ik*il*1.7, 0.55)*0.58;
   return ic;
 }
 
@@ -3091,8 +3148,21 @@ vec3 escape2c(vec2 uv,int kind){
     }
     float lam=sum/float(N);
     float tv=clamp(lam*mix(0.8,2.2,uDetail),-1.0,1.0);
-    vec3 col = lam<0.0 ? pal(0.62-tv*0.5+uHigh*0.3+uCC*0.4)*(0.14+0.86*(-tv))
-                       : pal(0.06+tv*0.55+uMid*0.25)*(0.18+1.1*tv);
+    // The exponent is a height field: stable basins rise toward -1, chaos sinks
+    // toward +1, and the zero line between is the fold. Lighting its screen
+    // gradient turns the flat color-by-number plates into the lit, ribboned
+    // shells the Lyapunov plot is known for, so the swallows read as forms.
+    vec2 lg=vec2(dFdx(tv),dFdy(tv));
+    vec3 ln=normalize(vec3(-lg*9.0/(1.0+length(lg)*5.0),1.0));
+    vec3 lL=normalize(vec3(0.62,0.74,0.80));
+    float ldif=clamp(dot(ln,lL),0.0,1.0);
+    float lspc=pow(clamp(dot(reflect(-lL,ln),vec3(0.0,0.0,1.0)),0.0,1.0),24.0);
+    vec3 sk=pal(0.62-tv*0.5+uHigh*0.3+uCC*0.4);
+    // Chaos sits on the complement of the stable hue and a long way down in
+    // value, so the two regimes separate by hue and by brightness at once
+    // instead of being two arbitrary taps on the same ramp.
+    vec3 col = lam<0.0 ? sk*(0.10+0.95*(-tv))*(0.40+0.85*ldif)+mix(sk,vec3(1.0),0.5)*lspc*0.45*(-tv)
+                       : mix(pal(0.06+tv*0.55+uMid*0.25), comp(sk), 0.55)*(0.06+0.55*tv)*(0.55+0.6*ldif);
     return col*(0.8+0.5*uLoud)+uBeat*0.1;
   }
   if(kind==2){

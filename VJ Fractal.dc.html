@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<script src="./support.js?v=b37"></script>
+<script src="./support.js?v=b38"></script>
 <meta name="ext-resource-dependency" content="./csi.js" data-resource-id="csiJs">
 </head>
 <body>
@@ -34,12 +34,12 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
   @keyframes vjspin{to{transform:rotate(360deg)}}
   @keyframes vjscan{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
 </style>
-<script src="vj-engine.js?v=b37"></script>
-<script src="deep-zoom.js?v=b37"></script>
-<script src="cam-fly.js?v=b37"></script>
-<script src="wave-mesh.js?v=b37"></script>
-<script src="wave-gl.js?v=b37"></script>
-<script src="scene-thumbs.js?v=b37"></script>
+<script src="vj-engine.js?v=b38"></script>
+<script src="deep-zoom.js?v=b38"></script>
+<script src="cam-fly.js?v=b38"></script>
+<script src="wave-mesh.js?v=b38"></script>
+<script src="wave-gl.js?v=b38"></script>
+<script src="scene-thumbs.js?v=b38"></script>
 </helmet>
 <template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#08090A"/><circle cx="50" cy="50" r="22" fill="none" stroke="#C8FF2E" stroke-width="3"/><circle cx="50" cy="50" r="11" fill="none" stroke="#C8FF2E" stroke-width="2" opacity="0.6"/><circle cx="50" cy="50" r="3.5" fill="#C8FF2E"/></svg></template>
 <div style="position:relative;width:100vw;height:100dvh;overflow:hidden;background:#08090A;font-family:'JetBrains Mono',ui-monospace,monospace;color:#F2F3F0;user-select:none;-webkit-user-select:none;">
@@ -106,7 +106,7 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
           <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.42);">A SWRV Systems production</div>
           <div style="width:18px;height:1px;background:rgba(242,243,240,0.25);"></div>
         </div>
-        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 37 · 24 Oct 2026</div>
+        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 38 · 25 Oct 2026</div>
       </div>
       <div style="max-width:420px;text-align:center;font-size:12.5px;line-height:1.7;color:rgba(242,243,240,0.55);">The visuals are driven entirely by what the microphone hears. Nothing is recorded or sent anywhere.</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:10px;width:100%;max-width:470px;">
@@ -180,7 +180,7 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
     <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
       <div style="font-family:Archivo,sans-serif;font-weight:700;font-size:54px;letter-spacing:-0.03em;line-height:1;">SPECTRA</div>
       <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.36);">A SWRV Systems production</div>
-      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 37 · 24 Oct 2026</div>
+      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 38 · 25 Oct 2026</div>
     </div>
     <div ref="{{ warmWrapRef }}" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
       <div style="width:260px;height:2px;background:rgba(255,255,255,0.1);">
@@ -2030,7 +2030,9 @@ class Component extends DCLogic {
           // Travel is the primary move on the 2D families: on a set you are
           // reading a location, so moving the frame across it is the gesture
           // that matters. Rotation is one modifier away.
-          if(D.alt) rot(); else pan(1.8, -1.8);
+          // Rotation runs the other way from 3D's: there yaw turns the camera,
+          // here it turns the sampling plane, which the picture follows inverted.
+          if(D.alt) this.cam.yaw = D.yaw - dx*3.4 - dy*0.6; else pan(1.8, -1.8);
         } else if(this.isCanvasScene()){
           // The vanishing point goes where the pointer is: tap to send it
           // there, drag and it follows. Alt / right drag tilts the horizon.
@@ -2265,7 +2267,9 @@ class Component extends DCLogic {
             // turn (yaw). Fly and Surface have no twist; their drag looks around.
             if(orb3()){ let nr=(T.roll0||0)-da; if(nr>Math.PI) nr-=Math.PI*2; else if(nr<-Math.PI) nr+=Math.PI*2; this.cam.roll=nr; }
             else if(this.isCanvasScene && this.isCanvasScene()) this.scnYaw=(T.sy0||0)-da;
-            else if(this.is2D()) this.cam.yaw = T.yaw0 - da*1.6;
+            // The sampling point is turned by +yaw, so the picture turns by
+            // -yaw: adding the finger angle is what makes it turn WITH the hand.
+            else if(this.is2D()) this.cam.yaw = T.yaw0 + da;
           } else if(T.rot){
             const R=T.rot;
             this.cam.yaw=R.yaw-(cx-R.x)/W*3.4;
@@ -3665,16 +3669,19 @@ class Component extends DCLogic {
     const uBoot = this.u;
     if(!this.u) this.u = {};
     this.PB = 32;
+    // Twice as wide as it is tall, so the 2D framing probe can render the
+    // screen's own aspect (see probeSd); the square probes use the left PB×PB.
+    this.PBW = this.PB*2;
     this.probeTex = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, this.probeTex);
-    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,this.PB,this.PB,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,this.PBW,this.PB,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
     gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
     this.probeFB = gl.createFramebuffer();
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.probeFB);
     gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,this.probeTex,0);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    this.probePx = new Uint8Array(this.PB*this.PB*4);
+    this.probePx = new Uint8Array(this.PBW*this.PB*4);
     // Separate 8-byte staging buffer for the pivot probe. The pivot readback is
     // asynchronous — a blocking readPixels in the middle of a frame drains the
     // GPU pipeline and that showed up as rotation stutter — so it packs into a
@@ -13364,8 +13371,11 @@ class Component extends DCLogic {
     const spn = this.state.spin ?? 1, tt = this.shClock || 0;
     const auto = md2 >= 17 ? tt*0.02*spn : (md2 === 8 ? 0 : tt*0.03*spn);
     const cam = this.cam || {};
+    // goldRot is part of uCamYaw too. Left out here, the pan was turned by a
+    // different angle than the picture — on Julia, 137.5 degrees, so a drag
+    // ran nearly backwards and every Fields scene had its own wrong direction.
     const a = auto + (cam.yaw||0) + (this.gYaw||0) + (this.imuYaw||0)
-            + (this.lvlRot||0) + (md2 < 17 ? (cam.roll||0) : 0);
+            + (this.lvlRot||0) + this.goldRot() + (md2 < 17 ? (cam.roll||0) : 0);
     return Number.isFinite(a) ? a : 0;
   }
 
@@ -13570,11 +13580,12 @@ class Component extends DCLogic {
 
   // Start screen: the notes for this build. Keep it to what a returning user
   // would notice, newest first, and replace it on every release.
-  WHATS_NEW = {b:37, date:'24 Oct 2026', items:[
-    'Lights now live in the fractal itself, one set per recursion level: the first cut at the center, then each finer level outward, each in its own color. A lit front steps through the levels with the music.',
-    'Flow (parameter 12 on 3D scenes) moves that front: right of center it travels outward from the core, left of center back in, centered it holds on one level. On 2D scenes the same dial is Exposure.',
-    'DOF, Rim and Lights are now parameters 13 to 15, with automation like the rest. Trim keeps the color controls.',
-    'Depth of field works like a real lens: it focuses on what is in the middle of the frame, and blur in front spills over the sharp subject behind it.'
+  WHATS_NEW = {b:38, date:'25 Oct 2026', items:[
+    'Fields scenes have new color: the boundary glows in one accent color and the body of the set sits in its complement, so the shapes stand out instead of blending into a gray-brown wash.',
+    'Fields framing checks the whole screen, not a small patch, so scenes open on detail instead of a flat lobe with a sliver of edge.',
+    'Endless zoom on Mandelbrot keeps the dive point centered, with the bulbs on one side and the busy detail on the other.',
+    'Dragging and twisting in Fields now move the picture the way your hand goes. They ran backwards on most of these scenes.',
+    'Lyapunov is lit as a surface, with the chaotic regions in the complement of the stable ones.'
   ]};
 
   // Installed means running from the home screen or app list, not a tab.
@@ -13626,38 +13637,73 @@ class Component extends DCLogic {
     if(!pr || pr.grp !== 'FLD' || !this.is2D()) return -1;
     return this.E.PRESETS.filter(p => p.grp === 'FLD').indexOf(pr);
   }
-  goldFocus(){
+  // The offset grows in with depth. Zoomed out, the subject is the whole set,
+  // and parking its center at 72% across pushed most of it off the frame —
+  // what was left on screen was empty field. The spiral composition is for the
+  // dive, where the anchor is a point and the frame is all detail round it.
+  // The endless loops stay centered: their anchor is a cascade limit with a
+  // chain of smooth bulbs down one side and the chaotic region down the other,
+  // and pushed off to 72% across, the spin kept swinging one big bulb over most
+  // of the frame. Centered, both sides share it at every angle.
+  goldFocus(zoom){
     const k = this.goldIdx(); if(k < 0) return [0,0];
     const asp = this.canvasRef.current ? this.canvasRef.current.width / Math.max(1, this.canvasRef.current.height) : 16/9;
-    const g = 0.4472136, sx = (k & 1) ? -1 : 1, sy = (k & 2) ? -1 : 1;
+    const z = zoom != null ? zoom : (this.zEffLast != null ? this.zEffLast : (this.eff && this.eff.zoom) || 0);
+    const t = this.zFree() ? 0 : Math.max(0, Math.min(1, (z - 0.10) / 0.35));
+    const g = 0.4472136 * t*t*(3 - 2*t), sx = (k & 1) ? -1 : 1, sy = (k & 2) ? -1 : 1;
     return [sx * g * asp, sy * g];
   }
   goldRot(){ const k = this.goldIdx(); return k < 0 ? 0 : (k * 2.3999632) % 6.2831853; }
+  // Framing probe for the 2D scenes. It renders what the screen will show —
+  // the screen's aspect and the golden-spiral focus offset included. It used to
+  // render a square patch with no offset, so roughly two thirds of the visible
+  // frame was never checked, and a center could pass while the screen showed a
+  // flat lobe with one sliver of boundary down its edge.
+  //
+  // The score is contrast weighted by COVERAGE: how much of the frame has local
+  // detail. A plain standard deviation is just as high for one bright filament
+  // across a flat plate as for a frame full of structure, so it could not tell
+  // the two apart. Below 40% coverage the score falls off proportionally, which
+  // the existing thresholds then reject and the search moves on.
   probeSd(zoom, ctr){
     const gl = this.gl, u = this.u, N = this.PB;
     if(!gl || !this.probeFB) return 99;
     if(this.pBudget <= 0){ this.pStarved = true; return -1; }
     this.pBudget--;
-    gl.uniform2f(u.uRes, N, N);
+    const cv = this.canvasRef.current;
+    const asp = cv ? cv.width / Math.max(1, cv.height) : 16/9;
+    const W = Math.max(N, Math.min(this.PBW || N, Math.round(N*asp)));
+    gl.uniform2f(u.uRes, W, N);
     gl.uniform1f(u.uZoom, zoom);
     gl.uniform2f(u.uCtr, ctr[0], ctr[1]);
-    if(u.uFocus) gl.uniform2f(u.uFocus, 0, 0);
+    if(u.uFocus){ const fo = this.goldFocus(zoom); gl.uniform2f(u.uFocus, fo[0], fo[1]); }
     gl.uniform1f(u.uFeed, 0);
     gl.uniform1f(u.uXfade, 0);
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.probeFB);
-    gl.viewport(0,0,N,N);
+    gl.viewport(0,0,W,N);
     gl.drawArrays(gl.TRIANGLES,0,3);
-    gl.readPixels(0,0,N,N,gl.RGBA,gl.UNSIGNED_BYTE,this.probePx);
+    gl.readPixels(0,0,W,N,gl.RGBA,gl.UNSIGNED_BYTE,this.probePx);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.uniform2f(u.uRes, gl.drawingBufferWidth, gl.drawingBufferHeight);
     gl.viewport(0,0,gl.drawingBufferWidth,gl.drawingBufferHeight);
-    const px = this.probePx; let s=0,s2=0; const n=N*N;
-    for(let i=0;i<n;i++){
-      const l = 0.299*px[i*4] + 0.587*px[i*4+1] + 0.114*px[i*4+2];
-      s += l; s2 += l*l;
+    const px = this.probePx, n = W*N;
+    const L = i => 0.299*px[i*4] + 0.587*px[i*4+1] + 0.114*px[i*4+2];
+    let s=0, s2=0, busy=0, cells=0;
+    for(let y=0;y<N;y++){
+      for(let x=0;x<W;x++){
+        const i = y*W + x, l = L(i);
+        s += l; s2 += l*l;
+        if(x+1 < W && y+1 < N){
+          cells++;
+          if(Math.abs(l - L(i+1)) + Math.abs(l - L(i+W)) > 9) busy++;
+        }
+      }
     }
     const m = s/n;
-    return Math.sqrt(Math.max(0, s2/n - m*m));
+    const sd = Math.sqrt(Math.max(0, s2/n - m*m));
+    const cov = cells ? busy/cells : 0;
+    this.probeCov = cov;
+    return sd * Math.min(1, cov/0.40);
   }
 
   // The three numbers the endless zoom runs on: a point the set is LINEARLY
@@ -13924,7 +13970,9 @@ class Component extends DCLogic {
         // Favour the body of the set over the outer strips: cells that are
         // mostly interior, whose left/right and up/down neighbors match
         // (a symmetric spot), and that sit near the scene's own center.
-        const bal = isMixed ? 200*(1-Math.min(1,Math.abs(inFrac-0.65)*2)) : 0;
+        // 0.5, not 0.65: at two-thirds interior the search parked on the body
+        // and the frame opened on flat lobes with the filigree round the edges.
+        const bal = isMixed ? 200*(1-Math.min(1,Math.abs(inFrac-0.5)*2)) : 0;
         const sym = 1 - (Math.abs(v[1]-v[2]) + Math.abs(v[3]-v[4]))/(2*maxi);
         const rr = Math.hypot(ox-cx, oy-cy)/span;
         const score = sd*(isMixed?1.0:0.6) + (isMixed?100:0) + bal + sym*160 - rr*90;
