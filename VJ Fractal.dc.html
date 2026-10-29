@@ -68,7 +68,9 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
   <input ref="{{ vidFileRef }}" type="file" accept="video/*" multiple="multiple" onChange="{{ vidFileChange }}" style="display:none;" />
   <input ref="{{ vidDirRef }}" type="file" webkitdirectory="" directory="" multiple="multiple" onChange="{{ vidFileChange }}" style="display:none;" />
   <canvas ref="{{ buildCanvasRef }}" style="position:absolute;inset:0;width:100%;height:100%;display:none;pointer-events:none;z-index:11;visibility:{{ localVis }};"></canvas>
-  <div ref="{{ busyRef }}" style="position:absolute;left:50%;bottom:168px;transform:translateX(-50%);z-index:39;display:none;flex-direction:column;align-items:center;gap:8px;pointer-events:none;">
+  <!-- Build status: top center under the meter bar, above every panel layer,
+       so an open deck menu or touch bar can never cover it. -->
+  <div ref="{{ busyRef }}" style="position:absolute;left:50%;top:92px;transform:translateX(-50%);z-index:47;display:none;flex-direction:column;align-items:center;gap:8px;pointer-events:none;">
     <div style="display:flex;align-items:center;gap:10px;padding:8px 14px;background:rgba(8,9,10,0.82);border:1px solid var(--acc30);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
       <div style="width:14px;height:14px;box-sizing:border-box;border:2px solid var(--acc30);border-top-color:var(--acc);border-radius:50%;animation:vjspin 0.8s linear infinite;will-change:transform;"></div>
       <div ref="{{ busyTextRef }}" style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:#F2F3F0;white-space:nowrap;">Building shader</div>
@@ -4844,8 +4846,10 @@ class Component extends DCLogic {
     if(M[mode]) return M[mode];
     // 7, 11 and 15 have no geometry to drive on the audio rigs, so they run
     // the rig itself: how far back the spectrum history reaches, how hard the
-    // onset events hit, and how much the look changes at each phrase.
-    if(mode>=22 && mode<30) return {morph:'Mirror', ca:'Amp', cb:'Bloom', cc:'Edge', detail:'Density', iter:'History', spinr:'Events', lit:'Variation'};
+    // onset events hit, and how much the look changes at each phrase. 12 is
+    // the color source: the palette at 0, the register each shape plays at
+    // 50% (bass red to treble blue), the whole frame following the music at 100%.
+    if(mode>=22 && mode<30) return {morph:'Mirror', ca:'Amp', cb:'Bloom', cc:'Edge', detail:'Density', iter:'History', spinr:'Events', lite:'Palette↔Audio', lit:'Variation'};
     if(mode===90) return {morph:'Tilt', ca:'Height', cb:'Glow', cc:'Band width', detail:'Bins', iter:'Pitch'};
     if(mode===91) return {morph:'Horizon', ca:'Sun', cb:'Grid', cc:'Peaks', detail:'Bands', iter:'—'};
     if(mode===92) return {morph:'Spread', ca:'Glyph', cb:'Rays', cc:'Trail', detail:'Streams', iter:'Source'};
@@ -13927,18 +13931,24 @@ class Component extends DCLogic {
     }
     S.acc = Math.min(S.acc, 1);
 
-    if(!u.uHist || !this.histTex){ S.stale = true; return; }
-    gl.activeTexture(gl.TEXTURE8);
-    gl.bindTexture(gl.TEXTURE_2D, this.histTex);
-    // Coming back to an audio rig: the rows written while another scene was up
-    // never reached the GPU, so send the whole ring once.
-    if(S.stale){ gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,n,H,gl.RED,gl.UNSIGNED_BYTE,hd); S.stale = false; }
-    else rows.forEach(r => gl.texSubImage2D(gl.TEXTURE_2D,0,0,r,n,1,gl.RED,gl.UNSIGNED_BYTE,hd.subarray(r*n,(r+1)*n)));
-    gl.activeTexture(gl.TEXTURE0);
+    // Only the texture waits on uHist. A rig that never reads the history
+    // (Atom) has it stripped from its program, and returning here used to
+    // leave that rig with no events, no phrase variation and no color dial.
+    if(!u.uHist || !this.histTex) S.stale = true;
+    else {
+      gl.activeTexture(gl.TEXTURE8);
+      gl.bindTexture(gl.TEXTURE_2D, this.histTex);
+      // Coming back to an audio rig: the rows written while another scene was
+      // up never reached the GPU, so send the whole ring once.
+      if(S.stale){ gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,n,H,gl.RED,gl.UNSIGNED_BYTE,hd); S.stale = false; }
+      else rows.forEach(r => gl.texSubImage2D(gl.TEXTURE_2D,0,0,r,n,1,gl.RED,gl.UNSIGNED_BYTE,hd.subarray(r*n,(r+1)*n)));
+      gl.activeTexture(gl.TEXTURE0);
+    }
     // Events (dial 11) scales every envelope; 50% is as designed, and React
     // still gates the lot.
     const g = (e.spinr ?? 0.5)*2*Math.min(1.4, (e.react ?? 0.8)*1.4);
-    gl.uniform4f(u.uSynHist, (0.12 + 0.88*(e.iter ?? 0.5))*(H - 2), S.acc, S.head, 0);
+    // w is dial 12, Palette<->Audio: how far the rig colors follow the music.
+    gl.uniform4f(u.uSynHist, (0.12 + 0.88*(e.iter ?? 0.5))*(H - 2), S.acc, S.head, e.lite ?? 0.5);
     gl.uniform4f(u.uSynEv, S.kick*g, S.hat*g, S.chd*g, S.drop*g);
     gl.uniform4f(u.uSynCam, C.tilt, C.roll, C.push, C.inv);
     gl.uniform4f(u.uSynVar, C.hue, S.sym, S.turnE, S.brk);
@@ -15638,6 +15648,7 @@ class Component extends DCLogic {
         {k:'Trim row', d:'Fine trim on any palette — Sat, Gam (gamma), Span (ramp width), Warm (R/B tilt). Double-click a track to reset it'},
         {k:'Depth / Rim', d:'On 3D scenes this slider is Rim: it lights the silhouette edges in the bright tone of the palette so the form stands off the background. On 2D scenes it is Depth, which gives them a third dimension, read from brightness. Relief lights the image as a carved surface, Parallax slides it apart in layers, Terrain flies over it as a landscape. Pick the kind in Look; the Depth trim sets how tall it gets and the gyro steers it. On the 3D scenes the same trim adds Relief instead'},
         {k:'Audio rigs: History / Events / Variation', d:'Dials 7, 11 and 15 on the audio rigs. History is how far back the scenes reach into the last four seconds of spectrum: the trailing slices of Spectrum, the wave across Grid Pulse, the scroll of Ribbons. Events scales the onset hits (kick, hats, chord changes, drops); 50% is as designed. Variation sets the phrase length (8, 4 or 2 bars) and how far each new look strays: lean, roll, push, mirrors, hue, figure/ground. A drop out of a breakdown always forces a new look. AUTO off holds the look'},
+        {k:'Audio rigs: Palette↔Audio', d:'Dial 12 on the audio rigs picks where the color comes from. At 0 the shapes use the palette. At 50% each shape takes the color of the part of the music it plays: bass red, then orange, yellow, green and cyan, up to treble blue. A low note lights red bars, cells, particles and ribbons, a high one blue. Grid Pulse cells each meter one register and one note, and rise furthest while that note sounds. At 100% the haze and floor glow follow the music too, warm when it sits low and cool when it sits high. Saturation, Warmth and Gamma in Trim still apply'},
         {k:'Relief (Depth on 3D)', d:'A bump map on the 3D surface — fine raised and sunken detail fixed to the geometry, so it rides the form as the camera moves and catches the light. Depth sets how strong it is; 0 is the smooth surface. The setting is shared with 2D Depth'},
         {k:'Depth Terrain', d:'Bright parts of the frame become hills, dark parts valleys and water, and the camera flies over them while the fractal keeps animating underneath. Auto moves the flight; the DOF trim hazes the distance. The ground carries a fine rock relief that grows with Depth. For gentler hills, lower Depth or pick a scene with broad areas of color rather than fine filigree'},
         {k:'View: Orbit / Fly / Surface', d:'3D scenes only. Orbit circles the whole object. Fly steers itself through the open space between forms. Surface skims low over the surface and keeps a safe height above it'},
@@ -17080,9 +17091,11 @@ class Component extends DCLogic {
     gl.uniform1i(u.uPalSel, this.state.pal || 0);
     const tm = this.state.trim;
     // 12. Exposure shifts the midtones through gamma (50% = as trimmed). On
-    // the 3D scenes the same dial is Flow and the gamma stays as trimmed.
+    // the 3D scenes the same dial is Flow and on the audio rigs it is
+    // Palette<->Audio, and the gamma stays as trimmed on both.
     const is3fx = !this.is2D() && !this.isCanvasScene();
-    const eL = is3fx ? 0.5 : (this.eff.lite ?? 0.5);
+    const pm = (this.E && this.E.PRESETS[this.state.preset] || {}).mode;
+    const eL = (is3fx || (pm >= 22 && pm < 30)) ? 0.5 : (this.eff.lite ?? 0.5);
     // Flow: the Lights front steps through the recursion levels, outward from
     // the center above 50% and back in below it, still at 50%. Integrated here
     // so turning the dial changes the speed without the front jumping, and it

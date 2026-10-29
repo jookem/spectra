@@ -690,6 +690,16 @@ int gPn;                 // last stop a segment may start from: 5 cyclic, 3 mirr
 void pS2(int k, vec3 a, vec3 b){ gPk=k; gPS[0]=a; gPS[1]=b; }
 void pS6(vec3 a, vec3 b, vec3 c, vec3 d, vec3 e, vec3 f){ gPk=3; gPn=5; gPS[0]=a; gPS[1]=b; gPS[2]=c; gPS[3]=d; gPS[4]=e; gPS[5]=f; gPS[6]=a; }
 void pS5(vec3 a, vec3 b, vec3 c, vec3 d, vec3 e){ gPk=3; gPn=3; gPS[0]=a; gPS[1]=b; gPS[2]=c; gPS[3]=d; gPS[4]=e; }
+// Global color trim, applied to every palette (and to the audio rigs' register
+// colors). Saturation pivots on Rec.709 luma so 0 is a true grayscale and >1
+// pushes past the palette's own range; warmth is a complementary R/B tilt;
+// gamma shapes the ramp's midtones.
+vec3 palTrim(vec3 c){
+  float lum=dot(c,vec3(0.2126,0.7152,0.0722));
+  c=mix(vec3(lum),c,uSat);
+  c*=vec3(1.0+uWarm*0.34,1.0+abs(uWarm)*-0.05,1.0-uWarm*0.34);
+  return pow(max(c,0.0),vec3(uGam));
+}
 void palSetup(){
   gPk=0; gPh=vec3(0.0,0.33,0.67); gPm=1.0; gPn=5;
   if(uPalSel==1){ pS2(1,vec3(0.03,0.04,0.09),vec3(0.95,0.42,0.12)); }
@@ -734,15 +744,7 @@ vec3 pal(float t){
     base=mix(gPS[i],gPS[i+1],smoothstep(0.0,1.0,fract(x)));
   }
   vec3 duo=0.5+0.5*cos(6.28318*(vec3(0.0,0.12,0.24)+tt*0.7));
-  vec3 c=mix(base,duo,clamp(uCC,0.0,1.0)*(uPalSel==0?1.0:0.0));
-  // Global color trim, applied to every palette. Saturation pivots on Rec.709
-  // luma so 0 is a true grayscale and >1 pushes past the palette's own range;
-  // warmth is a complementary R/B tilt; gamma shapes the ramp's midtones.
-  float lum=dot(c,vec3(0.2126,0.7152,0.0722));
-  c=mix(vec3(lum),c,uSat);
-  c*=vec3(1.0+uWarm*0.34,1.0+abs(uWarm)*-0.05,1.0-uWarm*0.34);
-  c=pow(max(c,0.0),vec3(uGam));
-  return c;
+  return palTrim(mix(base,duo,clamp(uCC,0.0,1.0)*(uPalSel==0?1.0:0.0)));
 }
 // Hue complement at the same luma-ish level: a half turn about the gray axis,
 // which for any RGB is just 2*mean - c. The 2D shading uses it so shadow light,
@@ -3327,6 +3329,28 @@ float histAt(float x,float age){
   float r=clamp(age*uSynHist.x-uSynHist.y,0.0,HN-2.0);
   return texture(uHist,vec2(clamp(x,0.0,1.0),(uSynHist.z-r+0.5)/HN)).r;
 }
+// Register: where a bin sits on a musical (log frequency) scale, 0 at ~40Hz
+// to 1 at ~12kHz. The spectrum row is not log-spaced (the host packs bin x
+// from FFT bin x^1.55 of the lower 62%), so bass is only the first few
+// percent of x; rigs that spread shapes over the music pick a register and
+// read the bin under it, or nearly every shape would be a treble shape.
+float regOf(float x){ return clamp((1.55*log2(max(x,1e-3))+8.417)/8.23,0.0,1.0); }
+float binOf(float r){ return exp2((r*8.23-8.417)/1.55); }
+// Register color: bass red, through orange, yellow, green and cyan, to blue at
+// the top. Fixed to the music rather than the palette, so a low note always
+// reads red and a high one blue; only the color trim applies.
+vec3 regCol(float r){
+  vec3 k=clamp(abs(mod(clamp(r,0.0,1.0)*3.96+vec3(0.0,4.0,2.0),6.0)-3.0)-1.0,0.0,1.0);
+  return palTrim(mix(vec3(1.0),k,0.96));
+}
+// Set by synF: the register of whatever covers this pixel, or -1 where nothing
+// musical does (floors, traces), which keeps the palette there.
+float gReg;
+// Also set by synF: the scene's own light falling on the backdrop here (gAmb)
+// and the register it comes from (gAmbR, -1 for palette). The background is
+// built from this, so it is lit by what is playing instead of being a pattern
+// of its own.
+float gAmb, gAmbR;
 // Camera sway, set once per pixel in synth(). Layers read it through par():
 // the nearer the layer (z toward 0) the further it slides, which is the
 // parallax that makes stacked flat layers read as depth.
@@ -3344,7 +3368,7 @@ float smin3(float a,float b,float k){ float h=clamp(0.5+0.5*(b-a)/k,0.0,1.0); re
 // scene hands back a height (ht) the material pass lights as a surface, and a
 // depth (z, 0 near to 1 far) that the shading fogs and dims.
 void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,out float glo,out float ht,out float z){
-  v=0.0; hue=0.0; glo=0.0; ht=0.0; z=0.0;
+  v=0.0; hue=0.0; glo=0.0; ht=0.0; z=0.0; gReg=-1.0; gAmb=0.0; gAmbR=-1.0;
   // Each audio rig links as its own program with SYN_K defined, so the driver
   // is handed only that scene's branch. Folding k to a constant was not
   // enough: ANGLE's D3D compiler still parses and optimizes every branch
@@ -3370,7 +3394,9 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
       if(x<0.0 || x>1.0 || q.y<-0.02) continue;
       float cx=fract(x*bars);
       float bx=floor(x*bars)/bars;
-      float sp=histAt(pow(bx,0.72),zi);
+      // Bars evenly over the registers, a log analyzer: bass as wide as treble.
+      float bin=binOf(0.03+bx*0.94);
+      float sp=histAt(bin,zi);
       float h=0.02+sp*amp*0.8;
       float m=smoothstep(h,h-0.012*s,q.y)*smoothstep(-0.02,0.0,q.y)
              *smoothstep(0.0,0.12,abs(cx-0.5)*2.0-0.12);
@@ -3383,9 +3409,19 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
         ht=sqrt(max(1.0-cr*cr,0.0))*m;
         glo=smoothstep(0.03*s,0.0,abs(q.y-h))*m*(1.4+uSynEv.y*1.5)*fade;
         hue=bx*0.55+sp*0.35+zi*0.10;
+        gReg=regOf(bin);
         z=zi;
         break;
       }
+    }
+    // Backdrop: the newest spectrum as a curtain of light standing behind the
+    // rows, each column its register's color, brightest at the floor.
+    vec2 qa=(p-vec2(0.0,-0.62)-par(0.0))*0.85;
+    float xa=qa.x*0.26+0.5;
+    if(xa>0.0 && xa<1.0){
+      float ra=0.03+xa*0.94;
+      gAmb=histAt(binOf(ra),0.0)*(0.35+0.65*exp(-max(qa.y,0.0)*0.9));
+      gAmbR=ra;
     }
   }
 #endif
@@ -3431,6 +3467,10 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
     v+=band*exp(-tri*2.2)*born*0.55;
     glo=pow(band,3.0)*(0.45+uBass*uReact)+exp(-tri*3.0)*born*0.5+band*uSynEv.w*0.6;
     hue=zz*0.42+floor(lg)*0.06+t*0.01;
+    gReg=regOf(0.04+u*0.7);                       // the bin this edge point carries
+    // Backdrop: the emitter's light pooling outward in the shells' colors.
+    gAmb=exp(-tri*1.4)*(0.3+uLoud*0.9)+band*0.15;
+    gAmbR=gReg;
     ht=sqrt(band)*v;
     z=1.0-age;
   }
@@ -3449,10 +3489,15 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
       vec2 id=floor(g), f=fract(g)-0.5;
       float h1=hash(id), h2b=hash(id+37.13);
       vec2 off=(vec2(h1,h2b)-0.5)*0.72;
-      float band=histAt(h1*0.9+0.03,zj*0.7+h2b*0.15);
+      // Spread evenly over the registers, so bass particles swell on the kick.
+      float rg=0.03+h1*0.94;
+      float band=histAt(binOf(rg),zj*0.7+h2b*0.15);
       float rad=0.05+band*0.4*amp;
       float d=length(f-off);
       float m=smoothstep(rad,rad*0.15,d);
+      // Backdrop: a wide soft halo round every particle, in its color.
+      float aw0=smoothstep(rad*7.0,rad,d)*band*(1.0-zj*0.4);
+      gAmb+=aw0; gAmbR=max(gAmbR,0.0)+aw0*rg;
       if(m>0.02 || j==2){
         float fade=1.0-zj*0.45;
         v=m*fade;
@@ -3462,10 +3507,12 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
         float tw=step(0.82,hash(id+floor(uTime*20.0)))*uSynEv.y*zj;
         glo=smoothstep(rad*2.6,0.0,d)*band*0.7*fade+tw*smoothstep(rad*1.6,0.0,d);
         hue=h1*0.7+band*0.25+zj*0.12;
+        gReg=m>0.02 ? rg : -1.0;
         z=zj;
         if(m>0.02) break;
       }
     }
+    gAmbR=gAmb>1e-3 ? gAmbR/gAmb : -1.0;
   }
 #endif
 #if !defined(SYN_K) || SYN_K==3
@@ -3481,14 +3528,19 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
     // of the nucleus large and bright and pass behind it small, dim, and
     // hidden where the nucleus covers them.
     float wx=1.58, wy=0.96;
+    // pt: which part is nearest — 0 proton, 1 neutron, 2 electron, 3 orbit,
+    // 4 bond. Each part has its own color, from the palette or the music.
     float d=1e3, zb=0.5;
+    int pt=4;
     vec2 cs[3];
     for(int m=0;m<3;m++){
       float fm=float(m);
       // Triangle-wave drift bounces exactly off the walls with no state to keep.
       vec2 tw=vec2(abs(fract(t*(0.13+fm*0.05)+fm*0.37)*2.0-1.0)*2.0-1.0,
                    abs(fract(t*(0.11+fm*0.06)+fm*0.61)*2.0-1.0)*2.0-1.0);
-      float band=specAt(0.06+fm*0.30);
+      // A low, a middle and a high atom.
+      float rg=0.12+fm*0.38;
+      float band=specAt(binOf(rg));
       float Z=clamp(3.0+floor(uNote*8.0)+fm*2.0+floor(band*4.0),2.0,10.0);
       float sc=(0.62+dens*0.5)*(0.8+band*0.4);
       vec2 c=vec2(tw.x*(wx-0.55*sc), tw.y*(wy-0.50*sc))+par(0.4);
@@ -3499,9 +3551,24 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
       vec2 pl=(p-c)/sq;
       float nr=(0.13+uBass*uReact*0.07+uSynEv.w*0.05)*sc*(0.9+amp*0.3);
       float bt=1.0+uBeat*uReact*0.18;
-      float dn=length(vec2(pl.x/bt, pl.y*bt))-nr;
-      if(dn<d) zb=0.5;
-      d=smin3(d, dn, 0.10);
+      // Nucleus: seven nucleons packed in a cluster, a ring of six round one,
+      // alternating protons and neutrons. Each stays its own ball (only a
+      // slight join), so the parts read apart. Protons swell with the bass,
+      // neutrons with the mids, and the bass jostles the pack.
+      vec2 pn=vec2(pl.x/bt, pl.y*bt);
+      float ja=t*0.4+fm*2.1;
+      // Kept as a real loop (runtime-zero start): unrolled, seven nucleons in
+      // each of three atoms was seconds more link time.
+      for(int j=min(0,int(abs(uTime)));j<7;j++){
+        float fj=float(j);
+        bool pr=(j%2)==0;
+        vec2 o=j==0 ? vec2(0.0) : vec2(cos(fj*1.0472+ja),sin(fj*1.0472+ja))*nr*0.78;
+        o+=(vec2(hash(vec2(fj,fm)),hash(vec2(fm,fj+3.0)))-0.5)*nr*0.35*uBass*uReact;
+        float nu=nr*0.5*(0.85+0.35*(pr?uBass:uMid)*uReact);
+        float dj=length(pn-o)-nu;
+        if(dj<d){ zb=0.5-(j==0?0.06:0.0); pt=pr?0:1; }
+        d=smin3(d, dj, 0.012);
+      }
       float rem=Z;
       for(int s=0;s<2;s++){
         float n=min(s==0?2.0:8.0, rem);
@@ -3521,16 +3588,18 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
           float a=t*spd*1.6+float(i)*6.2831853/n+fm*1.7;
           vec3 e3=vec3(cos(a), sin(a)*ci, sin(a)*si)*rr;   // z toward the viewer
           vec2 e2=vec2(e3.x*cr.x-e3.y*cr.y, e3.x*cr.y+e3.y*cr.x);
-          if(e3.z<0.0 && length(e2)<nr*1.1) continue;
+          if(e3.z<0.0 && length(e2)<nr*1.3) continue;     // behind the nucleus
           float de=length(pl-e2)-er0*(1.0+e3.z/rr*0.35);
-          if(de<d) zb=0.5-e3.z/rr*0.4;
+          if(de<d){ zb=0.5-e3.z/rr*0.4; pt=2; }
           d=smin3(d, de, 0.09);
         }
         // Shell trace, so the arrangement reads as orbits and not loose dots.
         // The inclined circle is an ellipse on screen.
         vec2 ql=vec2(pl.x*cr.x+pl.y*cr.y, -pl.x*cr.y+pl.y*cr.x);
         float ce=max(abs(ci),0.2);
-        d=min(d, abs(length(vec2(ql.x,ql.y/ce))-rr)*ce+0.045*sc);
+        float dtr=abs(length(vec2(ql.x,ql.y/ce))-rr)*ce+0.045*sc;
+        if(dtr<d) pt=3;
+        d=min(d, dtr);
       }
     }
     // Bonds: nuclei that come close are joined by a capsule, so the atoms read
@@ -3541,7 +3610,9 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
       float L2=max(dot(ab,ab),1e-4);
       float h2=clamp(dot(p-A,ab)/L2,0.0,1.0);
       float th=0.034*smoothstep(1.20,0.42,sqrt(L2));
-      d=smin3(d, length(p-A-ab*h2)-th, 0.06);
+      float db=length(p-A-ab*h2)-th;
+      if(db<d) pt=4;
+      d=smin3(d, db, 0.06);
     }
     // Each kick fires an electron off every atom, in a direction that changes
     // with the beat count; it shrinks as it flies.
@@ -3552,14 +3623,29 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
       for(int m=0;m<3;m++){
         float ang=hash(vec2(floor(uBeatPh),float(m)))*6.2831853;
         float de=length(p-cs[m]-vec2(cos(ang),sin(ang))*(1.0-ev)*1.4)-0.055*ev;
-        if(de<d) zb=0.2;
+        if(de<d){ zb=0.2; pt=2; }
         d=smin3(d, de, 0.05);
       }
     }
-    float w=0.030+0.045*(1.0-dens);
+    // Backdrop: an electron cloud round each atom, the nucleus' red at the
+    // core fading out through the electrons' teal, brighter on the highs.
+    float cl=0.0, cr=0.0;
+    for(int m=0;m<3;m++){
+      float dd=length(p-cs[m]);
+      float e=exp(-dd*dd*3.2);
+      cl+=e; cr+=e*mix(0.05,0.72,smoothstep(0.04,0.6,dd));
+    }
+    gAmb=cl*(0.35+uHigh*uReact*0.7);
+    gAmbR=cr/max(cl,1e-4);
+    // Edges crisp enough that neighboring nucleons stay separate balls.
+    float w=0.020+0.030*(1.0-dens);
     v=smoothstep(w,-w*0.8,d);
     glo=smoothstep(w*6.0,0.0,d)*0.6;
-    hue=0.42+clamp(-d,0.0,0.6)*0.9+t*0.01;
+    // Part colors. In the palette, each part sits at its own spot, spread
+    // round the ramp; in audio color, its register: protons bass red,
+    // neutrons mid green, electrons teal, orbits high blue, bonds warm.
+    hue=(pt==0?0.0:pt==1?0.33:pt==2?0.55:pt==3?0.72:0.16)+t*0.01;
+    gReg=pt==0?0.05:pt==1?0.5:pt==2?0.72:pt==3?0.95:0.25;
     ht=smoothstep(w,-0.10,d);
     z=zb;
   }
@@ -3575,7 +3661,7 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
     // first hit is the nearest surface.
     float gs=mix(3.5,11.0,dens);
     float e2=0.55;
-    float hitY=-1.0, hband=0.0, cellf=0.0, hid=0.0;
+    float hitY=-1.0, hband=0.0, cellf=0.0, hid=0.0, hreg=0.0;
     z=0.7;
     // Four march steps: each is a hash plus a history fetch.
     for(int s=0;s<4;s++){
@@ -3583,17 +3669,26 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
       vec2 q=p*(1.0-y*e2);
       vec2 id=floor(q*gs);
       float bi=hash(id);
-      // Height from the spectrum's past: the center is now and each ring of
+      // Every cell is a meter for one register and one note: the register is
+      // its color and the band it reads, the note (C..B) lifts it further
+      // while that note is sounding. A bass note raises red cells, a high
+      // one blue. Registers are spread evenly, so each color is as common.
+      float rg=0.03+bi*0.94;
+      int nt=int(hash(id+17.31)*11.999);
+      // Height from that register's past: the center is now and each ring of
       // cells outward is a little older, so the music rolls out across the
-      // floor as a wave. The kick sends a shock ring out the same way.
+      // floor as a wave. The top of the spectrum carries less energy, so it
+      // is lifted to read as tall as the bass for an equally loud part.
       float rc=length((id+0.5)/gs);
-      float sp=histAt(bi,clamp(rc/1.6,0.0,1.0));
+      float sp=histAt(binOf(rg),clamp(rc/1.6,0.0,1.0))*(1.0+rg*0.7);
+      sp*=mix(1.0,0.45+0.9*uChroma[nt],uNoteConf);
+      // The kick sends a shock ring out the same way.
       float sk=(rc-(1.0-min(uSynEv.x,1.0))*1.8)*5.0;
       sp+=exp(-sk*sk)*uSynEv.x*0.6;
       if(y<=sp*amp*0.8){
         vec2 f2=abs(fract(q*gs)-0.5)*2.0;
         float m=smoothstep(0.94,0.68,max(f2.x,f2.y));
-        if(m>0.001){ hitY=y; hband=sp; cellf=m; hid=bi; break; }
+        if(m>0.001){ hitY=y; hband=sp; cellf=m; hid=bi; hreg=rg; break; }
       }
     }
     if(hitY>=0.0){
@@ -3602,12 +3697,19 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
       v=cellf*(0.35+hband*0.9)*(0.45+0.55*top);
       glo=cellf*hband*0.7*top;
       hue=hid*0.5+hband*0.3;
+      gReg=hreg;
       ht=cellf*(0.3+hitY);
       z=0.6-hitY*0.6;
     }
     // Base grid so the floor plane stays legible under the columns.
     vec2 fb=abs(fract(p*gs)-0.5)*2.0;
     v+=smoothstep(0.88,1.0,max(fb.x,fb.y))*0.15;
+    // Backdrop: the floor under each cell lit in that cell's color, as bright
+    // as its meter reads, so the plane glows with what is playing.
+    vec2 id0=floor(p*gs);
+    float r0=0.03+hash(id0)*0.94;
+    gAmb=histAt(binOf(r0),clamp(length((id0+0.5)/gs)/1.6,0.0,1.0))*(1.0+r0*0.7);
+    gAmbR=r0;
   }
 #endif
 #if !defined(SYN_K) || SYN_K==5
@@ -3620,11 +3722,14 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
     // ribbons are farther away; they are painted first so nearer ones cover them.
     int N=int(mix(5.0,11.0,dens));
     z=1.0;
+    float rr=-1.0;
     for(int i=0;i<11;i++){
       if(i>=N) break;
       float fi2=(float(N-1-i)+0.5)/float(N);
       vec2 q=(p-par(fi2)*0.9)*(1.0+fi2*0.5);
-      float bx=fi2*0.85+0.04;
+      // Bass at the bottom, treble at the top, evenly over the registers.
+      float rg=0.05+fi2*0.9;
+      float bx=binOf(rg);
       float band=specAt(bx);
       float hv=histAt(bx,clamp(0.5-q.x*0.24,0.0,1.0));
       float ry=(fi2-0.5)*1.7+(hv-0.25)*0.42*amp+sin(q.x*1.9+t*0.45+fi2*6.1)*0.08;
@@ -3639,10 +3744,16 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
         v=mix(v,(0.35+band)*(1.0-back*0.45)*(1.0-fi2*0.35),m);
         ht=mix(ht,sqrt(max(1.0-dr*dr,0.0))*abs(tw),m);
         hue=mix(hue,fi2*0.7+back*0.5,m);
+        rr=rr<0.0 ? rg : mix(rr,rg,m);
         z=mix(z,fi2,m);
       }
       glo+=smoothstep(th*4.0,0.0,dy)*band*0.3*(1.0-fi2*0.5)+smoothstep(th*1.5,0.0,dy)*uSynEv.y*0.25;
+      // Backdrop: a wide glow round each ribbon, in its color.
+      float aw0=smoothstep(th*18.0+0.12,0.0,dy)*(0.2+band)*(1.0-fi2*0.4);
+      gAmb+=aw0; gAmbR=max(gAmbR,0.0)+aw0*rg;
     }
+    gReg=rr;
+    gAmbR=gAmb>1e-3 ? gAmbR/gAmb : -1.0;
   }
 #endif
 #if !defined(SYN_K) || SYN_K==6
@@ -3653,11 +3764,12 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
     // field drops not to black but to a dim, fogged floor of the same ink that
     // fills the frame, so the blobs rise out of something. Hats split each blob in two; the halves
     // pull back together as the hit fades.
-    float f=0.0, zs=0.0, ws=0.0;
+    float f=0.0, zs=0.0, ws=0.0, rs=0.0;
     float k2=mix(0.5,0.7,clamp(uSynEv.y,0.0,1.0));
     for(int i=0;i<7;i++){
       float fi2=(float(i)+0.5)/7.0;
-      float band=histAt(fi2*0.8+0.05,fi2*0.35);
+      float rg=0.05+fi2*0.9;
+      float band=histAt(binOf(rg),fi2*0.35);
       float zi=0.5+0.5*sin(t*(0.17+fi2*0.21)+fi2*7.7);
       vec2 c0=vec2(sin(t*(0.27+fi2*0.43)+fi2*9.2),cos(t*(0.21+fi2*0.37)+fi2*5.4))*vec2(1.9,0.95)*(1.0-zi*0.25)+par(zi);
       // Sized for the spread above: big enough that neighbors still meet and merge.
@@ -3666,9 +3778,14 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
       vec2 sd=vec2(cos(sa),sin(sa))*uSynEv.y*0.16;
       vec2 d1=p-c0-sd, d2=p-c0+sd;
       float wgt=rr*rr*k2*(1.0/max(dot(d1,d1),2e-4)+1.0/max(dot(d2,d2),2e-4));
-      f+=wgt; zs+=wgt*zi; ws+=wgt;
+      f+=wgt; zs+=wgt*zi; ws+=wgt; rs+=wgt*rg;
     }
+    // Each blob is its band's color, and merging blobs mix like lava.
+    gReg=rs/max(ws,1e-4);
     float thr=mix(1.9,0.65,dens)*(1.0-uSynEv.w*0.3);
+    // Backdrop: the pool lit by the blobs above it.
+    gAmb=smoothstep(0.0,thr*1.2,f)*0.8;
+    gAmbR=gReg;
     float blob=smoothstep(thr*0.7,thr,f);
     v=max(blob, 0.09+smoothstep(thr*0.03,thr*0.7,f)*0.18);
     z=mix(0.85, zs/max(ws,1e-4), blob);
@@ -3723,6 +3840,7 @@ vec3 synth(vec2 uv,int k){
   float amp=(0.45+uCA*1.3)*(1.0+kick*0.22);   // shapes swell on the hit
   float v,hue,glo,ht,z;
   synF(p,k,dens,amp,t,v,hue,glo,ht,z);
+  float reg=gReg, amb=gAmb, ambR=gAmbR;         // the floor's second synF overwrites them
   z=1.0-(1.0-z)*(1.0-zt);
 
   // Figure/ground flip, one of the phrase variations: the shapes become holes
@@ -3766,10 +3884,35 @@ vec3 synth(vec2 uv,int k){
   vec3 pc[12];
   for(int i=min(0,int(abs(uTime)));i<12;i++) pc[i]=pal(pt[i]);
 
-  vec3 bg=pc[0]*haze*haze*(0.045+uBass*uReact*0.11)*stHaze*(1.0+bk*1.2);
+  // Audio color (dial 12, Palette<->Audio). Up to 50% the shapes take on the
+  // color of the register they are playing, bass red through to treble blue;
+  // past 50% the haze, the floor glow, the beat ring and the drop follow the
+  // music's overall pitch too (a level-weighted mean of the three bands).
+  float aw=uSynHist.w;
+  float wS=smoothstep(0.0,0.5,aw), wB=smoothstep(0.5,1.0,aw);
+  float wR=wS*step(0.0,reg);
+  float cent=(0.12*uBass+0.5*uMid+0.88*uHigh)/max(uBass+uMid+uHigh,1e-3);
+  vec3 ccol=regCol(cent), scol=regCol(max(reg,0.0));
+  pc[0]=mix(pc[0],ccol,wB); pc[1]=mix(pc[1],ccol,wS);
+
+  // Background: lit by the scene itself. Each rig hands back the light its
+  // own shapes throw on the backdrop and the register it comes from, so the
+  // space round the shapes glows with what is playing, in the same colors.
+  // The haze is only dust in that light; on its own it drew shapes of its
+  // own that had nothing to do with the scene. A breakdown thickens it.
+  vec3 acol=mix(pc[0], regCol(max(ambR,0.0)), wS*step(0.0,ambR));
+  vec3 bg=acol*amb*(0.16+uLoud*uReact*0.30)*(0.45+0.9*haze)*stHaze*(1.0+bk*1.2);
   bg+=pc[1]*exp(-abs(uv.y+0.72)*3.4)*(0.03+uLoud*0.09);
   // Atom plays on a dark stage under a spot.
   if(k==3) bg+=pc[2]*exp(-dot(uv,uv)*1.6)*0.06;
+
+  // The shape's own reads: key and depth tint in the register color, the
+  // shadow side a darker shade of it, the bloom and rim from it as well.
+  pc[2]=mix(pc[2],scol,wR); pc[3]=mix(pc[3],scol,wR);
+  pc[4]=mix(pc[4],scol*0.6,wR); pc[5]=mix(pc[5],scol*0.85,wR);
+  pc[6]=mix(pc[6],scol,wR); pc[7]=mix(pc[7],scol,wR); pc[8]=mix(pc[8],scol,wR);
+  pc[9]=mix(pc[9],mix(scol,vec3(1.0),0.12),wR);
+  pc[10]=mix(pc[10],ccol,wS); pc[11]=mix(pc[11],ccol,wS);
 
   // Thickness without a second field evaluation. The directional derivative of
   // the height against the light offset gives a one-sided band on the shadowed
@@ -3804,8 +3947,11 @@ vec3 synth(vec2 uv,int k){
   // Rim, then a tight specular that pumps on the hit: the light is the thing
   // that arrives, so a beat reads as the surface catching a flash.
   c+=pc[9]*edge*v*(0.45+uCB*0.7)*df;
-  c+=vec3(1.0,0.97,0.92)*spec*v*(0.30+uHigh*uReact*0.55+kick*0.5)*df;
-  c+=vec3(1.0,0.98,0.94)*pow(edge,3.0)*v*(0.14+uBeat*0.3*uReact)*df;
+  // Under audio color the highlights take half the register's color, so a
+  // bass cell glints red-white instead of washing out to pink.
+  vec3 hil=mix(vec3(1.0,0.97,0.92),scol,wR*0.5);
+  c+=hil*spec*v*(0.30+uHigh*uReact*0.55+kick*0.5)*df;
+  c+=hil*pow(edge,3.0)*v*(0.14+uBeat*0.3*uReact)*df;
 
   // Stage floor: the field mirrored under a horizon, hard-compressed and
   // rippled on the bass, so the scene sits on a wet surface instead of
@@ -3825,6 +3971,10 @@ vec3 synth(vec2 uv,int k){
     // inlined pair of pal() is most of what this band costs to compile.
     vec3 rc[2];
     for(int i=min(0,int(abs(uTime)));i<2;i++) rc[i]=pal(rh*0.85+float(i)*0.28+uSynVar.x);
+    // The reflection keeps the color of what it reflects.
+    float rw=wS*step(0.0,gReg);
+    vec3 rcol=regCol(max(gReg,0.0));
+    rc[0]=mix(rc[0],rcol,rw); rc[1]=mix(rc[1],rcol,rw);
     c+=(rc[0]*rv + rc[1]*rg*bl*0.14)*fade;
   }
 
