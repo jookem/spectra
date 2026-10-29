@@ -3338,9 +3338,11 @@ float regOf(float x){ return clamp((1.55*log2(max(x,1e-3))+8.417)/8.23,0.0,1.0);
 float binOf(float r){ return exp2((r*8.23-8.417)/1.55); }
 // Register color: bass red, through orange, yellow, green and cyan, to blue at
 // the top. Fixed to the music rather than the palette, so a low note always
-// reads red and a high one blue; only the color trim applies.
+// reads red and a high one blue, at Hue 0. The Hue dial turns the whole map
+// round the color wheel, one full turn over its range, so at 100 it is back
+// to red; the order of the registers never changes. Then the color trim.
 vec3 regCol(float r){
-  vec3 k=clamp(abs(mod(clamp(r,0.0,1.0)*3.96+vec3(0.0,4.0,2.0),6.0)-3.0)-1.0,0.0,1.0);
+  vec3 k=clamp(abs(mod(clamp(r,0.0,1.0)*3.96+uHue*6.0+vec3(0.0,4.0,2.0),6.0)-3.0)-1.0,0.0,1.0);
   return palTrim(mix(vec3(1.0),k,0.96));
 }
 // Set by synF: the register of whatever covers this pixel, or -1 where nothing
@@ -3351,6 +3353,13 @@ float gReg;
 // built from this, so it is lit by what is playing instead of being a pattern
 // of its own.
 float gAmb, gAmbR;
+// Also set by synF: how much of the backdrop here lies in a shape's shadow
+// (0..1). The key light comes from the upper left, so a shape shades the
+// backdrop below and to the right of it: each rig tests its own shapes once
+// more at p-SHD, inside the loop it already runs, rather than evaluating the
+// whole field a second time.
+float gOcc;
+const vec2 SHD=vec2(0.055,-0.065);
 // Camera sway, set once per pixel in synth(). Layers read it through par():
 // the nearer the layer (z toward 0) the further it slides, which is the
 // parallax that makes stacked flat layers read as depth.
@@ -3368,7 +3377,7 @@ float smin3(float a,float b,float k){ float h=clamp(0.5+0.5*(b-a)/k,0.0,1.0); re
 // scene hands back a height (ht) the material pass lights as a surface, and a
 // depth (z, 0 near to 1 far) that the shading fogs and dims.
 void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,out float glo,out float ht,out float z){
-  v=0.0; hue=0.0; glo=0.0; ht=0.0; z=0.0; gReg=-1.0; gAmb=0.0; gAmbR=-1.0;
+  v=0.0; hue=0.0; glo=0.0; ht=0.0; z=0.0; gReg=-1.0; gAmb=0.0; gAmbR=-1.0; gOcc=0.0;
   // Each audio rig links as its own program with SYN_K defined, so the driver
   // is handed only that scene's branch. Folding k to a constant was not
   // enough: ANGLE's D3D compiler still parses and optimizes every branch
@@ -3422,6 +3431,13 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
       float ra=0.03+xa*0.94;
       gAmb=histAt(binOf(ra),0.0)*(0.35+0.65*exp(-max(qa.y,0.0)*0.9));
       gAmbR=ra;
+    }
+    // Shadow: the front row's bars, tested once more up and left of here.
+    vec2 qs=(p-SHD-vec2(0.0,-0.62)-par(0.0))*(1.0-uSynEv.x*0.10);
+    float xs=qs.x*0.26+0.5;
+    if(xs>0.0 && xs<1.0 && qs.y>-0.02){
+      float hs0=0.02+histAt(binOf(0.03+floor(xs*bars)/bars*0.94),0.0)*amp*0.8;
+      gOcc=smoothstep(hs0,hs0-0.05,qs.y)*smoothstep(-0.02,0.04,qs.y)*0.8;
     }
   }
 #endif
@@ -3498,6 +3514,13 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
       // Backdrop: a wide soft halo round every particle, in its color.
       float aw0=smoothstep(rad*7.0,rad,d)*band*(1.0-zj*0.4);
       gAmb+=aw0; gAmbR=max(gAmbR,0.0)+aw0*rg;
+      // Shadow: the particle up and left of here, in whichever cell holds it.
+      vec2 gsh=g-SHD*mix(5.0,16.0,dens)*(1.0+zj*1.4);
+      vec2 ish=floor(gsh);
+      float hs1=hash(ish), hs2=hash(ish+37.13);
+      float rsh=0.05+histAt(binOf(0.03+hs1*0.94),zj*0.7+hs2*0.15)*0.4*amp;
+      float dsh=length(fract(gsh)-0.5-(vec2(hs1,hs2)-0.5)*0.72);
+      gOcc=max(gOcc,smoothstep(rsh*1.4,rsh*0.3,dsh)*(1.0-zj*0.5));
       if(m>0.02 || j==2){
         float fade=1.0-zj*0.45;
         v=m*fade;
@@ -3634,6 +3657,9 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
       float dd=length(p-cs[m]);
       float e=exp(-dd*dd*3.2);
       cl+=e; cr+=e*mix(0.05,0.72,smoothstep(0.04,0.6,dd));
+      // Shadow: each atom drops a soft disc on the stage below and right.
+      vec2 ds=p-SHD*1.4-cs[m];
+      gOcc=max(gOcc,exp(-dot(ds,ds)*14.0)*0.7);
     }
     gAmb=cl*(0.35+uHigh*uReact*0.7);
     gAmbR=cr/max(cl,1e-4);
@@ -3710,6 +3736,14 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
     float r0=0.03+hash(id0)*0.94;
     gAmb=histAt(binOf(r0),clamp(length((id0+0.5)/gs)/1.6,0.0,1.0))*(1.0+r0*0.7);
     gAmbR=r0;
+    // Shadow: the column standing in the cell up and left of this patch of
+    // floor, as dark as it is tall. A cell's own column never shades itself.
+    vec2 id1=floor((p-SHD*1.2)*gs);
+    if(any(notEqual(id1,id0))){
+      float r1=0.03+hash(id1)*0.94;
+      float h1=histAt(binOf(r1),clamp(length((id1+0.5)/gs)/1.6,0.0,1.0))*(1.0+r1*0.7);
+      gOcc=clamp(h1*amp*1.2,0.0,0.85);
+    }
   }
 #endif
 #if !defined(SYN_K) || SYN_K==5
@@ -3751,6 +3785,10 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
       // Backdrop: a wide glow round each ribbon, in its color.
       float aw0=smoothstep(th*18.0+0.12,0.0,dy)*(0.2+band)*(1.0-fi2*0.4);
       gAmb+=aw0; gAmbR=max(gAmbR,0.0)+aw0*rg;
+      // Shadow: the same ribbon shifted by the light offset. The ribbon bends
+      // slowly along x, so only the vertical shift matters.
+      float dys=abs(q.y-SHD.y*(1.0+fi2*0.5)-ry);
+      gOcc=max(gOcc,smoothstep(th*1.6,th*0.3,dys)*(1.0-fi2*0.5));
     }
     gReg=rr;
     gAmbR=gAmb>1e-3 ? gAmbR/gAmb : -1.0;
@@ -3764,7 +3802,7 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
     // field drops not to black but to a dim, fogged floor of the same ink that
     // fills the frame, so the blobs rise out of something. Hats split each blob in two; the halves
     // pull back together as the hit fades.
-    float f=0.0, zs=0.0, ws=0.0, rs=0.0;
+    float f=0.0, zs=0.0, ws=0.0, rs=0.0, fsh=0.0;
     float k2=mix(0.5,0.7,clamp(uSynEv.y,0.0,1.0));
     for(int i=0;i<7;i++){
       float fi2=(float(i)+0.5)/7.0;
@@ -3779,6 +3817,9 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
       vec2 d1=p-c0-sd, d2=p-c0+sd;
       float wgt=rr*rr*k2*(1.0/max(dot(d1,d1),2e-4)+1.0/max(dot(d2,d2),2e-4));
       f+=wgt; zs+=wgt*zi; ws+=wgt; rs+=wgt*rg;
+      // The same field sampled up and left: the blobs' shadow on the pool.
+      vec2 e1=d1-SHD, e2=d2-SHD;
+      fsh+=rr*rr*k2*(1.0/max(dot(e1,e1),2e-4)+1.0/max(dot(e2,e2),2e-4));
     }
     // Each blob is its band's color, and merging blobs mix like lava.
     gReg=rs/max(ws,1e-4);
@@ -3786,6 +3827,7 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
     // Backdrop: the pool lit by the blobs above it.
     gAmb=smoothstep(0.0,thr*1.2,f)*0.8;
     gAmbR=gReg;
+    gOcc=smoothstep(thr*0.5,thr*1.1,fsh)*0.7;
     float blob=smoothstep(thr*0.7,thr,f);
     v=max(blob, 0.09+smoothstep(thr*0.03,thr*0.7,f)*0.18);
     z=mix(0.85, zs/max(ws,1e-4), blob);
@@ -3807,6 +3849,11 @@ vec3 synth(vec2 uv,int k){
   float stFloor= (k==0||k==5) ? 1.0 : (k==3 ? 0.6 : 0.0);
   float stRing = k==4 ? 1.0 : (k==2 ? 0.5 : (k==5 ? 0.4 : 0.0));
   float stHaze = k==2 ? 1.5 : (k==3 ? 0.35 : (k==6 ? 0.5 : 1.0));
+  // A key light on the stage: Atom plays on a dark stage under a spot, Ink
+  // Blobs gets a softer one over the pool. The spot drifts with the view.
+  float stSpot = k==3 ? 1.0 : (k==6 ? 0.5 : 0.0);
+  // The stage horizon, shared by the floor reflection and the floor glow.
+  float hz=-0.58;
   float zs=mix(2.2,0.22,clamp(uZoom,0.0,1.0))*(1.0-uSynCam.z);
   // Audio camera. The frame pulls in on the low end, snaps on each beat and
   // rotates slowly across the bar, so the view is part of the performance
@@ -3840,7 +3887,7 @@ vec3 synth(vec2 uv,int k){
   float amp=(0.45+uCA*1.3)*(1.0+kick*0.22);   // shapes swell on the hit
   float v,hue,glo,ht,z;
   synF(p,k,dens,amp,t,v,hue,glo,ht,z);
-  float reg=gReg, amb=gAmb, ambR=gAmbR;         // the floor's second synF overwrites them
+  float reg=gReg, amb=gAmb, ambR=gAmbR, occ=gOcc; // the floor's second synF overwrites them
   z=1.0-(1.0-z)*(1.0-zt);
 
   // Figure/ground flip, one of the phrase variations: the shapes become holes
@@ -3868,8 +3915,11 @@ vec3 synth(vec2 uv,int k){
   // Depth field: a slow fbm haze behind the shapes so the background is a
   // volume instead of pure black, and a floor bounce driven by the low bins.
   // A breakdown thickens the haze; the scene sinks into it until the drop.
+  // The haze hangs behind the shapes: sampled unfolded (the kaleidoscope
+  // mirrors the shapes, not the room) and moved by half the pan and against
+  // the sway, so it slides less than anything in front of it.
   float bk=uSynVar.w;
-  float haze=fbm(p*1.25+vec2(t*0.05,-t*0.07));
+  float haze=fbm(((uv/pd)*zs+uPan*zs*0.8-gSway*0.6)*1.25+vec2(t*0.05,-t*0.07));
   float disp=0.05+uHigh*uReact*0.09;
 
   // Every palette read of the shading, taken in one loop the compiler cannot
@@ -3902,9 +3952,18 @@ vec3 synth(vec2 uv,int k){
   // own that had nothing to do with the scene. A breakdown thickens it.
   vec3 acol=mix(pc[0], regCol(max(ambR,0.0)), wS*step(0.0,ambR));
   vec3 bg=acol*amb*(0.16+uLoud*uReact*0.30)*(0.45+0.9*haze)*stHaze*(1.0+bk*1.2);
-  bg+=pc[1]*exp(-abs(uv.y+0.72)*3.4)*(0.03+uLoud*0.09);
-  // Atom plays on a dark stage under a spot.
-  if(k==3) bg+=pc[2]*exp(-dot(uv,uv)*1.6)*0.06;
+  // Onsets light the room as well as the shapes: the kick flashes it in the
+  // bass color, the hats in the treble one (the palette's below 50% Audio).
+  // The envelopes come in strobe-gated, so the kill stops these too.
+  vec3 kcol=mix(pc[2],regCol(0.06),wS), hcol=mix(pc[4],regCol(0.9),wS);
+  bg+=(kcol*min(uSynEv.x,1.0)+hcol*min(uSynEv.y,1.0)*0.6)*(0.25+amb*0.6)*0.10*uReact*stHaze;
+  // Floor glow on the stage horizon, so it meets the reflection instead of
+  // sitting under it, stronger on the rigs that stand on the wet floor.
+  bg+=pc[1]*exp(-abs(uv.y-hz)*3.4)*(0.03+uLoud*0.09)*(0.6+0.8*stFloor);
+  bg+=pc[2]*exp(-dot(uv-gSway*0.8,uv-gSway*0.8)*1.6)*0.06*stSpot;
+  // Shadows the shapes drop on the backdrop, then the far end of a leaned
+  // stage fogs away with the shapes standing on it.
+  bg*=(1.0-occ*0.75)*(1.0-0.62*zt);
 
   // The shape's own reads: key and depth tint in the register color, the
   // shadow side a darker shade of it, the bloom and rim from it as well.
@@ -3936,7 +3995,15 @@ vec3 synth(vec2 uv,int k){
   float df=1.0-0.62*z;
   vec3 key=pc[3];
   vec3 mat=mix(pc[4]*0.66, key*1.06, 0.28+0.72*lam);
-  vec3 c=bg+mat*v*df+pc[2]*v*z*0.10;
+  // Bounce: the backdrop's light falls back on the shapes, filling their
+  // shadow side and wrapping round their rims in its own color, so a shape
+  // sits in the lit room rather than in front of it.
+  vec3 bnc=acol*min(amb,1.5)*(0.16+uLoud*uReact*0.30)*stHaze;
+  mat+=bnc*(0.5-0.3*lam)+bnc*edge*0.6;
+  // Low parts of a shape (Ink Blobs' pool, the grid lines) are floor, so
+  // they take the shadows too; anything with height stands above them.
+  float sh=1.0-occ*0.6*(1.0-clamp(ht*2.0,0.0,1.0));
+  vec3 c=bg+mat*v*df*sh+pc[2]*v*z*0.10;
   c+=pc[5]*wall*(0.14+uMid*uReact*0.14)*df;
 
   // Dispersed bloom: the three channels bloom at slightly separated hues, so
@@ -3957,7 +4024,6 @@ vec3 synth(vec2 uv,int k){
   // rippled on the bass, so the scene sits on a wet surface instead of
   // floating in black. Only the scenes staged on it pay for the second field
   // evaluation, and only in the band below the horizon where it is visible.
-  float hz=-0.58;
   if(stFloor>0.0 && uv.y<hz && uv.y>hz-0.40){
     float dd=hz-uv.y;
     vec2 ruv=vec2(uv.x+sin(dd*19.0-t*1.05)*0.018*(0.45+uBass*uReact), hz+dd*0.34);
@@ -4533,13 +4599,13 @@ const PRESETS = [
   {name:'Harmony',      grp:'FLD', kind:'2D', mode:39, p:{morph:0.5,detail:0.6,speed:0.35,zoom:0.02,hue:0.55,ca:0.5,cb:0.5,cc:0.3,iter:0.55}},
   {name:'Spider',       grp:'FLD', kind:'2D', mode:38, p:{morph:0.35,detail:0.55,speed:0.5,zoom:0.32,hue:0.48,ca:0.5,cb:0.5,cc:0.35,iter:0.55}},
   // Synth / audio-reactive shaders
-  {name:'Spectrum',     grp:'SYN', kind:'SYN', mode:22, p:{morph:0.3,detail:0.62,speed:0.8,zoom:0.5,hue:0.18,ca:0.55,cb:0.5,cc:0.3}},
-  {name:'Tri Emitter',  grp:'SYN', kind:'SYN', mode:23, p:{morph:0.0,detail:0.55,speed:0.9,zoom:0.45,hue:0.6,ca:0.5,cb:0.5,cc:0.45}},
-  {name:'Particles',    grp:'SYN', kind:'SYN', mode:24, p:{morph:0.4,detail:0.72,speed:0.9,zoom:0.5,hue:0.85,ca:0.5,cb:0.5,cc:0.4}},
-  {name:'Atom',         grp:'SYN', kind:'SYN', mode:25, p:{morph:0.0,detail:0.6,speed:1.0,zoom:0.5,hue:0.42,ca:0.5,cb:0.5,cc:0.3}},
-  {name:'Grid Pulse',   grp:'SYN', kind:'SYN', mode:26, p:{morph:0.35,detail:0.68,speed:0.8,zoom:0.5,hue:0.05,ca:0.6,cb:0.5,cc:0.25}},
-  {name:'Ribbons',      grp:'SYN', kind:'SYN', mode:27, p:{morph:0.4,detail:0.75,speed:0.9,zoom:0.5,hue:0.7,ca:0.55,cb:0.5,cc:0.4}},
-  {name:'Ink Blobs',    grp:'SYN', kind:'SYN', mode:28, p:{morph:0.45,detail:0.66,speed:0.7,zoom:0.45,hue:0.3,ca:0.55,cb:0.5,cc:0.45}},
+  {name:'Spectrum',     grp:'SYN', kind:'SYN', mode:22, p:{morph:0.3,detail:0.62,speed:0.8,zoom:0.5,hue:0,ca:0.55,cb:0.5,cc:0.3}},
+  {name:'Tri Emitter',  grp:'SYN', kind:'SYN', mode:23, p:{morph:0.0,detail:0.55,speed:0.9,zoom:0.45,hue:0,ca:0.5,cb:0.5,cc:0.45}},
+  {name:'Particles',    grp:'SYN', kind:'SYN', mode:24, p:{morph:0.4,detail:0.72,speed:0.9,zoom:0.5,hue:0,ca:0.5,cb:0.5,cc:0.4}},
+  {name:'Atom',         grp:'SYN', kind:'SYN', mode:25, p:{morph:0.0,detail:0.6,speed:1.0,zoom:0.5,hue:0,ca:0.5,cb:0.5,cc:0.3}},
+  {name:'Grid Pulse',   grp:'SYN', kind:'SYN', mode:26, p:{morph:0.35,detail:0.68,speed:0.8,zoom:0.5,hue:0,ca:0.6,cb:0.5,cc:0.25}},
+  {name:'Ribbons',      grp:'SYN', kind:'SYN', mode:27, p:{morph:0.4,detail:0.75,speed:0.9,zoom:0.5,hue:0,ca:0.55,cb:0.5,cc:0.4}},
+  {name:'Ink Blobs',    grp:'SYN', kind:'SYN', mode:28, p:{morph:0.45,detail:0.66,speed:0.7,zoom:0.45,hue:0,ca:0.55,cb:0.5,cc:0.45}},
   // Canvas-drawn scenes (modes >= 90): no shader family, no raymarch pass.
   {name:'Spectrum Mesh',grp:'SYN', kind:'2DC', mode:90, p:{morph:0.4,detail:0.6,speed:0.9,zoom:0.5,hue:0.2,ca:0.5,cb:0.5,cc:0.3}},
   {name:'Outrun',       grp:'SCN', kind:'2DC', mode:91, p:{morph:0.5,detail:0.6,speed:0.9,zoom:0.5,hue:0.55,ca:0.5,cb:0.5,cc:0.3}},

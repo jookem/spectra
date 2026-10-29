@@ -885,6 +885,7 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
                     <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
                   </sc-for>
                 </select>
+                <button onClick="{{ s.toggleLoop }}" title="Loop (↻): automation runs past 100 and comes round again at 0. Bounce (↔): it turns back at the ends" style="display:{{ s.loopShow }};flex:0 0 auto;min-width:{{ deckBtnH }};height:{{ deckBtnH }};box-sizing:border-box;font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};padding:0 6px;cursor:pointer;border:1px solid {{ s.loopBorder }};background:{{ s.loopBg }};color:{{ s.loopFg }};">{{ s.loopTag }}</button>
               </div>
             </div>
           </sc-for>
@@ -1340,6 +1341,7 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
                   <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
                 </sc-for>
               </select>
+              <button onClick="{{ s.toggleLoop }}" title="Loop (↻): automation runs past 100 and comes round again at 0. Bounce (↔): it turns back at the ends" style="display:{{ s.loopShow }};flex:0 0 auto;font-family:'JetBrains Mono',monospace;font-size:11px;padding:4px 7px;min-height:{{ selH }};cursor:pointer;border:1px solid {{ s.loopBorder }};background:{{ s.loopBg }};color:{{ s.loopFg }};">{{ s.loopTag }}</button>
             </div>
           </div>
         </sc-for>
@@ -12025,8 +12027,8 @@ class Component extends DCLogic {
       this._randPrev = {p:s.p, mod:s.mod};
       const mod = {};
       Object.keys(s.mod).forEach(k => {
-        mod[k] = Math.random() < 0.5 ? {src:'off', depth:s.mod[k].depth||0.25}
-          : {src:pool[Math.floor(Math.random()*pool.length)], depth:Math.round((0.15+Math.random()*0.35)*100)/100};
+        mod[k] = Math.random() < 0.5 ? {src:'off', depth:s.mod[k].depth||0.25, loop:!!s.mod[k].loop}
+          : {src:pool[Math.floor(Math.random()*pool.length)], depth:Math.round((0.15+Math.random()*0.35)*100)/100, loop:!!s.mod[k].loop};
       });
       return {randUndo:true, mod};
     });
@@ -15632,7 +15634,7 @@ class Component extends DCLogic {
         {k:'Slot buttons', d:'Click an empty slot to store the current state; click a filled one to recall it'},
         {k:'Shift-click a slot', d:'Overwrite it — right-click clears it'},
         {k:'Drag a slider', d:'Set that parameter by hand'},
-        {k:'Tag beside a value', d:'Pick its automation source \u2014 LFO (sine, or a straight triangle with Ease off in Motion) or SAW (ramp), both on the LFO division, bass, mid, high, level, plus NTE (pitch class of the loudest note), TON (key center on the circle of fifths) and CHD (chord-change transient)'},
+        {k:'Tag beside a value', d:'Pick its automation source \u2014 LFO (sine, or a straight triangle with Ease off in Motion) or SAW (ramp), both on the LFO division, bass, mid, high, level, plus NTE (pitch class of the loudest note), TON (key center on the circle of fifths) and CHD (chord-change transient). Once a source is picked, the ↔ / ↻ button beside it sets Bounce or Loop: Bounce turns back at 0 and 100, Loop runs past 100 and comes round again at 0, and an LFO on Loop becomes a ramp that keeps going one way (Amt 50 is one full lap per cycle)'},
         {k:'AMT bar', d:'How far that source moves the parameter'},
         {k:'Const A / B sliders', d:'The scene\u2019s core constants — Julia seeds, box-fold scale, Newton relaxation'},
         {k:'Iter slider', d:'Iteration depth — more structure, more GPU cost'},
@@ -15648,7 +15650,7 @@ class Component extends DCLogic {
         {k:'Trim row', d:'Fine trim on any palette — Sat, Gam (gamma), Span (ramp width), Warm (R/B tilt). Double-click a track to reset it'},
         {k:'Depth / Rim', d:'On 3D scenes this slider is Rim: it lights the silhouette edges in the bright tone of the palette so the form stands off the background. On 2D scenes it is Depth, which gives them a third dimension, read from brightness. Relief lights the image as a carved surface, Parallax slides it apart in layers, Terrain flies over it as a landscape. Pick the kind in Look; the Depth trim sets how tall it gets and the gyro steers it. On the 3D scenes the same trim adds Relief instead'},
         {k:'Audio rigs: History / Events / Variation', d:'Dials 7, 11 and 15 on the audio rigs. History is how far back the scenes reach into the last four seconds of spectrum: the trailing slices of Spectrum, the wave across Grid Pulse, the scroll of Ribbons. Events scales the onset hits (kick, hats, chord changes, drops); 50% is as designed. Variation sets the phrase length (8, 4 or 2 bars) and how far each new look strays: lean, roll, push, mirrors, hue, figure/ground. A drop out of a breakdown always forces a new look. AUTO off holds the look'},
-        {k:'Audio rigs: Palette↔Audio', d:'Dial 12 on the audio rigs picks where the color comes from. At 0 the shapes use the palette. At 50% each shape takes the color of the part of the music it plays: bass red, then orange, yellow, green and cyan, up to treble blue. A low note lights red bars, cells, particles and ribbons, a high one blue. Grid Pulse cells each meter one register and one note, and rise furthest while that note sounds. At 100% the haze and floor glow follow the music too, warm when it sits low and cool when it sits high. Saturation, Warmth and Gamma in Trim still apply'},
+        {k:'Audio rigs: Palette↔Audio', d:'Dial 12 on the audio rigs picks where the color comes from. At 0 the shapes use the palette. At 50% each shape takes the color of the part of the music it plays: bass red, then orange, yellow, green and cyan, up to treble blue. A low note lights red bars, cells, particles and ribbons, a high one blue. Grid Pulse cells each meter one register and one note, and rise furthest while that note sounds. At 100% the haze and floor glow follow the music too, warm when it sits low and cool when it sits high. The Hue dial turns that whole map round the color wheel: at 0 bass is red, and by 100 every register has gone once round the spectrum and is back where it started. Saturation, Warmth and Gamma in Trim still apply'},
         {k:'Relief (Depth on 3D)', d:'A bump map on the 3D surface — fine raised and sunken detail fixed to the geometry, so it rides the form as the camera moves and catches the light. Depth sets how strong it is; 0 is the smooth surface. The setting is shared with 2D Depth'},
         {k:'Depth Terrain', d:'Bright parts of the frame become hills, dark parts valleys and water, and the camera flies over them while the fractal keeps animating underneath. Auto moves the flight; the DOF trim hazes the distance. The ground carries a fine rock relief that grows with Depth. For gentler hills, lower Depth or pick a scene with broad areas of color rather than fine filigree'},
         {k:'View: Orbit / Fly / Surface', d:'3D scenes only. Orbit circles the whole object. Fly steers itself through the open space between forms. Surface skims low over the surface and keeps a safe height above it'},
@@ -17733,17 +17735,27 @@ class Component extends DCLogic {
     this.SD.forEach((d,i) => {
       const m = mod[d.key] || {src:'off',depth:0};
       let v = p[d.key] ?? (this.PDEF[d.key] ?? 0.5);
-      if(auto && m.src!=='off' && m.depth>0) v += m.depth * this.signal(m.src, tt, i, m.div);
       // Zoom is the one parameter that may leave [0,1]: with a solved anchor it
       // is a loop PHASE, and clamping it here was the wall the slider hit at
       // both ends — the shader takes the fraction, so the whole number is the
       // sweep count and has to survive.
       const zf = d.key==='zoom' && this.zFree();
-      if(d.key==='hue') v = ((v%1)+1)%1;
+      // Loop: the dial runs round instead of back and forth. Past 100 it comes
+      // in again at 0, and a tempo LFO becomes the ramp, so it keeps travelling
+      // one way — at Amt 50 one full lap per cycle, at 100 two.
+      const lp = !!m.loop && !zf;
+      if(auto && m.src!=='off' && m.depth>0) v += m.depth * this.signal(lp && m.src==='lfo' ? 'bpm' : m.src, tt, i, m.div);
+      if(d.key==='hue' || lp) v = ((v%1)+1)%1;
       else if(!zf) v = Math.min(1,Math.max(0,v));
       const prev = this.eff[d.key];
       if(prev === undefined || snap || d.key==='hue') this.eff[d.key] = v;
-      else {
+      else if(lp){
+        // Eased the short way round, so the step from 99 to 1 is two points
+        // forward and not a sweep back across the whole range.
+        const k = 1 - Math.pow(0.0016, dt);
+        const dv = v - prev - Math.round(v - prev), nv = prev + dv*k;
+        this.eff[d.key] = ((nv%1)+1)%1;
+      } else {
         const k = 1 - Math.pow(0.0016, dt);
         this.eff[d.key] = prev + (v - prev)*k;
       }
@@ -18632,6 +18644,13 @@ class Component extends DCLogic {
           // pitch sources rather than sitting there doing nothing.
           divVal: (m.div == null || m.div === 0) ? '' : String(m.div),
           divShow: (m.src==='lfo' || m.src==='bpm') ? 'block' : 'none',
+          // Loop / bounce: whether automation wraps past the ends or stops at
+          // them. Only shown once a source is picked; lit while looping.
+          loopShow: on ? 'block' : 'none',
+          loopTag: m.loop ? '↻' : '↔',
+          loopBg: chip(!!m.loop).bg, loopFg: chip(!!m.loop).fg, loopBorder: chip(!!m.loop).border,
+          toggleLoop:()=>this.setState(st=>({mod:Object.assign({},st.mod,{[d.key]:
+            Object.assign({src:'off',depth:0},st.mod[d.key],{loop:!(st.mod[d.key]&&st.mod[d.key].loop)})})})),
           setDiv:e=>{
             const raw=e.target.value;
             this.setState(st=>({mod:Object.assign({},st.mod,{[d.key]:
