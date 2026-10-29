@@ -12211,7 +12211,9 @@ class Component extends DCLogic {
     const pr = this.E.PRESETS[this.state.preset];
     const fam = pr && pr.kind !== '2DC' ? String(this.E.FAM_OF(pr.mode)) : '';
     const weak = !this.plat || this.plat.kind !== 'desktop-dgpu';
-    if(fam.slice(0,3) === '3d:' && (weak || hung)){
+    // Audio rigs too: each is its own program, and its link on an integrated
+    // GPU measured ~45s, the same launch hang the 3D scenes had.
+    if((fam.slice(0,3) === '3d:' || fam.slice(0,4) === 'syn:') && (weak || hung)){
       const i = this.E.PRESETS.findIndex(p => p.name === 'Mandelbrot');
       if(i >= 0){ this.state.preset = i; this.setState({preset: i}); }
     }

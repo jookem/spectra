@@ -677,37 +677,62 @@ vec3 rampM(float x, vec3 a, vec3 b, vec3 c, vec3 d, vec3 e){
   if(i<3.0) return mix(c,d,u);
   return mix(d,e,u);
 }
+// Palette setup, once per pixel at the top of main(). pal() used to be a
+// sixteen-way branch over constant stop lists, and ANGLE's D3D compiler
+// inlines the whole of it, ten ramp copies included, at every call site: a
+// scene with thirty palette reads spent most of its link there. The branch
+// only depends on the uniform, so it is taken here once and pal() is left with
+// four small shapes: cosine, two-color sine, fire, and one stop ramp.
+int gPk;                 // 0 cosine, 1 sine between two colors, 2 fire, 3 stops
+vec3 gPS[7];             // stops; a cyclic ramp repeats the first at the end
+vec3 gPh; float gPm;     // cosine phase and rate
+int gPn;                 // last stop a segment may start from: 5 cyclic, 3 mirrored
+void pS2(int k, vec3 a, vec3 b){ gPk=k; gPS[0]=a; gPS[1]=b; }
+void pS6(vec3 a, vec3 b, vec3 c, vec3 d, vec3 e, vec3 f){ gPk=3; gPn=5; gPS[0]=a; gPS[1]=b; gPS[2]=c; gPS[3]=d; gPS[4]=e; gPS[5]=f; gPS[6]=a; }
+void pS5(vec3 a, vec3 b, vec3 c, vec3 d, vec3 e){ gPk=3; gPn=3; gPS[0]=a; gPS[1]=b; gPS[2]=c; gPS[3]=d; gPS[4]=e; }
+void palSetup(){
+  gPk=0; gPh=vec3(0.0,0.33,0.67); gPm=1.0; gPn=5;
+  if(uPalSel==1){ pS2(1,vec3(0.03,0.04,0.09),vec3(0.95,0.42,0.12)); }
+  else if(uPalSel==2){ pS2(2,vec3(0.85,0.09,0.04),vec3(1.0,0.93,0.55)); }
+  else if(uPalSel==3){ gPh=vec3(0.0,0.07,0.14); }
+  else if(uPalSel==4){ pS2(1,vec3(0.07,0.28,0.92),vec3(0.98,0.2,0.55)); }
+  else if(uPalSel==5){ gPh=vec3(0.0,0.52,0.78); gPm=1.35; }
+  else if(uPalSel==6){ pS6(vec3(0.99,0.86,0.44), vec3(0.94,0.49,0.22), vec3(0.55,0.13,0.30),
+        vec3(0.25,0.13,0.48), vec3(0.13,0.62,0.60), vec3(0.55,0.93,0.87)); }
+  else if(uPalSel==7){ pS6(vec3(0.06,0.10,0.22), vec3(0.35,0.72,0.72), vec3(0.86,0.94,0.82),
+        vec3(0.95,0.55,0.34), vec3(0.72,0.20,0.42), vec3(0.32,0.14,0.40)); }
+  else if(uPalSel==8){ pS5(vec3(0.04,0.05,0.10), vec3(0.17,0.24,0.42), vec3(0.42,0.50,0.60),
+        vec3(0.80,0.78,0.72), vec3(0.78,0.47,0.22)); }
+  else if(uPalSel==9){ pS5(vec3(0.05,0.06,0.06), vec3(0.08,0.22,0.24), vec3(0.16,0.48,0.42),
+        vec3(0.51,0.76,0.63), vec3(0.90,0.88,0.78)); }
+  else if(uPalSel==10){ pS5(vec3(0.03,0.04,0.09), vec3(0.20,0.13,0.33), vec3(0.52,0.28,0.40),
+        vec3(0.82,0.50,0.38), vec3(0.98,0.80,0.45)); }
+  else if(uPalSel==11){ pS5(vec3(0.07,0.06,0.06), vec3(0.28,0.14,0.09), vec3(0.60,0.30,0.15),
+        vec3(0.83,0.60,0.30), vec3(0.95,0.90,0.78)); }
+  else if(uPalSel==12){ pS5(vec3(0.024,0.075,0.145), vec3(0.055,0.195,0.335), vec3(0.165,0.375,0.545),
+        vec3(0.560,0.715,0.790), vec3(0.945,0.915,0.845)); }
+  else if(uPalSel==13){ pS6(vec3(0.039,0.055,0.149), vec3(0.071,0.337,0.408), vec3(0.337,0.769,0.698),
+        vec3(0.969,0.910,0.745), vec3(0.769,0.376,0.227), vec3(0.216,0.110,0.278)); }
+  else if(uPalSel==14){ pS6(vec3(0.945,0.960,0.855), vec3(0.720,0.855,0.545), vec3(0.435,0.635,0.345),
+        vec3(0.360,0.455,0.780), vec3(0.910,0.450,0.300), vec3(0.820,0.880,0.960)); }
+  // Plume: pastel feathers over a deep teal lattice — cream, peach, rose, sky,
+  // mint, then the dark teal that carries the filaments between the fronds.
+  else if(uPalSel==15){ pS6(vec3(0.99,0.95,0.86), vec3(0.98,0.76,0.62), vec3(0.95,0.64,0.72),
+        vec3(0.62,0.80,0.92), vec3(0.62,0.88,0.80), vec3(0.10,0.40,0.43)); }
+  else { gPh=vec3(0.0,0.33,0.67); }
+}
 vec3 pal(float t){
   float tt=t*uSpan+uHue;
   vec3 base;
-  if(uPalSel==1){ float x=0.5+0.5*sin(tt*6.28318); base=mix(vec3(0.03,0.04,0.09),vec3(0.95,0.42,0.12),x); }
-  else if(uPalSel==2){ float x=fract(tt); base=mix(mix(vec3(0.0),vec3(0.85,0.09,0.04),smoothstep(0.0,0.5,x)),vec3(1.0,0.93,0.55),smoothstep(0.5,1.0,x)); }
-  else if(uPalSel==3){ base=0.5+0.5*cos(6.28318*(vec3(0.0,0.07,0.14)+tt)); }
-  else if(uPalSel==4){ float x=0.5+0.5*sin(tt*6.28318); base=mix(vec3(0.07,0.28,0.92),vec3(0.98,0.2,0.55),x); }
-  else if(uPalSel==5){ base=0.5+0.5*cos(6.28318*(vec3(0.0,0.52,0.78)+tt*1.35)); }
-  else if(uPalSel==6){ base=ramp(tt, vec3(0.99,0.86,0.44), vec3(0.94,0.49,0.22), vec3(0.55,0.13,0.30),
-                                     vec3(0.25,0.13,0.48), vec3(0.13,0.62,0.60), vec3(0.55,0.93,0.87)); }
-  else if(uPalSel==7){ base=ramp(tt, vec3(0.06,0.10,0.22), vec3(0.35,0.72,0.72), vec3(0.86,0.94,0.82),
-                                     vec3(0.95,0.55,0.34), vec3(0.72,0.20,0.42), vec3(0.32,0.14,0.40)); }
-  else if(uPalSel==8){ base=rampM(tt, vec3(0.04,0.05,0.10), vec3(0.17,0.24,0.42), vec3(0.42,0.50,0.60),
-                                      vec3(0.80,0.78,0.72), vec3(0.78,0.47,0.22)); }
-  else if(uPalSel==9){ base=rampM(tt, vec3(0.05,0.06,0.06), vec3(0.08,0.22,0.24), vec3(0.16,0.48,0.42),
-                                      vec3(0.51,0.76,0.63), vec3(0.90,0.88,0.78)); }
-  else if(uPalSel==10){ base=rampM(tt, vec3(0.03,0.04,0.09), vec3(0.20,0.13,0.33), vec3(0.52,0.28,0.40),
-                                       vec3(0.82,0.50,0.38), vec3(0.98,0.80,0.45)); }
-  else if(uPalSel==11){ base=rampM(tt, vec3(0.07,0.06,0.06), vec3(0.28,0.14,0.09), vec3(0.60,0.30,0.15),
-                                       vec3(0.83,0.60,0.30), vec3(0.95,0.90,0.78)); }
-  else if(uPalSel==12){ base=rampM(tt, vec3(0.024,0.075,0.145), vec3(0.055,0.195,0.335), vec3(0.165,0.375,0.545),
-                                       vec3(0.560,0.715,0.790), vec3(0.945,0.915,0.845)); }
-  else if(uPalSel==13){ base=ramp(tt, vec3(0.039,0.055,0.149), vec3(0.071,0.337,0.408), vec3(0.337,0.769,0.698),
-                                       vec3(0.969,0.910,0.745), vec3(0.769,0.376,0.227), vec3(0.216,0.110,0.278)); }
-  else if(uPalSel==14){ base=ramp(tt, vec3(0.945,0.960,0.855), vec3(0.720,0.855,0.545), vec3(0.435,0.635,0.345),
-                                       vec3(0.360,0.455,0.780), vec3(0.910,0.450,0.300), vec3(0.820,0.880,0.960)); }
-  // Plume: pastel feathers over a deep teal lattice — cream, peach, rose, sky,
-  // mint, then the dark teal that carries the filaments between the fronds.
-  else if(uPalSel==15){ base=ramp(tt, vec3(0.99,0.95,0.86), vec3(0.98,0.76,0.62), vec3(0.95,0.64,0.72),
-                                       vec3(0.62,0.80,0.92), vec3(0.62,0.88,0.80), vec3(0.10,0.40,0.43)); }
-  else { base=0.5+0.5*cos(6.28318*(vec3(0.0,0.33,0.67)+tt)); }
+  if(gPk==0) base=0.5+0.5*cos(6.28318*(gPh+tt*gPm));
+  else if(gPk==1) base=mix(gPS[0],gPS[1],0.5+0.5*sin(tt*6.28318));
+  else if(gPk==2){ float x=fract(tt); base=mix(mix(vec3(0.0),gPS[0],smoothstep(0.0,0.5,x)),gPS[1],smoothstep(0.5,1.0,x)); }
+  else {
+    // Same pacing as ramp() (cyclic, six stops) and rampM() (mirrored, five).
+    float x=gPn==5 ? fract(tt)*6.0 : abs(fract(tt*0.5)*2.0-1.0)*4.0;
+    int i=int(min(floor(x),float(gPn)));
+    base=mix(gPS[i],gPS[i+1],smoothstep(0.0,1.0,fract(x)));
+  }
   vec3 duo=0.5+0.5*cos(6.28318*(vec3(0.0,0.12,0.24)+tt*0.7));
   vec3 c=mix(base,duo,clamp(uCC,0.0,1.0)*(uPalSel==0?1.0:0.0));
   // Global color trim, applied to every palette. Saturation pivots on Rec.709
@@ -3727,10 +3752,24 @@ vec3 synth(vec2 uv,int k){
   // A breakdown thickens the haze; the scene sinks into it until the drop.
   float bk=uSynVar.w;
   float haze=fbm(p*1.25+vec2(t*0.05,-t*0.07));
-  vec3 bg=pal(0.62+haze*0.3)*haze*haze*(0.045+uBass*uReact*0.11)*stHaze*(1.0+bk*1.2);
-  bg+=pal(0.08)*exp(-abs(uv.y+0.72)*3.4)*(0.03+uLoud*0.09);
+  float disp=0.05+uHigh*uReact*0.09;
+
+  // Every palette read of the shading, taken in one loop the compiler cannot
+  // unroll (the start is a runtime zero). pal() is a sixteen-way branch and
+  // ANGLE's D3D compiler inlines all of it at every call site: fifteen calls
+  // made each audio rig a ~45s synchronous link on an integrated GPU. In a
+  // loop the driver sees a single copy.
+  float pt[12];
+  pt[0]=0.62+haze*0.3; pt[1]=0.08; pt[2]=hs+0.6; pt[3]=hs; pt[4]=hs+0.44;
+  pt[5]=hs+0.05; pt[6]=hs+0.28-disp; pt[7]=hs+0.28; pt[8]=hs+0.28+disp;
+  pt[9]=hs+0.5; pt[10]=hs+0.18; pt[11]=hs+0.25;
+  vec3 pc[12];
+  for(int i=min(0,int(abs(uTime)));i<12;i++) pc[i]=pal(pt[i]);
+
+  vec3 bg=pc[0]*haze*haze*(0.045+uBass*uReact*0.11)*stHaze*(1.0+bk*1.2);
+  bg+=pc[1]*exp(-abs(uv.y+0.72)*3.4)*(0.03+uLoud*0.09);
   // Atom plays on a dark stage under a spot.
-  if(k==3) bg+=pal(hs+0.6)*exp(-dot(uv,uv)*1.6)*0.06;
+  if(k==3) bg+=pc[2]*exp(-dot(uv,uv)*1.6)*0.06;
 
   // Thickness without a second field evaluation. The directional derivative of
   // the height against the light offset gives a one-sided band on the shadowed
@@ -3752,20 +3791,19 @@ vec3 synth(vec2 uv,int k){
   // Atmospheric perspective: far things are dimmer, flatter and pulled toward
   // the haze color, which is most of what makes stacked layers read as depth.
   float df=1.0-0.62*z;
-  vec3 key=pal(hs);
-  vec3 mat=mix(pal(hs+0.44)*0.66, key*1.06, 0.28+0.72*lam);
-  vec3 c=bg+mat*v*df+pal(hs+0.6)*v*z*0.10;
-  c+=pal(hs+0.05)*wall*(0.14+uMid*uReact*0.14)*df;
+  vec3 key=pc[3];
+  vec3 mat=mix(pc[4]*0.66, key*1.06, 0.28+0.72*lam);
+  vec3 c=bg+mat*v*df+pc[2]*v*z*0.10;
+  c+=pc[5]*wall*(0.14+uMid*uReact*0.14)*df;
 
   // Dispersed bloom: the three channels bloom at slightly separated hues, so
   // hot cores fringe warm/cool at their edges the way real optics do.
-  float disp=0.05+uHigh*uReact*0.09;
-  vec3 gcol=vec3(pal(hs+0.28-disp).r, pal(hs+0.28).g, pal(hs+0.28+disp).b);
+  vec3 gcol=vec3(pc[6].r, pc[7].g, pc[8].b);
   c+=gcol*glo*bl*(0.4+uHigh*uReact*0.6)*(1.0-0.4*z);
 
   // Rim, then a tight specular that pumps on the hit: the light is the thing
   // that arrives, so a beat reads as the surface catching a flash.
-  c+=pal(hs+0.5)*edge*v*(0.45+uCB*0.7)*df;
+  c+=pc[9]*edge*v*(0.45+uCB*0.7)*df;
   c+=vec3(1.0,0.97,0.92)*spec*v*(0.30+uHigh*uReact*0.55+kick*0.5)*df;
   c+=vec3(1.0,0.98,0.94)*pow(edge,3.0)*v*(0.14+uBeat*0.3*uReact)*df;
 
@@ -3783,7 +3821,11 @@ vec3 synth(vec2 uv,int k){
     // Ease the reflection in from the horizon instead of starting it at full
     // strength: a hard onset at hz is what read as a line across the frame.
     float fade=exp(-dd*9.0)*(0.15+uLoud*0.07)*smoothstep(0.0,0.05,dd)*stFloor;
-    c+=(pal(rh*0.85+uSynVar.x)*rv + pal(rh*0.85+0.28+uSynVar.x)*rg*bl*0.14)*fade;
+    // The reflection's two palette reads share one loop too: a second
+    // inlined pair of pal() is most of what this band costs to compile.
+    vec3 rc[2];
+    for(int i=min(0,int(abs(uTime)));i<2;i++) rc[i]=pal(rh*0.85+float(i)*0.28+uSynVar.x);
+    c+=(rc[0]*rv + rc[1]*rg*bl*0.14)*fade;
   }
 
   // Beat ring: a thin shock expanding from the center once per beat, on the
@@ -3793,13 +3835,13 @@ vec3 synth(vec2 uv,int k){
   // undefined in GLSL and this radius term is negative over most of the frame.
   float rw=(rr-bp*1.25)*9.0;
   float ring=exp(-rw*rw)*(1.0-bp)*uReact*stRing;
-  c+=pal(hs+0.18)*ring*(0.10+uLoud*0.22);
+  c+=pc[10]*ring*(0.10+uLoud*0.22);
 
   // The drop: a hot flash of the palette over the shapes, and a brief white
   // one on the strobe gain.
   float dp=min(uSynEv.w,1.5);
   float dw=min(dp,1.0);
-  c+=pal(hs+0.25)*v*dp*0.35;
+  c+=pc[11]*v*dp*0.35;
   c+=vec3(1.0)*dw*dw*dw*dw*0.30*uStrobe;
 
   c*=1.0-(k==3?0.42:0.22)*smoothstep(0.7,1.7,length(uv));
@@ -4095,6 +4137,7 @@ vec3 videoLayer(vec2 uv, vec2 suv, vec3 col){
   return c;
 }
 void main(){
+  palSetup();
   vec2 uv=(gl_FragCoord.xy*2.0-uRes)/uRes.y;
   vec2 suv=gl_FragCoord.xy/uRes;
   float plF=1.0;
@@ -4770,6 +4813,7 @@ const FRAG_FOR = (m, fast, safe) => {
 // Output: r = hit, g/b = depth (16 bit), a = orbit trap.
 const _LITE_MAIN = `uniform vec4 uLiteCam;
 void main(){
+  palSetup();
   vec2 uv=(gl_FragCoord.xy*2.0-uRes)/uRes.y;
   float dist=liteDfar()*uLiteCam.x;
   vec3 ro=vec3(0.0,0.0,-dist), cup=vec3(0.0,1.0,0.0);
@@ -4842,6 +4886,7 @@ const MAPLIB_FOR = (m, main) => FAM_OF(m).slice(0,3) !== '3d:' ? null
 // and stands in for the scene color, so every video mode works on them too.
 const VIDFX_FRAG = () => _slim(_HEAD + _VID + `uniform sampler2D uCanv;
 void main(){
+  palSetup();
   vec2 suv=gl_FragCoord.xy/uRes;
   vec2 uv=(gl_FragCoord.xy*2.0-uRes)/uRes.y;
   vec3 col=texture(uCanv,vec2(suv.x,1.0-suv.y)).rgb;
