@@ -844,6 +844,7 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
             <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);flex:1 1 auto;">Parameters</span>
             <button onClick="{{ randParams }}" title="Roll new values for the dials (□ on the pad, or shake the device)" style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:6px 12px;min-height:{{ deckBtnH }};box-sizing:border-box;cursor:pointer;white-space:nowrap;flex:0 0 auto;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--acc);background:var(--acc14);color:var(--acc);">Randomize</button>
             <button onClick="{{ randMod }}" title="Give about half the dials a random automation source and depth" style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:6px 12px;min-height:{{ deckBtnH }};box-sizing:border-box;cursor:pointer;white-space:nowrap;flex:0 0 auto;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.16);background:rgba(8,9,10,0.34);color:#F2F3F0;">Random auto</button>
+            <button onClick="{{ resetParams }}" title="Every dial to 0 and all automation off (Undo puts it back)" style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:6px 12px;min-height:{{ deckBtnH }};box-sizing:border-box;cursor:pointer;white-space:nowrap;flex:0 0 auto;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.16);background:rgba(8,9,10,0.34);color:#F2F3F0;">Reset</button>
             <button onClick="{{ randUndo }}" title="Put back the values from before the last roll" style="display:{{ randUndoDisp }};font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:6px 12px;min-height:{{ deckBtnH }};box-sizing:border-box;cursor:pointer;white-space:nowrap;flex:0 0 auto;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.16);background:rgba(8,9,10,0.34);color:rgba(242,243,240,0.75);">Undo</button>
             <button onClick="{{ shakeT }}" title="{{ shakeTitle }}" style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;padding:6px 12px;min-height:{{ deckBtnH }};box-sizing:border-box;cursor:pointer;white-space:nowrap;flex:0 0 auto;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid {{ shakeBorder }};background:{{ shakeBg }};color:{{ shakeFg }};">{{ shakeLabel }}</button>
           </div>
@@ -1524,7 +1525,7 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
   </div>
 
   <div style="position:absolute;left:22px;bottom:20px;z-index:30;display:{{ hotkeyDisplay }};flex-direction:column;gap:5px;pointer-events:none;opacity:{{ hotkeyOpacity }};transition:opacity .35s;">
-    <div style="font-size:9.5px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(242,243,240,0.62);text-shadow:0 0 3px rgba(8,9,10,0.95),0 0 7px rgba(8,9,10,0.85),0 1px 2px rgba(8,9,10,0.9);">1–9 QWE scene · [ ] hue · A automation · R spin · X formula · SPACE cue · C add cue · M morph · O output · U chrome · ESC hide · F full</div>
+    <div style="font-size:9.5px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(242,243,240,0.62);text-shadow:0 0 3px rgba(8,9,10,0.95),0 0 7px rgba(8,9,10,0.85),0 1px 2px rgba(8,9,10,0.9);">1–9 QWE scene · [ ] hue · A automation · P randomize · R spin · X formula · SPACE cue · C add cue · M morph · O output · U chrome · ESC hide · F full</div>
     <div style="font-size:9.5px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(242,243,240,0.52);text-shadow:0 0 3px rgba(8,9,10,0.95),0 0 7px rgba(8,9,10,0.85),0 1px 2px rgba(8,9,10,0.9);">Pad: R-stick morph/detail · L-stick orbit/travel · R2 L2 zoom (L1 fine) · L1 hue/react + cc/iter · R1 speed/trail + ca/cb · TP-click constants · D-pad ←→ scene, ↑↓ iter · L3 spin · R3 recenter · ✕ auto · ○ chrome · △ text · □ random · H all mappings</div>
   </div>
 
@@ -1947,6 +1948,8 @@ class Component extends DCLogic {
         const d = e.key==='ArrowDown' ? 1 : -1;
         this.setState(st=>({pal: (((st.pal||0)+d)%n+n)%n}));
       }
+      // P rolls the dials, the same as Randomize; Shift+P rolls the automation.
+      else if(k==='p'){ if(e.shiftKey) this.randomizeMod(); else this.randomize(); }
       else if(k==='x') this.setState(s=>({formula:!s.formula}));
       else if(k==='v') this.setState(s=>({levels:!s.levels}));
       else if(k==='r') this.setState(s=> e.shiftKey
@@ -12033,6 +12036,17 @@ class Component extends DCLogic {
       return {randUndo:true, mod};
     });
   }
+  // Reset: every dial to 0 and every automation off (source, Amt, Loop).
+  // Undo puts back what was there, the same as after a roll.
+  resetParams(){
+    this.setState(s => {
+      this._randPrev = {p:s.p, mod:s.mod};
+      const p = Object.assign({}, s.p), mod = {};
+      this.SD.forEach(d => { p[d.key] = 0; });
+      Object.keys(s.mod).forEach(k => { mod[k] = Object.assign({}, s.mod[k], {src:'off', depth:0, loop:false}); });
+      return {randUndo:true, p, mod};
+    });
+  }
   // Shake to randomize: three hard jolts inside 0.8 s, then a 1.5 s rest so
   // one shake is one roll. Reads acceleration without gravity where the
   // device gives it, otherwise the jump between readings with gravity in.
@@ -14244,7 +14258,7 @@ class Component extends DCLogic {
     {ch:'Slots', tab:'slots', pos:'top', g:'Menu · Slots', t:'Stored looks and Morph',
      d:'Eight slots. Tap an empty one to store what is on screen and a filled one to recall it — F1–F8 recall and Shift+F1–F8 store from the keyboard. Morph (M) puts two slots on one fader: choose the left and right ends and slide between them.'},
     {ch:'Params', tab:'params', pos:'top', g:'Menu · Params', t:'Trim and the twelve dials',
-     d:'Trim is the tone row that sits over every scene: Smth, Sat, Gam, Span, Warm and DOF. Under it are the twelve parameters. Their names change with the scene but their numbers stay put, so 1 is always the first dial. Drag a fader, double-click to reset it. Each one has an automation source and its own LFO length, so any dial can move on its own with the music. Randomize rolls new values and Random auto new sources, Undo takes back the last roll, and on a phone or tablet a hard shake randomizes too (Shake on / off).'},
+     d:'Trim is the tone row that sits over every scene: Smth, Sat, Gam, Span, Warm and DOF. Under it are the twelve parameters. Their names change with the scene but their numbers stay put, so 1 is always the first dial. Drag a fader, double-click to reset it. Each one has an automation source and its own LFO length, so any dial can move on its own with the music. Randomize rolls new values and Random auto new sources, Reset sets every dial to 0 and turns all automation off, Undo takes back the last roll or reset, and on a phone or tablet a hard shake randomizes too (Shake on / off).'},
     {ch:'Look', tab:'look', pos:'top', g:'Menu · Look', t:'Color, camera and strobe',
      d:'Trail sets how long frames linger. Palette and FX color the image. The 3D camera orbits the object, flies through it or skims its surface; Repeat tiles a 3D fractal into an endless lattice; Vector draws it as edges, contours or points, alone or over the shaded render. Motion: Auto (A) runs the drift and animation, the LFO division sets the default length, and Ease switches the LFO between easing in and out and a constant-speed sweep. Strobe sets the beat flashes — strength, length and which beats — and B kills them for photosensitive rooms.'},
     {ch:'System', tab:'system', pos:'top', g:'Menu · System', t:'Render, layout and output',
@@ -15566,6 +15580,7 @@ class Component extends DCLogic {
       keys: [
         {k:'1 – 9, Q W E', d:'Jump to scenes 1–12 (D-pad reaches all 40)'},
         {k:'[  ]', d:'Shift hue'},
+        {k:'P', d:'Randomize the dials, the same as the Randomize button. Shift+P rolls random automation instead (Random auto). Undo in Parameters puts the last roll back'},
         {k:'A', d:'Automation on / off — camera drift, scene motion and the canvas scenes’ animation. The same switch is the Auto button in Motion'},
         {k:'0', d:'Reset the view — pan back to center, camera level. Zoom is left where you set it'},
         {k:'← / →', d:'Previous / next scene'},
@@ -18208,6 +18223,7 @@ class Component extends DCLogic {
       setLfo: (e)=>this.setState({lfoDiv: parseFloat(e.target.value)||4}),
       randParams: () => this.randomize(),
       randMod: () => this.randomizeMod(),
+      resetParams: () => this.resetParams(),
       randUndo: () => this.randomUndo(),
       randUndoDisp: s.randUndo ? 'block' : 'none',
       shakeT: () => {
