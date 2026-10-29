@@ -2746,7 +2746,7 @@ class Component extends DCLogic {
       if(glModes.indexOf(p.mode) < 0) glModes.push(p.mode);
     });
     const shared = Object.keys(byFam)
-      .filter(f => f === 'syn' || f.slice(0,3) === '2d:')
+      .filter(f => f.slice(0,4) === 'syn:' || f.slice(0,3) === '2d:')
       .sort();
     // ESSENTIALS FIRST, THE REST WHEN THE MACHINE IS IDLE.
     //
@@ -3666,7 +3666,7 @@ class Component extends DCLogic {
     this.progs = {}; this.us = {};
     this.UNAMES = ['uRes','uTime','uBass','uMid','uHigh','uLoud','uBeat','uJump','uHue','uMorph','uDetail','uZoom','uReact','uSpeed','uMode',
      'uTex','uVidMix','uHasTex','uVidFlip','uVidFlipV','uVidMode','uVidMode2','uPrev','uFeed','uDrift','uCamYaw','uCamPitch','uCamAuto','uPan','uOrbit','uCA','uCB','uCC','uIter','uXfade','uXfMode','uCtr','uFocus','uPalSel','uSpec',
-     'uRepV','uSceneOff','uLook','uZX','uZLoop','uZAnc','uZRat','uZRot','uZBase','uIOR','uZIter','uTravel','uStrobe','uSat','uGam','uSpan','uWarm','uFill','uField','uLine','uDOF','uRim','uLights','uLvPh','uCoCOut','uSpin','uSmooth','uChroma','uNote','uNoteConf','uTonal','uChordChg','uBeatPh','uCtr3','uDepthOut','uCamRoll',
+     'uRepV','uSceneOff','uLook','uZX','uZLoop','uZAnc','uZRat','uZRot','uZBase','uIOR','uZIter','uTravel','uStrobe','uSat','uGam','uSpan','uWarm','uFill','uField','uLine','uDOF','uRim','uLights','uLvPh','uCoCOut','uSpin','uSmooth','uChroma','uNote','uNoteConf','uTonal','uChordChg','uBeatPh','uCtr3','uDepthOut','uCamRoll','uHist','uSynHist','uSynEv','uSynCam','uSynVar',
      'uGly',
      'uTxt','uTxtOn','uTxtDepth','uTxtScale','uTxtY','uTxtX','uTxtZ','uTxtRot','uTxtRx','uTxtRy','uTxtHue','uTxtWeight','uTxtWarp','uTxtInk','uTxtLit','uTxtJit','uTxtAsp','uPlane','uDeep','uDeepPix','uDeepBase','uDeepShade','uDeepMax','uRefLen','uDeepOff','uOrb','uCamMode','uCamScale','uRep','uCamProbe','uCamPos','uCamF','uCamR','uCamU','uCamTap','uTgt','uTgtK','uTgtC','uCamFog','uClrPass','uClrOn','uClrTex'];
     // A canvas scene has no shader family — compile mode 0 so the GL path is
@@ -3745,6 +3745,20 @@ class Component extends DCLogic {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,this.specN,2,0,gl.RGBA,gl.UNSIGNED_BYTE,this.specData);
     gl.uniform1i(this.u.uSpec, 2);
+    // Spectrum history for the audio rigs on unit 8: the spectrum row, one row
+    // per 1/30 s, written as a ring (see synUpdate). REPEAT on T is what lets
+    // the shader read across the ring's wrap with linear filtering intact.
+    this.histN = 128;
+    this.histData = new Uint8Array(this.specN*this.histN);
+    this.histTex = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE8);
+    gl.bindTexture(gl.TEXTURE_2D, this.histTex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.R8,this.specN,this.histN,0,gl.RED,gl.UNSIGNED_BYTE,this.histData);
+    if(this.syn) this.syn.stale = true;
     // Text field lives on unit 3. Created empty; bakeText fills it whenever the
     // message, font or size changes, which is rare enough to do on the CPU.
     this.txtTex = gl.createTexture();
@@ -4828,7 +4842,10 @@ class Component extends DCLogic {
       11:{morph:'Warp', ca:'Warp ±', cb:'Core', cc:'Contrast', detail:'Filament', iter:'Octaves'}
     };
     if(M[mode]) return M[mode];
-    if(mode>=22 && mode<30) return {morph:'Mirror', ca:'Amp', cb:'Bloom', cc:'Edge', detail:'Density', iter:'—'};
+    // 7, 11 and 15 have no geometry to drive on the audio rigs, so they run
+    // the rig itself: how far back the spectrum history reaches, how hard the
+    // onset events hit, and how much the look changes at each phrase.
+    if(mode>=22 && mode<30) return {morph:'Mirror', ca:'Amp', cb:'Bloom', cc:'Edge', detail:'Density', iter:'History', spinr:'Events', lit:'Variation'};
     if(mode===90) return {morph:'Tilt', ca:'Height', cb:'Glow', cc:'Band width', detail:'Bins', iter:'Pitch'};
     if(mode===91) return {morph:'Horizon', ca:'Sun', cb:'Grid', cc:'Peaks', detail:'Bands', iter:'—'};
     if(mode===92) return {morph:'Spread', ca:'Glyph', cb:'Rays', cc:'Trail', detail:'Streams', iter:'Source'};
@@ -4908,13 +4925,13 @@ class Component extends DCLogic {
       21:['Celtic','z ← (|Re z²| + i·Im z²) + c','abs on the real part only'],
       39:['Harmony','z ← z² + c,  c = r·e^(iθ)','θ = key center on the circle of fifths; r = tonal clarity'],
       40:['Golden Wave','c = e^(2πit)/2 − e^(4πit)/4,  t = 1/φ','Siegel disk at the golden rotation number, curled onto r = e^(θ·lnφ/(π/2))'],
-      22:['Spectrum','r(θ) = FFT[θ]','radial magnitude field'],
+      22:['Spectrum','hᵢ(x) = FFT(x, t − i·Δ)','seven past spectra receding in depth'],
       23:['Triangle emitter','r·cos(â) = e^((n − t)/k),  â = θ mod 120°','nested equilateral shells thrown outward on a log radius'],
-      24:['Particles','hash-seeded advection','per-cell noise flow'],
-      25:['Atom','shells fill 2, 8 by note','three bodies, smooth-min collisions'],
-      26:['Grid pulse','sin(kx)·sin(ky) gated on beat',''],
-      27:['Ribbons','stacked sin(x + φᵢ) bands',''],
-      28:['Ink blobs','metaball Σ 1/|p − pᵢ|²',''],
+      24:['Particles','hash-seeded advection','three depth layers, each reading the spectrum later'],
+      25:['Atom','shells fill 2, 8 by note','tilted orbits in 3D, smooth-min collisions'],
+      26:['Grid pulse','h(cell) = FFT(bin, t − r/v)','spectrum history rolling outward'],
+      27:['Ribbons','yᵢ(x) = FFTᵢ(t − x/v)','band histories as twisting strips'],
+      28:['Ink blobs','metaball Σ 1/|p − pᵢ|²','blobs at depth over a lava pool'],
       90:['Spectrum mesh','ridgeline of FFT over time','color is the band: red bass, green mids, violet treble'],
       91:['Outrun','1/z grid + mirrored FFT ridges','one-point perspective'],
       92:['Code tunnel','glyphs at x = a·f/z','one-point perspective'],
@@ -12322,7 +12339,10 @@ class Component extends DCLogic {
     const now = performance.now();
     const pre = this.E.PRESETS[this.state.preset];
     const active = pre && pre.mode === B.mode && this.drawMode !== B.mode && !this.canvasMode();
-    if(active){ B.done = false; B.frozen = false; B.a = Math.min(1, B.a + 0.12); }
+    // With no shader scene to fall back on (after a canvas scene, or at boot)
+    // the GL canvas under the overlay is stale, so the overlay covers it at
+    // once instead of fading in over it.
+    if(active){ B.done = false; B.frozen = false; B.a = this.lastMode == null ? 1 : Math.min(1, B.a + 0.12); }
     else { B.done = true; B.a = Math.max(0, B.a - 0.05); if(B.a <= 0) return false; }
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     if(cv.style.display !== 'block') cv.style.display = 'block';
@@ -12775,7 +12795,7 @@ class Component extends DCLogic {
     this.pend = null; this.warmInflight = null; this._pext = undefined;
     this.fb = null; this.fbSize = {w:0,h:0}; this.postProg = null;
     this.probeFB = null; this.probeTex = null; this.thumbFB = null; this.thumbTex = null;
-    this.tex = null; this.specTex = null; this.txtTex = null; this.glyTex = null;
+    this.tex = null; this.specTex = null; this.histTex = null; this.txtTex = null; this.glyTex = null;
     this.lastMode = null; this._drawnMode = null;
     // Queries and extensions die with the context.
     this._gpuT = undefined; this._gpuQ = null; this._drawProg = null; this.gpuEma = null;
@@ -12919,6 +12939,7 @@ class Component extends DCLogic {
     gl.uniform1i(m.uTex, 0);
     gl.uniform1i(m.uPrev, 1);
     if(this.specTex) gl.uniform1i(m.uSpec, 2);
+    if(this.histTex && m.uHist) gl.uniform1i(m.uHist, 8);
     if(this.txtTex) gl.uniform1i(m.uTxt, 3);
     if(this.glyTex) gl.uniform1i(m.uGly, 4);
     if(m.uOrb) gl.uniform1i(m.uOrb, 6);
@@ -13804,6 +13825,121 @@ class Component extends DCLogic {
     gl.bindTexture(gl.TEXTURE_2D, this.specTex);
     gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,n,2,gl.RGBA,gl.UNSIGNED_BYTE,d);
     gl.activeTexture(gl.TEXTURE0);
+  }
+
+  // Audio rigs. Three things the synth scenes need that one frame of spectrum
+  // cannot give them:
+  //   memory  — the spectrum row pushed into a ring 30 times a second, so a
+  //             scene can draw the last few seconds (uHist, uSynHist);
+  //   events  — kick, hat, chord-change and drop envelopes, so things happen
+  //             on onsets instead of everything swelling a little (uSynEv);
+  //   phrases — every few bars the look moves to a new variant (lean, roll,
+  //             push, mirrors, hue, figure/ground), and a drop out of a
+  //             breakdown forces one (uSynCam, uSynVar).
+  // Runs every frame so the history and the bar count stay current on any
+  // scene; the GL side only happens when the program on screen is an audio rig,
+  // which is exactly when uHist resolves.
+  synUpdate(gl, u, tt, e){
+    const S = this.syn || (this.syn = {t:tt, head:0, acc:0, stale:true,
+      kick:0, hat:0, chd:0, drop:0, lastBeat:0, hatAvg:0, hatAt:-1, chdAt:-1, prev:new Float32Array(64),
+      slow:0.2, fast:0.2, quiet:0, brk:0, bc:-1, bars:0, phraseAt:tt,
+      cur:{tilt:0, roll:0, push:0, inv:0, hue:0}, tgt:{tilt:0, roll:0, push:0, inv:0, hue:0},
+      sym:0, turn:0, turnE:0, tau:0.6});
+    const dt = Math.min(0.1, Math.max(0, tt - S.t)); S.t = tt;
+    const aq = this.aq || this.a, d = this.specData, n = this.specN, H = this.histN;
+    if(!d || !H) return;
+    const B = this.bpm, ex = Math.exp;
+
+    // Kick: the rising edge of the beat envelope.
+    const kicked = aq.beat > S.lastBeat + 0.3;
+    S.lastBeat = aq.beat;
+    S.kick = kicked ? 1 : S.kick*ex(-dt*7);
+    // Hats: positive flux across the top quarter of the spectrum row against
+    // its own running level — the onset detector proper only reads the lows.
+    let fl = 0;
+    for(let i=0;i<64;i++){ const x = d[(192+i)*4]/255, df = x - S.prev[i]; if(df > 0) fl += df; S.prev[i] = x; }
+    fl /= 64;
+    S.hatAvg += (fl - S.hatAvg)*Math.min(1, dt*3);
+    if(fl > S.hatAvg*1.9 + 0.006 && tt - S.hatAt > 0.09){ S.hat = 1; S.hatAt = tt; }
+    else S.hat *= ex(-dt*12);
+    // Chord change: the harmony tracker's transient. Each one also steps the
+    // turn count the scenes rotate by (eased, so a step is a swing, not a jump).
+    // Rising edge only: the transient decays slowly enough to sit above the
+    // threshold for most of a second, which counted one change several times.
+    const chg = this.h ? this.h.chg : 0;
+    if(chg > 0.38 && S.chgArm && tt - S.chdAt > 0.6){ S.chd = 1; S.chdAt = tt; S.turn += 1; S.chgArm = false; }
+    else S.chd *= ex(-dt*3);
+    if(chg < 0.25) S.chgArm = true;
+    S.turnE += (S.turn - S.turnE)*(1 - ex(-dt*7));
+    // Breakdown and drop. Loudness against its own slow average: a stretch well
+    // under it is a breakdown (the scenes sink into haze), and the first kick
+    // after one at full level again is the drop.
+    S.slow += (aq.loud - S.slow)*Math.min(1, dt/6);
+    S.fast += (aq.loud - S.fast)*Math.min(1, dt/0.4);
+    if(S.fast < S.slow*0.6) S.quiet += dt; else S.quiet = Math.max(0, S.quiet - dt*0.5);
+    S.brk += ((S.quiet > 1.5 ? 1 : 0) - S.brk)*(1 - ex(-dt*0.8));
+    let dropped = false;
+    if(S.quiet > 2 && kicked && S.fast > S.slow*0.95){ S.quiet = 0; S.brk = 0; S.drop = 1; dropped = true; }
+    else S.drop *= ex(-dt*1.2);
+
+    // Phrases. Variation (dial 15) sets the length — 8 bars at the bottom, 4 in
+    // the middle, 2 at the top — and how far each new variant may stray. Bars
+    // are counted off the downbeat; with no tempo it falls back to the clock.
+    const vr = e.lit ?? 0;
+    const barsPer = vr < 0.34 ? 8 : vr < 0.67 ? 4 : 2;
+    let phrase = false;
+    if(B.beatCount !== S.bc){
+      S.bc = B.beatCount;
+      if(B.beatCount === 0 && ++S.bars >= barsPer){ S.bars = 0; phrase = true; }
+    }
+    if(!(B.period > 0) && tt - S.phraseAt > barsPer*2) phrase = true;
+    // AUTO off holds the look where it is; the onset envelopes stay live, like
+    // the audio bands do.
+    if(this.state.auto !== false && (phrase || dropped)){
+      const r = 0.6 + vr*0.8, R = Math.random, T = S.tgt;
+      const pick = a => a[Math.floor(R()*a.length)];
+      T.tilt = dropped ? 0 : pick([0, 0, 0.3, 0.5, -0.25])*r;
+      T.roll = dropped ? 0 : (R() - 0.5)*0.5*r;
+      T.push = dropped ? 0.22 : (R() - 0.5)*0.3*r;
+      T.inv  = (!dropped && R() < 0.12*r) ? 1 : 0;
+      T.hue += dropped ? 0.5 : 0.1 + R()*0.25*r;
+      // Mirrors cannot ease (a fold count is whole), so they cut on the
+      // downbeat, which is where a cut belongs anyway.
+      S.sym = dropped ? pick([2, 3, 4]) : pick([0, 0, 0, 2, 3, 4]);
+      S.tau = dropped ? 0.12 : Math.max(0.25, B.period > 0 ? B.period/1000 : 0.5);
+      S.phraseAt = tt; S.bars = 0;
+    }
+    const kc = 1 - ex(-dt/S.tau), C = S.cur;
+    for(const key in C) C[key] += (S.tgt[key] - C[key])*kc;
+
+    // History: one row per 1/30 s into the ring, at most two per frame.
+    const hd = this.histData;
+    const rows = [];
+    S.acc += dt*30;
+    while(S.acc >= 1 && rows.length < 2){
+      S.acc -= 1;
+      S.head = (S.head + 1) % H;
+      const o = S.head*n;
+      for(let i=0;i<n;i++) hd[o+i] = d[i*4];
+      rows.push(S.head);
+    }
+    S.acc = Math.min(S.acc, 1);
+
+    if(!u.uHist || !this.histTex){ S.stale = true; return; }
+    gl.activeTexture(gl.TEXTURE8);
+    gl.bindTexture(gl.TEXTURE_2D, this.histTex);
+    // Coming back to an audio rig: the rows written while another scene was up
+    // never reached the GPU, so send the whole ring once.
+    if(S.stale){ gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,n,H,gl.RED,gl.UNSIGNED_BYTE,hd); S.stale = false; }
+    else rows.forEach(r => gl.texSubImage2D(gl.TEXTURE_2D,0,0,r,n,1,gl.RED,gl.UNSIGNED_BYTE,hd.subarray(r*n,(r+1)*n)));
+    gl.activeTexture(gl.TEXTURE0);
+    // Events (dial 11) scales every envelope; 50% is as designed, and React
+    // still gates the lot.
+    const g = (e.spinr ?? 0.5)*2*Math.min(1.4, (e.react ?? 0.8)*1.4);
+    gl.uniform4f(u.uSynHist, (0.12 + 0.88*(e.iter ?? 0.5))*(H - 2), S.acc, S.head, 0);
+    gl.uniform4f(u.uSynEv, S.kick*g, S.hat*g, S.chd*g, S.drop*g);
+    gl.uniform4f(u.uSynCam, C.tilt, C.roll, C.push, C.inv);
+    gl.uniform4f(u.uSynVar, C.hue, S.sym, S.turnE, S.brk);
   }
 
   is2Mode(m){
@@ -15499,6 +15635,7 @@ class Component extends DCLogic {
         {k:'Smth', d:'Noise reduction. Past the midpoint it also runs a speckle filter on the finished frame (strongest at the top). Relaxes the raymarch hit test to one pixel width and filters 2D detail finer than a pixel — up kills speckle and crawling edges, down restores the razor-thin original look'},
         {k:'Trim row', d:'Fine trim on any palette — Sat, Gam (gamma), Span (ramp width), Warm (R/B tilt). Double-click a track to reset it'},
         {k:'Depth / Rim', d:'On 3D scenes this slider is Rim: it lights the silhouette edges in the bright tone of the palette so the form stands off the background. On 2D scenes it is Depth, which gives them a third dimension, read from brightness. Relief lights the image as a carved surface, Parallax slides it apart in layers, Terrain flies over it as a landscape. Pick the kind in Look; the Depth trim sets how tall it gets and the gyro steers it. On the 3D scenes the same trim adds Relief instead'},
+        {k:'Audio rigs: History / Events / Variation', d:'Dials 7, 11 and 15 on the audio rigs. History is how far back the scenes reach into the last four seconds of spectrum: the trailing slices of Spectrum, the wave across Grid Pulse, the scroll of Ribbons. Events scales the onset hits (kick, hats, chord changes, drops); 50% is as designed. Variation sets the phrase length (8, 4 or 2 bars) and how far each new look strays: lean, roll, push, mirrors, hue, figure/ground. A drop out of a breakdown always forces a new look. AUTO off holds the look'},
         {k:'Relief (Depth on 3D)', d:'A bump map on the 3D surface — fine raised and sunken detail fixed to the geometry, so it rides the form as the camera moves and catches the light. Depth sets how strong it is; 0 is the smooth surface. The setting is shared with 2D Depth'},
         {k:'Depth Terrain', d:'Bright parts of the frame become hills, dark parts valleys and water, and the camera flies over them while the fractal keeps animating underneath. Auto moves the flight; the DOF trim hazes the distance. The ground carries a fine rock relief that grows with Depth. For gentler hills, lower Depth or pick a scene with broad areas of color rather than fine filigree'},
         {k:'View: Orbit / Fly / Surface', d:'3D scenes only. Orbit circles the whole object. Fly steers itself through the open space between forms. Surface skims low over the surface and keeps a safe height above it'},
@@ -16251,7 +16388,13 @@ class Component extends DCLogic {
 
     // Canvas scenes own the frame: skip the whole raymarch/post chain. Sizing
     // still runs for them, or the backing store stays at 1x1.
-    if(this.canvasMode()){ this.buildFx(null, false); this.resize(); this.thumbJobs(); if(this.scan) this.scanFrame(); else this.autoThumb(); return; }
+    // A canvas scene also takes over what a shader build falls back to. Left
+    // alone, lastMode still named the last SHADER scene, so leaving a canvas
+    // scene for one still linking played that old scene live under the build
+    // sketch, and the hold showed it too: a scene from minutes ago, unrelated
+    // to anything just on screen. With no shader fallback the build overlay
+    // holds this canvas scene's own last frame instead.
+    if(this.canvasMode()){ this.lastMode = null; this.holdGrab(this.meshCanvasRef.current); this.buildFx(null, false); this.resize(); this.thumbJobs(); if(this.scan) this.scanFrame(); else this.autoThumb(); return; }
     const e=this.eff, gl=this.gl, vd=this.state.vid;
     // A family that is still linking returns 'wait'. Returning here used to mean
     // drawing nothing — which is NOT the same as holding the last frame: resize()
@@ -16931,6 +17074,7 @@ class Component extends DCLogic {
       if(this.piv3) gl.uniform3f(u.uOrbit, this.piv3[0], this.piv3[1], this.piv3[2]);
     } else if(md !== 2){ this.piv3 = null; this.pivMode = null; this.pivVel = null; this.pivAimPrev = null; this.pivHeld = false; }
     this.uploadSpec(gl, tt);
+    this.synUpdate(gl, u, tt, e);
     gl.uniform1i(u.uPalSel, this.state.pal || 0);
     const tm = this.state.trim;
     // 12. Exposure shifts the midtones through gamma (50% = as trimmed). On
@@ -17076,22 +17220,25 @@ class Component extends DCLogic {
     // Hold copy of the last good frame, taken right after the draw (the only
     // moment a non-preserved GL buffer is readable). The build overlay paints it
     // underneath the sketch, so a cleared or stalled GL canvas never shows black.
-    if(!this._holdT || performance.now() - this._holdT > 500){
-      this._holdT = performance.now();
-      try{
-        const src = this.canvasRef.current;
-        if(src && src.width > 1){
-          const k = Math.min(1, 960/src.width);
-          const hc = this._hold || (this._hold = document.createElement('canvas'));
-          const w = Math.max(1, Math.round(src.width*k)), h = Math.max(1, Math.round(src.height*k));
-          if(hc.width !== w || hc.height !== h){ hc.width = w; hc.height = h; }
-          hc.getContext('2d').drawImage(src, 0, 0, w, h);
-          this._holdOk = true;
-        }
-      }catch(e){}
-    }
+    this.holdGrab(this.canvasRef.current);
     this.thumbJobs(); if(this.scan) this.scanFrame(); else this.autoThumb();
   };
+
+  // Snapshot whatever is on screen into the hold, at most twice a second.
+  holdGrab(src){
+    if(this._holdT && performance.now() - this._holdT <= 500) return;
+    this._holdT = performance.now();
+    try{
+      if(src && src.width > 1){
+        const k = Math.min(1, 960/src.width);
+        const hc = this._hold || (this._hold = document.createElement('canvas'));
+        const w = Math.max(1, Math.round(src.width*k)), h = Math.max(1, Math.round(src.height*k));
+        if(hc.width !== w || hc.height !== h){ hc.width = w; hc.height = h; }
+        hc.getContext('2d').drawImage(src, 0, 0, w, h);
+        this._holdOk = true;
+      }
+    }catch(e){}
+  }
 
   // Start a family's link WITHOUT switching to it. There is nothing to preload
   // about a transition itself — every transition is a uniform branch inside the

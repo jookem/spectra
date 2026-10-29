@@ -3283,6 +3283,31 @@ vec2 kfold(vec2 p,float sym){
   return r*vec2(cos(a),sin(a));
 }
 
+// Audio-rig inputs, set by the host's synUpdate.
+// uHist is the spectrum's recent past: 256 bins across, HN rows down, written
+// as a ring one row per 1/30 s. REPEAT on T makes the ring continuous, and the
+// read never reaches the seam (r stops two rows short), so linear filtering
+// blends neighboring moments and the scroll is smooth between pushes.
+//   uSynHist: window length in rows (History dial), fraction of a row since
+//             the last push, row index of the newest push
+//   uSynEv:   kick, hat, chord change, drop — decaying envelopes, already
+//             scaled by the Events dial
+//   uSynCam:  tilt, roll, push, figure/ground invert — the phrase variation
+//   uSynVar:  hue shift, extra mirrors, chord turn (eased step count), breakdown
+uniform sampler2D uHist;
+uniform vec4 uSynHist, uSynEv, uSynCam, uSynVar;
+const float HN=128.0;
+// age 0 is now, 1 is the far end of the History window.
+float histAt(float x,float age){
+  float r=clamp(age*uSynHist.x-uSynHist.y,0.0,HN-2.0);
+  return texture(uHist,vec2(clamp(x,0.0,1.0),(uSynHist.z-r+0.5)/HN)).r;
+}
+// Camera sway, set once per pixel in synth(). Layers read it through par():
+// the nearer the layer (z toward 0) the further it slides, which is the
+// parallax that makes stacked flat layers read as depth.
+vec2 gSway;
+vec2 par(float z){ return gSway*(1.0-z); }
+
 // Polynomial smooth minimum. Two surfaces that approach bulge into each other
 // instead of intersecting, which is what makes the Atom orbs squish off one
 // another and off the frame walls.
@@ -3290,66 +3315,136 @@ float smin3(float a,float b,float k){ float h=clamp(0.5+0.5*(b-a)/k,0.0,1.0); re
 
 // The shape field of every synth scene, factored out of the shading so it can
 // be evaluated more than once per pixel: once for the subject, once for the
-// depth echo behind it, once for the reflection in the floor.
-void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,out float glo){
-  v=0.0; hue=0.0; glo=0.0;
+// reflection in the floor. Besides the mask (v), color (hue) and glow, each
+// scene hands back a height (ht) the material pass lights as a surface, and a
+// depth (z, 0 near to 1 far) that the shading fogs and dims.
+void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,out float glo,out float ht,out float z){
+  v=0.0; hue=0.0; glo=0.0; ht=0.0; z=0.0;
+  // Each audio rig links as its own program with SYN_K defined, so the driver
+  // is handed only that scene's branch. Folding k to a constant was not
+  // enough: ANGLE's D3D compiler still parses and optimizes every branch
+  // before it can drop the dead ones, and that link is synchronous.
 
+#if !defined(SYN_K) || SYN_K==0
   if(k==0){
-    // The row spans the whole frame, not the unit square. p.x reaches past 2
-    // on a wide canvas at mid zoom, so a +-1 mapping clamped the outer thirds
-    // of the frame to the first and last bin and the analyzer stopped short of
-    // both edges. Wider mapping, and more bins across it.
-    float x=clamp(p.x*0.26+0.5,0.0,1.0);
-    float bars=floor(mix(40.0,168.0,dens));
-    float bx=floor(x*bars)/bars;
-    float sp=specAt(pow(bx,0.72));
-    float h=0.03+sp*amp;
-    float ay=abs(p.y);
-    float body=smoothstep(h,h-0.012,ay);
-    float gap=smoothstep(0.0,0.12,abs(fract(x*bars)-0.5)*2.0-0.12);
-    v=body*gap;
-    glo=smoothstep(0.03,0.0,abs(ay-h))*gap*1.4;
-    hue=bx*0.55+sp*0.35;
-  } else if(k==1){
+    // Spectrum: the analyzer and its own recent past, as a bar spectrogram
+    // standing on a floor. Seven slices of the history stand in rows, the
+    // newest at the front and low in the frame, each older one further back:
+    // smaller, higher and fogged. The bars rise from each row's baseline, so a
+    // loud moment in front hides the rows behind it and a quiet one lets the
+    // past show over it. Painted front to back: the first slice that covers a
+    // pixel owns it. Outside a slice's own span there is nothing, rather than
+    // the end bins smeared sideways.
+    float bars=floor(mix(24.0,96.0,dens));
+    for(int i=0;i<7;i++){
+      float zi=float(i)/6.0;
+      // The kick shoves the front rows toward the viewer.
+      float s=(1.0+zi*2.3)*(1.0-uSynEv.x*0.10*(1.0-zi));
+      vec2 q=(p-vec2(0.0,-0.62+zi*0.86)-par(zi))*s;
+      float x=q.x*0.26+0.5;
+      if(x<0.0 || x>1.0 || q.y<-0.02) continue;
+      float cx=fract(x*bars);
+      float bx=floor(x*bars)/bars;
+      float sp=histAt(pow(bx,0.72),zi);
+      float h=0.02+sp*amp*0.8;
+      float m=smoothstep(h,h-0.012*s,q.y)*smoothstep(-0.02,0.0,q.y)
+             *smoothstep(0.0,0.12,abs(cx-0.5)*2.0-0.12);
+      if(m>0.02){
+        float fade=1.0-zi*0.5;
+        v=m*fade;
+        // Rounded column: a cylinder's profile across the bar is what the
+        // material pass lights, so each bar turns a face to the key light.
+        float cr=abs(cx-0.5)*2.2;
+        ht=sqrt(max(1.0-cr*cr,0.0))*m;
+        glo=smoothstep(0.03*s,0.0,abs(q.y-h))*m*(1.4+uSynEv.y*1.5)*fade;
+        hue=bx*0.55+sp*0.35+zi*0.10;
+        z=zi;
+        break;
+      }
+    }
+  }
+#endif
+#if !defined(SYN_K) || SYN_K==1
+  if(k==1){
     // Triangle emitter. For a regular polygon the boundary is r·cos(â) = const,
     // with â the bearing folded into one sector — so reading that value through
     // a logarithm gives nested equilateral triangles, each the same shape at a
     // larger scale. Scrolling the log phase throws them outward forever: an
     // emitter rather than a pulse that runs out of room.
-    float a=atan(p.y,p.x)+t*0.16*uSpin;
-    float r=length(p);
     const float SEC=2.0943951;                    // 2π/3
-    float aa=mod(a+SEC*0.5, SEC)-SEC*0.5;
+    // Shells fly toward the camera, so the outer ones are the near ones and
+    // slide furthest when the view sways.
+    p-=par(1.0-smoothstep(0.1,1.1,length(p)))*0.8;
+    // Each chord change turns the emitter 60°, which flips the triangles over.
+    float a=atan(p.y,p.x)+t*0.16*uSpin+uSynVar.z*1.0471976;
+    float r=length(p);
+    float tri0=r*cos(mod(a+SEC*0.5,SEC)-SEC*0.5)*2.0;
+    // A twist that grows with depth, so the nest winds away like a tunnel
+    // instead of lying flat as a target.
+    a+=log(max(tri0,1e-3))*0.35*sin(t*0.11);
+    float aa=mod(a+SEC*0.5,SEC)-SEC*0.5;
     float tri=r*cos(aa)*2.0;                      // 1.0 on the inscribed triangle
+    // Each shell carries the spectrum from the moment it left the center: the
+    // bin under each point of its edge, read at the shell's own age, dents the
+    // outline, so the music is printed on the shells and carried outward.
+    float age=clamp(log(max(tri,0.12)/0.12)/log(9.0),0.0,1.0);
+    float u=abs(aa)/(SEC*0.5);
+    tri*=1.0-histAt(0.04+u*0.7,age)*amp*0.09;
     float rings=mix(1.1,3.0,dens);
     float lg=log(max(tri,1e-3))*rings;
-    float z=fract(lg - t*0.55);
+    float zz=fract(lg - t*0.55);
     // Each shell is an outline whose edge softens as it grows, so the newest
     // triangles read as hard and the old ones as spent.
-    float band=smoothstep(0.62,0.04,abs(z-0.5)*2.0);
+    float band=smoothstep(0.62,0.04,abs(zz-0.5)*2.0);
     v=band*smoothstep(0.0,0.16,tri);
     // Vertices catch more light than the flats — that is what makes the shape
     // read as a triangle and not a ring.
-    float corner=smoothstep(0.62,1.0,abs(aa)/(SEC*0.5));
+    float corner=smoothstep(0.62,1.0,u);
     v*=0.70+0.60*corner*(0.45+amp*0.55);
-    // Emission on the hit: one shell leaves the center per beat.
-    float born=exp(-fract(max(uBeatPh,0.0))*3.2)*uReact;
+    // Emission on the kick: a shell leaves the center bright.
+    float born=uSynEv.x;
     v+=band*exp(-tri*2.2)*born*0.55;
-    glo=pow(band,3.0)*(0.45+uBass*uReact)+exp(-tri*3.0)*born*0.5;
-    hue=z*0.42+floor(lg)*0.06+t*0.01;
-  } else if(k==2){
-    vec2 q=p+vec2(t*0.06,sin(t*0.13)*0.2);
-    vec2 g=q*mix(5.0,16.0,dens);
-    vec2 id=floor(g), f=fract(g)-0.5;
-    float h1=hash(id), h2b=hash(id+37.13);
-    vec2 off=(vec2(h1,h2b)-0.5)*0.72;
-    float band=specAt(h1*0.9+0.03);
-    float rad=0.05+band*0.4*amp;
-    float d=length(f-off);
-    v=smoothstep(rad,rad*0.15,d);
-    glo=smoothstep(rad*2.6,0.0,d)*band*0.7;
-    hue=h1*0.7+band*0.25;
-  } else if(k==3){
+    glo=pow(band,3.0)*(0.45+uBass*uReact)+exp(-tri*3.0)*born*0.5+band*uSynEv.w*0.6;
+    hue=zz*0.42+floor(lg)*0.06+t*0.01;
+    ht=sqrt(band)*v;
+    z=1.0-age;
+  }
+#endif
+#if !defined(SYN_K) || SYN_K==2
+  if(k==2){
+    // Three layers of particles at different depths: the near layer large,
+    // fast and sharp, the far one small, slow and late. Each layer reads the
+    // spectrum a little further back in its history, so the sound appears to
+    // travel away from the viewer. The kick throws the near layers outward.
+    for(int j=0;j<3;j++){
+      float zj=float(j)*0.5;
+      vec2 q=(p-p*uSynEv.x*0.22*(1.0-zj)-par(zj))*(1.0+zj*1.4)
+            +vec2(t*0.06*(1.5-zj),sin(t*0.13+zj*2.0)*0.2)+zj*7.31;
+      vec2 g=q*mix(5.0,16.0,dens);
+      vec2 id=floor(g), f=fract(g)-0.5;
+      float h1=hash(id), h2b=hash(id+37.13);
+      vec2 off=(vec2(h1,h2b)-0.5)*0.72;
+      float band=histAt(h1*0.9+0.03,zj*0.7+h2b*0.15);
+      float rad=0.05+band*0.4*amp;
+      float d=length(f-off);
+      float m=smoothstep(rad,rad*0.15,d);
+      if(m>0.02 || j==2){
+        float fade=1.0-zj*0.45;
+        v=m*fade;
+        float dr=d/rad;
+        ht=sqrt(max(1.0-dr*dr,0.0))*m;           // a sphere's profile
+        // Hats glitter the far layers.
+        float tw=step(0.82,hash(id+floor(uTime*20.0)))*uSynEv.y*zj;
+        glo=smoothstep(rad*2.6,0.0,d)*band*0.7*fade+tw*smoothstep(rad*1.6,0.0,d);
+        hue=h1*0.7+band*0.25+zj*0.12;
+        z=zj;
+        if(m>0.02) break;
+      }
+    }
+  }
+#endif
+#if !defined(SYN_K) || SYN_K==3
+  if(k==3){
     // Atoms. Three of them drift around the frame, bounce off the walls and off
     // each other, and every particle is a soft radial blob so the shared
     // material pass lights it as a sphere. The whole scene is one distance
@@ -3357,8 +3452,11 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
     // other instead of overlapping — the squish is the field, not an effect.
     // Element count per atom comes off the detected note and its own spectrum
     // band, so the shells fill and empty with the music: 2, then up to 8.
+    // The orbits are tilted planes in 3D, projected: electrons swing in front
+    // of the nucleus large and bright and pass behind it small, dim, and
+    // hidden where the nucleus covers them.
     float wx=1.58, wy=0.96;
-    float d=1e3;
+    float d=1e3, zb=0.5;
     vec2 cs[3];
     for(int m=0;m<3;m++){
       float fm=float(m);
@@ -3368,15 +3466,17 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
       float band=specAt(0.06+fm*0.30);
       float Z=clamp(3.0+floor(uNote*8.0)+fm*2.0+floor(band*4.0),2.0,10.0);
       float sc=(0.62+dens*0.5)*(0.8+band*0.4);
-      vec2 c=vec2(tw.x*(wx-0.55*sc), tw.y*(wy-0.50*sc));
+      vec2 c=vec2(tw.x*(wx-0.55*sc), tw.y*(wy-0.50*sc))+par(0.4);
       cs[m]=c;
       // Wall squash: the atom flattens along the axis it is pressing into.
       vec2 sq=vec2(1.0-0.30*smoothstep(wx-0.78*sc,wx-0.52*sc,abs(c.x)),
                    1.0-0.30*smoothstep(wy-0.72*sc,wy-0.46*sc,abs(c.y)));
       vec2 pl=(p-c)/sq;
-      float nr=(0.13+uBass*uReact*0.07)*sc*(0.9+amp*0.3);
+      float nr=(0.13+uBass*uReact*0.07+uSynEv.w*0.05)*sc*(0.9+amp*0.3);
       float bt=1.0+uBeat*uReact*0.18;
-      d=smin3(d, length(vec2(pl.x/bt, pl.y*bt))-nr, 0.10);
+      float dn=length(vec2(pl.x/bt, pl.y*bt))-nr;
+      if(dn<d) zb=0.5;
+      d=smin3(d, dn, 0.10);
       float rem=Z;
       for(int s=0;s<2;s++){
         float n=min(s==0?2.0:8.0, rem);
@@ -3384,14 +3484,28 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
         rem-=n;
         float rr=(0.34+float(s)*0.30)*sc*(1.0+band*amp*0.4);
         float spd=(s==0?1.0:-0.66)*(1.0+band*0.7)*uSpin;
-        float er=(0.078+band*0.05*amp)*sc;
+        float er0=(0.078+band*0.05*amp)*sc;
+        // Orbit plane: inclined, turned per shell and per atom, and nudged
+        // round on every chord change.
+        float inc=0.95+float(s)*0.55+fm*0.4;
+        float phi=fm*1.3+float(s)*1.9+t*0.05+uSynVar.z*0.6;
+        float ci=cos(inc), si=sin(inc);
+        vec2 cr=vec2(cos(phi),sin(phi));
         for(int i=0;i<8;i++){
           if(float(i)>=n) break;
           float a=t*spd*1.6+float(i)*6.2831853/n+fm*1.7;
-          d=smin3(d, length(pl-vec2(cos(a),sin(a))*rr)-er, 0.09);
+          vec3 e3=vec3(cos(a), sin(a)*ci, sin(a)*si)*rr;   // z toward the viewer
+          vec2 e2=vec2(e3.x*cr.x-e3.y*cr.y, e3.x*cr.y+e3.y*cr.x);
+          if(e3.z<0.0 && length(e2)<nr*1.1) continue;
+          float de=length(pl-e2)-er0*(1.0+e3.z/rr*0.35);
+          if(de<d) zb=0.5-e3.z/rr*0.4;
+          d=smin3(d, de, 0.09);
         }
         // Shell trace, so the arrangement reads as orbits and not loose dots.
-        d=min(d, abs(length(pl)-rr)+0.045*sc);
+        // The inclined circle is an ellipse on screen.
+        vec2 ql=vec2(pl.x*cr.x+pl.y*cr.y, -pl.x*cr.y+pl.y*cr.x);
+        float ce=max(abs(ci),0.2);
+        d=min(d, abs(length(vec2(ql.x,ql.y/ce))-rr)*ce+0.045*sc);
       }
     }
     // Bonds: nuclei that come close are joined by a capsule, so the atoms read
@@ -3404,11 +3518,29 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
       float th=0.034*smoothstep(1.20,0.42,sqrt(L2));
       d=smin3(d, length(p-A-ab*h2)-th, 0.06);
     }
+    // Each kick fires an electron off every atom, in a direction that changes
+    // with the beat count; it shrinks as it flies.
+    // The envelope is the flight clock, so it is capped at 1 (Events can push
+    // it past that).
+    float ev=min(uSynEv.x,1.0);
+    if(ev>0.02){
+      for(int m=0;m<3;m++){
+        float ang=hash(vec2(floor(uBeatPh),float(m)))*6.2831853;
+        float de=length(p-cs[m]-vec2(cos(ang),sin(ang))*(1.0-ev)*1.4)-0.055*ev;
+        if(de<d) zb=0.2;
+        d=smin3(d, de, 0.05);
+      }
+    }
     float w=0.030+0.045*(1.0-dens);
     v=smoothstep(w,-w*0.8,d);
     glo=smoothstep(w*6.0,0.0,d)*0.6;
     hue=0.42+clamp(-d,0.0,0.6)*0.9+t*0.01;
-  } else if(k==4){
+    ht=smoothstep(w,-0.10,d);
+    z=zb;
+  }
+#endif
+#if !defined(SYN_K) || SYN_K==4
+  if(k==4){
     // Grid Pulse: the cells sit on a plane and extrude toward the viewer, so a
     // lit cell is a column rising out of the grid straight at the camera. With
     // the vanishing point at the center, a point raised by y projects outward
@@ -3419,15 +3551,20 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
     float gs=mix(3.5,11.0,dens);
     float e2=0.55;
     float hitY=-1.0, hband=0.0, cellf=0.0, hid=0.0;
-    // Four march steps, not eight: each step is a hash plus a spectrum texture
-    // fetch, and the branch lives in the one SYN program, so its cost lands on
-    // every synth scene whether or not it is the one on screen.
+    z=0.7;
+    // Four march steps: each is a hash plus a history fetch.
     for(int s=0;s<4;s++){
       float y=(1.0-float(s)/3.0)*0.85;
       vec2 q=p*(1.0-y*e2);
       vec2 id=floor(q*gs);
       float bi=hash(id);
-      float sp=specAt(bi);
+      // Height from the spectrum's past: the center is now and each ring of
+      // cells outward is a little older, so the music rolls out across the
+      // floor as a wave. The kick sends a shock ring out the same way.
+      float rc=length((id+0.5)/gs);
+      float sp=histAt(bi,clamp(rc/1.6,0.0,1.0));
+      float sk=(rc-(1.0-min(uSynEv.x,1.0))*1.8)*5.0;
+      sp+=exp(-sk*sk)*uSynEv.x*0.6;
       if(y<=sp*amp*0.8){
         vec2 f2=abs(fract(q*gs)-0.5)*2.0;
         float m=smoothstep(0.94,0.68,max(f2.x,f2.y));
@@ -3440,45 +3577,95 @@ void synF(vec2 p,int k,float dens,float amp,float t,out float v,out float hue,ou
       v=cellf*(0.35+hband*0.9)*(0.45+0.55*top);
       glo=cellf*hband*0.7*top;
       hue=hid*0.5+hband*0.3;
+      ht=cellf*(0.3+hitY);
+      z=0.6-hitY*0.6;
     }
     // Base grid so the floor plane stays legible under the columns.
     vec2 fb=abs(fract(p*gs)-0.5)*2.0;
     v+=smoothstep(0.88,1.0,max(fb.x,fb.y))*0.15;
-  } else if(k==5){
+  }
+#endif
+#if !defined(SYN_K) || SYN_K==5
+  if(k==5){
+    // Ribbons: each is one band's recent history drawn as a twisting strip.
+    // The right edge is now and the past scrolls off to the left, so each
+    // ribbon's shape is the last couple of seconds of its band. Width follows
+    // the cosine of the twist and the back face is a darker, shifted hue —
+    // that is what makes a line read as a ribbon turning in space. Higher
+    // ribbons are farther away; they are painted first so nearer ones cover them.
     int N=int(mix(5.0,11.0,dens));
+    z=1.0;
     for(int i=0;i<11;i++){
       if(i>=N) break;
-      float fi2=(float(i)+0.5)/float(N);
-      float band=specAt(fi2*0.85+0.04);
-      float y0=(fi2-0.5)*1.7;
-      float w0=wvL(fract(p.x*0.22+fi2*0.31+t*0.04))*0.22*amp;
-      float ry=y0+w0+sin(p.x*1.9+t*0.45+fi2*6.1)*0.11;
-      float th=0.008+band*0.07*amp;
-      float m=smoothstep(th,0.0,abs(p.y-ry));
-      v+=m*(0.35+band);
-      glo+=smoothstep(th*4.0,0.0,abs(p.y-ry))*band*0.3;
-      hue+=m*(fi2*0.7);
+      float fi2=(float(N-1-i)+0.5)/float(N);
+      vec2 q=(p-par(fi2)*0.9)*(1.0+fi2*0.5);
+      float bx=fi2*0.85+0.04;
+      float band=specAt(bx);
+      float hv=histAt(bx,clamp(0.5-q.x*0.24,0.0,1.0));
+      float ry=(fi2-0.5)*1.7+(hv-0.25)*0.42*amp+sin(q.x*1.9+t*0.45+fi2*6.1)*0.08;
+      // A chord change turns every ribbon a quarter twist.
+      float tw=cos(q.x*1.4+t*0.6+fi2*5.0+uSynVar.z*1.5707963);
+      float th=(0.010+band*0.06*amp+uSynEv.x*0.025*(1.0-fi2))*(0.22+0.78*abs(tw));
+      float dy=abs(q.y-ry);
+      float m=smoothstep(th,th*0.55,dy);
+      if(m>0.001){
+        float back=step(tw,0.0);
+        float dr=dy/th;
+        v=mix(v,(0.35+band)*(1.0-back*0.45)*(1.0-fi2*0.35),m);
+        ht=mix(ht,sqrt(max(1.0-dr*dr,0.0))*abs(tw),m);
+        hue=mix(hue,fi2*0.7+back*0.5,m);
+        z=mix(z,fi2,m);
+      }
+      glo+=smoothstep(th*4.0,0.0,dy)*band*0.3*(1.0-fi2*0.5)+smoothstep(th*1.5,0.0,dy)*uSynEv.y*0.25;
     }
-  } else {
-    float f=0.0;
+  }
+#endif
+#if !defined(SYN_K) || SYN_K==6
+  if(k==6){
+    // Ink Blobs, as a lava pool. Each blob sits at its own depth: a far blob is
+    // smaller and slides less when the view sways, and the field's height goes
+    // to the material pass so the blobs are lit as domes. Between blobs the
+    // field drops not to black but to a dim, fogged floor of the same ink that
+    // fills the frame, so the blobs rise out of something. Hats split each blob in two; the halves
+    // pull back together as the hit fades.
+    float f=0.0, zs=0.0, ws=0.0;
+    float k2=mix(0.5,0.7,clamp(uSynEv.y,0.0,1.0));
     for(int i=0;i<7;i++){
       float fi2=(float(i)+0.5)/7.0;
-      float band=specAt(fi2*0.8+0.05);
-      vec2 c0=vec2(sin(t*(0.27+fi2*0.43)+fi2*9.2),cos(t*(0.21+fi2*0.37)+fi2*5.4))*0.62;
-      float rr=0.11+band*0.32*amp;
-      vec2 dd=p-c0;
-      f+=rr*rr/max(dot(dd,dd),2e-4);
+      float band=histAt(fi2*0.8+0.05,fi2*0.35);
+      float zi=0.5+0.5*sin(t*(0.17+fi2*0.21)+fi2*7.7);
+      vec2 c0=vec2(sin(t*(0.27+fi2*0.43)+fi2*9.2),cos(t*(0.21+fi2*0.37)+fi2*5.4))*vec2(1.9,0.95)*(1.0-zi*0.25)+par(zi);
+      // Sized for the spread above: big enough that neighbors still meet and merge.
+      float rr=(0.20+band*0.42*amp)*(1.0-zi*0.35);
+      float sa=fi2*11.0+t*0.3;
+      vec2 sd=vec2(cos(sa),sin(sa))*uSynEv.y*0.16;
+      vec2 d1=p-c0-sd, d2=p-c0+sd;
+      float wgt=rr*rr*k2*(1.0/max(dot(d1,d1),2e-4)+1.0/max(dot(d2,d2),2e-4));
+      f+=wgt; zs+=wgt*zi; ws+=wgt;
     }
-    float thr=mix(1.9,0.65,dens);
-    v=smoothstep(thr*0.7,thr,f);
+    float thr=mix(1.9,0.65,dens)*(1.0-uSynEv.w*0.3);
+    float blob=smoothstep(thr*0.7,thr,f);
+    v=max(blob, 0.09+smoothstep(thr*0.03,thr*0.7,f)*0.18);
+    z=mix(0.85, zs/max(ws,1e-4), blob);
+    ht=smoothstep(thr*0.6,thr*2.6,f);
     glo=(smoothstep(thr*0.95,thr*1.02,f)-smoothstep(thr*1.3,thr*1.8,f))*0.9;
-    hue=f*0.22+t*0.01;
+    // Capped: the field climbs steeply toward each center, and an uncapped
+    // ramp banded the inside of every blob into rainbow rings.
+    hue=min(f,thr*2.2)*0.22+t*0.01;
   }
+#endif
 }
 
 vec3 synth(vec2 uv,int k){
   float t=uTime*uSpeed;
-  float zs=mix(2.2,0.22,clamp(uZoom,0.0,1.0));
+  // Staging. Each scene gets its own set rather than all seven sharing one:
+  // which ones stand on the wet floor, which get the beat ring, how much haze,
+  // and a base lean (Grid Pulse is a floor running away from the viewer).
+  float stTilt = k==4 ? 0.32 : 0.0;
+  float stFloor= (k==0||k==5) ? 1.0 : (k==3 ? 0.6 : 0.0);
+  float stRing = k==4 ? 1.0 : (k==2 ? 0.5 : (k==5 ? 0.4 : 0.0));
+  float stHaze = k==2 ? 1.5 : (k==3 ? 0.35 : (k==6 ? 0.5 : 1.0));
+  float zs=mix(2.2,0.22,clamp(uZoom,0.0,1.0))*(1.0-uSynCam.z);
   // Audio camera. The frame pulls in on the low end, snaps on each beat and
   // rotates slowly across the bar, so the view is part of the performance
   // rather than a fixed window onto it.
@@ -3488,20 +3675,37 @@ vec3 synth(vec2 uv,int k){
   // killing the strobe also stops the per-hit zoom snap rather than leaving the
   // frame pumping with the flashing switched off.
   float cz=1.0/(1.0+(uBass*0.09*uStrobe+uBeat*0.05)*uReact);
-  float cang=(sin(uBeatPh*1.5707963)*0.045+uTonal.x*0.06)*uSpin*uReact;
+  float cang=(sin(uBeatPh*1.5707963)*0.045+uTonal.x*0.06)*uSpin*uReact+uSynCam.y;
   vec2 cs=vec2(cos(cang),sin(cang));
   uv=vec2(uv.x*cs.x-uv.y*cs.y, uv.x*cs.y+uv.y*cs.x)*cz;
+  // Sway: a slow drift of the viewpoint that every layered scene reads through
+  // par(), nudged on the kick. Driven off the scene clock, so AUTO off holds it.
+  gSway=vec2(sin(t*0.23)*0.11+sin(t*0.61)*0.04, cos(t*0.19)*0.07+sin(t*0.47)*0.03)*(1.0+uSynEv.x*0.35);
+  // Lean: the frame as a plane tipped away from the viewer, top receding. The
+  // far part of the plane is fogged along with each scene's own depth.
+  float tl=clamp(stTilt+uSynCam.x,-0.6,0.7);
+  float pd=max(1.0-uv.y*tl,0.22);
+  float zt=clamp((1.0-pd)/0.78,0.0,1.0);
   // Look controls shared by every synth scene, using the uniforms the
   // fractal families spend on geometry:
-  //   uMorph -> mirror symmetry (0 = off, up to 8-fold kaleido)
+  //   uMorph -> mirror symmetry (0 = off, up to 8-fold kaleido); a phrase
+  //             variant can raise the fold count but never stacks on top of it
   //   uCB    -> bloom weight
   //   uCC    -> edge contrast (soft wash vs hard line)
-  float sym=floor(clamp(uMorph,0.0,1.0)*8.0);
-  vec2 p=kfold(uv*zs+uPan*zs*1.6, sym);
+  float sym=max(floor(clamp(uMorph,0.0,1.0)*8.0),uSynVar.y);
+  vec2 p=kfold((uv/pd)*zs+uPan*zs*1.6, sym);
   float dens=clamp(uDetail,0.0,1.0);
   float amp=(0.45+uCA*1.3)*(1.0+kick*0.22);   // shapes swell on the hit
-  float v,hue,glo;
-  synF(p,k,dens,amp,t,v,hue,glo);
+  float v,hue,glo,ht,z;
+  synF(p,k,dens,amp,t,v,hue,glo,ht,z);
+  z=1.0-(1.0-z)*(1.0-zt);
+
+  // Figure/ground flip, one of the phrase variations: the shapes become holes
+  // cut in a lit field.
+  float inv=uSynCam.w;
+  v=mix(v,(1.0-clamp(v,0.0,1.0))*0.85,inv);
+  ht=mix(ht,1.0-clamp(ht,0.0,1.0),inv);
+  glo*=1.0-inv*0.6;
 
   // Edge contrast: low uCC is a soft wash, high is a hard clipped line.
   float ctr=mix(1.9,0.34,clamp(uCC,0.0,1.0));
@@ -3514,82 +3718,91 @@ vec3 synth(vec2 uv,int k){
   float edge=length(vec2(dFdx(v),dFdy(v)))/max(fwidth(length(p))*1.6,1e-4);
   edge=clamp(edge,0.0,1.0);
 
-  // Depth field: a slow fbm haze behind the shapes so the background is a
-  // volume instead of pure black, and a floor bounce driven by the low bins.
-  float haze=fbm(p*1.25+vec2(t*0.05,-t*0.07));
-  vec3 bg=pal(0.62+haze*0.3+uHue*0.0)*haze*haze*(0.045+uBass*uReact*0.11);
-  bg+=pal(0.08)*exp(-abs(uv.y+0.72)*3.4)*(0.03+uLoud*0.09);
-
   // Harmony tint: the key center rotates the palette read and a chord change
   // nudges it, so a modulation in the music lands as a color shift.
-  float hs=hue*0.85+uTonal.x*0.10+uChordChg*0.08;
+  float hs=hue*0.85+uTonal.x*0.10+uChordChg*0.08+uSynVar.x;
+
+  // Depth field: a slow fbm haze behind the shapes so the background is a
+  // volume instead of pure black, and a floor bounce driven by the low bins.
+  // A breakdown thickens the haze; the scene sinks into it until the drop.
+  float bk=uSynVar.w;
+  float haze=fbm(p*1.25+vec2(t*0.05,-t*0.07));
+  vec3 bg=pal(0.62+haze*0.3)*haze*haze*(0.045+uBass*uReact*0.11)*stHaze*(1.0+bk*1.2);
+  bg+=pal(0.08)*exp(-abs(uv.y+0.72)*3.4)*(0.03+uLoud*0.09);
+  // Atom plays on a dark stage under a spot.
+  if(k==3) bg+=pal(hs+0.6)*exp(-dot(uv,uv)*1.6)*0.06;
 
   // Thickness without a second field evaluation. The directional derivative of
-  // the mask against the light offset gives a one-sided band on the shadowed
-  // side of every shape, which is what a side wall looks like. Sampling synF a
-  // second time at p+offset was the honest version of this and cost 2-3x the
-  // frame across the whole family, Grid Pulse worst of all.
+  // the height against the light offset gives a one-sided band on the shadowed
+  // side of every shape, which is what a side wall looks like.
   vec2 exo=normalize(vec2(0.030,-0.034));
-  float gx=dFdx(v), gy=dFdy(v);
-  float wall=clamp(-(gx*exo.x+gy*exo.y)*(9.0+uBass*uReact*6.0),0.0,1.0);
+  float gx=dFdx(ht), gy=dFdy(ht);
+  float wall=clamp(-(gx*exo.x+gy*exo.y)*(9.0+uBass*uReact*6.0),0.0,1.0)*v;
 
-  // Two-light material. The normal comes from the mask gradient; a key from the
-  // upper left plus a complementary fill from below is what breaks the
-  // single-hue flatness — lit faces run to the palette's key color, shadowed
-  // ones toward its opposite.
-  vec3 n=normalize(vec3(-gx*3.0,-gy*3.0,0.62));
+  // Two-light material. The normal comes from the height each scene hands
+  // back (a column's cylinder, a particle's sphere, a blob's dome), so the
+  // forms are lit as surfaces and not as flat cut-outs. A key from the upper
+  // left plus a complementary fill from below: lit faces run to the palette's
+  // key color, shadowed ones toward its opposite.
+  vec3 n=normalize(vec3(-gx*5.0,-gy*5.0,0.62));
   vec3 L=normalize(vec3(-0.52,0.60,0.72));
   float lam=max(dot(n,L),0.0);
   float spec=pow(max(dot(n,normalize(L+vec3(0.0,0.0,1.0))),0.0), mix(16.0,88.0,clamp(uCB,0.0,1.0)));
 
+  // Atmospheric perspective: far things are dimmer, flatter and pulled toward
+  // the haze color, which is most of what makes stacked layers read as depth.
+  float df=1.0-0.62*z;
   vec3 key=pal(hs);
   vec3 mat=mix(pal(hs+0.44)*0.66, key*1.06, 0.28+0.72*lam);
-  vec3 c=bg+mat*v;
-  c+=pal(hs+0.05)*wall*(0.14+uMid*uReact*0.14);
+  vec3 c=bg+mat*v*df+pal(hs+0.6)*v*z*0.10;
+  c+=pal(hs+0.05)*wall*(0.14+uMid*uReact*0.14)*df;
 
   // Dispersed bloom: the three channels bloom at slightly separated hues, so
   // hot cores fringe warm/cool at their edges the way real optics do.
   float disp=0.05+uHigh*uReact*0.09;
   vec3 gcol=vec3(pal(hs+0.28-disp).r, pal(hs+0.28).g, pal(hs+0.28+disp).b);
-  c+=gcol*glo*bl*(0.4+uHigh*uReact*0.6);
+  c+=gcol*glo*bl*(0.4+uHigh*uReact*0.6)*(1.0-0.4*z);
 
   // Rim, then a tight specular that pumps on the hit: the light is the thing
   // that arrives, so a beat reads as the surface catching a flash.
-  c+=pal(hs+0.5)*edge*v*(0.45+uCB*0.7);
-  c+=vec3(1.0,0.97,0.92)*spec*v*(0.30+uHigh*uReact*0.55+kick*0.5);
-  c+=vec3(1.0,0.98,0.94)*pow(edge,3.0)*v*(0.14+uBeat*0.3*uReact);
+  c+=pal(hs+0.5)*edge*v*(0.45+uCB*0.7)*df;
+  c+=vec3(1.0,0.97,0.92)*spec*v*(0.30+uHigh*uReact*0.55+kick*0.5)*df;
+  c+=vec3(1.0,0.98,0.94)*pow(edge,3.0)*v*(0.14+uBeat*0.3*uReact)*df;
 
   // Stage floor: the field mirrored under a horizon, hard-compressed and
-  // rippled on the bass, so each scene sits on a wet surface instead of
-  // floating in black. The second field evaluation is deliberately confined to
-  // the band below the horizon — running it over the whole frame (the parallax
-  // echo this replaces) doubled the cost of every synth scene for a layer
-  // worth a few percent of brightness, and made the family slow to compile.
+  // rippled on the bass, so the scene sits on a wet surface instead of
+  // floating in black. Only the scenes staged on it pay for the second field
+  // evaluation, and only in the band below the horizon where it is visible.
   float hz=-0.58;
-  // Bounded to the band where exp(-dd*9) is still visible: below that the
-  // second field evaluation is paying full price for nothing.
-  if(uv.y<hz && uv.y>hz-0.40){
+  if(stFloor>0.0 && uv.y<hz && uv.y>hz-0.40){
     float dd=hz-uv.y;
     vec2 ruv=vec2(uv.x+sin(dd*19.0-t*1.05)*0.018*(0.45+uBass*uReact), hz+dd*0.34);
-    float rv,rh,rg;
-    synF(kfold(ruv*zs+uPan*zs*1.6, sym), k, dens, amp, t, rv,rh,rg);
-    rv=pow(clamp(rv,0.0,1.6),ctr);
+    float rv,rh,rg,rht,rz;
+    synF(kfold((ruv/max(1.0-ruv.y*tl,0.22))*zs+uPan*zs*1.6, sym), k, dens, amp, t, rv,rh,rg,rht,rz);
+    rv=pow(clamp(rv,0.0,1.6),ctr)*(1.0-0.6*rz);
     // Ease the reflection in from the horizon instead of starting it at full
     // strength: a hard onset at hz is what read as a line across the frame.
-    float fade=exp(-dd*9.0)*(0.15+uLoud*0.07)*smoothstep(0.0,0.05,dd);
-    c+=(pal(rh*0.85)*rv + pal(rh*0.85+0.28)*rg*bl*0.14)*fade;
+    float fade=exp(-dd*9.0)*(0.15+uLoud*0.07)*smoothstep(0.0,0.05,dd)*stFloor;
+    c+=(pal(rh*0.85+uSynVar.x)*rv + pal(rh*0.85+0.28+uSynVar.x)*rg*bl*0.14)*fade;
   }
 
-  // Beat ring: a thin shock expanding from the center once per beat, so there
-  // is something that arrives and resolves instead of only drifting.
+  // Beat ring: a thin shock expanding from the center once per beat, on the
+  // scenes staged with one.
   float rr=length(uv);
   // Squared by multiplication, not pow(): pow() with a negative base is
   // undefined in GLSL and this radius term is negative over most of the frame.
   float rw=(rr-bp*1.25)*9.0;
-  float ring=exp(-rw*rw)*(1.0-bp)*uReact;
+  float ring=exp(-rw*rw)*(1.0-bp)*uReact*stRing;
   c+=pal(hs+0.18)*ring*(0.10+uLoud*0.22);
 
-  c*=1.0-0.22*smoothstep(0.7,1.7,length(uv));
+  // The drop: a hot flash of the palette over the shapes, and a brief white
+  // one on the strobe gain.
+  float dp=min(uSynEv.w,1.5);
+  float dw=min(dp,1.0);
+  c+=pal(hs+0.25)*v*dp*0.35;
+  c+=vec3(1.0)*dw*dw*dw*dw*0.30*uStrobe;
+
+  c*=1.0-(k==3?0.42:0.22)*smoothstep(0.7,1.7,length(uv));
   return c;
 }
 
@@ -4472,7 +4685,7 @@ const _frag2D = m => {
 const FRAG_SYN = _HEAD + _BS + _VID + _tail('synth(uv,uMode-22)');
 const FAM_OF = m => m>=90 ? 'can'
   : (m<=5 || (m>=12 && m<=16) || (m>=30 && m<=36) || m===41 || m===42 || m===43 || m===44 || m===45) ? ('3d:'+m)
-  : (m>=22 && m<30 ? 'syn' : '2d:'+(_2D_PATH(m)[2] || _2D_PATH(m)[0]));
+  : (m>=22 && m<30 ? 'syn:'+(m-22) : '2d:'+(_2D_PATH(m)[2] || _2D_PATH(m)[0]));
 // Drop every function main() can never reach. Each program carries the whole
 // helper library (every family's estimator, every 2D shader), and on Windows the
 // D3D11 compiler optimizes all of it at link time whether called or not — on an
@@ -4533,7 +4746,14 @@ const _unPal = src => {
 };
 const FRAG_FOR = (m, fast, safe) => {
   const f = FAM_OF(m);
-  if(f === 'syn') return FRAG_SYN;
+  // One program per audio rig, carrying only its own scene's branch of synF
+  // (SYN_K) and the mode folded to a constant like the 3D families, so the set
+  // can grow without one ever-larger link that a weak GPU has to sit through.
+  if(f.slice(0,4) === 'syn:'){
+    const src = _HEAD + '#define SYN_K ' + (m - 22) + '\n' + _BS + _VID + _tail('synth(uv,uMode-22)');
+    if(safe) return _slim(_unPal(src));
+    return _slim(src.replace(/uniform\s+int\s+uMode\s*;/, 'const int uMode = ' + (m|0) + ';'));
+  }
   if(f.slice(0,3) === '2d:') return _slim(_frag2D(m));
   // One program per 3D mode, so the mode is a compile-time constant: every
   // uMode branch for other scenes folds away before the driver sees it.
