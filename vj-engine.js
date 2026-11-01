@@ -1526,6 +1526,14 @@ float tessQuad(vec3 p,vec3 a,vec3 b,vec3 c,vec3 d){
   }
   return abs(dot(nor,pa))/length(nor);
 }
+// One corner of the rotated hypercube: corner i is ±c0 ±c1 ±c2 ±c3 by its bits.
+// Returns the projected position in xyz and the 4D depth in w; s is the
+// perspective scale the edge radius tapers by.
+vec4 tessV(int i,vec4 c0,vec4 c1,vec4 c2,vec4 c3,float D,float N,out float s){
+  vec4 v=c0*float((i&1)*2-1)+c1*float(((i>>1)&1)*2-1)+c2*float(((i>>2)&1)*2-1)+c3*float(((i>>3)&1)*2-1);
+  s=D/(D-v.w)*N;
+  return vec4(v.xyz*s,v.w);
+}
 float tessFrac(vec3 p,out float trap){
   float ph=uTime*0.11*uSpeed*uSpin+(uCA-0.5)*6.28318;
   // Projection distance from the 4D eye to the hypercube's center. Must stay
@@ -1558,20 +1566,21 @@ float tessFrac(vec3 p,out float trap){
   r=rot((ph*0.414+0.7)*k2);       c0.yw*=r; c1.yw*=r; c2.yw*=r; c3.yw*=r;
   r=rot((ph*0.293+1.9)*k2);       c0.zw*=r; c1.zw*=r; c2.zw*=r; c3.zw*=r;
   r=rot((ph*0.237)*k2);           c0.xy*=r; c1.xy*=r; c2.xy*=r; c3.xy*=r;
-  vec3 P[16]; float W[16], S[16];
-  for(int i=0;i<16;i++){
-    vec4 v=c0*((i&1)!=0?1.0:-1.0)+c1*((i&2)!=0?1.0:-1.0)+c2*((i&4)!=0?1.0:-1.0)+c3*((i&8)!=0?1.0:-1.0);
-    float s=D/(D-v.w)*N;
-    P[i]=v.xyz*s; W[i]=v.w; S[i]=s;
-  }
-  float d=1e9, tw=0.0, h;
-  for(int i=0;i<16;i++){
-    for(int j=0;j<4;j++){
+  // No vertex arrays. ANGLE guards every array index with a float clamp, so even
+  // a fully unrolled loop indexes P[] at run time, and six inlined copies ran
+  // FXC out of indexable registers (internal error, then two retries: ~70s).
+  // Each corner is rebuilt where it is used instead, and the loops start at z0
+  // so each compiles once rather than being unrolled at every map() site.
+  int z0=min(0,int(abs(uTime)));
+  float d=1e9, tw=0.0, h, si, sk;
+  for(int i=z0;i<16;i++){
+    vec4 vi=tessV(i,c0,c1,c2,c3,D,N,si);
+    for(int j=z0;j<4;j++){
       int b=1<<j;
       if((i&b)!=0) continue;
-      int k=i|b;
-      float de=tessSeg(p,P[i],P[k],e*S[i],e*S[k],h);
-      if(de<d){ d=de; tw=mix(W[i],W[k],h); }
+      vec4 vk=tessV(i|b,c0,c1,c2,c3,D,N,sk);
+      float de=tessSeg(p,vi.xyz,vk.xyz,e*si,e*sk,h);
+      if(de<d){ d=de; tw=mix(vi.w,vk.w,h); }
     }
   }
   // Glaze. The 24 faces come in six orientations, one per pair of axes, four
@@ -1581,16 +1590,20 @@ float tessFrac(vec3 p,out float trap){
   float gz=clamp(uCB,0.0,1.0);
   int nOr=int(ceil(gz*6.0-0.1));
   float t=e*0.30*(0.55+gz*0.45);
-  for(int o=0;o<6;o++){
+  for(int o=z0;o<6;o++){
     if(o>=nOr) break;
-    int A = o==0?1:(o==1?2:(o==2?4:(o==3?1:(o==4?1:2))));
-    int B = o<3?8:(o==3?2:4);
+    // The two axes of orientation o, packed two bits each: (x,w) (y,w) (z,w)
+    // (x,y) (x,z) (y,z). Shifts instead of a ?: chain, which ANGLE expands into
+    // a ladder of branches.
+    int A = 1<<((0x424>>(o*2))&3);
+    int B = 1<<((0xA7F>>(o*2))&3);
     int m=15&~(A|B), lo=m&(-m), hi=m^lo;
-    for(int q=0;q<4;q++){
-      int base = q==0?0:(q==1?lo:(q==2?hi:m));
-      int i0=base, i1=base|A, i2=base|A|B, i3=base|B;
-      float dq=tessQuad(p,P[i0],P[i1],P[i2],P[i3])-t;
-      if(dq<d){ d=dq; tw=0.25*(W[i0]+W[i1]+W[i2]+W[i3]); }
+    for(int q=z0;q<4;q++){
+      int base = (q&1)*lo + (q>>1)*hi;
+      vec4 v0=tessV(base,c0,c1,c2,c3,D,N,si), v1=tessV(base|A,c0,c1,c2,c3,D,N,si),
+           v2=tessV(base|A|B,c0,c1,c2,c3,D,N,si), v3=tessV(base|B,c0,c1,c2,c3,D,N,si);
+      float dq=tessQuad(p,v0.xyz,v1.xyz,v2.xyz,v3.xyz)-t;
+      if(dq<d){ d=dq; tw=0.25*(v0.w+v1.w+v2.w+v3.w); }
     }
   }
   // w runs -2..2: far cell at one end of the palette, near cell at the other.
@@ -2994,6 +3007,12 @@ vec3 escape2(vec2 uv,int kind){
 
 #endif
 #ifdef P_E2B
+// Magnet (E2B_K 0), Phoenix (1), Newton (2), Ship Julia (3) and Celtic (4) are
+// each compiled as their own program: kind arrives as the constant E2B_K, so
+// every other scene's branch folds away. One shared program carried all five.
+#ifndef E2B_K
+#define E2B_K 0
+#endif
 vec3 escape2b(vec2 uv,int kind){
   // Same endless-zoom framing as escape2: the host hands over an anchor the
   // family is linearly self-similar about plus the log2-ratio and rotation of
@@ -4347,9 +4366,15 @@ vec3 videoLook(vec2 uv, vec2 suv, vec3 col, int vm){
 // Up to two looks at once: the second runs on what the first produced. With
 // the scene switched off the first pass already owns the whole image, so the
 // second is skipped rather than drawn over black.
+// The second look is compiled in only under VID2 (the host sets it while Stack
+// is on). Its call site inlines videoLook a second time, with every roto, ASCII,
+// mesh and palette tap, and on Windows that copy was about half of every
+// program's compile; one loop over both looks compiled slower still.
 vec3 videoLayer(vec2 uv, vec2 suv, vec3 col){
   vec3 c=videoLook(uv,suv,col,uVidMode);
+#ifdef VID2
   if(uVidMode2>0 && uVidMode2-1!=uVidMode && uSceneOff<0.5) c=videoLook(uv,suv,c,uVidMode2-1);
+#endif
   return c;
 }
 void main(){
@@ -4929,7 +4954,7 @@ const _2D_PATH = m => m<=9 ? ['P_E2A','escape2(uv,uMode-6)']
   : m===10 ? ['P_TUN','tunnel(uv)']
   : m===11 ? ['P_FLW','flow(uv)']
   : (m>=37 && m<=39) ? ['P_E2C','escape2c(uv,'+(m-37)+')', 'P_E2C'+m]
-           : ['P_E2B','escape2b(uv,uMode-17)'];
+           : ['P_E2B','escape2b(uv,E2B_K)', 'P_E2B'+m];
 const _frag2D = m => {
   const [def, call] = _2D_PATH(m);
   // Single call site. A two-copy blend here doubled the inlined escape loop and
@@ -4937,7 +4962,8 @@ const _frag2D = m => {
   // scenes zooms the view by uZX and the host crossfades at the wrap.
   // Repeat goes on the screen point before the family sees it (rep2), and its
   // per-copy hue and border on the color after — still one call site.
-  return _HEAD + '#define '+def+' 1\n' + (def==='P_E2C' ? '#define E2C_K '+(m-37)+'\n' : '') + _B2 + _VID
+  return _HEAD + '#define '+def+' 1\n' + (def==='P_E2C' ? '#define E2C_K '+(m-37)+'\n' : '')
+    + (def==='P_E2B' ? '#define E2B_K '+(m-17)+'\n' : '') + _B2 + _VID
     + _TAILSRC.replace(_DISPATCH, '  vec3 col='+call.replace('(uv', '((rep2(uv)-uFocus)*exp2(-uZX.x*uZX.y*uZX.z)')+';\n'
       + '  if(uRep>0.0) col=hueRot(col,gRepH*6.2831853)*gRepB;\n');
 };
@@ -4990,7 +5016,13 @@ const _stripDead = src => {
     return out + src.slice(p);
   }catch(e){ return src; }
 };
-const _slim = src => _stripDead(src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/[ \t]*\/\/[^\n]*/g, '').replace(/\n\s*\n+/g, '\n'));
+// Second video look on or off for every program built from here on (see
+// videoLayer). Every builder goes through _slim, so the define is added there.
+let _vid2 = false;
+const setVid2 = on => { _vid2 = !!on; };
+const getVid2 = () => _vid2;
+const _slim = src => _stripDead((_vid2 ? src.replace(/^(#version[^\n]*\n)/, '$1#define VID2 1\n') : src)
+  .replace(/\/\*[\s\S]*?\*\//g, '').replace(/[ \t]*\/\/[^\n]*/g, '').replace(/\n\s*\n+/g, '\n'));
 // Safe variant for drivers that reject the optimized program (seen on a Pixel):
 // the palette table goes back to direct pal() calls, no derivative normals, no
 // const-int mode folding. Same picture, the pre-optimization code shape.
@@ -5110,5 +5142,5 @@ void main(){
   fragColor=vec4(col,1.0);
 }
 `);
-window.VJE = {VIDFX_FRAG,ifsCenter,VERT,FRAG_FOR,LITE_FOR,VEC_FOR,VEC_POST,MAPLIB_FOR,FAM_OF,POST,PAL_NAMES,XF_NAMES,PRESETS,SLIDER_DEFS,SOURCES,VID_MODES,KEYMAP,GLYPHS};
+window.VJE = {VIDFX_FRAG,setVid2,getVid2,ifsCenter,VERT,FRAG_FOR,LITE_FOR,VEC_FOR,VEC_POST,MAPLIB_FOR,FAM_OF,POST,PAL_NAMES,XF_NAMES,PRESETS,SLIDER_DEFS,SOURCES,VID_MODES,KEYMAP,GLYPHS};
 })();

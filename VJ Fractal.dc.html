@@ -2804,7 +2804,7 @@ class Component extends DCLogic {
     // families, so they are named for what they are; the single-mode ones
     // borrow their scene's name.
     const LBL = {syn:'Synth set', can:'Canvas scenes',
-      '2d:P_E2A':'Mandelbrot set', '2d:P_E2B':'Burning ship set',
+      '2d:P_E2A':'Mandelbrot set',
       '2d:P_E2C37':'Lyapunov set', '2d:P_E2C38':'Spider set', '2d:P_E2C39':'Harmony set', '2d:P_TUN':'Tunnel', '2d:P_FLW':'Flow field'};
     const label = f => LBL[f] || first[f] || f;
     // Pacing. With the extension a short timer is fine — nothing blocks. Without
@@ -12774,6 +12774,9 @@ class Component extends DCLogic {
     } else if(p._stage === 1){
       // Fragment compile on its own turn: it is the heavy one.
       p._fs = gl.createShader(gl.FRAGMENT_SHADER);
+      // Record which video build this source is (second look in or out), so
+      // upgradeStep can tell a program that no longer matches the Stack chip.
+      p._vid2 = !!(this.E.getVid2 && this.E.getVid2());
       gl.shaderSource(p._fs, this.E.FRAG_FOR(p._mode, !!p._fast, !!(p._safe || this._safeGL))); gl.compileShader(p._fs);
       p._stage = 2;
     } else {
@@ -13445,8 +13448,20 @@ class Component extends DCLogic {
     if(document.hidden) return;
     if(!gl || !P || this.pend || this.scan) { if(this.upg && this.upg.fam !== this.fam) this.dropUpg(); return; }
     const mode = (this.props.shading ?? 'full');
-    if(this.upg && (this.upg.fam !== this.fam || mode === 'fast')){ this.dropUpg(); return; }
+    const v2 = !!(this.E.getVid2 && this.E.getVid2());
+    // A video rebuild (Stack toggled) is not a shading upgrade: 'fast' must not
+    // drop it, but a toggle back before it lands makes it moot.
+    if(this.upg && (this.upg.fam !== this.fam || (this.upg.v2 == null ? mode === 'fast' : this.upg.v2 !== v2))){ this.dropUpg(); return; }
     if(!this.upg){
+      // The program on screen was built for the other Stack state: rebuild it
+      // with the same shading and safety, paced like any upgrade, and swap it in.
+      // The old one keeps drawing until then; without VID2 it shows the first
+      // look only.
+      if(!!P._vid2 !== v2){
+        const p = gl.createProgram(); p._mode = P._mode; p._stage = 0; p._fast = !!P._fast; p._safe = !!P._safe;
+        this.upg = {fam: this.fam, p, t0: performance.now(), v2};
+        return;
+      }
       if(!P._fast || mode === 'fast') return;   // only 'auto' builds fast-first, so only it upgrades
       // A family implicated in a GPU reset stays on its slim build: the full
       // program is the thing that reset the card.
@@ -13476,6 +13491,29 @@ class Component extends DCLogic {
   dropUpg(){
     const U = this.upg; this.upg = null;
     if(U && U.p && this.gl){ try{ this.gl.deleteProgram(U.p); }catch(e){} }
+  }
+  // Second video look in or out of the shaders. It is compiled only while Stack
+  // is on (or a second look is somehow set), which halves every program's
+  // compile on Windows the rest of the time. On a change: flip the engine flag,
+  // drop every cached program except the one on screen (they rebuild on demand)
+  // and let upgradeStep swap the on-screen one for a matching build.
+  syncVid2(){
+    const E = this.E; if(!E || !E.setVid2) return;
+    const vd = this.state.vid || {};
+    const want = !!(vd.stack || (vd.mode2|0) > 0);
+    if(want === E.getVid2()) return;
+    E.setVid2(want);
+    const gl = this.gl; if(!gl) return;
+    for(const f of Object.keys(this.progs || {})){
+      if(f === this.fam || (this.pend && this.pend.fam === f)) continue;
+      const p = this.progs[f]; if(p){ try{ gl.deleteProgram(p); }catch(e){} }
+      delete this.progs[f]; delete this.us[f];
+    }
+    if(this.vfx){ try{ gl.deleteProgram(this.vfx.p); gl.deleteTexture(this.vfx.tex); }catch(e){} this.vfx = null; }
+    if(this.vecCache){
+      this.vecCache.forEach(V => { if(V.p){ try{ gl.deleteProgram(V.p); }catch(e){} } });
+      this.vecCache.clear(); this.vec = null;
+    }
   }
 
   // Returns true when the family is bound and ready to draw, 'wait' while its
@@ -16193,6 +16231,7 @@ class Component extends DCLogic {
     // Held for the whole body so either off-thread clock can tell that a frame
     // is still in flight and drop its tick rather than stacking another.
     this.inFrame = true;
+    try{ this.syncVid2(); }catch(e){ console.error('video build:', e); }
     try{ this.frameBody(t); try{ this.vidLayerTick(); }catch(e){ if(!this._vltErr){ this._vltErr=1; console.error('video layer:', e); } } }
     catch(err){
       // frameBody reschedules first, so the loop survives — but everything after
