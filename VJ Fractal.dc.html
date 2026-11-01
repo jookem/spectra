@@ -957,6 +957,11 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
                   <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
                 </sc-for>
               </select>
+              <select value="{{ lookSel }}" onChange="{{ setLook }}" title="{{ lookTitle }}" style="display:{{ lookDisp }};font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid var(--acc30);background:rgba(8,9,10,0.34);color:var(--acc);appearance:none;-webkit-appearance:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+                <sc-for list="{{ lookOptions }}" as="o" hint-placeholder-count="2">
+                  <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
+                </sc-for>
+              </select>
               <select value="{{ fieldSel }}" onChange="{{ setField }}" title="{{ fieldTitle }}" style="display:{{ fieldDisp }};font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid var(--acc30);background:rgba(8,9,10,0.34);color:var(--acc);appearance:none;-webkit-appearance:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
                 <sc-for list="{{ fieldOptions }}" as="o" hint-placeholder-count="4">
                   <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
@@ -1383,6 +1388,11 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
               <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
             </sc-for>
           </select>
+          <select value="{{ lookSel }}" onChange="{{ setLook }}" title="{{ lookTitle }}" style="display:{{ lookDisp }};flex:1 1 0;min-width:0;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;padding:8px 4px;min-height:{{ selH }};box-sizing:border-box;cursor:pointer;appearance:none;-webkit-appearance:none;text-align:center;border:1px solid var(--acc30);color:var(--acc);background:rgba(8,9,10,0.34);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+            <sc-for list="{{ lookOptions }}" as="o" hint-placeholder-count="2">
+              <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
+            </sc-for>
+          </select>
           <select value="{{ fieldSel }}" onChange="{{ setField }}" title="{{ fieldTitle }}" style="display:{{ fieldDisp }};flex:1 1 0;min-width:0;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;padding:8px 4px;min-height:{{ selH }};box-sizing:border-box;cursor:pointer;appearance:none;-webkit-appearance:none;text-align:center;border:1px solid var(--acc30);color:var(--acc);background:rgba(8,9,10,0.34);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
             <sc-for list="{{ fieldOptions }}" as="o" hint-placeholder-count="4">
               <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
@@ -1628,7 +1638,7 @@ class Component extends DCLogic {
     this.state = {
       preset:0, layout:props.panelLayout||'deck', deckTab:'scenes', chrome:true, mic:'idle',
       // Global color trim, unity-at-default so a fresh load looks unchanged.
-      trim:{smth:0.55, sat:1, gam:1, span:1, warm:0}, dmode:0, fieldFx:0, lineFx:0,
+      trim:{smth:0.55, sat:1, gam:1, span:1, warm:0}, dmode:0, fieldFx:0, lineFx:0, jewel:1,
       micHint:'Your browser will ask for permission.', auto:props.autopilot!==false,
       p:{morph:0.45,detail:0.55,speed:0.9,zoom:0.42,react:0.8,hue:0.08,iter:0.5,ca:0.5,cb:0.5,cc:0.3,spinr:0.5,lite:0.5,dof:0,dpth:0,lit:0},
       qual:'min', rate:'free', pal:0, fx:0, spin:1, accentSel:null,
@@ -1759,7 +1769,7 @@ class Component extends DCLogic {
 
   SETTINGS_KEYS = ['vecDen','qual','rate','layout','pal','fx','spin','vspin','accentSel',
                    'lfoDiv','lfoEase','shake','terrLow','voidWater','waterScheme','strobeAmt','strobeLen','strobeRate','xfadeOn','xfSeen','xfMode','xfLen','xfQ','advBars','imu','mesh','meshSrc','rfUrl','auto','qMinSeen','dmode','repSize','repTurn','repVar','repDrift','repGap','vecG','vecScene',
-                   'strobe','fieldFx','lineFx','camView','camRep','levels','touchParam','deckTab'];
+                   'strobe','fieldFx','lineFx','jewel','camView','camRep','levels','touchParam','deckTab'];
 
   // Accent is a theme value, so it lives in CSS custom properties rather than in
   // every style string: the template carries the lime defaults (so it paints
@@ -3673,7 +3683,7 @@ class Component extends DCLogic {
     this.progs = {}; this.us = {};
     this.UNAMES = ['uRes','uTime','uBass','uMid','uHigh','uLoud','uBeat','uJump','uHue','uMorph','uDetail','uZoom','uReact','uSpeed','uMode',
      'uTex','uVidMix','uHasTex','uVidFlip','uVidFlipV','uVidMode','uVidMode2','uPrev','uFeed','uDrift','uCamYaw','uCamPitch','uCamAuto','uPan','uOrbit','uCA','uCB','uCC','uIter','uXfade','uXfMode','uCtr','uFocus','uPalSel','uSpec',
-     'uRepV','uSceneOff','uLook','uZX','uZLoop','uZAnc','uZRat','uZRot','uZBase','uIOR','uZIter','uTravel','uStrobe','uSat','uGam','uSpan','uWarm','uFill','uField','uLine','uDOF','uRim','uLights','uLvPh','uCoCOut','uSpin','uSmooth','uChroma','uNote','uNoteConf','uTonal','uChordChg','uBeatPh','uCtr3','uDepthOut','uCamRoll','uHist','uSynHist','uSynEv','uSynCam','uSynVar',
+     'uRepV','uSceneOff','uLook','uZX','uZLoop','uZAnc','uZRat','uZRot','uZBase','uIOR','uZIter','uTravel','uStrobe','uSat','uGam','uSpan','uWarm','uFill','uField','uLine','uJewel','uDOF','uRim','uLights','uLvPh','uCoCOut','uSpin','uSmooth','uChroma','uNote','uNoteConf','uTonal','uChordChg','uBeatPh','uCtr3','uDepthOut','uCamRoll','uHist','uSynHist','uSynEv','uSynCam','uSynVar',
      'uGly',
      'uTxt','uTxtOn','uTxtDepth','uTxtScale','uTxtY','uTxtX','uTxtZ','uTxtRot','uTxtRx','uTxtRy','uTxtHue','uTxtWeight','uTxtWarp','uTxtInk','uTxtLit','uTxtJit','uTxtAsp','uPlane','uDeep','uDeepPix','uDeepBase','uDeepShade','uDeepMax','uRefLen','uDeepOff','uOrb','uCamMode','uCamScale','uRep','uCamProbe','uCamPos','uCamF','uCamR','uCamU','uCamTap','uTgt','uTgtK','uTgtC','uCamFog','uClrPass','uClrOn','uClrTex'];
     // A canvas scene has no shader family — compile mode 0 so the GL path is
@@ -4830,20 +4840,20 @@ class Component extends DCLogic {
       41:{morph:'Perspective', ca:'4D phase', cb:'Glaze', cc:'Edge', iter:'Rotation'},
       42:{morph:'Block', ca:'Sweep', cb:'Bands', cc:'Axis', detail:'Fog', spinr:'Glow', iter:'Iterations'},
       // 2D escape-time — shared shading
-      6:{morph:'Orbit', ca:'c re', cb:'c im', cc:'Stripe'},
-      7:{morph:'c drift', ca:'c re', cb:'c im', cc:'Stripe'},
-      8:{morph:'Orbit', ca:'c re', cb:'c im', cc:'Stripe'},
-      17:{morph:'Shift', ca:'Drift', cb:'Twist', cc:'Stripe'},
+      6:{morph:'Orbit', ca:'c re', cb:'c im', cc:'Stripe', detail:'Edge'},
+      7:{morph:'c drift', ca:'c re', cb:'c im', cc:'Stripe', detail:'Edge'},
+      8:{morph:'Orbit', ca:'c re', cb:'c im', cc:'Stripe', detail:'Edge'},
+      17:{morph:'Shift', ca:'Drift', cb:'Twist', cc:'Stripe', detail:'Edge'},
       43:{morph:'Twist', ca:'Groove', cb:'Spacing', cc:'Grain', iter:'Pairs', detail:'Thickness'},
       44:{morph:'Florets', ca:'Profile', cb:'Tilt', cc:'Grow', detail:'Levels'},
       45:{morph:'Scale', ca:'Inner R', cb:'Fold', cc:'Twist'},
-      18:{morph:'Memory', ca:'c re', cb:'c im', cc:'Stripe'},
-      20:{morph:'Orbit', ca:'c re', cb:'c im', cc:'Stripe'},
-      21:{morph:'Celtic', ca:'Power ±', cb:'Buffalo', cc:'Stripe'},
+      18:{morph:'Memory', ca:'c re', cb:'c im', cc:'Stripe', detail:'Edge'},
+      20:{morph:'Orbit', ca:'c re', cb:'c im', cc:'Stripe', detail:'Edge'},
+      21:{morph:'Celtic', ca:'Power ±', cb:'Buffalo', cc:'Stripe', detail:'Edge'},
       19:{morph:'Relax', ca:'Root re', cb:'Root im', cc:'Stripe'},
       37:{morph:'Sequence', ca:'r a', cb:'r b', cc:'Stripe'},
-      38:{morph:'c drift', ca:'c re', cb:'c im', cc:'Stripe'},
-      39:{morph:'Notes', ca:'Radius ±', cb:'Key ±', cc:'Stripe'},
+      38:{morph:'c drift', ca:'c re', cb:'c im', cc:'Stripe', detail:'Edge'},
+      39:{morph:'Notes', ca:'Radius ±', cb:'Key ±', cc:'Stripe', detail:'Edge'},
       40:{morph:'Curl', ca:'—', cb:'Rotation ±', cc:'Claws', detail:'Plates'},
       10:{morph:'Mirrors', ca:'Mirrors ±', cb:'Core', cc:'Band', detail:'Rings', iter:'—'},
       11:{morph:'Warp', ca:'Warp ±', cb:'Core', cc:'Contrast', detail:'Filament', iter:'Octaves'}
@@ -17177,6 +17187,9 @@ class Component extends DCLogic {
     gl.uniform1f(u.uFill, 0.7);
     // Exterior structure on the escape-time families: 1 grid, 2 orbits, 3 both.
     if(u.uField) gl.uniform1f(u.uField, this.state.fieldFx || 0);
+    // 2D look on the escape-time families: 0 Relief, 1 Jewel (period-colored
+    // interior, black field with a boundary halo, harder stripes).
+    if(u.uJewel) gl.uniform1f(u.uJewel, this.state.jewel ? 1 : 0);
     if(u.uLine) gl.uniform1f(u.uLine, this.lineOk(this.curMode()) ? (this.state.lineFx || 0) : 0);
     gl.uniform1f(u.uDOF, this.eff.dof ?? 0);
     const fx = this.state.fx || 0;
@@ -18241,6 +18254,9 @@ class Component extends DCLogic {
       lineSel: String(s.lineFx || 0),
       lineOptions: [{v:'0',tag:'Line Off'},{v:'1.5',tag:'Line Fine'},{v:'6',tag:'Line Soft'},{v:'18',tag:'Line Single'}],
       setLine: (e)=>this.setState({lineFx: parseFloat(e.target.value)||0}),
+      lookSel: s.jewel ? '1' : '0',
+      lookOptions: [{v:'1',tag:'Look Jewel'},{v:'0',tag:'Look Relief'}],
+      setLook: (e)=>this.setState({jewel: e.target.value === '1' ? 1 : 0}),
       spinSel: String(s.spin ?? 1),
       spinOptions: [{v:'1',tag:'Spin ↻ CW'},{v:'0',tag:'Spin Off'},{v:'-1',tag:'Spin ↺ CCW'}],
       setSpin: (e)=>this.setState({spin: parseInt(e.target.value,10)||0}),
@@ -18360,7 +18376,7 @@ class Component extends DCLogic {
         // Mirror Tunnel and Flow, which never read it. Repeat reaches the 3D
         // lattices and the shader 2D wall, not the synth or canvas scenes.
         const NO = ' — no effect on this scene';
-        const spinOk = !can && md !== 8 && md !== 10 && md !== 11, rollOk = k3 || md === 93, trailOk = !can, dmodeOk = !can && !k3, fieldOk = p.grp === 'FLD' && md <= 9, lineOk = this.lineOk(md);   // grid + orbit traces exist only on the escape2 path
+        const spinOk = !can && md !== 8 && md !== 10 && md !== 11, rollOk = k3 || md === 93, trailOk = !can, dmodeOk = !can && !k3, fieldOk = p.grp === 'FLD' && md <= 9, lookOk = p.grp === 'FLD' && [6,7,8,17,18,20,21,38,39].includes(md), lineOk = this.lineOk(md);   // grid + orbit traces exist only on the escape2 path
         const rep2Ok = !can && !k3 && p.kind === '2D';
         const dpOn = (s.p.dpth||0) > 0.001;
         const waterOn = dmodeOk && !dpOn, terrOn = dmodeOk && dpOn && String(s.dmode) === '2';
@@ -18382,6 +18398,7 @@ class Component extends DCLogic {
           dmodeDisp: dmodeOk ? 'block' : 'none', dmodeTitle: 'How the Depth trim shows on 2D scenes' + (dmodeOk ? '' : NO),
           lookCols: k3 ? 'repeat(2,minmax(0,1fr))' : 'repeat('+(2+(dmodeOk?1:0)+(waterOn?1:0)+(terrOn?1:0)+(hueOn?1:0)+(fieldOk?1:0)+(lineOk?1:0)+(rep2Ok?1:0))+',minmax(0,1fr))',
           lineDisp: lineOk ? 'block' : 'none', lineTitle: 'Draw the set as one glowing outline' + (lineOk ? '' : NO),
+          lookDisp: lookOk ? 'block' : 'none', lookTitle: 'Look for the escape-time Fields scenes: Jewel colors each bulb by its cycle and blacks out the open field; Relief is the lit, hazed surface' + (lookOk ? '' : NO),
           fieldDisp: fieldOk ? 'block' : 'none', fieldTitle: 'Structure drawn in the empty space around Fields scenes' + (fieldOk ? '' : NO),
         };
       })(),

@@ -565,7 +565,24 @@ uniform float uField;
 // glowing line this many render pixels out from the set (distance estimate
 // iso-contour). Small = hugs every filament, large = one smooth single line.
 uniform float uLine;
+// 2D look on the escape-time families: 0 Relief (lit, hazed field), 1 Jewel —
+// each interior component colored by the period of its attracting cycle, a black
+// open field with a glowing halo at the boundary, and harder stripes.
+uniform float uJewel;
 float gPx=1e-3;   // world size of one render pixel, set by each escape path
+// Set by the escape loops for the shading functions, so neither signature grows:
+// gPer is the period of the attracting cycle an interior orbit settled on (0 if
+// none was found inside the budget), gStL the final stripe sample, which the
+// stripe average needs to interpolate between its last two partial sums.
+float gPer=0.0, gStL=0.5;
+// Period detection, Brent style: a reference point is re-taken at every power
+// of two, and the first return to it gives the cycle length. One compare and a
+// subtract per iteration, no transcendentals; the deep-zoom loop skips it.
+void perStep(vec2 z, float k, inout vec2 zr, inout float kr, inout float kn){
+  vec2 dd=z-zr;
+  if(gPer<0.5 && dot(dd,dd)<1e-8*max(1.0,dot(z,z))) gPer=k-kr;
+  if(k>=kn){ zr=z; kr=k; kn*=2.0; }
+}
 // Aperture, 0..1. Zero is the pinhole camera every scene used to be.
 uniform float uDOF;
 // Rim light on the 3D families, 0..1, from the Depth trim (which shapes the 2D
@@ -602,6 +619,12 @@ uniform vec2 uTonal;
 // on top, so the Detail slider changes actual fractal depth everywhere rather
 // than only shading sharpness. Both feed every DE loop and escape loop.
 float fi(){return mix(0.10,2.1,uIter)*mix(0.45,2.0,uDetail);}
+// The 2D escape-time loops take their budget from Iterations alone. Detail on
+// those scenes is the outline weight (see esc_shade): as a second iteration
+// multiplier it hit the 400 cap a third of the way up and did nothing after.
+// 1.3 is the old multiplier at Detail 0.55; the presets' Iterations values were
+// rescaled so each scene keeps the budget it had.
+float fiE(){return mix(0.10,2.1,uIter)*1.3;}
 vec2 cmul(vec2 a,vec2 b){return vec2(a.x*b.x-a.y*b.y,a.x*b.y+a.y*b.x);}
 vec2 cdiv(vec2 a,vec2 b){float d=dot(b,b);return vec2(a.x*b.x+a.y*b.y,a.y*b.x-a.x*b.y)/max(d,1e-12);}
 vec2 cpow_d(vec2 z,float e){float r=pow(max(length(z),1e-9),e),a=atan(z.y,z.x)*e;return r*vec2(cos(a),sin(a));}
@@ -796,6 +819,10 @@ float sfScale(){
   if(uMode==21) return 0.70;
   return 1.0;
 }
+// Stripe frequency, rounded to a whole number. sin(k*arg z) only joins up
+// across the branch cut of atan when k is an integer; at 0.55x or 1.85x it left
+// a seam along the negative real axis of every orbit point.
+float sfreq(float sc){ return max(1.0, floor((4.0+uCC*10.0)*sc+0.5)); }
 // Orbit length. On the families whose Morph used to be a fold (Mandelbrot,
 // Sine Lambda, Ship Julia) it now sets how much of the orbit history colors
 // the pixel: near 0 only the last few points count, so the texture is crisp
@@ -846,7 +873,7 @@ vec3 esc_shade(float i,float maxi,float m,vec2 z,vec2 dz,float st,float sn,float
   // rope-like boundary from a normal that actually turns through most of a
   // hemisphere, so the gradient gain runs to 4.4 and the z term drops to 0.75,
   // which is the same slope expressed as a shallower surface.
-  vec3 n3=normalize(vec3(-gr*mix(1.1,4.4,uDetail)*grr, 0.75));
+  vec3 n3=normalize(vec3(-gr*2.9*grr, 0.75));
   vec2 nn=normalize(cdiv(z,dz)+vec2(1e-9));
   n3=normalize(mix(n3, normalize(vec3(nn,0.62)), 0.3));
 
@@ -858,6 +885,21 @@ vec3 esc_shade(float i,float maxi,float m,vec2 z,vec2 dz,float st,float sn,float
   float ao=clamp(0.35+0.65*smoothstep(0.0,2.2,hgt+7.0),0.0,1.0);
 
   float stripe = sn>0.5 ? st/sn : 0.0;
+  // Interpolated stripe average. The plain average steps at every escape band,
+  // because the last orbit point jumps in or out of the sum there; the AA pass
+  // below then read those steps as aliasing and faded the stripe to flat 0.5.
+  // Blending the averages with and without the last point by the smooth
+  // iteration fraction makes it continuous across bands. The decay in
+  // orbitKeep cancels out of the previous average, so this holds there too.
+  if(sn>1.5){
+    float sPrev=(st-gStL)/(sn-1.0);
+    float dg=uMode==39 ? 4.0 : 2.0;
+    float fr=clamp(1.0-log(log(max(lz,16.0001))/log(16.0))/log(dg),0.0,1.0);
+    stripe=mix(sPrev,stripe,fr);
+  }
+  // Jewel look weight. Held back on the Julia fill, whose whole subject is the
+  // bands across the open field — blacking that field out would remove it.
+  float jw=(uJewel>0.5 ? 1.0 : 0.0)*(uMode==7 ? 0.4 : 1.0);
   // Sub-pixel filtering. At depth the stripe average, the palette band edge and
   // the 34-power specular all cycle faster than one pixel, which is what makes
   // the boundary crawl and fizz as the frame drifts. Fading each toward its own
@@ -873,8 +915,8 @@ vec3 esc_shade(float i,float maxi,float m,vec2 z,vec2 dz,float st,float sn,float
   // a hot core cooling outward, rather than the same band repeating forever.
   float dpx = 1.0/max(hfw,1e-4);
   float ldp = log2(max(dpx,1.0));
-  float prox = 1.0-smoothstep(0.0, mix(5.0,9.0,uDetail), ldp);
-  float fil  = exp(-ldp*mix(1.6,1.0,uDetail));
+  float prox = 1.0-smoothstep(0.0, 7.2, ldp);
+  float fil  = exp(-ldp*1.33);
 
   float phRate=mix(1.0,0.62,uSmooth);
   // Julia renders as a continuous-POTENTIAL FILL rather than a lit relief in a
@@ -903,7 +945,7 @@ vec3 esc_shade(float i,float maxi,float m,vec2 z,vec2 dz,float st,float sn,float
   float pfw=fwidth(ph);
   float res=1.0/(1.0+pfw*mix(1.6,5.0,uSmooth));
   float bw=clamp(pfw*mix(0.5,1.8,uSmooth),0.0,0.30);
-  float stAmt=uCC*mix(1.0,0.38,uSmooth)*res;
+  float stAmt=uCC*mix(1.0,0.38,uSmooth)*res*mix(1.0,1.7,jw);
   float band=fract(ph+stripe*stAmt*0.55);
   // Where the cycle is unresolvable the color falls back to a SLOW depth ramp,
   // not the cycle's mean. The mean of a hue ramp is gray — two antipodal taps
@@ -916,7 +958,7 @@ vec3 esc_shade(float i,float maxi,float m,vec2 z,vec2 dz,float st,float sn,float
   vec3 col=mix(pB, pA, res);
   // Stripes in value, not hue: blending toward a second hue desaturates, a
   // darker step of the same hue keeps the band clean and reads as a groove.
-  col*=1.0-smoothstep(0.42-bw,0.58+bw,band)*0.38*stAmt;
+  col*=1.0-smoothstep(0.42-bw,0.58+bw,band)*mix(0.38,0.34,jw)*stAmt;
   // Value rhythm along the cycle. A cosine ramp holds nearly even luma round
   // its loop, so neighboring shells only differ in hue and the eye cannot sort
   // them into forms. A light-to-dark swing per cycle, as a hand-made gradient
@@ -975,8 +1017,15 @@ vec3 esc_shade(float i,float maxi,float m,vec2 z,vec2 dz,float st,float sn,float
   // filaments stand off the field as a drawn line does, instead of melting
   // into the shells around them — the classic DEM look. Damped on the fill,
   // whose subject is the bands rather than the outline.
+  // Detail is the outline: band width runs from under a pixel to eight, and the
+  // ink from none at the bottom of the dial to near-black at the top. At 0.55 it
+  // matches the fixed band this used to be. The band stays a little lighter on
+  // the fill so it reads as a line drawn on the bands, not a hole in them.
   float dePx=de/max(gPx,1e-12);
-  col*=mix(mix(0.22,1.0,smoothstep(0.5,3.5,dePx)), 1.0, fillw*0.6);
+  float eD=uMode==40 ? 0.55 : clamp(uDetail,0.0,1.0);
+  float ew=mix(0.6,8.0,eD);
+  float ek=smoothstep(0.0,0.25,eD)*mix(0.55,0.95,eD);
+  col*=1.0-ek*(1.0-smoothstep(ew*0.15,ew,dePx))*mix(1.0,0.6,fillw);
   // The additive boundary terms were tuned against the lit-relief exposure,
   // where the field under them sits near 0.1 and they read as highlights. On the
   // fill the field is already near 1.0, so the same terms push the bands past
@@ -990,6 +1039,12 @@ vec3 esc_shade(float i,float maxi,float m,vec2 z,vec2 dz,float st,float sn,float
   // as the shells stop being resolvable, leaving a 0.14 multiplier over most of
   // the frame. The fill holds it near one.
   col*=mix(0.14+1.25*prox, 0.94+0.16*prox, fillw);
+  // Jewel: the open field goes to black, and the band stack around the set
+  // glows instead — a halo in the accent that is brightest where the shells
+  // crowd the boundary. prox is smooth (built from fwidth of the height), so the
+  // halo cannot alias the way a per-shell term would.
+  col*=mix(1.0, 0.22+0.78*prox, jw);
+  col+=acc*prox*prox*0.42*jw*addf;
   col+=acc*fil*2.1*fadeHF*res*addf;   // boundary filament
   // Filigree is the accent a step paler — the same hue at a higher value, so it
   // reads as a highlight on the filament rather than a third color.
@@ -1009,7 +1064,7 @@ vec3 esc_shade(float i,float maxi,float m,vec2 z,vec2 dz,float st,float sn,float
   // jewel tone behind a bright accent is the figure-ground contrast wanted.
   float cl=dot(cpl,vec3(0.3333));
   vec3 fogc=mix(vec3(cl)+(cpl-cl)*1.7, vec3(cl)*vec3(0.70,0.88,1.30), 0.25+uCB*0.2);
-  fogc=max(fogc,0.0)*0.17;
+  fogc=max(fogc,0.0)*0.17*mix(1.0,0.15,jw);
   col=mix(col,fogc,fogd*mix(0.12,0.36,uSpan)*mix(1.0,0.14,fillw));
   float lm=dot(col,vec3(0.2126,0.7152,0.0722));
   // Aerial desaturation is a depth cue for the relief read. A fill plot is flat
@@ -1018,11 +1073,11 @@ vec3 esc_shade(float i,float maxi,float m,vec2 z,vec2 dz,float st,float sn,float
   // yellow-into-red sweeps rather than a pastel wash.
   // Held to a light touch: at 0.55 the far field lost almost half its chroma,
   // which with the fog on top left it gray-olive whatever the palette.
-  col=mix(vec3(lm)*vec3(0.86,0.92,1.06),col,mix(0.80+0.20*prox,1.0,fillw));
+  col=mix(vec3(lm)*vec3(0.86,0.92,1.06),col,mix(0.80+0.20*prox,1.0,max(fillw,jw)));
   // Saturate BEFORE the tone map has anything to clip: pulling the luma down as
   // chroma goes up keeps the band inside the knee, so a hot band turns redder
   // instead of turning white.
-  col=mix(col,clamp(lm*0.90,0.0,1.0)+(col-lm)*1.26,fillw);
+  col=mix(col,clamp(lm*0.90,0.0,1.0)+(col-lm)*1.26,max(fillw,jw*0.8));
   // Field grid. The escaped orbit's final angle is the external argument, so
   // slicing it draws the field lines that fan out from every bulb; slicing the
   // smooth count draws equipotential shells that echo the outline outward. The
@@ -1046,6 +1101,23 @@ vec3 esc_shade(float i,float maxi,float m,vec2 z,vec2 dz,float st,float sn,float
 vec3 esc_in(float tr,float st,float sn,vec2 dz,float maxi){
   if(uLine>0.5) return vec3(0.0);
   float stripe = sn>0.5 ? st/sn : 0.0;
+  // Jewel: every interior component is its own color. All the points of one
+  // bulb settle on the same attracting cycle, so its period is constant across
+  // the bulb and changes from one bulb to the next — the golden-ratio step puts
+  // neighboring periods far apart on the ramp. Brightness follows the cycle's
+  // multiplier (the same dome the Relief look lights): full at the bulb's rim,
+  // falling to near black at its center, so each bulb reads as a lit bead with
+  // a dark core. No screen derivatives here — this sits behind the inside test.
+  if(uJewel>0.5 && gPer>0.5){
+    float mlj=log(max(length(dz),1e-30))/max(maxi,1.0);
+    float dmj=clamp(-mlj*3.0,0.0,1.0);
+    vec3 bc=pal(gPer*0.381966+0.07+uHigh*0.2);
+    float bl=dot(bc,vec3(0.3333)); bc=max(vec3(bl)+(bc-bl)*1.35,0.0);
+    float v=pow(1.0-dmj,1.3);
+    vec3 jc=bc*(0.05+1.05*v)+mix(bc,vec3(1.0),0.45)*pow(v,7.0)*0.40;
+    jc+=mix(bc,vec3(1.0),0.35)*exp(-tr*16.0)*0.22+uBass*0.03;
+    return jc;
+  }
   if(uMode==8){
     // Rulings, not a void. Stripe (Cst C) sweeps from a smooth wash at 0 to hard
     // banding at 1, and the level floor keeps the interior legible either way.
@@ -1083,7 +1155,7 @@ vec3 esc_in(float tr,float st,float sn,vec2 dz,float maxi){
   // the trap cannot describe, and it costs nothing: dz is already accumulated
   // by every escape loop in the set and was simply thrown away on interior hits.
   float mlt  = log(max(length(dz),1e-30))/max(maxi,1.0);
-  float dome = clamp(-mlt*mix(1.2,4.5,uDetail),0.0,1.0);
+  float dome = clamp(-mlt*3.0,0.0,1.0);
   vec2 dg = vec2(dFdx(dome),dFdy(dome));
   vec3 dn = normalize(vec3(-dg*170.0/(1.0+length(dg)*60.0), 1.0));
   float ddif = clamp(dot(dn, normalize(vec3(0.62,0.74,0.80))),0.0,1.0);
@@ -2879,11 +2951,12 @@ vec3 esc2at(vec2 uv,int kind,float ex,vec2 ctrIn,float rotAdd,float bud,float ie
   // resolve, the picture visibly coarsened for a frame -- the stutter between
   // levels. Self-similar zoom holds the same amount of detail on screen the
   // whole way round, so one budget for the sweep is also the honest one.
-  int maxi=int(max((60.0+iex*54.0)*fi()*max(bud,0.55)*uZIter, 32.0));
+  int maxi=int(max((60.0+iex*54.0)*fiE()*max(bud,0.55)*uZIter, 32.0));
   maxi=int(min(float(maxi), mix(400.0,260.0,uSmooth)));
   float i=0.0,m=0.0;
   vec2 dz=vec2(1.0,0.0);
-  float sf=(4.0+uCC*10.0)*sfScale(), st=0.0, sn=0.0, tr=1e9;
+  float sf=sfreq(sfScale()), st=0.0, sn=0.0, tr=1e9;
+  vec2 pzr=vec2(1e9); float pkr=0.0, pkn=1.0; bool pj=uJewel>0.5; gPer=0.0;
   vec3 tw; float tr0; trapCfg(tw,tr0);
   bool dp = uDeep>0.5 && kind==0;
   // Deep zoom measures its derivative in frame units (dz/2.6 below), so the
@@ -2905,7 +2978,7 @@ vec3 esc2at(vec2 uv,int kind,float ex,vec2 ctrIn,float rotAdd,float bud,float ie
       z=texelFetch(uOrb,ivec2(mr&4095,mr>>12),0).xy+d;
       m=dot(z,z);
       float ang=atan(z.y,z.x), lz=sqrt(m);
-      st=st*odk+0.5+0.5*sin(sf*ang); sn=sn*odk+1.0;
+      float sv=0.5+0.5*sin(sf*ang); st=st*odk+sv; sn=sn*odk+1.0; gStL=sv;
       tr=min(tr+(1.0-odk)*0.25, trapD(z,lz,tw,tr0));
       if(m>256.0) break;
       i+=1.0;
@@ -2929,8 +3002,9 @@ vec3 esc2at(vec2 uv,int kind,float ex,vec2 ctrIn,float rotAdd,float bud,float ie
     }
     m=dot(z,z);
     float ang=atan(z.y,z.x), lz=sqrt(m);
-    st=st*odk+0.5+0.5*sin(sf*ang); sn=sn*odk+1.0;
+    float sv=0.5+0.5*sin(sf*ang); st=st*odk+sv; sn=sn*odk+1.0; gStL=sv;
     tr=min(tr+(1.0-odk)*0.25, trapD(z,lz,tw,tr0));
+    if(pj) perStep(z,float(k),pzr,pkr,pkn);
     if(m>256.0) break;
     i+=1.0;
   }
@@ -3055,12 +3129,13 @@ vec3 escape2b(vec2 uv,int kind){
   // the old midpoint c leaves the connected region and the plane goes empty.
   else if(kind==3){ float ca3=(uCA*0.5-0.5)*1.5, cb3=(uCB*0.5-0.5)*1.5; c=vec2(-1.12+ca3*0.17, 0.035+cb3*0.26); z=p; }
   else { c=p; z=vec2(0.0); }
-  int maxi=int(min(max((56.0+iex*50.0)*fi()*uZIter, 32.0), mix(400.0,260.0,uSmooth)));
+  int maxi=int(min(max((56.0+iex*50.0)*fiE()*uZIter, 32.0), mix(400.0,260.0,uSmooth)));
   // Ship Julia past ~150 iterations resolves dust finer than a pixel: static.
   if(kind==3) maxi=min(maxi,int(mix(90.0,150.0,clamp(iex/6.0,0.0,1.0))));
   float i=0.0,m=0.0;
   vec2 dz=vec2(1.0,0.0);
-  float sf=(4.0+uCC*10.0)*sfScale(), st=0.0, sn=0.0, tr=1e9;
+  float sf=sfreq(sfScale()), st=0.0, sn=0.0, tr=1e9;
+  vec2 pzr=vec2(1e9); float pkr=0.0, pkn=1.0; bool pj=uJewel>0.5; gPer=0.0;
   float odk=orbitKeep();
   vec3 tw; float tr0; trapCfg(tw,tr0);
   for(int k=0;k<maxi;k++){
@@ -3117,8 +3192,9 @@ vec3 escape2b(vec2 uv,int kind){
     }
     m=dot(z,z);
     float ang=atan(z.y,z.x), lz=sqrt(m);
-    st=st*odk+0.5+0.5*sin(sf*ang); sn=sn*odk+1.0;
+    float sv=0.5+0.5*sin(sf*ang); st=st*odk+sv; sn=sn*odk+1.0; gStL=sv;
     tr=min(tr+(1.0-odk)*0.25, trapD(z,lz,tw,tr0));
+    if(pj) perStep(z,float(k),pzr,pkr,pkn);
     if(m>256.0) break;
     i+=1.0;
   }
@@ -3278,10 +3354,11 @@ vec3 escape2c(vec2 uv,int kind){
   const bool hq = E2C_K==2;   // compile-time: the other step is dropped
   vec2 z = hq ? p*(1.0-uChordChg*0.05) : p;
   vec2 c = hq ? hrad*vec2(cos(hth),sin(hth)) : p+vec2((uCA-0.5),(uCB-0.5))*0.4;
-  int maxi=int(min(max((56.0+iex*46.0)*fi()*uZIter, 32.0), mix(400.0,260.0,uSmooth)));
+  int maxi=int(min(max((56.0+iex*46.0)*fiE()*uZIter, 32.0), mix(400.0,260.0,uSmooth)));
   float i=0.0,m=0.0;
   vec2 dz=vec2(1.0,0.0);
-  float sf=4.0+uCC*10.0, st=0.0, sn=0.0, tr=1e9;
+  float sf=sfreq(1.0), st=0.0, sn=0.0, tr=1e9;
+  vec2 pzr=vec2(1e9); float pkr=0.0, pkn=1.0; bool pj=uJewel>0.5; gPer=0.0;
   for(int k=0;k<maxi;k++){
     if(hq){
       vec2 zq=cmul(z,z);
@@ -3293,7 +3370,8 @@ vec3 escape2c(vec2 uv,int kind){
       c=c*0.5+z;
     }
     m=dot(z,z);
-    st+=0.5+0.5*sin(sf*atan(z.y,z.x)); sn+=1.0;
+    float sv=0.5+0.5*sin(sf*atan(z.y,z.x)); st+=sv; sn+=1.0; gStL=sv;
+    if(pj) perStep(z,float(k),pzr,pkr,pkn);
     tr=min(tr,min(length(z-vec2(0.0,1.0)),min(abs(z.x),abs(z.y))));
     if(m>256.0) break;
     i+=1.0;
@@ -4610,18 +4688,18 @@ const PRESETS = [
   {name:'HexKochMosely',grp:'LATT',kind:'3D', mode:42, p:{morph:0.42,detail:0.60,speed:0.6,zoom:0.30,hue:0.45,ca:0.5,cb:0.45,cc:0.2,iter:0.5}},
   {name:'Tesseract',    grp:'LATT', kind:'3D', mode:41, p:{morph:0.45,detail:0.62,speed:0.5,zoom:0.22,hue:0.60,ca:0.5,cb:0.3,cc:0.34,iter:0.5}},
   // 2D escape-time
-  {name:'Mandelbrot',   grp:'FLD', kind:'2D', mode:6,  p:{morph:0.85,detail:0.35,speed:0.6,zoom:0.12,hue:0.2,ca:0.61,cb:0.36,cc:0.71,iter:0.86}},
-  {name:'Julia',        grp:'FLD', kind:'2D', mode:7,  p:{morph:0.5,detail:0.6,speed:1.0,zoom:0.05,hue:0.42,ca:0.2,cb:0.13,cc:0.35,iter:0.6}},
-  {name:'Sine Lambda',  grp:'FLD', kind:'2D', mode:8,  p:{morph:0.08,detail:0.22,speed:0.5,zoom:0.09,hue:0.05,ca:0.9,cb:0.31,cc:0.65,iter:0.57}},
+  {name:'Mandelbrot',   grp:'FLD', kind:'2D', mode:6,  p:{morph:0.85,detail:0.35,speed:0.6,zoom:0.12,hue:0.2,ca:0.61,cb:0.36,cc:0.71,iter:0.64}},
+  {name:'Julia',        grp:'FLD', kind:'2D', mode:7,  p:{morph:0.5,detail:0.6,speed:1.0,zoom:0.05,hue:0.42,ca:0.2,cb:0.13,cc:0.35,iter:0.64}},
+  {name:'Sine Lambda',  grp:'FLD', kind:'2D', mode:8,  p:{morph:0.08,detail:0.22,speed:0.5,zoom:0.09,hue:0.05,ca:0.9,cb:0.31,cc:0.65,iter:0.33}},
   {name:'Mirror Tunnel',grp:'TUN', kind:'2D', mode:10, p:{morph:0.55,detail:0.50,speed:1.1,zoom:0.40,hue:0.62,cc:0.3}},
   {name:'Flow',         grp:'TUN', kind:'2D', mode:11, p:{morph:0.42,detail:0.45,speed:1.0,zoom:0.45,hue:0.90,cc:0.5}},
-  {name:'Magnet',       grp:'FLD', kind:'2D', mode:17, p:{morph:0.23,detail:0.81,speed:0.5,zoom:0.26,hue:0.25,ca:0.42,cb:0.69,cc:0.22,iter:0.45}},
-  {name:'Phoenix',      grp:'FLD', kind:'2D', mode:18, p:{morph:0.46,detail:0.14,speed:0.6,zoom:0.3,hue:0.55,ca:0.69,cb:0.31,cc:0.21,iter:0.3}},
-  {name:'Ship Julia',   grp:'FLD', kind:'2D', mode:20, p:{morph:0.67,detail:0.72,speed:0.6,zoom:0.26,hue:0.08,ca:0.49,cb:0.8,cc:0.72,iter:0.7}},
-  {name:'Celtic',       grp:'FLD', kind:'2D', mode:21, p:{morph:0.53,detail:0.66,speed:0.5,zoom:0.09,hue:0.45,ca:0.71,cb:0.8,cc:0.81,iter:0.38}},
+  {name:'Magnet',       grp:'FLD', kind:'2D', mode:17, p:{morph:0.23,detail:0.81,speed:0.5,zoom:0.26,hue:0.25,ca:0.42,cb:0.69,cc:0.22,iter:0.61}},
+  {name:'Phoenix',      grp:'FLD', kind:'2D', mode:18, p:{morph:0.46,detail:0.14,speed:0.6,zoom:0.3,hue:0.55,ca:0.69,cb:0.31,cc:0.21,iter:0.13}},
+  {name:'Ship Julia',   grp:'FLD', kind:'2D', mode:20, p:{morph:0.67,detail:0.72,speed:0.6,zoom:0.26,hue:0.08,ca:0.49,cb:0.8,cc:0.72,iter:0.85}},
+  {name:'Celtic',       grp:'FLD', kind:'2D', mode:21, p:{morph:0.53,detail:0.66,speed:0.5,zoom:0.09,hue:0.45,ca:0.71,cb:0.8,cc:0.81,iter:0.44}},
   {name:'Newton',       grp:'FLD', kind:'2D', mode:19, p:{morph:0.41,detail:0.43,speed:0.45,zoom:0.31,hue:0.62,ca:0.43,cb:0.5,cc:0.2,iter:0.6}},
   {name:'Lyapunov',     grp:'FLD', kind:'2D', mode:37, p:{morph:0.4,detail:0.6,speed:0.4,zoom:0.28,hue:0.3,ca:0.5,cb:0.5,cc:0.3,iter:0.6}},
-  {name:'Harmony',      grp:'FLD', kind:'2D', mode:39, p:{morph:0.5,detail:0.6,speed:0.35,zoom:0.02,hue:0.55,ca:0.5,cb:0.5,cc:0.3,iter:0.55}},
+  {name:'Harmony',      grp:'FLD', kind:'2D', mode:39, p:{morph:0.5,detail:0.6,speed:0.35,zoom:0.02,hue:0.55,ca:0.5,cb:0.5,cc:0.3,iter:0.59}},
   {name:'Spider',       grp:'FLD', kind:'2D', mode:38, p:{morph:0.35,detail:0.55,speed:0.5,zoom:0.32,hue:0.48,ca:0.5,cb:0.5,cc:0.35,iter:0.55}},
   // Synth / audio-reactive shaders
   {name:'Spectrum',     grp:'SYN', kind:'SYN', mode:22, p:{morph:0.3,detail:0.62,speed:0.8,zoom:0.5,hue:0,ca:0.55,cb:0.5,cc:0.3}},
