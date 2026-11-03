@@ -56,6 +56,7 @@
     <div id="status">Looking for surfaces…</div>
     <button id="btnFit" class="on" title="How placed things are sized">Fit: Outline</button>
     <button id="btnLook" title="Wall look">Wall: Solid</button>
+    <button id="btnGlow" class="on" title="Fractal light on the room">Glow: On</button>
     <button id="btnQ" title="Render resolution">Q: Med</button>
     <button id="btnMic">Mic</button>
     <button id="btnDone" class="go hidden">Done</button>
@@ -117,7 +118,30 @@ const V3 = {
 // Morph, Cst A-C, animation and all), behind a march driven by the XR view.
 // Rays start in world space and are carried into the fractal's object space,
 // which is anchored to the surface the user tapped.
-const AR_MAIN = `
+
+// The phone's depth map of the real room, in meters along the view axis.
+// arDepth reads it at a pixel; arOccl turns it into how much of something at
+// view depth z shows: fully when the room is behind it, fading out over a
+// few centimeters (more far away, where the map is coarser) as a real object
+// comes in front. With no depth map everything shows.
+const AR_DEPTH = `
+uniform highp sampler2D uARDepth;
+uniform mat4 uARDUv;
+uniform float uARDOn;
+uniform vec4 uARVp;
+float arDepth(vec2 fc){
+  vec2 nv=(fc-uARVp.xy)/uARVp.zw; nv.y=1.0-nv.y;   // normalized view coords: origin top-left
+  return texture(uARDepth,(uARDUv*vec4(nv,0.0,1.0)).xy).r;
+}
+float arOccl(float z){
+  if(uARDOn<0.5) return 1.0;
+  float d=arDepth(gl_FragCoord.xy);
+  if(d<0.05) return 1.0;
+  float m=0.03+0.025*z;
+  return smoothstep(z-2.0*m,z-0.5*m,d);
+}
+`;
+const AR_MAIN = AR_DEPTH + `
 uniform mat4 uInvModel, uModel, uVPm, uInvVP;
 uniform vec3 uEye, uLightO;
 uniform vec4 uVp;
@@ -169,6 +193,8 @@ void main(){
   col=col/(1.0+col*0.25);
   vec3 pw=(uModel*vec4(p,1.0)).xyz;
   vec4 cp=uVPm*vec4(pw,1.0);
+  a*=arOccl(cp.w);   // clip w is the view depth
+  if(a<0.01) discard;
   gl_FragDepth=clamp(cp.z/cp.w*0.5+0.5,0.0,1.0);
   fragColor=vec4(col*a,a);
 }
@@ -177,11 +203,12 @@ void main(){
 // Surface quads: aiming reticle, contact shadow with light spill, and the
 // 2D panels. Local quad spans -1..1 in x and z, lying in the frame's xz plane.
 const QUAD_VS = `#version 300 es
-in vec2 a; uniform mat4 uMVP; out vec2 vUv;
-void main(){ vUv=a; gl_Position=uMVP*vec4(a.x,0.0,a.y,1.0); }`;
+in vec2 a; uniform mat4 uMVP; out vec2 vUv; out float vZ;
+void main(){ vUv=a; gl_Position=uMVP*vec4(a.x,0.0,a.y,1.0); vZ=gl_Position.w; }`;
 const QUAD_FS = `#version 300 es
 precision highp float;
-in vec2 vUv; out vec4 o;
+${AR_DEPTH}
+in vec2 vUv; in float vZ; out vec4 o;
 uniform int uKind; uniform sampler2D uTx; uniform vec3 uCol; uniform float uA, uB, uAdd, uT;
 void main(){
   float r=length(vUv);
@@ -205,6 +232,61 @@ void main(){
     // camera image, the way a projector's light lands on a real wall.
     o=vec4(c*f*mix(1.0,0.95,uAdd), f*(1.0-uAdd));
   }
+  if(uKind!=0) o*=arOccl(vZ);   // the reticle always shows
+}`;
+
+// Light from the fractals onto the real room. The depth map gives every
+// camera pixel a position and a normal; each placed fractal is a light with
+// its own color. With the camera image available (raw camera access) the
+// light is multiplied by the surface's own color, so a white table glows and
+// a black one barely does; without it the light is simply added. In the
+// desktop preview the same pass draws the synthetic room itself.
+const SPILL_FS = `#version 300 es
+precision highp float;
+out vec4 o;
+${AR_DEPTH}
+uniform mat4 uInvP, uInvV;
+uniform sampler2D uCam;
+uniform float uCamOn, uCamFlip, uFake, uGain;
+uniform vec4 uLP[8], uLC[8];
+uniform int uLN;
+vec3 vpos(vec2 fc){
+  float d=arDepth(fc);
+  vec2 ndc=(fc-uARVp.xy)/uARVp.zw*2.0-1.0;
+  vec4 r=uInvP*vec4(ndc,1.0,1.0); r.xyz/=r.w;
+  return r.xyz*(d/max(-r.z,1e-4));
+}
+void main(){
+  vec2 fc=gl_FragCoord.xy;
+  float d=arDepth(fc);
+  if(uARDOn<0.5||d<0.05){ if(uFake>0.5){ o=vec4(0.03,0.032,0.036,1.0); return; } discard; }
+  vec3 p=vpos(fc);
+  // Normal from neighbors about a depth texel away; on each axis the side
+  // with the smaller depth jump, so edges of objects keep a clean normal.
+  float e=max(uARVp.w/70.0,2.0);
+  vec3 xa=vpos(fc+vec2(e,0.0))-p, xb=p-vpos(fc-vec2(e,0.0));
+  vec3 ya=vpos(fc+vec2(0.0,e))-p, yb=p-vpos(fc-vec2(0.0,e));
+  vec3 n=normalize(cross(abs(xa.z)<abs(xb.z)?xa:xb, abs(ya.z)<abs(yb.z)?ya:yb));
+  if(dot(n,-p)<0.0) n=-n;
+  vec3 pw=(uInvV*vec4(p,1.0)).xyz, nw=normalize(mat3(uInvV)*n);
+  vec3 L=vec3(0.0);
+  for(int i=0;i<8;i++){
+    if(i>=uLN) break;
+    vec3 dv=uLP[i].xyz-pw; float dist=max(length(dv),1e-3), rad=uLP[i].w;
+    float ndl=clamp((dot(nw,dv/dist)+0.2)/1.2,0.0,1.0);
+    float att=(1.0-smoothstep(2.5*rad,6.0*rad,dist))/(1.0+dist*dist/(rad*rad));
+    L+=uLC[i].rgb*(uLC[i].w*ndl*att);
+  }
+  if(uFake>0.5){
+    float amb=0.16+0.2*(0.5+0.5*nw.y)+0.14*max(dot(nw,normalize(vec3(0.35,0.85,0.4))),0.0);
+    o=vec4(vec3(0.62,0.6,0.56)*(amb+L*uGain*0.5),1.0);
+    return;
+  }
+  if(uCamOn>0.5){
+    vec2 cu=(fc-uARVp.xy)/uARVp.zw; if(uCamFlip>0.5) cu.y=1.0-cu.y;
+    vec3 cam=texture(uCam,cu).rgb;
+    o=vec4(cam*L*uGain+L*0.04,0.0);   // alpha 0: added to the camera image
+  } else o=vec4(L*0.25,0.0);
 }`;
 
 function compile(vs, fs, label){
@@ -319,6 +401,144 @@ const quad = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, quad); gl.bufferD
 const vao = gl.createVertexArray(); gl.bindVertexArray(vao); gl.enableVertexAttribArray(0);
 const useBuf = b => { gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0); };
 const qprog = compile(QUAD_VS, QUAD_FS, 'quad');
+const sprog = compile(VJE.VERT, SPILL_FS, 'spill');
+
+// ---------------------------------------------------------------- room depth
+// The depth map lives on texture unit 3 for the whole session (meters, half
+// float, filtered). dep.uv maps normalized view coords into it.
+const DEPTH_UNIT = 3, CAM_UNIT = 4;
+const dtex = gl.createTexture();
+const dep = {on:0, uv:null, w:0, h:0, buf:null};
+function depthTex(w, h, data){
+  gl.activeTexture(gl.TEXTURE0 + DEPTH_UNIT); gl.bindTexture(gl.TEXTURE_2D, dtex);
+  if(w !== dep.w || h !== dep.h){
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R16F, w, h, 0, gl.RED, gl.FLOAT, data);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    dep.w = w; dep.h = h;
+  } else gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, w, h, gl.RED, gl.FLOAT, data);
+  gl.activeTexture(gl.TEXTURE0);
+}
+depthTex(1, 1, new Float32Array(1));
+dep.uv = M4.id();
+function uploadDepth(frame, view){
+  dep.on = 0;
+  if(!session || session.depthUsage !== 'cpu-optimized' || !frame.getDepthInformation) return;
+  let di; try{ di = frame.getDepthInformation(view); }catch(e){ return; }
+  if(!di || !di.data) return;
+  const n = di.width * di.height;
+  if(!dep.buf || dep.buf.length !== n) dep.buf = new Float32Array(n);
+  const src = session.depthDataFormat === 'float32' ? new Float32Array(di.data, 0, n) : new Uint16Array(di.data, 0, n);
+  const k = di.rawValueToMeters, b = dep.buf;
+  for(let i = 0; i < n; i++) b[i] = src[i] * k;
+  depthTex(di.width, di.height, b);
+  dep.uv = di.normDepthBufferFromNormView.matrix; dep.on = 1;
+}
+// Desktop preview: the synthetic room's depth, ray cast on the CPU at about
+// the phone's depth resolution. Floor, a table top at the origin, the wall
+// behind it, and a thin post beside the table to test occlusion against.
+const FAKE_W = 96, FAKE_H = 72, fakeBuf = new Float32Array(FAKE_W * FAKE_H);
+function fakeDepth(P, IV){
+  const eye = [IV[12], IV[13], IV[14]];
+  for(let j = 0; j < FAKE_H; j++) for(let i = 0; i < FAKE_W; i++){
+    const x = (i + 0.5)/FAKE_W, y = (j + 0.5)/FAKE_H;
+    const d = xformD(IV, [(2*x - 1)/P[0], (1 - 2*y)/P[5], -1]);   // view z = -1, so t is view depth
+    let best = 0;
+    const hit = t => { if(t > 0.02 && (!best || t < best)) best = t; };
+    if(d[1] < 0){ hit((-0.75 - eye[1]) / d[1]); }
+    if(d[1] < 0 && eye[1] > 0){ const t = -eye[1] / d[1], px = eye[0] + d[0]*t, pz = eye[2] + d[2]*t; if(Math.abs(px) < 0.55 && Math.abs(pz) < 0.4) hit(t); }
+    if(d[2] < 0){ hit((-0.6 - eye[2]) / d[2]); }
+    { // post: vertical cylinder at (0.24, 0.2), r 0.022, y 0..0.42
+      const ox = eye[0] - 0.24, oz = eye[2] - 0.2, a = d[0]*d[0] + d[2]*d[2], b = ox*d[0] + oz*d[2], c = ox*ox + oz*oz - 0.022*0.022, h = b*b - a*c;
+      if(h > 0){ const t = (-b - Math.sqrt(h)) / a, py = eye[1] + d[1]*t; if(py > 0 && py < 0.42) hit(t); }
+    }
+    fakeBuf[j*FAKE_W + i] = best;
+  }
+  depthTex(FAKE_W, FAKE_H, fakeBuf);
+  dep.uv = M4.id(); dep.on = 1;
+}
+let curVp = [0, 0, 1, 1];
+function bindDepth(prog){
+  setU(prog, 'uARDepth', DEPTH_UNIT); setU(prog, 'uARDUv', dep.uv); setU(prog, 'uARDOn', dep.on); setU(prog, 'uARVp', curVp);
+}
+
+// ---------------------------------------------------------------- light spill
+let glowOn = true, xrBind = null, camTex = null, camFlip = false;
+const LP = new Float32Array(32), LC = new Float32Array(32);
+// One light per placed thing: a fractal glows from its middle in its palette
+// color and pulses with the music; a wall field glows from just in front of
+// it in its average color, measured off the GPU a few times a second.
+function collectLights(t, eye){
+  let n = 0;
+  if(!glowOn) return 0;
+  for(const it of items){
+    if(n >= 8) break;
+    if(it.kind === '3d'){
+      if(!it.prog || !it.prog.ready) continue;
+      const g = Math.min(1, (t - it.born) * 1.2), up = [it.M[4], it.M[5], it.M[6]];
+      const c = V3.add([it.M[12], it.M[13], it.M[14]], V3.mul(up, it.size*0.45));
+      const tc = it.avg || it.tint || [0.5, 0.6, 1.0], mx = Math.max(tc[0], tc[1], tc[2], 0.1);
+      LP.set([c[0], c[1], c[2], it.size*0.9], n*4);
+      LC.set([tc[0]/mx, tc[1]/mx, tc[2]/mx, g*(0.55 + audio.loud*1.4 + audio.beat*0.7)], n*4);
+      n++;
+    } else if(it.ok && it.avg){
+      const fade = Math.min(1, (t - it.born)*1.5);
+      let ctr, half;
+      if(it.mesh){ ctr = xformP(it.M, [it.mesh.c[0], 0, it.mesh.c[1]]); half = it.mesh.ext; }
+      else { ctr = [it.M[12], it.M[13], it.M[14]]; const h = it.half || it.size/2; half = Array.isArray(h) ? Math.max(h[0], h[1]) : h; }
+      let nrm = V3.norm([it.M[4], it.M[5], it.M[6]]);
+      if(V3.dot(nrm, V3.sub(eye, ctr)) < 0) nrm = V3.mul(nrm, -1);
+      const c = V3.add(ctr, V3.mul(nrm, Math.min(0.6, half*0.35)));
+      const a = it.avg, mx = Math.max(a[0], a[1], a[2]);
+      if(mx < 0.02) continue;
+      LP.set([c[0], c[1], c[2], Math.max(0.2, half*1.1)], n*4);
+      LC.set([a[0]/mx, a[1]/mx, a[2]/mx, fade*Math.sqrt(mx)*(wallLight ? 1.1 : 0.8)], n*4);
+      n++;
+    }
+  }
+  return n;
+}
+function drawSpill(P, Vw, nL, fake){
+  if(!sprog.poll()) return;
+  if(!fake && (!nL || !dep.on)) return;
+  gl.useProgram(sprog.p);
+  bindDepth(sprog);
+  setU(sprog, 'uInvP', M4.inv(P)); setU(sprog, 'uInvV', M4.inv(Vw));
+  setU(sprog, 'uLP', LP); setU(sprog, 'uLC', LC); setU(sprog, 'uLN', nL);
+  setU(sprog, 'uFake', fake ? 1 : 0); setU(sprog, 'uGain', 1.4);
+  setU(sprog, 'uCamOn', camTex ? 1 : 0); setU(sprog, 'uCamFlip', camFlip ? 1 : 0); setU(sprog, 'uCam', CAM_UNIT);
+  if(camTex){ gl.activeTexture(gl.TEXTURE0 + CAM_UNIT); gl.bindTexture(gl.TEXTURE_2D, camTex); gl.activeTexture(gl.TEXTURE0); }
+  useBuf(tri); gl.drawArrays(gl.TRIANGLES, 0, 3);
+}
+// A wall field's average color: shrink its texture to 8x8 on the GPU, read it
+// back through a pixel buffer and a fence so the frame never waits on it.
+const avgT = makeTarget(8), avgPix = new Uint8Array(256);
+let panelN = 0;
+// Colors are premultiplied, so dividing by the summed alpha averages only the
+// pixels something covers (all of a wall field, just the fractal in a probe).
+// pre() renders the source when it is the item's turn; src is {fb, w, h}.
+function sampleAvg(it, k, pre, src){
+  if(it.sync){
+    const st = gl.clientWaitSync(it.sync, 0, 0);
+    if(st === gl.TIMEOUT_EXPIRED || st === gl.WAIT_FAILED) return;
+    gl.deleteSync(it.sync); it.sync = null;
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, it.pbo); gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, avgPix); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+    const s = [0, 0, 0]; let A = 0;
+    for(let i = 0; i < 64; i++){ s[0] += avgPix[i*4]; s[1] += avgPix[i*4+1]; s[2] += avgPix[i*4+2]; A += avgPix[i*4+3]; }
+    if(A < 255*0.5) return;
+    const c = s.map(v => v / A);
+    it.avg = it.avg ? it.avg.map((v, i) => v + (c[i] - v)*0.35) : c;
+    return;
+  }
+  if((panelN + k) % 5) return;
+  if(pre) pre();
+  if(!it.pbo){ it.pbo = gl.createBuffer(); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, it.pbo); gl.bufferData(gl.PIXEL_PACK_BUFFER, 256, gl.STREAM_READ); }
+  gl.bindFramebuffer(gl.READ_FRAMEBUFFER, src.fb); gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, avgT.fb);
+  gl.blitFramebuffer(0, 0, src.w, src.h, 0, 0, 8, 8, gl.COLOR_BUFFER_BIT, gl.LINEAR);
+  gl.bindFramebuffer(gl.READ_FRAMEBUFFER, avgT.fb);
+  gl.bindBuffer(gl.PIXEL_PACK_BUFFER, it.pbo); gl.readPixels(0, 0, 8, 8, gl.RGBA, gl.UNSIGNED_BYTE, 0); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+  it.sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+}
 
 // ---------------------------------------------------------------- placed things
 // kind '3d': a fractal standing on a horizontal surface.
@@ -374,7 +594,7 @@ function place(hitM, eye, anchor, pe){
   status(fit ? (horizontal ? `<b>${it.preset.name}</b> fills the ${where}. Keep scanning and it grows to fit.` : `<b>${it.preset.name}</b> covers the ${where}. Keep scanning to extend it.`)
              : `Placed <b>${it.preset.name}</b> on the ${where}.`);
 }
-function dropItem(it){ if(it.tgt){ gl.deleteTexture(it.tgt.tx); gl.deleteFramebuffer(it.tgt.fb); } if(it.mesh) gl.deleteBuffer(it.mesh.buf); if(it.anchor && it.anchor.delete) it.anchor.delete(); }
+function dropItem(it){ if(it.sync) gl.deleteSync(it.sync); if(it.pbo) gl.deleteBuffer(it.pbo); if(it.tgt){ gl.deleteTexture(it.tgt.tx); gl.deleteFramebuffer(it.tgt.fb); } if(it.mesh) gl.deleteBuffer(it.mesh.buf); if(it.anchor && it.anchor.delete) it.anchor.delete(); }
 
 // Three marked points to a rectangle: A and B along one edge, C anywhere on
 // the opposite edge. The normal comes from the points themselves, so a tilted
@@ -607,15 +827,16 @@ function fitItems(){
 
 const MESH_VS = `#version 300 es
 in vec3 a; uniform mat4 uMVP; uniform vec2 uC, uR, uU; uniform float uExt;
-out vec2 vUv; out float vE;
-void main(){ vec2 q=a.xy-uC; vUv=vec2(dot(q,uR),dot(q,uU))/uExt*0.5+0.5; vE=a.z; gl_Position=uMVP*vec4(a.x,0.0,a.y,1.0); }`;
+out vec2 vUv; out float vE, vZ;
+void main(){ vec2 q=a.xy-uC; vUv=vec2(dot(q,uR),dot(q,uU))/uExt*0.5+0.5; vE=a.z; gl_Position=uMVP*vec4(a.x,0.0,a.y,1.0); vZ=gl_Position.w; }`;
 const MESH_FS = `#version 300 es
 precision highp float;
-in vec2 vUv; in float vE; out vec4 o;
+${AR_DEPTH}
+in vec2 vUv; in float vE, vZ; out vec4 o;
 uniform sampler2D uTx; uniform float uA, uAdd;
 void main(){
   vec3 c=texture(uTx,vUv).rgb;
-  float f=smoothstep(0.0,0.12,vE)*uA;
+  float f=smoothstep(0.0,0.12,vE)*uA*arOccl(vZ);
   o=vec4(c*f*mix(1.0,0.95,uAdd), f*(1.0-uAdd));
 }`;
 const mprog = compile(MESH_VS, MESH_FS, 'mesh');
@@ -663,7 +884,7 @@ function drawMesh(VP, it, a){
   gl.useProgram(mprog.p);
   setU(mprog, 'uMVP', M4.mul(VP, it.M));
   setU(mprog, 'uC', it.mesh.c); setU(mprog, 'uR', it.mesh.r); setU(mprog, 'uU', it.mesh.u); setU(mprog, 'uExt', it.mesh.ext);
-  setU(mprog, 'uA', a); setU(mprog, 'uAdd', wallLight ? 1 : 0);
+  setU(mprog, 'uA', a); setU(mprog, 'uAdd', wallLight ? 1 : 0); bindDepth(mprog);
   gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, it.tgt.tx); setU(mprog, 'uTx', 0);
   gl.bindBuffer(gl.ARRAY_BUFFER, it.mesh.buf); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
   gl.drawArrays(gl.TRIANGLES, 0, it.mesh.n);
@@ -694,6 +915,13 @@ function renderPanels(t){
     useBuf(tri); gl.drawArrays(gl.TRIANGLES, 0, 3);
     it.ok = true;
   }
+  if(glowOn){
+    panelN++; let k = 0;
+    for(const it of items){
+      if(it.kind === '2d' && it.ok) sampleAvg(it, k++, null, it.tgt);
+      else if(it.kind === '3d' && it.prog && it.prog.ready) sampleAvg(it, k++, () => probeFractal(it, t), probeT);
+    }
+  }
 }
 
 function drawQuad(VP, M, half, kind, col, a, b, tex){
@@ -701,16 +929,20 @@ function drawQuad(VP, M, half, kind, col, a, b, tex){
   gl.useProgram(qprog.p);
   setU(qprog, 'uMVP', M4.mul(VP, Array.isArray(half) ? M4.scale3(M, half[0], 1, half[1]) : M4.scale(M, half)));
   setU(qprog, 'uKind', kind); setU(qprog, 'uCol', col); setU(qprog, 'uA', a); setU(qprog, 'uB', b);
-  setU(qprog, 'uAdd', wallLight ? 1 : 0); setU(qprog, 'uT', now());
+  setU(qprog, 'uAdd', wallLight ? 1 : 0); setU(qprog, 'uT', now()); bindDepth(qprog);
   if(tex){ gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); setU(qprog, 'uTx', 0); }
   useBuf(quad); gl.drawArrays(gl.TRIANGLES, 0, 6);
 }
 
 // One view: proj and view matrices, eye position, viewport in pixels.
-function drawView(P, Vw, eye, vp, t, marks, rib){
+function drawView(P, Vw, eye, vp, t, marks, rib, fake){
   const VP = M4.mul(P, Vw), IVP = M4.inv(VP);
-  gl.viewport(vp[0], vp[1], vp[2], vp[3]);
+  gl.viewport(vp[0], vp[1], vp[2], vp[3]); curVp = vp;
   gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+
+  // The fractals' light on the real room, under everything else.
+  gl.disable(gl.DEPTH_TEST); gl.depthMask(false);
+  drawSpill(P, Vw, collectLights(t, eye), fake);
   gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL);
 
   // Wall panels and contact shadows: transparent, no depth writes.
@@ -723,37 +955,56 @@ function drawView(P, Vw, eye, vp, t, marks, rib){
   for(const it of items){
     if(it.kind !== '3d') continue;
     const grow = Math.min(1, (t - it.born) * 1.2);
-    const tint = it.tint || [0.5, 0.6, 1.0];
-    drawQuad(VP, it.M, it.size*0.62, 1, tint, 0.55*grow, (0.10 + audio.loud*0.35 + audio.beat*0.15)*grow, null);
+    const tint = it.avg || it.tint || [0.5, 0.6, 1.0];
+    // With the spill on, the room's own light takes over from the disc's glow.
+    const glowK = glowOn && (dep.on || fake) ? 0.25 : 1;
+    drawQuad(VP, it.M, it.size*0.62, 1, tint, 0.55*grow, (0.10 + audio.loud*0.35 + audio.beat*0.15)*grow*glowK, null);
   }
   // Fractals: write depth so they hide each other properly.
   gl.depthMask(true);
-  for(const it of items){
-    if(it.kind !== '3d' || !it.prog || !it.prog.poll()) continue;
-    const pr = it.prog, grow = Math.min(1, (t - it.born) * 1.2);
-    const ease = 1 - Math.pow(1 - grow, 3);
-    const normed = NORMED.has(it.preset.mode);
-    const clipR = normed ? 1.8 : 1.45, lift = normed ? 1.03 : 1.45;
-    const s = (it.size / 2.06) * Math.max(ease, 0.02);
-    // Object space: sits on the surface, slow turn about its own vertical.
-    const Mo = M4.mul(M4.mul(it.M, (() => { const m = M4.id(); m[13] = lift*s; return m; })()), M4.rotY(it.still ? 0 : t * 0.15));
-    const Model = M4.scale(Mo, s), IModel = M4.inv(Model);
-    const Lo = V3.norm([IModel[0]*LIGHT[0]+IModel[4]*LIGHT[1]+IModel[8]*LIGHT[2],
-                        IModel[1]*LIGHT[0]+IModel[5]*LIGHT[1]+IModel[9]*LIGHT[2],
-                        IModel[2]*LIGHT[0]+IModel[6]*LIGHT[1]+IModel[10]*LIGHT[2]]);
-    gl.useProgram(pr.p);
-    sceneUniforms(pr, it.preset, t, [vp[2], vp[3]]);
-    setU(pr, 'uInvModel', IModel); setU(pr, 'uModel', Model); setU(pr, 'uVPm', VP); setU(pr, 'uInvVP', IVP);
-    setU(pr, 'uEye', eye); setU(pr, 'uLightO', Lo); setU(pr, 'uVp', vp);
-    setU(pr, 'uClipR', clipR); setU(pr, 'uPix', 2 / (P[5] * vp[3])); setU(pr, 'uGlowA', audio.beat);
-    useBuf(tri); gl.drawArrays(gl.TRIANGLES, 0, 3);
-  }
+  for(const it of items) if(it.kind === '3d' && it.prog && it.prog.poll()) drawFractal(it, t, P, Vw, eye, vp);
   if(rib && rib.length){ gl.depthMask(false); gl.disable(gl.DEPTH_TEST); drawRibbons(VP, rib); }
   if(marks && marks.length){
     gl.depthMask(false); gl.disable(gl.DEPTH_TEST);
     for(const m of marks) drawQuad(VP, m.M, m.half || 0.06, 0, m.col, 1, 0, null);
   }
   gl.depthMask(true);
+}
+
+// One fractal into the bound framebuffer, seen through P and Vw.
+function drawFractal(it, t, P, Vw, eye, vp){
+  const VP = M4.mul(P, Vw), IVP = M4.inv(VP);
+  const pr = it.prog, grow = Math.min(1, (t - it.born) * 1.2);
+  const ease = 1 - Math.pow(1 - grow, 3);
+  const normed = NORMED.has(it.preset.mode);
+  const clipR = normed ? 1.8 : 1.45, lift = normed ? 1.03 : 1.45;
+  const s = (it.size / 2.06) * Math.max(ease, 0.02);
+  // Object space: sits on the surface, slow turn about its own vertical.
+  const Mo = M4.mul(M4.mul(it.M, (() => { const m = M4.id(); m[13] = lift*s; return m; })()), M4.rotY(it.still ? 0 : t * 0.15));
+  const Model = M4.scale(Mo, s), IModel = M4.inv(Model);
+  const Lo = V3.norm([IModel[0]*LIGHT[0]+IModel[4]*LIGHT[1]+IModel[8]*LIGHT[2],
+                      IModel[1]*LIGHT[0]+IModel[5]*LIGHT[1]+IModel[9]*LIGHT[2],
+                      IModel[2]*LIGHT[0]+IModel[6]*LIGHT[1]+IModel[10]*LIGHT[2]]);
+  gl.useProgram(pr.p);
+  sceneUniforms(pr, it.preset, t, [vp[2], vp[3]]);
+  setU(pr, 'uInvModel', IModel); setU(pr, 'uModel', Model); setU(pr, 'uVPm', VP); setU(pr, 'uInvVP', IVP);
+  setU(pr, 'uEye', eye); setU(pr, 'uLightO', Lo); setU(pr, 'uVp', vp);
+  setU(pr, 'uClipR', clipR); setU(pr, 'uPix', 2 / (P[5] * vp[3])); setU(pr, 'uGlowA', audio.beat); bindDepth(pr);
+  useBuf(tri); gl.drawArrays(gl.TRIANGLES, 0, 3);
+}
+// A fractal's real colors, for its light: a 32x32 view of it from the side,
+// no room depth, averaged like a wall field.
+const probeT = makeTarget(32), probeP = M4.persp(0.7, 1, 0.01, 20);
+function probeFractal(it, t){
+  const up = [it.M[4], it.M[5], it.M[6]], f = it.f || [it.M[8], it.M[9], it.M[10]];
+  const c = V3.add([it.M[12], it.M[13], it.M[14]], V3.mul(up, it.size*0.45));
+  const eye = V3.add(c, V3.add(V3.mul(f, it.size*2.2), V3.mul(up, it.size*0.6)));
+  const on = dep.on, vp0 = curVp; dep.on = 0; curVp = [0, 0, 32, 32];
+  gl.bindFramebuffer(gl.FRAMEBUFFER, probeT.fb); gl.viewport(0, 0, 32, 32);
+  gl.disable(gl.DEPTH_TEST); gl.disable(gl.BLEND);
+  gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+  drawFractal(it, t, probeP, M4.lookAt(eye, c, up), eye, curVp);
+  dep.on = on; curVp = vp0;
 }
 
 function updateTints(){
@@ -777,6 +1028,7 @@ $('btnFit').onclick = () => {
 $('btnLook').onclick = () => { wallLight = !wallLight; $('btnLook').textContent = 'Wall: ' + (wallLight ? 'Light' : 'Solid'); $('btnLook').classList.toggle('on', wallLight); };
 $('btnQ').onclick = () => { quality = (quality + 1) % QUALS.length; $('btnQ').textContent = 'Q: ' + QUALS[quality].n; if(session) applyScale(); };
 $('btnMic').onclick = micToggle;
+$('btnGlow').onclick = () => { glowOn = !glowOn; $('btnGlow').textContent = 'Glow: ' + (glowOn ? 'On' : 'Off'); $('btnGlow').classList.toggle('on', glowOn); };
 $('btnUndo').onclick = () => { if(corners.length){ corners.pop(); updateDone(); return; } const it = items.pop(); if(it) dropItem(it); };
 $('btnDone').onclick = () => finishShape();
 function updateDone(){
@@ -800,7 +1052,7 @@ async function startAR(){
   try{
     session = await navigator.xr.requestSession('immersive-ar', {
       requiredFeatures:['hit-test'],
-      optionalFeatures:['dom-overlay','anchors','local-floor','plane-detection','depth-sensing'],
+      optionalFeatures:['dom-overlay','anchors','local-floor','plane-detection','depth-sensing','camera-access'],
       depthSensing:{usagePreference:['cpu-optimized'], dataFormatPreference:['luminance-alpha','float32']},
       domOverlay:{root:$('ui')},
     });
@@ -809,6 +1061,9 @@ async function startAR(){
   warm();
   await gl.makeXRCompatible();
   applyScale();
+  // Raw camera access hands the camera image to the light pass as a texture.
+  xrBind = null;
+  if(window.XRWebGLBinding && session.enabledFeatures && session.enabledFeatures.includes('camera-access')){ try{ xrBind = new XRWebGLBinding(session, gl); }catch(e){} }
   refSpace = await session.requestReferenceSpace('local');
   const viewer = await session.requestReferenceSpace('viewer');
   hitSrc = await session.requestHitTestSource({space:viewer});
@@ -1070,6 +1325,11 @@ function xrFrameBody(frame, s){
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   for(const view of pose.views){
     const v = s.renderState.baseLayer.getViewport(view);
+    uploadDepth(frame, view);
+    camTex = null;
+    if(glowOn && xrBind && view.camera && xrBind.getCameraImage){ try{ camTex = xrBind.getCameraImage(view.camera); }catch(e){ camTex = null; } }
+    dbg.depth = dep.on ? [dep.w, dep.h] : null; dbg.cam = !!camTex;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, s.renderState.baseLayer.framebuffer);
     drawView(view.projectionMatrix, view.transform.inverse.matrix, eye, [v.x, v.y, v.width, v.height], t, marks, Rib.v);
   }
   fpsN++; if(t - fpsT > 2){ if(items.length) document.title = 'SPECTRA AR · ' + Math.round(fpsN/(t-fpsT)) + ' fps'; fpsN = 0; fpsT = t; }
@@ -1105,7 +1365,9 @@ function prevFrame(){
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   gl.clearColor(0.06, 0.065, 0.075, 1); gl.clearDepth(1); gl.depthMask(true);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-  drawView(M4.persp(1.0, w/h, 0.02, 50), M4.lookAt(eye, at, [0,1,0]), eye, [0, 0, w, h], t, []);
+  const P = M4.persp(1.0, w/h, 0.02, 50), Vw = M4.lookAt(eye, at, [0,1,0]);
+  fakeDepth(P, M4.inv(Vw));
+  drawView(P, Vw, eye, [0, 0, w, h], t, [], null, true);
 }
 $('btnPreview').onclick = startPreview;
 
@@ -1116,7 +1378,7 @@ $('btnPreview').onclick = startPreview;
   if(ok){ b.disabled = false; b.textContent = 'Start AR'; b.onclick = startAR; }
   else { b.textContent = 'AR not supported here'; if(!window.isSecureContext) $('splashMsg').textContent = 'AR needs HTTPS (or localhost). Open this page from the hosted site.'; }
 })();
-window.__ar = {items, progCache, S3, S2, dbg, placePoly, triangulate};
+window.__ar = {items, progCache, S3, S2, dbg, placePoly, triangulate, dep, setCamFlip:v => { camFlip = !!v; }};
 })();
 </script>
 </body></html>
