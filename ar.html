@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>SPECTRA AR</title>
+<link rel="icon" href="favicon-32.png">
+<meta name="theme-color" content="#08090A">
+<style>
+  :root{ --bg:#08090A; --ink:#E8EAED; --dim:#8A9099; --acc:#C8FF2E; --panel:rgba(12,13,15,0.72); }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; height:100%; background:var(--bg); color:var(--ink);
+    font:14px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; overflow:hidden; }
+  canvas#c{ position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; }
+  #ui{ position:fixed; inset:0; pointer-events:none; }
+  #ui > *{ pointer-events:auto; }
+  .bar{ position:absolute; left:12px; right:12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;
+    background:var(--panel); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+    border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:8px 10px; }
+  #top{ top:calc(env(safe-area-inset-top) + 10px); }
+  #bot{ bottom:calc(env(safe-area-inset-bottom) + 12px); }
+  label{ display:flex; flex-direction:column; gap:2px; font-size:11px; color:var(--dim); flex:1 1 130px; min-width:0; }
+  select,input[type=range]{ width:100%; }
+  select{ background:#15171A; color:var(--ink); border:1px solid #2A2E33; border-radius:8px; padding:6px; font:inherit; font-size:13px; }
+  button{ background:#15171A; color:var(--ink); border:1px solid #2A2E33; border-radius:10px; padding:8px 12px; font:inherit; cursor:pointer; }
+  button.on{ border-color:var(--acc); color:var(--acc); }
+  button.go{ background:var(--acc); color:#08090A; border:0; font-weight:600; }
+  #status{ flex:1 1 100%; font-size:12px; color:var(--dim); min-height:1.3em; }
+  #status b{ color:var(--acc); font-weight:600; }
+  #splash{ position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:14px; padding:24px; text-align:center; background:var(--bg); }
+  #splash h1{ margin:0; font-size:22px; letter-spacing:0.12em; }
+  #splash p{ margin:0; max-width:34em; color:var(--dim); }
+  #splash .row{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+  .hidden{ display:none !important; }
+</style>
+</head><body>
+<canvas id="c"></canvas>
+
+<div id="splash">
+  <h1>SPECTRA&nbsp;AR</h1>
+  <p id="splashMsg">Point the camera at a table, the floor or a wall. Flat surfaces get a 3D fractal; walls and ceilings get a 2D field.</p>
+  <div class="row">
+    <button class="go" id="btnAR" disabled>Checking AR…</button>
+    <button id="btnPreview">Desktop preview</button>
+  </div>
+  <p style="font-size:12px">Needs Chrome on an Android phone with ARCore (Google Play Services for AR). The mic is optional; it drives the fractals like the main app.</p>
+</div>
+
+<div id="ui" class="hidden">
+  <div class="bar" id="top">
+    <label>Surfaces (3D)<select id="sel3"></select></label>
+    <label>Walls (2D)<select id="sel2"></select></label>
+    <label>Size<input type="range" id="size" min="0" max="1" step="0.01" value="0.4"></label>
+  </div>
+  <div class="bar" id="bot">
+    <div id="status">Looking for surfaces…</div>
+    <button id="btnFit" class="on" title="How placed things are sized">Fit: Outline</button>
+    <button id="btnLook" title="Wall look">Wall: Solid</button>
+    <button id="btnQ" title="Render resolution">Q: Med</button>
+    <button id="btnMic">Mic</button>
+    <button id="btnDone" class="go hidden">Done</button>
+    <button id="btnUndo">Undo</button>
+    <button id="btnClear">Clear</button>
+    <button id="btnExit">Exit</button>
+  </div>
+</div>
+
+<script src="vj-engine.js?v=b41"></script>
+<script>
+(() => {
+'use strict';
+const VJE = window.VJE;
+const $ = id => document.getElementById(id);
+const canvas = $('c');
+const gl = canvas.getContext('webgl2', {xrCompatible:true, alpha:true, antialias:false, premultipliedAlpha:true});
+if(!gl){ $('splashMsg').textContent = 'WebGL2 is not available in this browser.'; return; }
+const PAR = gl.getExtension('KHR_parallel_shader_compile');
+
+// ---------------------------------------------------------------- matrices
+// Column-major 4x4, same layout WebXR hands out.
+const M4 = {
+  id(){ const m = new Float32Array(16); m[0]=m[5]=m[10]=m[15]=1; return m; },
+  mul(a, b){ const o = new Float32Array(16);
+    for(let j=0;j<4;j++) for(let i=0;i<4;i++){ let s=0; for(let k=0;k<4;k++) s += a[i+k*4]*b[k+j*4]; o[i+j*4]=s; }
+    return o; },
+  inv(m){ const o = new Float32Array(16);
+    const a00=m[0],a01=m[1],a02=m[2],a03=m[3],a10=m[4],a11=m[5],a12=m[6],a13=m[7],
+          a20=m[8],a21=m[9],a22=m[10],a23=m[11],a30=m[12],a31=m[13],a32=m[14],a33=m[15];
+    const b00=a00*a11-a01*a10,b01=a00*a12-a02*a10,b02=a00*a13-a03*a10,b03=a01*a12-a02*a11,
+          b04=a01*a13-a03*a11,b05=a02*a13-a03*a12,b06=a20*a31-a21*a30,b07=a20*a32-a22*a30,
+          b08=a20*a33-a23*a30,b09=a21*a32-a22*a31,b10=a21*a33-a23*a31,b11=a22*a33-a23*a32;
+    let d = b00*b11-b01*b10+b02*b09+b03*b08-b04*b07+b05*b06; if(!d) return M4.id(); d = 1/d;
+    o[0]=(a11*b11-a12*b10+a13*b09)*d; o[1]=(a02*b10-a01*b11-a03*b09)*d; o[2]=(a31*b05-a32*b04+a33*b03)*d; o[3]=(a22*b04-a21*b05-a23*b03)*d;
+    o[4]=(a12*b08-a10*b11-a13*b07)*d; o[5]=(a00*b11-a02*b08+a03*b07)*d; o[6]=(a32*b02-a30*b05-a33*b01)*d; o[7]=(a20*b05-a22*b02+a23*b01)*d;
+    o[8]=(a10*b10-a11*b08+a13*b06)*d; o[9]=(a01*b08-a00*b10-a03*b06)*d; o[10]=(a30*b04-a31*b02+a33*b00)*d; o[11]=(a21*b02-a20*b04-a23*b00)*d;
+    o[12]=(a11*b07-a10*b09-a12*b06)*d; o[13]=(a00*b09-a01*b07+a02*b06)*d; o[14]=(a31*b01-a30*b03-a32*b00)*d; o[15]=(a20*b03-a21*b01+a22*b00)*d;
+    return o; },
+  // Basis columns x, y, z and origin p.
+  frame(x, y, z, p){ return new Float32Array([x[0],x[1],x[2],0, y[0],y[1],y[2],0, z[0],z[1],z[2],0, p[0],p[1],p[2],1]); },
+  scale(m, s){ const o = m.slice(); for(let i=0;i<12;i++) o[i]*=s; return o; },
+  scale3(m, sx, sy, sz){ const o = m.slice(); for(let i=0;i<3;i++){ o[i]*=sx; o[4+i]*=sy; o[8+i]*=sz; } return o; },
+  rotY(a){ const c=Math.cos(a), s=Math.sin(a), m=M4.id(); m[0]=c; m[2]=-s; m[8]=s; m[10]=c; return m; },
+  persp(fovy, asp, n, f){ const t=1/Math.tan(fovy/2), m=new Float32Array(16);
+    m[0]=t/asp; m[5]=t; m[10]=(f+n)/(n-f); m[11]=-1; m[14]=2*f*n/(n-f); return m; },
+  lookAt(eye, at, up){ const z = V3.norm(V3.sub(eye, at)), x = V3.norm(V3.cross(up, z)), y = V3.cross(z, x);
+    return M4.inv(M4.frame(x, y, z, eye)); },
+};
+const V3 = {
+  sub:(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]], add:(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]],
+  mul:(a,s)=>[a[0]*s,a[1]*s,a[2]*s], dot:(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],
+  cross:(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],
+  norm:a=>{ const l=Math.hypot(a[0],a[1],a[2])||1; return [a[0]/l,a[1]/l,a[2]/l]; },
+};
+
+// ---------------------------------------------------------------- shaders
+// The 3D scenes: the engine's own distance estimator for the mode (Repeat,
+// Morph, Cst A-C, animation and all), behind a march driven by the XR view.
+// Rays start in world space and are carried into the fractal's object space,
+// which is anchored to the surface the user tapped.
+const AR_MAIN = `
+uniform mat4 uInvModel, uModel, uVPm, uInvVP;
+uniform vec3 uEye, uLightO;
+uniform vec4 uVp;
+uniform float uClipR, uPix, uGlowA;
+float mapC(vec3 p, out float tr){ return max(map(p,tr), length(p)-uClipR); }
+vec3 nrmA(vec3 p, float e){
+  const vec2 k=vec2(1.0,-1.0); float t;
+  return normalize(k.xyy*mapC(p+k.xyy*e,t)+k.yyx*mapC(p+k.yyx*e,t)+k.yxy*mapC(p+k.yxy*e,t)+k.xxx*mapC(p+k.xxx*e,t));
+}
+void main(){
+  palSetup();
+  vec2 ndc=((gl_FragCoord.xy-uVp.xy)/uVp.zw)*2.0-1.0;
+  vec4 fw=uInvVP*vec4(ndc,1.0,1.0); fw/=fw.w;
+  vec3 ro=(uInvModel*vec4(uEye,1.0)).xyz;
+  vec3 rd=normalize((uInvModel*vec4(fw.xyz-uEye,0.0)).xyz);
+  // Bounding sphere: pixels whose ray misses it never run the estimator.
+  float R=uClipR*1.02, b=dot(ro,rd), c=dot(ro,ro)-R*R, h=b*b-c;
+  if(h<0.0) discard;
+  h=sqrt(h);
+  float t0=max(-b-h,0.0), t1=-b+h;
+  if(t1<=0.0) discard;
+  float t=t0, tr=0.0, mn=1e9, tmn=t0, trm=0.0; bool hit=false;
+  for(int i=min(0,int(abs(uTime)));i<120;i++){
+    vec3 p=ro+rd*t; float d=mapC(p,tr);
+    float px=uPix*max(t,0.05);
+    if(d<px*0.6){ hit=true; break; }
+    float r=d/px; if(r<mn){ mn=r; tmn=t; trm=tr; }
+    t+=d*0.9;
+    if(t>t1) break;
+  }
+  // Near misses become a soft silhouette instead of a stair-stepped edge.
+  float a=1.0;
+  if(!hit){ a=1.0-smoothstep(0.6,2.2,mn); if(a<0.01) discard; t=tmn; tr=trm; }
+  vec3 p=ro+rd*t;
+  float px=uPix*max(t,0.05);
+  vec3 n=nrmA(p, max(px*0.5,2e-4));
+  vec3 L=normalize(uLightO);
+  float dif=max(dot(n,L),0.0);
+  float ao=0.0, sc=1.0, tt;
+  for(int k=1;k<=4;k++){ float hh=0.035*float(k); ao+=(hh-mapC(p+n*hh,tt))*sc; sc*=0.6; }
+  ao=clamp(1.0-ao*4.0,0.0,1.0);
+  float hemi=0.5+0.5*n.y;
+  vec3 base=pal(clamp(tr,0.0,1.0)*0.9+0.05);
+  vec3 H=normalize(L-rd);
+  float spec=pow(max(dot(n,H),0.0),40.0)*0.35;
+  float rim=pow(1.0-max(dot(n,-rd),0.0),3.0);
+  vec3 col=base*(0.16+0.22*hemi+0.85*dif)*ao + vec3(spec) + pal(tr+0.33)*rim*0.45;
+  col+=base*uGlowA*0.35;
+  col=col/(1.0+col*0.25);
+  vec3 pw=(uModel*vec4(p,1.0)).xyz;
+  vec4 cp=uVPm*vec4(pw,1.0);
+  gl_FragDepth=clamp(cp.z/cp.w*0.5+0.5,0.0,1.0);
+  fragColor=vec4(col*a,a);
+}
+`;
+
+// Surface quads: aiming reticle, contact shadow with light spill, and the
+// 2D panels. Local quad spans -1..1 in x and z, lying in the frame's xz plane.
+const QUAD_VS = `#version 300 es
+in vec2 a; uniform mat4 uMVP; out vec2 vUv;
+void main(){ vUv=a; gl_Position=uMVP*vec4(a.x,0.0,a.y,1.0); }`;
+const QUAD_FS = `#version 300 es
+precision highp float;
+in vec2 vUv; out vec4 o;
+uniform int uKind; uniform sampler2D uTx; uniform vec3 uCol; uniform float uA, uB, uAdd, uT;
+void main(){
+  float r=length(vUv);
+  if(uKind==0){
+    float ring=smoothstep(0.07,0.0,abs(r-0.82))+smoothstep(0.12,0.0,r)*0.9;
+    float tick=smoothstep(0.05,0.0,abs(vUv.x))*step(0.92,r)+smoothstep(0.05,0.0,abs(vUv.y))*step(0.92,r);
+    ring=max(ring,tick*step(r,1.0))*(0.75+0.25*sin(uT*5.0));
+    o=vec4(uCol*ring,ring);
+  } else if(uKind==1){
+    // Contact shadow (alpha darkens the camera image) plus the fractal's own
+    // color thrown onto the table (rgb with no alpha adds light).
+    float sh=exp(-r*r*5.0)*uA;
+    float glow=exp(-r*r*2.2)*uB;
+    o=vec4(uCol*glow, sh);
+  } else {
+    vec2 uv=vUv*0.5+0.5;
+    vec3 c=texture(uTx,uv).rgb;
+    float e=min(min(uv.x,1.0-uv.x),min(uv.y,1.0-uv.y));
+    float f=smoothstep(0.0,0.07,e)*uA;
+    // Solid: paint over the wall. Light: alpha 0, so the field is ADDED to the
+    // camera image, the way a projector's light lands on a real wall.
+    o=vec4(c*f*mix(1.0,0.95,uAdd), f*(1.0-uAdd));
+  }
+}`;
+
+function compile(vs, fs, label){
+  const p = gl.createProgram();
+  const mk = (t, s) => { const sh = gl.createShader(t); gl.shaderSource(sh, s); gl.compileShader(sh); gl.attachShader(p, sh); return sh; };
+  const v = mk(gl.VERTEX_SHADER, vs), f = mk(gl.FRAGMENT_SHADER, fs);
+  gl.bindAttribLocation(p, 0, 'a'); gl.bindAttribLocation(p, 1, 'c');
+  gl.linkProgram(p);
+  const prog = {p, v, f, label, ready:false, failed:false, u:null};
+  prog.poll = () => {
+    if(prog.ready || prog.failed) return prog.ready;
+    if(PAR && !gl.getProgramParameter(p, PAR.COMPLETION_STATUS_KHR)) return false;
+    if(!gl.getProgramParameter(p, gl.LINK_STATUS)){
+      prog.failed = true;
+      console.error('[AR] link failed', label, gl.getShaderInfoLog(f) || '', gl.getProgramInfoLog(p));
+      return false;
+    }
+    prog.u = {};
+    const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
+    for(let i=0;i<n;i++){ const info = gl.getActiveUniform(p, i); const name = info.name.replace(/\[0\]$/, '');
+      prog.u[name] = {loc:gl.getUniformLocation(p, info.name), type:info.type}; }
+    prog.ready = true;
+    return true;
+  };
+  return prog;
+}
+function setU(prog, name, v){
+  const u = prog.u[name]; if(!u) return;
+  switch(u.type){
+    case gl.FLOAT: gl.uniform1f(u.loc, v); break;
+    case gl.FLOAT_VEC2: gl.uniform2fv(u.loc, v); break;
+    case gl.FLOAT_VEC3: gl.uniform3fv(u.loc, v); break;
+    case gl.FLOAT_VEC4: gl.uniform4fv(u.loc, v); break;
+    case gl.FLOAT_MAT4: gl.uniformMatrix4fv(u.loc, false, v); break;
+    case gl.INT: case gl.BOOL: case gl.SAMPLER_2D: gl.uniform1i(u.loc, v|0); break;
+  }
+}
+
+// ---------------------------------------------------------------- scenes
+const PRE = VJE.PRESETS;
+const S3 = PRE.filter(p => p.kind === '3D' && VJE.FAM_OF(p.mode).startsWith('3d:'));
+const S2 = PRE.filter(p => p.kind === '2D' || p.kind === 'SYN');
+// Modes the engine rescales into its 2.06 cube. The rest (space-filling
+// Apollonian and Kleinian, and the newer self-framed ones) are cut by a sphere,
+// which turns an endless lattice into a crystal ball sitting on the table.
+const NORMED = new Set([0,1,2,4,5,12,14,15,16,31,32,33,34,35,36,41,42]);
+const fill = (sel, list, pick) => list.forEach((p, i) => { const o = document.createElement('option'); o.value = i; o.textContent = p.name; if(p.name === pick) o.selected = true; sel.appendChild(o); });
+fill($('sel3'), S3, 'Mandelbulb');
+fill($('sel2'), S2, 'Julia');
+
+const progCache = new Map();
+function sceneProg(preset){
+  const key = preset.mode;
+  if(progCache.has(key)) return progCache.get(key);
+  let fs;
+  try{
+    fs = preset.kind === '3D' ? VJE.MAPLIB_FOR(preset.mode, AR_MAIN) : VJE.FRAG_FOR(preset.mode, true, false);
+  }catch(e){ console.error('[AR] build failed', preset.name, e); return null; }
+  const pr = compile(VJE.VERT, fs, preset.name);
+  progCache.set(key, pr);
+  return pr;
+}
+// Start compiling the picked scenes as soon as they are picked, so a tap
+// places them at once instead of stalling the camera on a link.
+const warm = () => { sceneProg(S3[+$('sel3').value]); sceneProg(S2[+$('sel2').value]); };
+$('sel3').onchange = warm; $('sel2').onchange = warm;
+
+// Shared uniform values: the preset's dials plus neutral trims, the same
+// values the main app starts a scene on.
+function sceneUniforms(prog, preset, t, res){
+  const p = preset.p, A = audio;
+  const S = (n, v) => setU(prog, n, v);
+  S('uMode', preset.mode); S('uRes', res); S('uTime', t);
+  S('uBass', A.bass); S('uMid', A.mid); S('uHigh', A.high); S('uLoud', A.loud); S('uBeat', A.beat); S('uJump', 0);
+  S('uHue', p.hue ?? 0); S('uMorph', p.morph ?? 0.5); S('uDetail', p.detail ?? 0.6); S('uZoom', p.zoom ?? 0.5);
+  S('uReact', 0.6); S('uSpeed', p.speed ?? 0.7);
+  S('uCA', p.ca ?? 0.5); S('uCB', p.cb ?? 0.5); S('uCC', p.cc ?? 0.3); S('uIter', p.iter ?? 0.5);
+  S('uSat', 1); S('uGam', 1); S('uSpan', 1); S('uWarm', 0); S('uFill', 0.5);
+  S('uSpin', 1); S('uSmooth', 0.35); S('uLook', [1, 1]); S('uRep', 0); S('uRepV', [0.4, 0.5, 0.3, 0.3]);
+  S('uPalSel', 0); S('uZIter', 1); S('uZX', [0, 0, 0]); S('uZLoop', 0); S('uStrobe', 0); S('uSpec', 0);
+  S('uCamAuto', 1); S('uCamScale', 1); S('uCamFog', 1); S('uXfade', 0); S('uIOR', 0);
+}
+
+// ---------------------------------------------------------------- audio
+const audio = {bass:0, mid:0, high:0, loud:0, beat:0, on:false, an:null, buf:null, avg:0.02, ctx:null, stream:null};
+async function micToggle(){
+  if(audio.on){ audio.stream.getTracks().forEach(t => t.stop()); audio.ctx.close(); audio.on = false; $('btnMic').classList.remove('on'); return; }
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false, noiseSuppression:false, autoGainControl:false}});
+    const ctx = new AudioContext(); const an = ctx.createAnalyser(); an.fftSize = 1024; an.smoothingTimeConstant = 0.6;
+    ctx.createMediaStreamSource(stream).connect(an);
+    Object.assign(audio, {on:true, an, ctx, stream, buf:new Uint8Array(an.frequencyBinCount)});
+    $('btnMic').classList.add('on');
+  }catch(e){ status('Mic unavailable: ' + e.message); }
+}
+function audioTick(){
+  if(!audio.on){ audio.bass *= 0.95; audio.mid *= 0.95; audio.high *= 0.95; audio.loud *= 0.95; audio.beat *= 0.9; return; }
+  audio.an.getByteFrequencyData(audio.buf);
+  const b = audio.buf, hz = audio.ctx.sampleRate / audio.an.fftSize;
+  const band = (lo, hi) => { let s = 0, n = 0; for(let i = Math.max(1, Math.floor(lo/hz)); i < Math.min(b.length, Math.ceil(hi/hz)); i++){ s += b[i]; n++; } return n ? s/n/255 : 0; };
+  const bass = band(20, 160), mid = band(160, 2000), high = band(2000, 9000);
+  const loud = (bass + mid + high) / 3;
+  audio.avg += (bass - audio.avg) * 0.02;
+  const k = 0.35;
+  audio.bass += (bass - audio.bass) * k; audio.mid += (mid - audio.mid) * k; audio.high += (high - audio.high) * k; audio.loud += (loud - audio.loud) * k;
+  audio.beat = bass > audio.avg * 1.35 && bass > 0.25 ? 1 : audio.beat * 0.88;
+}
+
+// ---------------------------------------------------------------- geometry
+const tri = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, tri); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+const quad = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, quad); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, 1,1, -1,-1, 1,1, -1,1]), gl.STATIC_DRAW);
+const vao = gl.createVertexArray(); gl.bindVertexArray(vao); gl.enableVertexAttribArray(0);
+const useBuf = b => { gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0); };
+const qprog = compile(QUAD_VS, QUAD_FS, 'quad');
+
+// ---------------------------------------------------------------- placed things
+// kind '3d': a fractal standing on a horizontal surface.
+// kind '2d': a field laid flat on a wall or ceiling, rendered to a texture.
+const items = [];
+let wallLight = false, quality = 1;
+const QUALS = [{n:'Low', s:0.35, tex:256}, {n:'Med', s:0.5, tex:384}, {n:'High', s:0.75, tex:512}];
+const sizeM = () => { const v = +$('size').value; return 0.12 + v*v*1.4; };   // meters
+
+function makeTarget(w, h = w){
+  const tx = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tx);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  const fb = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tx, 0);
+  return {tx, fb, w, h};
+}
+
+// Builds the item's frame from the hit pose. Horizontal: world-up, turned to
+// face the camera. Vertical: the wall's own normal, with the picture kept
+// upright against world up.
+function place(hitM, eye, anchor, pe){
+  const n = [hitM[4], hitM[5], hitM[6]], pos = [hitM[12], hitM[13], hitM[14]];
+  const up = [0,1,0];
+  const horizontal = n[1] > 0.75;
+  const fit = fitMode && pe ? polyFit(pe.plane.polygon) : null;
+  const size = fit && horizontal ? fitSize3(fit.r) : sizeM();
+  let M, it;
+  if(horizontal){
+    const preset = S3[+$('sel3').value];
+    let f = V3.sub(eye, pos); f[1] = 0; f = V3.norm(f);
+    M = M4.frame(V3.cross(up, f), up, f, pos);
+    it = {kind:'3d', preset, prog:sceneProg(preset), size, f, born:now()};
+  } else {
+    const preset = S2[+$('sel2').value];
+    const ref = Math.abs(n[1]) > 0.75 ? V3.norm(V3.sub(eye, pos)) : up;   // ceilings: picture "up" points away from you
+    let u = V3.sub(ref, V3.mul(n, V3.dot(n, ref))); u = V3.norm(u);
+    const right = V3.cross(u, n);
+    M = M4.frame(right, n, u, V3.add(pos, V3.mul(n, 0.004)));
+    // A field covering a whole wall needs more pixels than a picture on it.
+    const tex = fit ? Math.max(512, QUALS[quality].tex) : QUALS[quality].tex;
+    it = {kind:'2d', preset, prog:sceneProg(preset), size, right, up:u, born:now(), tgt:makeTarget(tex)};
+  }
+  it.M = M; it.anchor = null;
+  if(fit){
+    // Bound to the plane itself, which ARCore keeps tracked and growing.
+    it.plane = pe.plane;
+    if(anchor) anchor.then(a => a.delete && a.delete()).catch(() => {});
+  } else if(anchor){ it.rel = M4.mul(M4.inv(hitM), M); anchor.then(a => { it.anchor = a; }).catch(() => {}); }
+  items.push(it);
+  const where = horizontal ? 'surface' : (Math.abs(n[1]) > 0.75 ? 'ceiling' : 'wall');
+  status(fit ? (horizontal ? `<b>${it.preset.name}</b> fills the ${where}. Keep scanning and it grows to fit.` : `<b>${it.preset.name}</b> covers the ${where}. Keep scanning to extend it.`)
+             : `Placed <b>${it.preset.name}</b> on the ${where}.`);
+}
+function dropItem(it){ if(it.tgt){ gl.deleteTexture(it.tgt.tx); gl.deleteFramebuffer(it.tgt.fb); } if(it.mesh) gl.deleteBuffer(it.mesh.buf); if(it.anchor && it.anchor.delete) it.anchor.delete(); }
+
+// Three marked points to a rectangle: A and B along one edge, C anywhere on
+// the opposite edge. The normal comes from the points themselves, so a tilted
+// or badly detected surface still gets its true orientation.
+function placeRect(A, B, C, nGuess){
+  let n = V3.norm(V3.cross(V3.sub(B, A), V3.sub(C, A)));
+  if(V3.dot(n, nGuess) < 0) n = V3.mul(n, -1);
+  let e1 = V3.sub(B, A); e1 = V3.sub(e1, V3.mul(n, V3.dot(e1, n)));
+  const w = Math.hypot(e1[0], e1[1], e1[2]); e1 = V3.norm(e1);
+  let e2 = V3.cross(n, e1), d = V3.dot(V3.sub(C, A), e2);
+  if(d < 0){ e2 = V3.mul(e2, -1); d = -d; }
+  if(w < 0.05 || d < 0.05){ status('Those corners are too close together. Try again.'); return; }
+  const ctr = V3.add(A, V3.add(V3.mul(e1, w/2), V3.mul(e2, d/2)));
+  const up = [0,1,0];
+  if(n[1] > 0.75){
+    // A surface: square fractals in a row down its long side, as many as fit.
+    const long = w >= d ? e1 : e2, short = w >= d ? e2 : e1, L = Math.max(w, d), S = Math.min(w, d);
+    const count = Math.max(1, Math.min(6, Math.round(L / S)));
+    const size = Math.min(S, L / count) * 0.96;
+    const preset = S3[+$('sel3').value];
+    for(let i = 0; i < count; i++){
+      const pos = V3.add(ctr, V3.mul(long, ((i + 0.5)/count - 0.5) * L));
+      const f = V3.norm([short[0], 0, short[2]]);
+      items.push({kind:'3d', preset, prog:sceneProg(preset), size, f, still:true, born:now() + i*0.15,
+        M:M4.frame(V3.cross(up, f), up, f, pos), anchor:null});
+    }
+    status(`<b>${preset.name}</b> × ${count} across ${L.toFixed(2)} × ${S.toFixed(2)} m.`);
+  } else {
+    // A wall or ceiling: the field covers exactly the marked rectangle, kept
+    // upright, and rendered at the rectangle's own aspect so it never stretches.
+    let U, hu, hr;
+    if(Math.abs(n[1]) > 0.75){ U = e2; hu = d/2; hr = w/2; }
+    else if(Math.abs(e1[1]) > Math.abs(e2[1])){ U = e1; hu = w/2; hr = d/2; }
+    else { U = e2; hu = d/2; hr = w/2; }
+    if(U[1] < 0) U = V3.mul(U, -1);
+    const preset = addPanel(V3.add(ctr, V3.mul(n, 0.004)), V3.cross(U, n), n, U, hr, hu);
+    status(`<b>${preset.name}</b> covers ${(2*hr).toFixed(2)} × ${(2*hu).toFixed(2)} m.`);
+  }
+}
+// ---------------------------------------------------------------- traced outlines
+// Any number of tapped points around an edge. The plane is fitted to all of
+// them (Newell's method, so one point a little off the surface only tilts it
+// slightly), the points are flattened onto it, and the outline is filled:
+// tables with as many square fractals as pack inside it, walls with the field
+// cut to the exact shape.
+function finishShape(){
+  if(corners.length < 3) return;
+  const pts = corners.map(c => c.p), nG = corners[0].n;
+  corners = []; updateDone();
+  placePoly(pts, nG);
+}
+function triangulate(q){
+  // Ear clipping on a simple polygon, counter-clockwise first.
+  let area = 0; for(let i = 0, j = q.length - 1; i < q.length; j = i++) area += q[j][0]*q[i][1] - q[i][0]*q[j][1];
+  const idx = q.map((_, i) => i); if(area < 0) idx.reverse();
+  const cross = (a, b, c) => (b[0] - a[0])*(c[1] - a[1]) - (b[1] - a[1])*(c[0] - a[0]);
+  const inside = (p, a, b, c) => cross(a, b, p) >= 0 && cross(b, c, p) >= 0 && cross(c, a, p) >= 0;
+  const out = []; let guard = 0;
+  while(idx.length > 3 && guard++ < 500){
+    let cut = false;
+    for(let k = 0; k < idx.length; k++){
+      const a = q[idx[(k + idx.length - 1) % idx.length]], b = q[idx[k]], c = q[idx[(k + 1) % idx.length]];
+      if(cross(a, b, c) <= 1e-9) continue;
+      let ok = true;
+      for(const m of idx){ const p = q[m]; if(p !== a && p !== b && p !== c && inside(p, a, b, c)){ ok = false; break; } }
+      if(!ok) continue;
+      out.push(idx[(k + idx.length - 1) % idx.length], idx[k], idx[(k + 1) % idx.length]);
+      idx.splice(k, 1); cut = true; break;
+    }
+    if(!cut) break;                                    // self-crossing outline: fan the rest
+  }
+  for(let k = 1; k + 1 < idx.length; k++) out.push(idx[0], idx[k], idx[k + 1]);
+  return out;
+}
+function placePoly(P3, nG){
+  let n = [0,0,0];
+  for(let i = 0; i < P3.length; i++){
+    const a = P3[i], b = P3[(i + 1) % P3.length];
+    n[0] += (a[1] - b[1])*(a[2] + b[2]); n[1] += (a[2] - b[2])*(a[0] + b[0]); n[2] += (a[0] - b[0])*(a[1] + b[1]);
+  }
+  if(Math.hypot(n[0], n[1], n[2]) < 1e-6){ status('Those points are in a line. Tap around the edge.'); return; }
+  n = V3.norm(n); if(V3.dot(n, nG) < 0) n = V3.mul(n, -1);
+  const c = V3.mul(P3.reduce((s, p) => V3.add(s, p), [0,0,0]), 1/P3.length);
+  const horizontal = n[1] > 0.75;
+  // In-plane axes. Walls: upright. Surfaces and ceilings: along the longest edge.
+  let R, Z;
+  if(Math.abs(n[1]) <= 0.75){ Z = V3.norm(V3.sub([0,1,0], V3.mul(n, n[1]))); R = V3.cross(Z, n); }
+  else {
+    let best = 0;
+    for(let i = 0; i < P3.length; i++){ const e = V3.sub(P3[(i + 1) % P3.length], P3[i]), l = Math.hypot(...e); if(l > best){ best = l; R = e; } }
+    R = V3.norm(V3.sub(R, V3.mul(n, V3.dot(R, n)))); Z = V3.cross(n, R);
+  }
+  const q = P3.map(p => { const d = V3.sub(p, c); return [V3.dot(d, R), V3.dot(d, Z)]; });
+  let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
+  for(const [x, z] of q){ x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
+  const W = x1 - x0, H = z1 - z0;
+  if(W < 0.05 || H < 0.05){ status('That outline is too small. Try again.'); return; }
+  const poly = q.map(([x, z]) => ({x, z}));
+  const toW = (x, z) => V3.add(c, V3.add(V3.mul(R, x), V3.mul(Z, z)));
+  if(horizontal){
+    // Square cells on a grid centered in the outline's box: shrink the cell
+    // until it fits, then keep shrinking while the covered area grows (at
+    // most 8 fractals, which is what a phone can march).
+    const fits = (cx, cz, h) => [[0,0],[-h,-h],[h,-h],[h,h],[-h,h]].every(([dx, dz]) => inPoly(cx + dx, cz + dz, poly));
+    const cellsFor = sz => {
+      const nx = Math.floor(W/sz), nz = Math.floor(H/sz), ox = x0 + (W - nx*sz)/2, oz = z0 + (H - nz*sz)/2, out = [];
+      for(let i = 0; i < nx; i++) for(let j = 0; j < nz; j++){ const cx = ox + (i + 0.5)*sz, cz = oz + (j + 0.5)*sz; if(fits(cx, cz, sz/2)) out.push([cx, cz]); }
+      return out;
+    };
+    let best = null;
+    for(let sz = Math.min(W, H); sz > 0.06; sz *= 0.92){
+      const cells = cellsFor(sz);
+      if(cells.length > 8) break;
+      if(cells.length && (!best || cells.length*sz*sz > best.cells.length*best.sz*best.sz*1.05)) best = {sz, cells};
+    }
+    if(!best){ status('Could not fit a fractal inside that outline. Try a bigger one.'); return; }
+    const preset = S3[+$('sel3').value], up = [0,1,0], f = V3.norm([Z[0], 0, Z[2]]);
+    best.cells.forEach(([x, z], i) => items.push({kind:'3d', preset, prog:sceneProg(preset), size:best.sz*0.96, f, still:true,
+      born:now() + i*0.12, M:M4.frame(V3.cross(up, f), up, f, toW(x, z)), anchor:null}));
+    status(`<b>${preset.name}</b> × ${best.cells.length} inside a ${W.toFixed(2)} × ${H.toFixed(2)} m outline.`);
+  } else {
+    // The field, cut to the outline: a triangulated mesh in the wall's own
+    // axes, the texture spanning the outline's box at its aspect.
+    const tri = triangulate(q), v = [];
+    for(const k of tri) v.push(q[k][0], q[k][1], 1);
+    const hr = W/2, hu = H/2, cx = (x0 + x1)/2, cz = (z0 + z1)/2;
+    const preset = addPanel(V3.add(c, V3.mul(n, 0.004)), R, n, Z, hr, hu);
+    const it = items[items.length - 1], buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(v), gl.STATIC_DRAW);
+    it.mesh = {buf, n:v.length/3, c:[cx, cz], r:[1/hr, 0], u:[0, 1/hu], ext:1};
+    status(`<b>${preset.name}</b> fills the ${W.toFixed(2)} × ${H.toFixed(2)} m outline.`);
+  }
+}
+
+// A 2D field on an exact rectangle (center, right, normal, up, half sizes),
+// rendered at the rectangle's own aspect so it never stretches.
+function addPanel(ctr, R, n, U, hr, hu){
+  const preset = S2[+$('sel2').value];
+  const px = Math.max(512, QUALS[quality].tex), asp = hr / hu;
+  const tw = Math.round(asp >= 1 ? px : px*asp), th = Math.round(asp >= 1 ? px/asp : px);
+  items.push({kind:'2d', preset, prog:sceneProg(preset), size:2*Math.max(hr, hu), half:[hr, hu], born:now(),
+    tgt:makeTarget(Math.max(16, tw), Math.max(16, th)), M:M4.frame(R, n, U, ctr), anchor:null});
+  return preset;
+}
+
+// ---------------------------------------------------------------- surfaces
+// ARCore's detected planes, read each frame: the plane's own tracked pose and
+// its outline (a convex polygon in plane space, y = 0). With Fit on, a placed
+// item is bound to the plane it landed on and keeps resizing to it as the
+// phone sees more of the surface: a 3D fractal grows to the biggest size the
+// table holds, a 2D field covers the whole wall.
+let planes = [], fitMode = false;
+// How a tap sizes what it places. 'corners': three taps mark a rectangle (two
+// corners along one edge, then anywhere on the opposite edge). 'surface':
+// ARCore's own outline of the plane. 'free': the Size slider.
+let measure = 'corners', corners = [];
+const MEASURES = {corners:'Outline', surface:'Surface', free:'Size slider'};
+const xformP = (M, p) => [M[0]*p[0]+M[4]*p[1]+M[8]*p[2]+M[12], M[1]*p[0]+M[5]*p[1]+M[9]*p[2]+M[13], M[2]*p[0]+M[6]*p[1]+M[10]*p[2]+M[14]];
+const xformD = (M, d) => [M[0]*d[0]+M[4]*d[1]+M[8]*d[2], M[1]*d[0]+M[5]*d[1]+M[9]*d[2], M[2]*d[0]+M[6]*d[1]+M[10]*d[2]];
+function readPlanes(frame){
+  planes = [];
+  if(!frame.detectedPlanes) return;
+  for(const pl of frame.detectedPlanes){
+    const pp = frame.getPose(pl.planeSpace, refSpace);
+    if(pp && pl.polygon && pl.polygon.length >= 3) planes.push({plane:pl, P:pp.transform.matrix});
+  }
+}
+function inPoly(x, z, poly){
+  let c = false;
+  for(let i = 0, j = poly.length - 1; i < poly.length; j = i++){
+    const a = poly[i], b = poly[j];
+    if(((a.z > z) !== (b.z > z)) && x < (b.x - a.x)*(z - a.z)/(b.z - a.z) + a.x) c = !c;
+  }
+  return c;
+}
+function planeAt(pos){
+  let best = null, bd = 0.06;
+  for(const e of planes){
+    const l = xformP(M4.inv(e.P), pos);
+    if(Math.abs(l[1]) < bd && inPoly(l[0], l[2], e.plane.polygon)){ best = e; bd = Math.abs(l[1]); }
+  }
+  return best;
+}
+// Biggest circle about the outline's center that stays inside it. The
+// outlines are convex, so the nearest edge line bounds it.
+function polyFit(poly){
+  let cx = 0, cz = 0; for(const p of poly){ cx += p.x; cz += p.z; } cx /= poly.length; cz /= poly.length;
+  let r = 1e9;
+  for(let i = 0, j = poly.length - 1; i < poly.length; j = i++){
+    const ax = poly[j].x, az = poly[j].z, bx = poly[i].x - ax, bz = poly[i].z - az, L = Math.hypot(bx, bz) || 1;
+    r = Math.min(r, Math.abs((cx - ax)*bz - (cz - az)*bx) / L);
+  }
+  return {cx, cz, r};
+}
+// A 2.06-unit fractal's footprint corners reach 0.71 of its width from the
+// center, so this width keeps it on the table.
+const fitSize3 = r => Math.max(0.08, Math.min(2.5, 1.35 * r));
+
+function fitItems(){
+  for(const it of items){
+    if(!it.plane) continue;
+    const e = planes.find(q => q.plane === it.plane); if(!e) continue;
+    const poly = e.plane.polygon, fit = polyFit(poly);
+    if(it.kind === '3d'){
+      const pos = xformP(e.P, [fit.cx, 0, fit.cz]), tgt = fitSize3(fit.r);
+      it.pos = it.pos ? it.pos.map((v, i) => v + (pos[i] - v)*0.08) : pos;
+      it.size += (tgt - it.size) * 0.06;
+      it.M = M4.frame(V3.cross([0,1,0], it.f), [0,1,0], it.f, it.pos);
+    } else {
+      // Plane-space mesh: a fan from the outline's center, rebuilt only when
+      // ARCore reports the outline changed. e is 1 at the center and 0 on the
+      // rim, for the feathered edge.
+      if(it.lct !== e.plane.lastChangedTime){
+        it.lct = e.plane.lastChangedTime;
+        const IP = M4.inv(e.P), r3 = xformD(IP, it.right), u3 = xformD(IP, it.up);
+        const R = V3.norm([r3[0], 0, r3[2]]), U = V3.norm([u3[0], 0, u3[2]]);
+        let ext = 0.05;
+        for(const p of poly){ const dx = p.x - fit.cx, dz = p.z - fit.cz; ext = Math.max(ext, Math.abs(dx*R[0] + dz*R[2]), Math.abs(dx*U[0] + dz*U[2])); }
+        const v = [];
+        for(let i = 0; i < poly.length; i++){ const a = poly[i], b = poly[(i + 1) % poly.length]; v.push(fit.cx, fit.cz, 1, a.x, a.z, 0, b.x, b.z, 0); }
+        if(!it.mesh) it.mesh = {buf:gl.createBuffer()};
+        gl.bindBuffer(gl.ARRAY_BUFFER, it.mesh.buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(v), gl.DYNAMIC_DRAW);
+        Object.assign(it.mesh, {n:v.length/3, c:[fit.cx, fit.cz], r:[R[0], R[2]], u:[U[0], U[2]], ext});
+      }
+      const lift = M4.id(); lift[13] = 0.004;
+      it.M = M4.mul(e.P, lift);
+    }
+  }
+}
+
+const MESH_VS = `#version 300 es
+in vec3 a; uniform mat4 uMVP; uniform vec2 uC, uR, uU; uniform float uExt;
+out vec2 vUv; out float vE;
+void main(){ vec2 q=a.xy-uC; vUv=vec2(dot(q,uR),dot(q,uU))/uExt*0.5+0.5; vE=a.z; gl_Position=uMVP*vec4(a.x,0.0,a.y,1.0); }`;
+const MESH_FS = `#version 300 es
+precision highp float;
+in vec2 vUv; in float vE; out vec4 o;
+uniform sampler2D uTx; uniform float uA, uAdd;
+void main(){
+  vec3 c=texture(uTx,vUv).rgb;
+  float f=smoothstep(0.0,0.12,vE)*uA;
+  o=vec4(c*f*mix(1.0,0.95,uAdd), f*(1.0-uAdd));
+}`;
+const mprog = compile(MESH_VS, MESH_FS, 'mesh');
+
+// Outlines: world-space triangles with a premultiplied color per vertex,
+// rebuilt on the CPU every frame (a handful of planes, a few hundred verts).
+const RIB_VS = `#version 300 es
+in vec3 a; in vec4 c; uniform mat4 uVP; out vec4 vC;
+void main(){ vC=c; gl_Position=uVP*vec4(a,1.0); }`;
+const RIB_FS = `#version 300 es
+precision mediump float; in vec4 vC; out vec4 o; void main(){ o=vC; }`;
+const rprog = compile(RIB_VS, RIB_FS, 'ribbon');
+const ribBuf = gl.createBuffer();
+function drawRibbons(VP, v){
+  if(!v.length || !rprog.poll()) return;
+  gl.useProgram(rprog.p); setU(rprog, 'uVP', VP);
+  gl.bindBuffer(gl.ARRAY_BUFFER, ribBuf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(v), gl.STREAM_DRAW);
+  gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 28, 0);
+  gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 4, gl.FLOAT, false, 28, 12);
+  gl.drawArrays(gl.TRIANGLES, 0, v.length / 7);
+  gl.disableVertexAttribArray(1);
+}
+// Builders. pts are world points in order around a loop lying in the plane
+// with normal n; col is [r,g,b,a] (premultiplied on the way in).
+const Rib = {
+  v: [],
+  vert(p, c){ this.v.push(p[0], p[1], p[2], c[0]*c[3], c[1]*c[3], c[2]*c[3], c[3]); },
+  loop(pts, n, w, col, closed = true){
+    const lift = V3.mul(n, 0.004), m = closed ? pts.length : pts.length - 1;
+    for(let i = 0; i < m; i++){
+      const a = V3.add(pts[i], lift), b = V3.add(pts[(i + 1) % pts.length], lift);
+      const sd = V3.mul(V3.norm(V3.cross(n, V3.sub(b, a))), w/2);
+      const a0 = V3.sub(a, sd), a1 = V3.add(a, sd), b0 = V3.sub(b, sd), b1 = V3.add(b, sd);
+      [a0, a1, b1, a0, b1, b0].forEach(p => this.vert(p, col));
+    }
+  },
+  fill(pts, n, col){
+    const lift = V3.mul(n, 0.003);
+    const c = V3.add(V3.mul(pts.reduce((s, p) => V3.add(s, p), [0,0,0]), 1/pts.length), lift);
+    for(let i = 0; i < pts.length; i++){ this.vert(c, col); this.vert(V3.add(pts[i], lift), col); this.vert(V3.add(pts[(i + 1) % pts.length], lift), col); }
+  },
+};
+function drawMesh(VP, it, a){
+  if(!mprog.poll()) return;
+  gl.useProgram(mprog.p);
+  setU(mprog, 'uMVP', M4.mul(VP, it.M));
+  setU(mprog, 'uC', it.mesh.c); setU(mprog, 'uR', it.mesh.r); setU(mprog, 'uU', it.mesh.u); setU(mprog, 'uExt', it.mesh.ext);
+  setU(mprog, 'uA', a); setU(mprog, 'uAdd', wallLight ? 1 : 0);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, it.tgt.tx); setU(mprog, 'uTx', 0);
+  gl.bindBuffer(gl.ARRAY_BUFFER, it.mesh.buf); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+  gl.drawArrays(gl.TRIANGLES, 0, it.mesh.n);
+}
+
+// ---------------------------------------------------------------- drawing
+const t0 = performance.now();
+const now = () => (performance.now() - t0) / 1000;
+const LIGHT = V3.norm([0.35, 0.85, 0.4]);
+
+// A black 1x1 for every sampler the scene shaders declare but AR never feeds
+// (video, feedback, deep-zoom orbit, text). Left unbound they would all read
+// unit 0, and if a panel's own texture were still bound there the draw into
+// it would be a feedback loop, which WebGL rejects outright.
+const blank = gl.createTexture();
+gl.bindTexture(gl.TEXTURE_2D, blank);
+gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(4));
+function renderPanels(t){
+  // 2D fields into their textures, once per frame, before any view is drawn.
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, blank);
+  for(const it of items){
+    if(it.kind !== '2d' || !it.prog || !it.prog.poll()) continue;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, it.tgt.fb);
+    gl.viewport(0, 0, it.tgt.w, it.tgt.h);
+    gl.disable(gl.DEPTH_TEST); gl.disable(gl.BLEND);
+    gl.useProgram(it.prog.p);
+    sceneUniforms(it.prog, it.preset, t, [it.tgt.w, it.tgt.h]);
+    useBuf(tri); gl.drawArrays(gl.TRIANGLES, 0, 3);
+    it.ok = true;
+  }
+}
+
+function drawQuad(VP, M, half, kind, col, a, b, tex){
+  if(!qprog.poll()) return;
+  gl.useProgram(qprog.p);
+  setU(qprog, 'uMVP', M4.mul(VP, Array.isArray(half) ? M4.scale3(M, half[0], 1, half[1]) : M4.scale(M, half)));
+  setU(qprog, 'uKind', kind); setU(qprog, 'uCol', col); setU(qprog, 'uA', a); setU(qprog, 'uB', b);
+  setU(qprog, 'uAdd', wallLight ? 1 : 0); setU(qprog, 'uT', now());
+  if(tex){ gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); setU(qprog, 'uTx', 0); }
+  useBuf(quad); gl.drawArrays(gl.TRIANGLES, 0, 6);
+}
+
+// One view: proj and view matrices, eye position, viewport in pixels.
+function drawView(P, Vw, eye, vp, t, marks, rib){
+  const VP = M4.mul(P, Vw), IVP = M4.inv(VP);
+  gl.viewport(vp[0], vp[1], vp[2], vp[3]);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+  gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL);
+
+  // Wall panels and contact shadows: transparent, no depth writes.
+  gl.depthMask(false);
+  for(const it of items){
+    if(it.kind !== '2d' || !it.ok) continue;
+    const fade = Math.min(1, (t - it.born)*1.5);
+    if(it.mesh) drawMesh(VP, it, fade); else drawQuad(VP, it.M, it.half || it.size/2, 2, [0,0,0], fade, 0, it.tgt.tx);
+  }
+  for(const it of items){
+    if(it.kind !== '3d') continue;
+    const grow = Math.min(1, (t - it.born) * 1.2);
+    const tint = it.tint || [0.5, 0.6, 1.0];
+    drawQuad(VP, it.M, it.size*0.62, 1, tint, 0.55*grow, (0.10 + audio.loud*0.35 + audio.beat*0.15)*grow, null);
+  }
+  // Fractals: write depth so they hide each other properly.
+  gl.depthMask(true);
+  for(const it of items){
+    if(it.kind !== '3d' || !it.prog || !it.prog.poll()) continue;
+    const pr = it.prog, grow = Math.min(1, (t - it.born) * 1.2);
+    const ease = 1 - Math.pow(1 - grow, 3);
+    const normed = NORMED.has(it.preset.mode);
+    const clipR = normed ? 1.8 : 1.45, lift = normed ? 1.03 : 1.45;
+    const s = (it.size / 2.06) * Math.max(ease, 0.02);
+    // Object space: sits on the surface, slow turn about its own vertical.
+    const Mo = M4.mul(M4.mul(it.M, (() => { const m = M4.id(); m[13] = lift*s; return m; })()), M4.rotY(it.still ? 0 : t * 0.15));
+    const Model = M4.scale(Mo, s), IModel = M4.inv(Model);
+    const Lo = V3.norm([IModel[0]*LIGHT[0]+IModel[4]*LIGHT[1]+IModel[8]*LIGHT[2],
+                        IModel[1]*LIGHT[0]+IModel[5]*LIGHT[1]+IModel[9]*LIGHT[2],
+                        IModel[2]*LIGHT[0]+IModel[6]*LIGHT[1]+IModel[10]*LIGHT[2]]);
+    gl.useProgram(pr.p);
+    sceneUniforms(pr, it.preset, t, [vp[2], vp[3]]);
+    setU(pr, 'uInvModel', IModel); setU(pr, 'uModel', Model); setU(pr, 'uVPm', VP); setU(pr, 'uInvVP', IVP);
+    setU(pr, 'uEye', eye); setU(pr, 'uLightO', Lo); setU(pr, 'uVp', vp);
+    setU(pr, 'uClipR', clipR); setU(pr, 'uPix', 2 / (P[5] * vp[3])); setU(pr, 'uGlowA', audio.beat);
+    useBuf(tri); gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+  if(rib && rib.length){ gl.depthMask(false); gl.disable(gl.DEPTH_TEST); drawRibbons(VP, rib); }
+  if(marks && marks.length){
+    gl.depthMask(false); gl.disable(gl.DEPTH_TEST);
+    for(const m of marks) drawQuad(VP, m.M, m.half || 0.06, 0, m.col, 1, 0, null);
+  }
+  gl.depthMask(true);
+}
+
+function updateTints(){
+  // Light spill color: a cheap guess at the fractal's dominant palette color,
+  // the cosine palette at the preset hue (the same formula as pal()).
+  for(const it of items){
+    if(it.kind !== '3d' || it.tint) continue;
+    const h = (it.preset.p.hue || 0) + 0.45;
+    it.tint = [0, 0.33, 0.67].map(ph => 0.5 + 0.5*Math.cos(6.28318*(ph + h)));
+  }
+}
+
+// ---------------------------------------------------------------- UI
+const status = html => { $('status').innerHTML = html; };
+let session = null, refSpace = null, hitSrc = null, lastHit = null, lastAim = null, xrLayer = null;
+$('btnFit').onclick = () => {
+  const k = Object.keys(MEASURES); measure = k[(k.indexOf(measure) + 1) % k.length];
+  fitMode = measure === 'surface'; corners = []; updateDone();
+  $('btnFit').textContent = 'Fit: ' + MEASURES[measure]; $('btnFit').classList.toggle('on', measure !== 'free');
+};
+$('btnLook').onclick = () => { wallLight = !wallLight; $('btnLook').textContent = 'Wall: ' + (wallLight ? 'Light' : 'Solid'); $('btnLook').classList.toggle('on', wallLight); };
+$('btnQ').onclick = () => { quality = (quality + 1) % QUALS.length; $('btnQ').textContent = 'Q: ' + QUALS[quality].n; if(session) applyScale(); };
+$('btnMic').onclick = micToggle;
+$('btnUndo').onclick = () => { if(corners.length){ corners.pop(); updateDone(); return; } const it = items.pop(); if(it) dropItem(it); };
+$('btnDone').onclick = () => finishShape();
+function updateDone(){
+  const b = $('btnDone'), on = measure === 'corners' && corners.length >= 3;
+  b.classList.toggle('hidden', !on); if(on) b.textContent = `Done (${corners.length})`;
+}
+$('btnClear').onclick = () => { while(items.length) dropItem(items.pop()); };
+$('btnExit').onclick = () => { if(session) session.end(); else stopPreview(); };
+// Taps on the controls must not also place a fractal.
+$('ui').addEventListener('beforexrselect', e => e.preventDefault());
+
+function applyScale(){
+  // Only the fractal layer is scaled; the camera image is composited by the
+  // browser at full resolution underneath it.
+  xrLayer = new XRWebGLLayer(session, gl, {framebufferScaleFactor:QUALS[quality].s, alpha:true, antialias:false, depth:true});
+  session.updateRenderState({baseLayer:xrLayer});
+}
+
+// ---------------------------------------------------------------- WebXR
+async function startAR(){
+  try{
+    session = await navigator.xr.requestSession('immersive-ar', {
+      requiredFeatures:['hit-test'],
+      optionalFeatures:['dom-overlay','anchors','local-floor','plane-detection','depth-sensing'],
+      depthSensing:{usagePreference:['cpu-optimized'], dataFormatPreference:['luminance-alpha','float32']},
+      domOverlay:{root:$('ui')},
+    });
+  }catch(e){ $('splashMsg').textContent = 'Could not start AR: ' + e.message; return; }
+  $('splash').classList.add('hidden'); $('ui').classList.remove('hidden');
+  warm();
+  await gl.makeXRCompatible();
+  applyScale();
+  refSpace = await session.requestReferenceSpace('local');
+  const viewer = await session.requestReferenceSpace('viewer');
+  hitSrc = await session.requestHitTestSource({space:viewer});
+  session.addEventListener('select', () => {
+    if(lastAim && lastAim.inOpening){ fillOpening(); return; }
+    if(!lastHit){ status('No surface yet: move the phone slowly so it can see the room.'); return; }
+    const M = lastHit.M;
+    if(measure === 'corners'){
+      corners.push({p:[M[12], M[13], M[14]], n:[M[4], M[5], M[6]], M});
+      updateDone();
+      return;
+    }
+    const anchor = lastHit.res && lastHit.res.createAnchor ? lastHit.res.createAnchor() : null;
+    place(M, lastHit.eye, anchor, lastHit.pe);
+  });
+  session.addEventListener('end', () => {
+    session = null; hitSrc = null; lastHit = null;
+    $('ui').classList.add('hidden'); $('splash').classList.remove('hidden');
+  });
+  session.requestAnimationFrame(xrFrame);
+}
+
+// Aim point from the depth map: the center sample gives the point, four
+// samples around it give the surface's tilt. Returns a pose matrix shaped like
+// a hit-test result (y axis = surface normal, toward the viewer), or null.
+function depthAim(frame, view, eye){
+  if(!view || !session || session.depthUsage !== 'cpu-optimized' || !frame.getDepthInformation) return null;
+  let di; try{ di = frame.getDepthInformation(view); }catch(e){ return null; }
+  if(!di) return null;
+  const P = view.projectionMatrix, V = view.transform.matrix;
+  const at = (x, y) => {
+    const d = di.getDepthInMeters(x, y);
+    if(!(d > 0.15 && d < 6)) return null;
+    // Normalized view coordinates: origin top-left, y down.
+    const vx = (2*x - 1)/P[0]*d, vy = (1 - 2*y)/P[5]*d, vz = -d;
+    return xformP(V, [vx, vy, vz]);
+  };
+  const k = 0.06, c = at(0.5, 0.5), l = at(0.5 - k, 0.5), r = at(0.5 + k, 0.5), u = at(0.5, 0.5 - k), b = at(0.5, 0.5 + k);
+  if(!c || !l || !r || !u || !b) return null;
+  let n = V3.norm(V3.cross(V3.sub(r, l), V3.sub(u, b)));
+  if(V3.dot(n, V3.sub(eye, c)) < 0) n = V3.mul(n, -1);
+  const x = V3.norm(Math.abs(n[1]) < 0.9 ? V3.cross([0,1,0], n) : V3.cross(n, [0,0,1]));
+  return M4.frame(x, n, V3.cross(x, n), c);
+}
+
+// ---------------------------------------------------------------- walls and openings
+// The wall in front of the camera, held in a fixed frame (origin c, normal n
+// toward the viewer, R right, U up) so an opening measured on it keeps its
+// coordinates while the aim point moves around.
+let wallRef = null, opening = null, scanN = 0;
+function wallFrame(c, n){
+  let U = V3.sub([0,1,0], V3.mul(n, n[1])); U = V3.norm(U);
+  return {c, n, U, R:V3.cross(U, n)};
+}
+function updateWall(M, t){
+  const n = V3.norm([M[4], M[5], M[6]]), c = [M[12], M[13], M[14]];
+  if(Math.abs(n[1]) > 0.4) return;                     // floors and tables are not walls
+  if(wallRef){
+    const s = V3.dot(V3.sub(c, wallRef.c), wallRef.n);
+    // Aiming through a doorway lands on whatever is behind it; that must not
+    // replace the wall the doorway is in while the wall is still in view.
+    if(s < -0.15 && t - wallRef.t < 3) return;
+    if(Math.abs(s) < 0.12 && V3.dot(n, wallRef.n) > 0.85){
+      // Same wall: keep the origin, settle the normal slowly.
+      const nn = V3.norm(V3.add(V3.mul(wallRef.n, 0.9), V3.mul(n, 0.1)));
+      const c2 = V3.add(wallRef.c, V3.mul(nn, V3.dot(V3.sub(c, wallRef.c), nn) * 0.1));
+      wallRef = Object.assign(wallFrame(c2, nn), {t});
+      return;
+    }
+  }
+  wallRef = Object.assign(wallFrame(c, n), {t});
+  opening = null;
+}
+// Classify a grid of depth samples against the wall plane: on the wall,
+// in front of it, or well behind it (seen through a hole). The biggest
+// patch of "behind" with wall on both sides of it is an opening: a doorway,
+// a window, an arch. Its extent is measured on the wall plane itself.
+const GX = 24, GY = 44;
+function scanOpening(frame, view, eye, t){
+  if(!wallRef || !session || session.depthUsage !== 'cpu-optimized') return;
+  let di; try{ di = frame.getDepthInformation(view); }catch(e){ return; }
+  if(!di) return;
+  const P = view.projectionMatrix, V = view.transform.matrix, W = wallRef;
+  const cls = new Int8Array(GX*GY), pr = new Float32Array(GX*GY*2);
+  let nWall = 0;
+  const toC = V3.dot(V3.sub(W.c, eye), W.n);
+  for(let j = 0; j < GY; j++) for(let i = 0; i < GX; i++){
+    const x = (i + 0.5)/GX, y = (j + 0.5)/GY, k = j*GX + i;
+    const dir = xformD(V, [(2*x - 1)/P[0], (1 - 2*y)/P[5], -1]);
+    const den = V3.dot(dir, W.n); if(Math.abs(den) < 1e-3) continue;
+    const tw = toC / den; if(!(tw > 0.1 && tw < 8)) continue;   // view depth where this ray meets the wall plane
+    const q = V3.add(eye, V3.mul(dir, tw)), dq = V3.sub(q, W.c);
+    pr[k*2] = V3.dot(dq, W.R); pr[k*2 + 1] = V3.dot(dq, W.U);
+    const d = di.getDepthInMeters(x, y);
+    if(!(d > 0.1)) continue;
+    if(d > tw + Math.max(0.3, tw*0.12)) cls[k] = 2;
+    else if(Math.abs(d - tw) < Math.max(0.08, tw*0.05)){ cls[k] = 1; nWall++; }
+    else cls[k] = 3;
+  }
+  if(nWall > GX*GY*0.12) wallRef.t = t;                // the wall is still in view
+  // Connected patches of "behind".
+  const seen = new Uint8Array(GX*GY); let best = null;
+  for(let k0 = 0; k0 < GX*GY; k0++){
+    if(cls[k0] !== 2 || seen[k0]) continue;
+    const st = [k0], comp = []; seen[k0] = 1;
+    while(st.length){
+      const k = st.pop(); comp.push(k);
+      const i = k % GX, j = (k / GX) | 0;
+      for(const [di2, dj] of [[1,0],[-1,0],[0,1],[0,-1]]){
+        const i2 = i + di2, j2 = j + dj; if(i2 < 0 || j2 < 0 || i2 >= GX || j2 >= GY) continue;
+        const k2 = j2*GX + i2; if(cls[k2] === 2 && !seen[k2]){ seen[k2] = 1; st.push(k2); }
+      }
+    }
+    if(comp.length < 8) continue;
+    // Bounded: in most of its rows there is wall both left and right of it.
+    const rows = new Map();
+    for(const k of comp){ const i = k % GX, j = (k / GX) | 0; const r = rows.get(j) || [GX, -1]; rows.set(j, [Math.min(r[0], i), Math.max(r[1], i)]); }
+    let bounded = 0;
+    for(const [j, [lo, hi]] of rows){
+      let L = false, Rt = false;
+      for(let i = 0; i < lo; i++) if(cls[j*GX + i] === 1){ L = true; break; }
+      for(let i = hi + 1; i < GX; i++) if(cls[j*GX + i] === 1){ Rt = true; break; }
+      if(L && Rt) bounded++;
+    }
+    if(bounded < rows.size * 0.5) continue;
+    let r0 = 1e9, r1 = -1e9, u0 = 1e9, u1 = -1e9;
+    for(const k of comp){ r0 = Math.min(r0, pr[k*2]); r1 = Math.max(r1, pr[k*2]); u0 = Math.min(u0, pr[k*2+1]); u1 = Math.max(u1, pr[k*2+1]); }
+    // Depth edges are soft; pull each side in a little.
+    r0 += 0.03; r1 -= 0.03; u0 += 0.03; u1 -= 0.03;
+    if(r1 - r0 < 0.25 || u1 - u0 < 0.25) continue;
+    if(!best || comp.length > best.n) best = {n:comp.length, r0, r1, u0, u1};
+  }
+  if(best){
+    const o = opening;
+    // Seen in parts as the phone moves: grow the same opening, replace a different one.
+    if(o && best.r0 < o.r1 && best.r1 > o.r0 && best.u0 < o.u1 && best.u1 > o.u0)
+      opening = {r0:Math.min(o.r0, best.r0), r1:Math.max(o.r1, best.r1), u0:Math.min(o.u0, best.u0), u1:Math.max(o.u1, best.u1), t};
+    else opening = Object.assign(best, {t});
+  } else if(opening && t - opening.t > 6) opening = null;
+}
+// Where the center of the view meets the wall plane, in wall coordinates.
+function aimOnWall(view, eye){
+  if(!wallRef) return null;
+  const V = view.transform.matrix, dir = [-V[8], -V[9], -V[10]], den = V3.dot(dir, wallRef.n);
+  if(Math.abs(den) < 1e-3) return null;
+  const tw = V3.dot(V3.sub(wallRef.c, eye), wallRef.n) / den; if(!(tw > 0)) return null;
+  const dq = V3.sub(V3.add(eye, V3.mul(dir, tw)), wallRef.c);
+  return [V3.dot(dq, wallRef.R), V3.dot(dq, wallRef.U)];
+}
+const wallPt = (r, u) => V3.add(wallRef.c, V3.add(V3.mul(wallRef.R, r), V3.mul(wallRef.U, u)));
+function openingRect(){ const o = opening; return [wallPt(o.r0, o.u0), wallPt(o.r1, o.u0), wallPt(o.r1, o.u1), wallPt(o.r0, o.u1)]; }
+function aimInOpening(view, eye){
+  if(!opening || !wallRef) return false;
+  const a = aimOnWall(view, eye);
+  return !!a && a[0] > opening.r0 && a[0] < opening.r1 && a[1] > opening.u0 && a[1] < opening.u1;
+}
+function fillOpening(){
+  const o = opening, hr = (o.r1 - o.r0)/2, hu = (o.u1 - o.u0)/2;
+  // Set a centimeter into the opening, so the frame's edges read in front of it.
+  const ctr = V3.sub(wallPt((o.r0 + o.r1)/2, (o.u0 + o.u1)/2), V3.mul(wallRef.n, 0.01));
+  const preset = addPanel(ctr, wallRef.R, wallRef.n, wallRef.U, hr, hu);
+  status(`<b>${preset.name}</b> fills the opening, ${(2*hr).toFixed(2)} × ${(2*hu).toFixed(2)} m.`);
+  opening = null;
+}
+
+let fpsN = 0, fpsT = 0;
+const dbg = {frames:0, poses:0, hits:0, err:null, fb:null};
+function xrFrame(time, frame){
+  const s = frame.session; s.requestAnimationFrame(xrFrame);
+  dbg.frames++;
+  try{ xrFrameBody(frame, s); }catch(e){ dbg.err = String(e && e.stack || e); }
+}
+function xrFrameBody(frame, s){
+  const pose = frame.getViewerPose(refSpace); if(!pose) return;
+  dbg.poses++; dbg.feat = s.enabledFeatures ? [...s.enabledFeatures] : null; dbg.planes = frame.detectedPlanes ? frame.detectedPlanes.size : -1;
+  const t = now(); audioTick(); updateTints();
+  const eye = [pose.transform.position.x, pose.transform.position.y, pose.transform.position.z];
+
+  // Anchored items follow their anchor as tracking refines the room.
+  for(const it of items){
+    if(!it.anchor || !frame.trackedAnchors || !frame.trackedAnchors.has(it.anchor)) continue;
+    const ap = frame.getPose(it.anchor.anchorSpace, refSpace);
+    if(ap) it.M = M4.mul(ap.transform.matrix, it.rel);
+  }
+
+  readPlanes(frame);
+  fitItems();
+  const marks = [];
+  let aimPlane = null;
+  if(++scanN % 4 === 0) scanOpening(frame, pose.views[0], eye, t);
+  const inOpen = aimInOpening(pose.views[0], eye);
+  lastAim = {inOpening:inOpen};
+  if(inOpen && !(hitSrc && frame.getHitTestResults(hitSrc).length)){
+    const o = opening;
+    status(`Opening found, ${(o.r1 - o.r0).toFixed(2)} × ${(o.u1 - o.u0).toFixed(2)} m: <b>tap to fill it with ${S2[+$('sel2').value].name}</b>`);
+  }
+  const hits = hitSrc ? frame.getHitTestResults(hitSrc) : [];
+  const hp = hits.length ? hits[0].getPose(refSpace) : null;
+  // Where ARCore has no plane (a blank wall, say) the depth map still has a
+  // distance, so the aim point falls back to it.
+  const dp = hp ? null : depthAim(frame, pose.views[0], eye);
+  lastHit = null;
+  if(hp || dp){
+    if(hp) dbg.hits++; else dbg.dhits = (dbg.dhits || 0) + 1;
+    {
+      const M = hp ? hp.transform.matrix : dp, horizontal = M[5] > 0.75;
+      const pe = hp ? planeAt([M[12], M[13], M[14]]) : null;
+      lastHit = {res:hp ? hits[0] : null, M, eye, pe};
+      aimPlane = pe;
+      updateWall(M, t);
+      marks.push({M, col: horizontal ? [0.78,1.0,0.18] : [0.3,0.88,1.0]});
+      if(inOpen){
+        const o = opening;
+        status(`Opening found, ${(o.r1 - o.r0).toFixed(2)} × ${(o.u1 - o.u0).toFixed(2)} m: <b>tap to fill it with ${S2[+$('sel2').value].name}</b>`);
+      } else if(measure === 'corners'){
+        const k = corners.length;
+        status(k === 0 ? 'Tap points around the <b>edge</b> of the table or wall: corners, curves, as many as you like'
+             : k < 3 ? `Point ${k}: keep tapping around the edge`
+             : `${k} points. Keep going, or tap <b>Done</b> to fill the outline`);
+      } else if(!items.length || t - items[items.length-1].born > 4){
+        const r = pe ? polyFit(pe.plane.polygon).r : 0, fits = fitMode && pe;
+        status(horizontal
+          ? (fits ? `Tap to fill this surface with <b>${S3[+$('sel3').value].name}</b> (${fitSize3(r).toFixed(2)} m so far)` : `Tap to grow <b>${S3[+$('sel3').value].name}</b> here`)
+          : (fits ? `Tap to cover this wall with <b>${S2[+$('sel2').value].name}</b>` : `Tap to hang <b>${S2[+$('sel2').value].name}</b> here`));
+      }
+    }
+  }
+  for(const c of corners) marks.push({M:c.M, col:[1.0,0.55,0.15], half:0.035});
+
+  // What the phone thinks the room is: every detected surface outlined
+  // (walls blue, floors and tables green), the aimed one brighter and lightly
+  // filled; a found opening in magenta; the corners marked so far joined up.
+  Rib.v = [];
+  for(const e of planes){
+    const pts = e.plane.polygon.map(q => xformP(e.P, [q.x, q.y, q.z])), n = [e.P[4], e.P[5], e.P[6]];
+    const vert = Math.abs(n[1]) < 0.5, on = aimPlane && aimPlane.plane === e.plane;
+    const col = vert ? [0.3, 0.88, 1.0] : [0.78, 1.0, 0.18];
+    if(on) Rib.fill(pts, n, [...col, 0.10]);
+    Rib.loop(pts, n, on ? 0.012 : 0.007, [...col, on ? 0.95 : 0.45]);
+  }
+  if(opening && wallRef){
+    const pts = openingRect(), pulse = 0.5 + 0.5*Math.sin(t*4);
+    Rib.fill(pts, wallRef.n, [1.0, 0.25, 0.85, inOpen ? 0.16 + 0.08*pulse : 0.07]);
+    Rib.loop(pts, wallRef.n, 0.016, [1.0, 0.25, 0.85, 0.75 + 0.25*pulse]);
+  }
+  if(corners.length > 1){
+    const pts = corners.map(c => c.p);
+    Rib.loop(pts, corners[0].n, 0.01, [1.0, 0.55, 0.15, 0.9], false);
+    if(corners.length > 2){
+      Rib.loop([pts[pts.length - 1], pts[0]], corners[0].n, 0.006, [1.0, 0.55, 0.15, 0.45], false);
+      Rib.fill(pts, corners[0].n, [1.0, 0.55, 0.15, 0.08]);
+    }
+  }
+
+  renderPanels(t);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, s.renderState.baseLayer.framebuffer);
+  { const L = s.renderState.baseLayer; dbg.fb = [L.framebufferWidth, L.framebufferHeight, gl.checkFramebufferStatus(gl.FRAMEBUFFER)]; }
+  gl.clearColor(0, 0, 0, 0); gl.clearDepth(1); gl.depthMask(true);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  for(const view of pose.views){
+    const v = s.renderState.baseLayer.getViewport(view);
+    drawView(view.projectionMatrix, view.transform.inverse.matrix, eye, [v.x, v.y, v.width, v.height], t, marks, Rib.v);
+  }
+  fpsN++; if(t - fpsT > 2){ if(items.length) document.title = 'SPECTRA AR · ' + Math.round(fpsN/(t-fpsT)) + ' fps'; fpsN = 0; fpsT = t; }
+}
+
+// ---------------------------------------------------------------- desktop preview
+// No camera: a synthetic room (table at the origin, wall behind it) and an
+// orbiting eye, so the shaders and placement can be checked off the phone.
+let prevRun = false, drag = null, yaw = 0.5, pitch = 0.32, dist = 1.1;
+function startPreview(){
+  $('splash').classList.add('hidden'); $('ui').classList.remove('hidden');
+  prevRun = true; warm();
+  const eye0 = [0, 0.4, 1];
+  while(items.length) dropItem(items.pop());
+  place(M4.frame([1,0,0],[0,1,0],[0,0,1],[0,0,0]), eye0, null);                 // table
+  place(M4.frame([1,0,0],[0,0,1],[0,-1,0],[0,0.55,-0.6]), eye0, null);          // wall, normal +z
+  requestAnimationFrame(prevFrame);
+}
+function stopPreview(){ prevRun = false; $('ui').classList.add('hidden'); $('splash').classList.remove('hidden'); }
+canvas.addEventListener('pointerdown', e => { drag = [e.clientX, e.clientY]; });
+addEventListener('pointerup', () => { drag = null; });
+addEventListener('pointermove', e => { if(!drag || session) return; yaw -= (e.clientX - drag[0])*0.006; pitch = Math.max(-0.2, Math.min(1.3, pitch + (e.clientY - drag[1])*0.004)); drag = [e.clientX, e.clientY]; });
+canvas.addEventListener('wheel', e => { dist = Math.max(0.3, Math.min(4, dist * Math.exp(e.deltaY*0.001))); }, {passive:true});
+function prevFrame(){
+  if(!prevRun) return; requestAnimationFrame(prevFrame);
+  const sc = QUALS[quality].s * 1.6;
+  const w = Math.round(innerWidth * devicePixelRatio * sc), h = Math.round(innerHeight * devicePixelRatio * sc);
+  if(canvas.width !== w || canvas.height !== h){ canvas.width = w; canvas.height = h; }
+  const t = now(); audioTick(); updateTints();
+  const at = [0, 0.18, -0.1];
+  const eye = [at[0] + dist*Math.cos(pitch)*Math.sin(yaw), at[1] + dist*Math.sin(pitch), at[2] + dist*Math.cos(pitch)*Math.cos(yaw)];
+  renderPanels(t);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.clearColor(0.06, 0.065, 0.075, 1); gl.clearDepth(1); gl.depthMask(true);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  drawView(M4.persp(1.0, w/h, 0.02, 50), M4.lookAt(eye, at, [0,1,0]), eye, [0, 0, w, h], t, []);
+}
+$('btnPreview').onclick = startPreview;
+
+// ---------------------------------------------------------------- boot
+(async () => {
+  const b = $('btnAR');
+  const ok = navigator.xr && await navigator.xr.isSessionSupported('immersive-ar').catch(() => false);
+  if(ok){ b.disabled = false; b.textContent = 'Start AR'; b.onclick = startAR; }
+  else { b.textContent = 'AR not supported here'; if(!window.isSecureContext) $('splashMsg').textContent = 'AR needs HTTPS (or localhost). Open this page from the hosted site.'; }
+})();
+window.__ar = {items, progCache, S3, S2, dbg, placePoly, triangulate};
+})();
+</script>
+</body></html>
