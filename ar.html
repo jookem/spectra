@@ -565,7 +565,7 @@ function place(hitM, eye, anchor, pe){
   const n = [hitM[4], hitM[5], hitM[6]], pos = [hitM[12], hitM[13], hitM[14]];
   const up = [0,1,0];
   const horizontal = n[1] > 0.75;
-  const fit = fitMode && pe ? polyFit(pe.plane.polygon) : null;
+  const fit = fitMode && pe ? polyFit(pe.poly) : null;
   const size = fit && horizontal ? fitSize3(fit.r) : sizeM();
   let M, it;
   if(horizontal){
@@ -586,7 +586,7 @@ function place(hitM, eye, anchor, pe){
   it.M = M; it.anchor = null;
   if(fit){
     // Bound to the plane itself, which ARCore keeps tracked and growing.
-    it.plane = pe.plane;
+    it.plane = pe.key;
     if(anchor) anchor.then(a => a.delete && a.delete()).catch(() => {});
   } else if(anchor){ it.rel = M4.mul(M4.inv(hitM), M); anchor.then(a => { it.anchor = a; }).catch(() => {}); }
   items.push(it);
@@ -741,26 +741,209 @@ function addPanel(ctr, R, n, U, hr, hu){
 }
 
 // ---------------------------------------------------------------- surfaces
-// ARCore's detected planes, read each frame: the plane's own tracked pose and
-// its outline (a convex polygon in plane space, y = 0). With Fit on, a placed
-// item is bound to the plane it landed on and keeps resizing to it as the
-// phone sees more of the surface: a 3D fractal grows to the biggest size the
-// table holds, a 2D field covers the whole wall.
+// Every surface the phone knows about, with an outline built from the depth
+// map rather than taken from ARCore as-is. ARCore's polygon is a convex guess
+// that runs past real edges and reshapes as it refines, and plain walls rarely
+// get one at all. So each surface keeps an occupancy grid in a frame fixed at
+// first sight (5 cm cells): depth points lying on the plane fill cells, and a
+// depth ray that passes through the plane to something farther away (the
+// floor past a table's edge, the room through a doorway) clears the cell it
+// crossed. ARCore's polygon only seeds cells the depth map has not judged
+// yet. The outline is the hull of the largest connected patch, snapped to a
+// rectangle when it nearly is one and eased over time, so it neither spills
+// nor jitters. Walls ARCore misses become depth-only surfaces when aimed at.
+// With Fit on, a placed item is bound to its surface and keeps resizing to it.
 let planes = [], fitMode = false;
-// How a tap sizes what it places. 'corners': three taps mark a rectangle (two
-// corners along one edge, then anywhere on the opposite edge). 'surface':
-// ARCore's own outline of the plane. 'free': the Size slider.
+// How a tap sizes what it places. 'corners': taps around the edge mark an
+// outline. 'surface': the surface's own outline. 'free': the Size slider.
 let measure = 'corners', corners = [];
 const MEASURES = {corners:'Outline', surface:'Surface', free:'Size slider'};
 const xformP = (M, p) => [M[0]*p[0]+M[4]*p[1]+M[8]*p[2]+M[12], M[1]*p[0]+M[5]*p[1]+M[9]*p[2]+M[13], M[2]*p[0]+M[6]*p[1]+M[10]*p[2]+M[14]];
 const xformD = (M, d) => [M[0]*d[0]+M[4]*d[1]+M[8]*d[2], M[1]*d[0]+M[5]*d[1]+M[9]*d[2], M[2]*d[0]+M[6]*d[1]+M[10]*d[2]];
-function readPlanes(frame){
-  planes = [];
-  if(!frame.detectedPlanes) return;
-  for(const pl of frame.detectedPlanes){
-    const pp = frame.getPose(pl.planeSpace, refSpace);
-    if(pp && pl.polygon && pl.polygon.length >= 3) planes.push({plane:pl, P:pp.transform.matrix});
+
+const CELL = 0.05, GN = 160, GH = GN/2;          // 8 m square per surface
+const ON = 2, SC_MAX = 8, SC_MIN = -6;
+const surfs = new Map();
+let vWallN = 0, depthEver = false, surfN = 0;
+function newSurf(key, P, virtual){
+  const e = {key, P:new Float32Array(P), n:[P[4], P[5], P[6]], sc:new Int8Array(GN*GN), seen:new Uint8Array(GN*GN),
+             poly:[], arPoly:null, ver:0, dirty:false, virtual, last:now(), seenT:now(), rect:null, hy:0, hn:0};
+  e.IF = M4.inv(e.P);
+  return e;
+}
+const cellOf = (x, z) => { const i = Math.floor(x/CELL) + GH, j = Math.floor(z/CELL) + GH; return (i < 0 || j < 0 || i >= GN || j >= GN) ? -1 : j*GN + i; };
+// ARCore's polygon, carried into the surface's fixed frame; it fills only
+// cells the depth map has never judged.
+function seedFromArcore(e, pl, P){
+  const toF = M4.mul(e.IF, P);
+  const q = pl.polygon.map(v => { const l = xformP(toF, [v.x, 0, v.z]); return {x:l[0], y:0, z:l[2]}; });
+  e.arPoly = q;
+  let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
+  for(const v of q){ x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x); z0 = Math.min(z0, v.z); z1 = Math.max(z1, v.z); }
+  for(let z = Math.floor(z0/CELL)*CELL + CELL/2; z < z1; z += CELL) for(let x = Math.floor(x0/CELL)*CELL + CELL/2; x < x1; x += CELL){
+    const k = cellOf(x, z); if(k < 0 || e.seen[k]) continue;
+    if(inPoly(x, z, q)) e.sc[k] = ON;
   }
+  e.dirty = true;
+}
+function readPlanes(frame, t){
+  if(frame.detectedPlanes) for(const pl of frame.detectedPlanes){
+    if(!pl.polygon || pl.polygon.length < 3) continue;
+    const pp = frame.getPose(pl.planeSpace, refSpace); if(!pp) continue;
+    const P = pp.transform.matrix;
+    let e = surfs.get(pl);
+    if(!e){ e = newSurf(pl, P, false); surfs.set(pl, e); }
+    // Follow ARCore's height for the plane, but never slide the grid sideways:
+    // the plane's own origin moves as its polygon grows.
+    const d = V3.dot(V3.sub([P[12], P[13], P[14]], [e.P[12], e.P[13], e.P[14]]), e.n);
+    if(Math.abs(d) > 1e-4){ e.P[12] += e.n[0]*d; e.P[13] += e.n[1]*d; e.P[14] += e.n[2]*d; e.IF = M4.inv(e.P); }
+    e.seenT = t;
+    if(e.lct !== pl.lastChangedTime){ e.lct = pl.lastChangedTime; seedFromArcore(e, pl, P); }
+  }
+  for(const [k, e] of surfs) if(!e.virtual && t - e.seenT > 2) surfs.delete(k);   // merged into another plane
+  surfN++;
+  for(const e of surfs.values()) if(e.dirty && (surfN + (e.ver & 7)) % 8 === 0) rebuildOutline(e);
+  planes = [...surfs.values()].filter(e => e.poly.length >= 3);
+}
+// Depth evidence: a 40x30 grid of depth samples against every surface.
+function surfEvidence(frame, view, eye, t){
+  if(!session || session.depthUsage !== 'cpu-optimized' || !surfs.size) return;
+  let di; try{ di = frame.getDepthInformation(view); }catch(e){ return; }
+  if(!di) return;
+  depthEver = true;
+  const P = view.projectionMatrix, V = view.transform.matrix, list = [...surfs.values()];
+  const loc = list.map(e => ({e, eye:xformP(e.IF, eye)}));
+  for(let j = 0; j < 30; j++) for(let i = 0; i < 40; i++){
+    const x = (i + 0.5)/40, y = (j + 0.5)/30, d = di.getDepthInMeters(x, y);
+    if(!(d > 0.15 && d < 6)) continue;
+    const dir = xformD(V, [(2*x - 1)/P[0], (1 - 2*y)/P[5], -1]);   // view z = -1, so the point is eye + dir*d
+    const X = V3.add(eye, V3.mul(dir, d)), tol = 0.02 + 0.012*d;
+    for(const L of loc){
+      const e = L.e, l = xformP(e.IF, X), ly = l[1];
+      if(Math.abs(ly) < tol){
+        const k = cellOf(l[0], l[2]); if(k < 0) continue;
+        if(e.sc[k] < SC_MAX){ e.sc[k]++; if(e.sc[k] === ON) e.dirty = true; }
+        e.seen[k] = 1; e.hy += ly; e.hn++; e.last = t;
+      } else if(ly < -tol && L.eye[1] > 0){
+        // Seen through the plane: nothing of this surface where the ray crossed it.
+        const dl = xformD(e.IF, dir), s2 = -L.eye[1] / dl[1];
+        const k = cellOf(L.eye[0] + dl[0]*s2, L.eye[2] + dl[2]*s2); if(k < 0) continue;
+        if(e.sc[k] > SC_MIN){ if(e.sc[k] >= ON && e.sc[k] - 2 < ON) e.dirty = true; e.sc[k] = Math.max(SC_MIN, e.sc[k] - 2); }
+        e.seen[k] = 1;
+      }
+    }
+  }
+  // Depth-only walls settle onto the wall's true depth.
+  for(const e of list){
+    if(e.virtual && e.hn > 40){ const m = e.hy / e.hn * 0.3; e.P[12] += e.n[0]*m; e.P[13] += e.n[1]*m; e.P[14] += e.n[2]*m; e.IF = M4.inv(e.P); }
+    e.hy = 0; e.hn = 0;
+  }
+}
+function rebuildOutline(e){
+  e.dirty = false;
+  if(!depthEver){ if(e.arPoly && e.arPoly !== e.poly){ e.poly = e.arPoly; e.ver++; } return; }
+  // Filled cells, opened by one cell (erode, then grow back inside the
+  // filled set): speckle and thin spurs along an edge drop out, the body of
+  // the surface keeps its true edge.
+  const fill = new Uint8Array(GN*GN), core = new Uint8Array(GN*GN), mask = new Uint8Array(GN*GN);
+  for(let k = 0; k < GN*GN; k++) fill[k] = e.sc[k] >= ON ? 1 : 0;
+  for(let j = 1; j < GN - 1; j++) for(let i = 1; i < GN - 1; i++){
+    const k = j*GN + i; core[k] = fill[k] & fill[k-1] & fill[k+1] & fill[k-GN] & fill[k+GN];
+  }
+  for(let j = 1; j < GN - 1; j++) for(let i = 1; i < GN - 1; i++){
+    const k = j*GN + i; mask[k] = fill[k] & (core[k] | core[k-1] | core[k+1] | core[k-GN] | core[k+GN]);
+  }
+  // Largest 8-connected patch.
+  const lab = new Int32Array(GN*GN); let best = 0, bestN = 0, id = 0;
+  for(let k0 = 0; k0 < GN*GN; k0++){
+    if(!mask[k0] || lab[k0]) continue;
+    id++; let n = 0; const st = [k0]; lab[k0] = id;
+    while(st.length){
+      const k = st.pop(); n++;
+      const i = k % GN, j = (k / GN) | 0;
+      for(let dj = -1; dj <= 1; dj++) for(let dI = -1; dI <= 1; dI++){
+        const i2 = i + dI, j2 = j + dj; if(i2 < 0 || j2 < 0 || i2 >= GN || j2 >= GN) continue;
+        const k2 = j2*GN + i2; if(mask[k2] && !lab[k2]){ lab[k2] = id; st.push(k2); }
+      }
+    }
+    if(n > bestN){ bestN = n; best = id; }
+  }
+  if(bestN < 8){ if(e.poly.length){ e.poly = []; e.ver++; } return; }
+  // Each row's outermost cells bound the hull of the whole patch.
+  const pts = [];
+  for(let j = 0; j < GN; j++){
+    let lo = -1, hi = -1;
+    for(let i = 0; i < GN; i++) if(lab[j*GN + i] === best){ if(lo < 0) lo = i; hi = i; }
+    if(lo < 0) continue;
+    // Cell centers: the true edge lies somewhere inside each edge cell.
+    const z = (j - GH + 0.5)*CELL;
+    pts.push([(lo - GH + 0.5)*CELL, z], [(hi - GH + 0.5)*CELL, z]);
+  }
+  const hull = convexHull(pts);
+  let area = 0; for(let i = 0; i < hull.length; i++){ const a = hull[i], b = hull[(i + 1) % hull.length]; area += a[0]*b[1] - b[0]*a[1]; } area = Math.abs(area)/2;
+  // The patch's principal axis: a steady angle for any surface that is
+  // clearly longer one way. Near-square ones fall back to the smallest box
+  // around the hull over each hull edge's direction.
+  let mx = 0, mz = 0, n = 0;
+  for(let k = 0; k < GN*GN; k++) if(lab[k] === best){ mx += k % GN; mz += (k / GN) | 0; n++; }
+  mx /= n; mz /= n;
+  let sxx = 0, szz = 0, sxz = 0;
+  for(let k = 0; k < GN*GN; k++) if(lab[k] === best){ const dx = k % GN - mx, dz = ((k / GN) | 0) - mz; sxx += dx*dx; szz += dz*dz; sxz += dx*dz; }
+  const tr = sxx + szz, dt = Math.sqrt((sxx - szz)*(sxx - szz) + 4*sxz*sxz);
+  const elong = (tr + dt) / Math.max(tr - dt, 1e-6);
+  const angs = elong > 1.5 ? [0.5*Math.atan2(2*sxz, sxx - szz)] : hull.map((a, i) => { const b = hull[(i + 1) % hull.length]; return Math.atan2(b[1] - a[1], b[0] - a[0]); });
+  let R = null;
+  for(const ang of angs){
+    const c = Math.cos(ang), s = Math.sin(ang);
+    let u0 = 1e9, u1 = -1e9, v0 = 1e9, v1 = -1e9;
+    for(const p of hull){ const u = p[0]*c + p[1]*s, v = -p[0]*s + p[1]*c; u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v); }
+    const A = (u1 - u0)*(v1 - v0);
+    if(!R || A < R.A){ const cu = (u0 + u1)/2, cv = (v0 + v1)/2; R = {A, ang, cx:cu*c - cv*s, cz:cu*s + cv*c, hu:(u1 - u0)/2, hv:(v1 - v0)/2}; }
+  }
+  let poly;
+  if(area / R.A > 0.86){
+    // Rectangle: ease toward it from the last one, so new cells nudge it
+    // instead of snapping it around.
+    R.ang = ((R.ang % (Math.PI/2)) + Math.PI/2) % (Math.PI/2);
+    if(e.rect){
+      const da = R.ang - e.rect.ang;
+      if(da > Math.PI/4){ R.ang -= Math.PI/2; [R.hu, R.hv] = [R.hv, R.hu]; } else if(da < -Math.PI/4){ R.ang += Math.PI/2; [R.hu, R.hv] = [R.hv, R.hu]; }
+      const k = 0.4, o = e.rect;
+      R = {ang:o.ang + (R.ang - o.ang)*k, cx:o.cx + (R.cx - o.cx)*k, cz:o.cz + (R.cz - o.cz)*k, hu:o.hu + (R.hu - o.hu)*k, hv:o.hv + (R.hv - o.hv)*k};
+    }
+    e.rect = R;
+    const c = Math.cos(R.ang), s = Math.sin(R.ang);
+    poly = [[-1,-1],[1,-1],[1,1],[-1,1]].map(([a, b]) => { const u = a*R.hu, v = b*R.hv; return {x:R.cx + u*c - v*s, y:0, z:R.cz + u*s + v*c}; });
+  } else {
+    e.rect = null;
+    poly = hull.map(p => ({x:p[0], y:0, z:p[1]}));
+  }
+  const moved = poly.length !== e.poly.length || poly.some((p, i) => Math.hypot(p.x - e.poly[i].x, p.z - e.poly[i].z) > 0.012);
+  if(moved){ e.poly = poly; e.ver++; }
+  if(e.rect && moved) e.dirty = true;   // keep easing toward the latest box
+}
+function convexHull(P){
+  P = P.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cr = (o, a, b) => (a[0] - o[0])*(b[1] - o[1]) - (a[1] - o[1])*(b[0] - o[0]);
+  const lo = [], hi = [];
+  for(const p of P){ while(lo.length >= 2 && cr(lo[lo.length-2], lo[lo.length-1], p) <= 0) lo.pop(); lo.push(p); }
+  for(let i = P.length - 1; i >= 0; i--){ const p = P[i]; while(hi.length >= 2 && cr(hi[hi.length-2], hi[hi.length-1], p) <= 0) hi.pop(); hi.push(p); }
+  lo.pop(); hi.pop(); return lo.concat(hi);
+}
+// A wall the depth map sees but ARCore has no plane for becomes a surface of
+// its own, from the depth aim pose (y = the wall's normal).
+function wallFromDepth(M, t){
+  const n = [M[4], M[5], M[6]], c = [M[12], M[13], M[14]];
+  if(Math.abs(n[1]) > 0.3) return;
+  for(const e of surfs.values()){
+    if(Math.abs(V3.dot(e.n, n)) < 0.9) continue;
+    const l = xformP(e.IF, c);
+    if(Math.abs(l[1]) < 0.1 && Math.abs(l[0]) < GH*CELL && Math.abs(l[2]) < GH*CELL) return;
+  }
+  const v = [...surfs.values()].filter(e => e.virtual);
+  if(v.length >= 6){ const old = v.reduce((a, b) => a.last < b.last ? a : b); surfs.delete(old.key); }
+  const key = 'wall' + (++vWallN);
+  surfs.set(key, newSurf(key, M, true));
 }
 function inPoly(x, z, poly){
   let c = false;
@@ -771,10 +954,10 @@ function inPoly(x, z, poly){
   return c;
 }
 function planeAt(pos){
-  let best = null, bd = 0.06;
+  let best = null, bd = 0.08;
   for(const e of planes){
-    const l = xformP(M4.inv(e.P), pos);
-    if(Math.abs(l[1]) < bd && inPoly(l[0], l[2], e.plane.polygon)){ best = e; bd = Math.abs(l[1]); }
+    const l = xformP(e.IF, pos);
+    if(Math.abs(l[1]) < bd && inPoly(l[0], l[2], e.poly)){ best = e; bd = Math.abs(l[1]); }
   }
   return best;
 }
@@ -796,8 +979,8 @@ const fitSize3 = r => Math.max(0.08, Math.min(2.5, 1.35 * r));
 function fitItems(){
   for(const it of items){
     if(!it.plane) continue;
-    const e = planes.find(q => q.plane === it.plane); if(!e) continue;
-    const poly = e.plane.polygon, fit = polyFit(poly);
+    const e = planes.find(q => q.key === it.plane); if(!e) continue;
+    const poly = e.poly, fit = polyFit(poly);
     if(it.kind === '3d'){
       const pos = xformP(e.P, [fit.cx, 0, fit.cz]), tgt = fitSize3(fit.r);
       it.pos = it.pos ? it.pos.map((v, i) => v + (pos[i] - v)*0.08) : pos;
@@ -807,8 +990,8 @@ function fitItems(){
       // Plane-space mesh: a fan from the outline's center, rebuilt only when
       // ARCore reports the outline changed. e is 1 at the center and 0 on the
       // rim, for the feathered edge.
-      if(it.lct !== e.plane.lastChangedTime){
-        it.lct = e.plane.lastChangedTime;
+      if(it.lct !== e.ver){
+        it.lct = e.ver;
         const IP = M4.inv(e.P), r3 = xformD(IP, it.right), u3 = xformD(IP, it.up);
         const R = V3.norm([r3[0], 0, r3[2]]), U = V3.norm([u3[0], 0, u3[2]]);
         let ext = 0.05;
@@ -1238,7 +1421,7 @@ function xrFrame(time, frame){
 }
 function xrFrameBody(frame, s){
   const pose = frame.getViewerPose(refSpace); if(!pose) return;
-  dbg.poses++; dbg.feat = s.enabledFeatures ? [...s.enabledFeatures] : null; dbg.planes = frame.detectedPlanes ? frame.detectedPlanes.size : -1;
+  dbg.poses++; dbg.feat = s.enabledFeatures ? [...s.enabledFeatures] : null; dbg.planes = frame.detectedPlanes ? frame.detectedPlanes.size : -1; dbg.surfs = surfs.size;
   const t = now(); audioTick(); updateTints();
   const eye = [pose.transform.position.x, pose.transform.position.y, pose.transform.position.z];
 
@@ -1249,7 +1432,8 @@ function xrFrameBody(frame, s){
     if(ap) it.M = M4.mul(ap.transform.matrix, it.rel);
   }
 
-  readPlanes(frame);
+  readPlanes(frame, t);
+  if(scanN % 2 === 0) surfEvidence(frame, pose.views[0], eye, t);
   fitItems();
   const marks = [];
   let aimPlane = null;
@@ -1270,7 +1454,8 @@ function xrFrameBody(frame, s){
     if(hp) dbg.hits++; else dbg.dhits = (dbg.dhits || 0) + 1;
     {
       const M = hp ? hp.transform.matrix : dp, horizontal = M[5] > 0.75;
-      const pe = hp ? planeAt([M[12], M[13], M[14]]) : null;
+      if(!hp) wallFromDepth(M, t);
+      const pe = planeAt([M[12], M[13], M[14]]);
       lastHit = {res:hp ? hits[0] : null, M, eye, pe};
       aimPlane = pe;
       updateWall(M, t);
@@ -1284,7 +1469,7 @@ function xrFrameBody(frame, s){
              : k < 3 ? `Point ${k}: keep tapping around the edge`
              : `${k} points. Keep going, or tap <b>Done</b> to fill the outline`);
       } else if(!items.length || t - items[items.length-1].born > 4){
-        const r = pe ? polyFit(pe.plane.polygon).r : 0, fits = fitMode && pe;
+        const r = pe ? polyFit(pe.poly).r : 0, fits = fitMode && pe;
         status(horizontal
           ? (fits ? `Tap to fill this surface with <b>${S3[+$('sel3').value].name}</b> (${fitSize3(r).toFixed(2)} m so far)` : `Tap to grow <b>${S3[+$('sel3').value].name}</b> here`)
           : (fits ? `Tap to cover this wall with <b>${S2[+$('sel2').value].name}</b>` : `Tap to hang <b>${S2[+$('sel2').value].name}</b> here`));
@@ -1298,8 +1483,8 @@ function xrFrameBody(frame, s){
   // filled; a found opening in magenta; the corners marked so far joined up.
   Rib.v = [];
   for(const e of planes){
-    const pts = e.plane.polygon.map(q => xformP(e.P, [q.x, q.y, q.z])), n = [e.P[4], e.P[5], e.P[6]];
-    const vert = Math.abs(n[1]) < 0.5, on = aimPlane && aimPlane.plane === e.plane;
+    const pts = e.poly.map(q => xformP(e.P, [q.x, 0, q.z])), n = [e.P[4], e.P[5], e.P[6]];
+    const vert = Math.abs(n[1]) < 0.5, on = aimPlane && aimPlane.key === e.key;
     const col = vert ? [0.3, 0.88, 1.0] : [0.78, 1.0, 0.18];
     if(on) Rib.fill(pts, n, [...col, 0.10]);
     Rib.loop(pts, n, on ? 0.012 : 0.007, [...col, on ? 0.95 : 0.45]);
