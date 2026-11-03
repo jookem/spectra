@@ -2470,6 +2470,21 @@ vec3 render3(vec2 uv){
   // reason to continue into the body the way the old thickness walk did.
   vec3 hp = ro; float htrap = 0.0, hd = 0.0, mtrap = 0.0, hlv = 0.0, hlvN = 0.0;
   float R0=dfar/4.85;
+  // Interior look (Fly/Surface, weighted by cw). Gathered on the primary march
+  // so it adds no map() call site:
+  //  - mist: haze hanging in the open space, strongest near the walls, colored
+  //    by the orbit trap the ray passes through;
+  //  - band: a sheet of light on the world's y=0 plane (the box folds' mirror
+  //    plane, so it sits on the fractal's own symmetry), seen through gaps;
+  //  - hst: steps taken to the hit, the occlusion for crevices.
+  // Both are attenuated by the same fog the surfaces get, so far haze and near
+  // haze sit at the right depth.
+  float mist=0.0, mistT=0.0, band=0.0, hst=0.0;
+  float iFog=max(uCamScale,uCamFog)*14.0/max(uLook.x,0.05);
+  // Thin sheet, and only counted a few corridor widths out from the eye: with
+  // the eye on the plane every ray started inside it and the frame filled.
+  // Now only rays near level stay in it that far, which draws the horizon line.
+  float iBw=max(uCamScale,1e-5)*0.22;
   for(int i=NZERO;i<256;i++){
     if(i>=steps) break;
     p=ro+rd*d;
@@ -2483,6 +2498,14 @@ vec3 render3(vec2 uv){
     // so leaving this unguarded added a twelfth of a unit per interior step and
     // the object went to white. It only accumulates before the first hit.
     if(!hit) glow+=exp(-(uRep>0.0?min(gDR,1e3):h)*22.0/(fc?mix(1.0,uCamScale*3.0,cw):1.0))*0.012;
+    if(fc){
+      float tr=exp(-d/iFog), ah=abs(h);
+      float py=uRep>0.0?p.y-uRep*floor(p.y/uRep+0.5):p.y;
+      band+=ah*relax*exp(-abs(py)/iBw)*tr*smoothstep(iBw*6.0,iBw*20.0,d)/iBw;
+      float gw=exp(-ah*6.0/max(uCamScale,1e-5))*tr;
+      mist+=gw; mistT+=gw*trap;
+      hst=float(i);
+    }
     float eps = max(pxw*d*epsK, fc?max(uCamScale*2e-3,1e-6):2.0e-5);
     float rt = h/eps;
     if(rt<minr){ minr=rt; mind=d; mtrap=trap; }
@@ -2623,6 +2646,24 @@ vec3 render3(vec2 uv){
     float ao=clamp(1.0-d*0.16/max(dist,1.0),0.15,1.0);
     vec3 base=pal(trap*2.6+d*0.14+uHigh*0.25);
     vec3 emis=vec3(0.0);
+    if(fc && cw>0.0){
+      // Interior look on the surface: dark stone that the band light and the
+      // haze color, occlusion from the march's step count (crevices cost the
+      // most steps), and the overhead key light mostly off.
+      float sao=clamp(1.0-hst/(float(steps)*0.45),0.06,1.0);
+      ao=mix(ao, sao*sao, cw);
+      base=mix(base, vec3(dot(base,vec3(0.3333)))*0.22+0.012, cw*0.85);
+      dif*=1.0-cw*0.65;
+      // Grazing sheen off: skimming a wall, the fresnel term painted it pale.
+      fre*=1.0-cw*0.75;
+      float py=uRep>0.0?p.y-uRep*floor(p.y/uRep+0.5):p.y;
+      // Light from the band falls on what faces it and drops off fast with
+      // height, so only floor and ceiling right at the sheet catch it.
+      float lb=exp(-abs(py)/(iBw*2.0));
+      float fac=clamp(-sign(py)*n.y,0.0,1.0); fac*=fac;
+      // Saturated: squaring the palette tone deepens it (peach goes to red).
+      emis+=gP[7]*gP[7]*0.9*lb*(0.1+0.9*fac)*sao*(0.9+uLoud*0.8)*cw;
+    }
     // trap = -1 is the flag map() sets when the text solid was the nearest
     // surface. It gets its own material rather than a walk along the fractal
     // palette: a flat bright face so the letters stay legible against any
@@ -2816,8 +2857,22 @@ vec3 render3(vec2 uv){
   }
   if(fc){
     float fk=hit?1.0-exp(-d*uLook.x/(max(uCamScale,uCamFog)*14.0)):1.0;
-    col=mix(col, gP[10]*0.07+vec3(0.010,0.012,0.018), fk*cw);
+    // Interior look: the fog is lit, not dark. Distance glows in the palette's
+    // bright tone, so near structure stands as silhouette against it, and a
+    // miss (a gap through to open space) is the brightest of all.
+    vec3 iCol=gP[7]*gP[7];
+    vec3 fogLit=iCol*(hit?0.42:0.75)+gP[10]*0.02;
+    // Squared so the near structure keeps its dark, and the light gathers deep.
+    col=mix(col, fogLit, fk*fk*cw);
+    // Haze in the open space, colored by the trap it passed through, and the
+    // band of light, both saturating so grazing rays don't blow out.
+    vec3 mc=pal(mistT/max(mist,1e-4)*2.6+uHigh*0.25);
+    col+=mc*mc*(1.0-exp(-mist*0.012))*0.35*(hit?fk:1.0)*uLook.y*cw;
+    col+=(iCol*1.4+vec3(0.10))*(1.0-exp(-band*0.25))*(0.8+uLoud*0.6)*cw;
   }
+  // Inside views: the edge glow saturates. Hugging a wall in a tight passage
+  // every step lands near the surface and the raw sum blew the frame out.
+  if(fc) glow=mix(glow,(1.0-exp(-glow*2.0))*0.5,cw);
   col+=glow*uLook.y*gP[11]*(0.7+uLoud*1.6)*((uMode==41)?0.3:1.0);
   // Depth of field. The defocus is a gather in the post pass; all this pass
   // owes it is depth. Alpha carries d/(d+dist): 0.5 at the orbit's focus

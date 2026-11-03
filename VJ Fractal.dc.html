@@ -984,8 +984,8 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
             <div title="3D camera, repeat space and vector drawing" style="display:flex;flex-direction:column;gap:6px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;flex:{{ threeFlex }};min-width:0;">
               <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);">3D</span>
               <div style="display:grid;grid-template-columns:{{ threeCols }};gap:{{ deckBtnGap }};align-items:stretch;">
-              <select value="{{ camViewSel }}" onChange="{{ setCamView }}" title="3D camera: orbit the object, fly through it, or skim its surface" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid {{ camViewBorder }};background:rgba(8,9,10,0.34);color:{{ camViewFg }};appearance:none;-webkit-appearance:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
-                <sc-for list="{{ camViewOptions }}" as="o" hint-placeholder-count="3">
+              <select value="{{ camViewSel }}" onChange="{{ setCamView }}" title="3D camera: orbit the object, fly through it, skim its surface, or travel inside it" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid {{ camViewBorder }};background:rgba(8,9,10,0.34);color:{{ camViewFg }};appearance:none;-webkit-appearance:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+                <sc-for list="{{ camViewOptions }}" as="o" hint-placeholder-count="4">
                   <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
                 </sc-for>
               </select>
@@ -1412,8 +1412,8 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
         </sc-if>
         <sc-if value="{{ look3D }}" hint-placeholder-val="{{ false }}">
         <div style="display:flex;gap:4px;">
-          <select value="{{ camViewSel }}" onChange="{{ setCamView }}" title="3D camera: orbit the object, fly through it, or skim its surface" style="flex:1 1 0;min-width:0;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;padding:8px 4px;min-height:{{ selH }};box-sizing:border-box;cursor:pointer;appearance:none;-webkit-appearance:none;text-align:center;border:1px solid {{ camViewBorder }};color:{{ camViewFg }};background:rgba(8,9,10,0.34);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
-            <sc-for list="{{ camViewOptions }}" as="o" hint-placeholder-count="3">
+          <select value="{{ camViewSel }}" onChange="{{ setCamView }}" title="3D camera: orbit the object, fly through it, skim its surface, or travel inside it" style="flex:1 1 0;min-width:0;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;padding:8px 4px;min-height:{{ selH }};box-sizing:border-box;cursor:pointer;appearance:none;-webkit-appearance:none;text-align:center;border:1px solid {{ camViewBorder }};color:{{ camViewFg }};background:rgba(8,9,10,0.34);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+            <sc-for list="{{ camViewOptions }}" as="o" hint-placeholder-count="4">
               <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
             </sc-for>
           </select>
@@ -18406,7 +18406,7 @@ class Component extends DCLogic {
       look3D: (()=>{ try{ const p=this.E.PRESETS[s.preset]; return !!p && p.kind!=='2DC' && String(this.E.FAM_OF(p.mode)).slice(0,3)==='3d:'; }catch(e){ return false; } })(),
       look2D: (()=>{ try{ const p=this.E.PRESETS[s.preset]; return !(p && p.kind!=='2DC' && String(this.E.FAM_OF(p.mode)).slice(0,3)==='3d:'); }catch(e){ return true; } })(),
       camViewSel: String(s.camView || 0),
-      camViewOptions: [{v:'0',tag:'View Orbit'},{v:'1',tag:'View Fly'},{v:'2',tag:'View Surface'}],
+      camViewOptions: [{v:'0',tag:'View Orbit'},{v:'1',tag:'View Fly'},{v:'2',tag:'View Surface'},{v:'3',tag:'View Inside'}],
       setCamView: (e)=>this.setState({camView: parseInt(e.target.value,10)||0}),
       camViewBorder: (s.camView||0) ? 'var(--acc30)' : 'rgba(255,255,255,0.11)',
       camViewFg: (s.camView||0) ? 'var(--acc)' : 'rgba(242,243,240,0.78)',

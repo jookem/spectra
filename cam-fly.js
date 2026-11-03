@@ -227,13 +227,17 @@ class CamFly{
     // Stand-off: never closer than a fixed share of the scene's framing
     // distance, so a solid object (Mandelbulb, Quats) still fills the view
     // as a landscape rather than a wall of pixels.
-    const minT=F*(o.rep?0.05:0.1);
+    // Inside (mode 3) is Fly at corridor scale: the stand-off is a sliver of the
+    // framing distance, so the camera fits the passages inside the body instead
+    // of holding off the whole object as a landscape.
+    const ins=this.mode===3;
+    const minT=ins?F*0.012:F*(o.rep?0.05:0.1);
     // Stand-off starts at the clearance the camera entered with and only
     // tightens toward the target, so entry never shoves the camera away.
     this.d0=Math.min(this.d0,Math.max(minT,d*0.98));
     const minD=Math.min(minT,this.d0*0.9);
     if(!this.tf){this.tf=this.f;this.vs=0;}
-    if(this.mode===1){
+    if(this.mode===1||ins){
       this.tilt=Math.max(0,(this.tilt||0)-dt/3);
       this.fwd=D.free[0];
       // Weighted blend of the open headings, not the single best one: the best
@@ -245,7 +249,11 @@ class CamFly{
       // so the blend points into the open space between forms, not at a rim.
       const sm2=(a,b,x)=>{const k=Math.min(1,Math.max(0,(x-a)/(b-a)));return k*k*(3-2*k);};
       let ws=0,fs=0;
-      for(let i=0;i<17;i++){const ang=i===0?0:(i<=8?0.45:0.95);const w=Math.pow(Math.max(0,D.free[i]/mx),4)*(1-ang*0.6)*sm2(minD*1.5,minD*4,D.free[i]);best=V.add(best,V.sc(D.dirs[i],w));ws+=w;fs+=w*D.free[i];}
+      // Inside: open headings that lead toward the center get extra vote, more
+      // the further out the camera is. A preference among the openings, never a
+      // push, so it can't pin the camera against a wall between it and the center.
+      const cdir=V.nrm(V.sc(this.p,-1)), kin=ins&&!o.rep?Math.min(4,Math.max(0,(V.len(this.p)/F-0.12)*8)):0;
+      for(let i=0;i<17;i++){const ang=i===0?0:(i<=8?0.45:0.95);const w=Math.pow(Math.max(0,D.free[i]/mx),4)*(1-ang*0.6)*sm2(minD*1.5,minD*4,D.free[i])*(1+kin*Math.max(0,V.dot(D.dirs[i],cdir)));best=V.add(best,V.sc(D.dirs[i],w));ws+=w;fs+=w*D.free[i];}
       best=V.len(best)>1e-6?V.nrm(best):D.dirs[0];
       // A hole only counts when it is wide enough to fly through; a narrow
       // crack is treated as wall and the camera is pushed off the surface.
@@ -262,7 +270,7 @@ class CamFly{
       // Only near geometry: out in open space fwd always dwarfs d, and taking
       // this path there let speed, scale and probe reach feed each other into
       // a runaway away from the object.
-      const inside=o.rep||V.len(this.p)<F;
+      const inside=ins||o.rep||V.len(this.p)<F;
       const open=inside&&holeOk&&d<F*0.05&&this.fwd>d*6;
       // Where the camera is heading: a point down the chosen opening, sized by
       // the clearance around it, for the host's target ring.
@@ -286,7 +294,7 @@ class CamFly{
       const wu=[0,1,0],pu=V.nrm(V.sub(wu,V.sc(this.f,V.dot(wu,this.f))));
       this.up=V.nrm(V.add(this.up,V.sc(V.sub(pu,this.up),ease(0.2))));
       this.up=V.nrm(V.sub(this.up,V.sc(this.f,V.dot(this.up,this.f))));
-      this.scale+=(Math.min(F*0.3,open?Math.max(d*2,F*0.004):Math.max(dd,this.fwd*0.08,F*0.06))-this.scale)*ease(0.7);
+      this.scale+=(Math.min(F*0.3,open?Math.max(d*2,F*0.004):Math.max(dd,this.fwd*0.08,F*(ins?0.01:0.06)))-this.scale)*ease(0.7);
     } else {
       this.tilt=Math.min(1,(this.tilt||0)+dt/6);
       // Surface skim: hold an altitude over the surface, glide along it, and
@@ -595,7 +603,7 @@ class CamFly{
     }
     if(this.aim&&!this.aim.chg&&performance.now()-this.aim.t0>5000)this.aim=null;
     const a=this.aim||this.go;
-    if(!a&&this.mode===1&&this.autoT&&this.B&&this.data){
+    if(!a&&(this.mode===1||this.mode===3)&&this.autoT&&this.B&&this.data){
       const B=this.B, v=V.sub(this.autoT.P,B.P), z=V.dot(v,B.f); if(z<=1e-6)return null;
       const x=V.dot(v,B.r)/z*B.fl, y=V.dot(v,B.u)/z*B.fl;
       return {x:(x*H+W)/2, y:(H-y*H)/2, state:'auto', hit:!this.autoT.open, rpx:this.autoT.R/z*B.fl*H/2};
