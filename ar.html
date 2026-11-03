@@ -54,6 +54,7 @@
   </div>
   <div class="bar" id="bot">
     <div id="status">Looking for surfaces…</div>
+    <button id="btnKind" title="What a tap places">Tap: 3D</button>
     <button id="btnFit" class="on" title="How placed things are sized">Fit: Outline</button>
     <button id="btnLook" title="Wall look">Wall: Solid</button>
     <button id="btnGlow" class="on" title="Fractal light on the room">Glow: On</button>
@@ -321,7 +322,7 @@ function setU(prog, name, v){
     case gl.FLOAT_VEC3: gl.uniform3fv(u.loc, v); break;
     case gl.FLOAT_VEC4: gl.uniform4fv(u.loc, v); break;
     case gl.FLOAT_MAT4: gl.uniformMatrix4fv(u.loc, false, v); break;
-    case gl.INT: case gl.BOOL: case gl.SAMPLER_2D: gl.uniform1i(u.loc, v|0); break;
+    case gl.INT: case gl.BOOL: case gl.SAMPLER_2D: case gl.SAMPLER_3D: gl.uniform1i(u.loc, v|0); break;
   }
 }
 
@@ -594,7 +595,7 @@ function place(hitM, eye, anchor, pe){
   status(fit ? (horizontal ? `<b>${it.preset.name}</b> fills the ${where}. Keep scanning and it grows to fit.` : `<b>${it.preset.name}</b> covers the ${where}. Keep scanning to extend it.`)
              : `Placed <b>${it.preset.name}</b> on the ${where}.`);
 }
-function dropItem(it){ if(it.sync) gl.deleteSync(it.sync); if(it.pbo) gl.deleteBuffer(it.pbo); if(it.tgt){ gl.deleteTexture(it.tgt.tx); gl.deleteFramebuffer(it.tgt.fb); } if(it.mesh) gl.deleteBuffer(it.mesh.buf); if(it.anchor && it.anchor.delete) it.anchor.delete(); }
+function dropItem(it){ if(it.obj) gl.deleteTexture(it.obj.tx); if(it.sync) gl.deleteSync(it.sync); if(it.pbo) gl.deleteBuffer(it.pbo); if(it.tgt){ gl.deleteTexture(it.tgt.tx); gl.deleteFramebuffer(it.tgt.fb); } if(it.mesh) gl.deleteBuffer(it.mesh.buf); if(it.anchor && it.anchor.delete) it.anchor.delete(); }
 
 // Three marked points to a rectangle: A and B along one edge, C anywhere on
 // the opposite edge. The normal comes from the points themselves, so a tilted
@@ -1126,12 +1127,13 @@ function drawView(P, Vw, eye, vp, t, marks, rib, fake){
   // The fractals' light on the real room, under everything else.
   gl.disable(gl.DEPTH_TEST); gl.depthMask(false);
   drawSpill(P, Vw, collectLights(t, eye), fake);
+  for(const it of items) if(it.obj && it.ok) drawObject(it, P, Vw, Math.min(1, (t - it.born)*1.5));
   gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL);
 
   // Wall panels and contact shadows: transparent, no depth writes.
   gl.depthMask(false);
   for(const it of items){
-    if(it.kind !== '2d' || !it.ok) continue;
+    if(it.kind !== '2d' || !it.ok || it.obj) continue;
     const fade = Math.min(1, (t - it.born)*1.5);
     if(it.mesh) drawMesh(VP, it, fade); else drawQuad(VP, it.M, it.half || it.size/2, 2, [0,0,0], fade, 0, it.tgt.tx);
   }
@@ -1200,6 +1202,236 @@ function updateTints(){
   }
 }
 
+// ---------------------------------------------------------------- objects
+// A 2D field mapped onto a real object, whatever its shape. A tap finds the
+// object in the depth map: a flood outward from the aim point that stops at
+// depth jumps and skips points on known surfaces (the floor and table under
+// a box, the wall behind a chair). A tap that lands on a surface takes that
+// surface's visible patch instead. The object is kept as a voxel volume in
+// the room (3 cm cells); for a few seconds after the tap it keeps growing as
+// the phone sees more of it. Each frame, every camera pixel whose real depth
+// falls inside the volume shows the field, cast from where the tap was made,
+// the way a projector lights whatever stands in its beam.
+const OVX = 0.03, ON3 = 96, OSPAN = OVX*ON3, OBJ_UNIT = 5;
+let tapKind = '3d', pendingObj = null;
+const OBJ_FS = `#version 300 es
+precision highp float;
+precision highp sampler3D;
+out vec4 o;
+${AR_DEPTH}
+uniform mat4 uInvP, uInvV, uProj;
+uniform sampler3D uVox;
+uniform sampler2D uTx;
+uniform vec3 uOrg, uPEye;
+uniform float uSpan, uA, uAdd;
+vec3 vpos(vec2 fc){
+  float d=arDepth(fc);
+  vec2 ndc=(fc-uARVp.xy)/uARVp.zw*2.0-1.0;
+  vec4 r=uInvP*vec4(ndc,1.0,1.0); r.xyz/=r.w;
+  return r.xyz*(d/max(-r.z,1e-4));
+}
+void main(){
+  vec2 fc=gl_FragCoord.xy;
+  float d=arDepth(fc);
+  if(uARDOn<0.5||d<0.05) discard;
+  vec3 p=vpos(fc), pw=(uInvV*vec4(p,1.0)).xyz;
+  vec3 q=(pw-uOrg)/uSpan+0.5;
+  if(any(lessThan(q,vec3(0.0)))||any(greaterThan(q,vec3(1.0)))) discard;
+  float m=smoothstep(0.08,0.4,texture(uVox,q).r);
+  if(m<0.01) discard;
+  vec4 c=uProj*vec4(pw,1.0);
+  if(c.w<=0.0) discard;
+  vec2 uv=c.xy/c.w*0.5+0.5;
+  float edge=smoothstep(0.0,0.03,min(min(uv.x,1.0-uv.x),min(uv.y,1.0-uv.y)));
+  // Sides turned away from the projector would smear the field; dim them.
+  float e=max(uARVp.w/70.0,2.0);
+  vec3 xa=vpos(fc+vec2(e,0.0))-p, xb=p-vpos(fc-vec2(e,0.0));
+  vec3 ya=vpos(fc+vec2(0.0,e))-p, yb=p-vpos(fc-vec2(0.0,e));
+  vec3 n=normalize(cross(abs(xa.z)<abs(xb.z)?xa:xb, abs(ya.z)<abs(yb.z)?ya:yb));
+  if(dot(n,-p)<0.0) n=-n;
+  vec3 nw=normalize(mat3(uInvV)*n);
+  float face=smoothstep(0.0,0.4,dot(nw,normalize(uPEye-pw)));
+  vec3 col=texture(uTx,clamp(uv,0.0,1.0)).rgb;
+  float f=m*edge*mix(0.3,1.0,face)*uA;
+  o=vec4(col*f*mix(1.0,0.95,uAdd), f*(1.0-uAdd));
+}`;
+const oprog = compile(VJE.VERT, OBJ_FS, 'object');
+
+// On a known surface: that surface, if the point lies on it (its outline
+// grown by 15 cm, since outlines lag the real edge).
+function polyDist(x, z, poly){
+  let best = 1e9;
+  for(let i = 0, j = poly.length - 1; i < poly.length; j = i++){
+    const ax = poly[j].x, az = poly[j].z, bx = poly[i].x - ax, bz = poly[i].z - az, L2 = bx*bx + bz*bz || 1;
+    const s = Math.max(0, Math.min(1, ((x - ax)*bx + (z - az)*bz) / L2));
+    best = Math.min(best, Math.hypot(x - ax - bx*s, z - az - bz*s));
+  }
+  return best;
+}
+function surfaceOf(X, tol){
+  for(const e of planes){
+    const l = xformP(e.IF, X);
+    if(Math.abs(l[1]) < tol && (inPoly(l[0], l[2], e.poly) || polyDist(l[0], l[2], e.poly) < 0.15)) return e;
+  }
+  return null;
+}
+const onSurf = (e, X, tol) => Math.abs(xformP(e.IF, X)[1]) < tol;
+const dtol = d => 0.02 + 0.012*d;
+// Whether a depth point belongs to the object being mapped: on the tapped
+// plane when the tap landed on one, otherwise off every known surface and
+// off the big flat backgrounds found in the tapped frame.
+const onPl = (pl, X, d) => Math.abs(V3.dot(pl.n, X) - pl.d) < dtol(d);
+function objAccepts(o, X, d){
+  if(V3.dot(V3.sub(X, o.seed), V3.sub(X, o.seed)) > o.reach*o.reach) return false;
+  if(o.on) return onPl(o.on, X, d);
+  return !surfaceOf(X, dtol(d)) && !o.bg.some(pl => onPl(pl, X, d));
+}
+// Big planes in one frame of depth points (RANSAC): walls, floors and table
+// tops that fill a good part of the view, known to ARCore or not.
+function bigPlanes(X, D, N){
+  let idx = []; for(let k = 0; k < N; k++) if(D[k] > 0) idx.push(k);
+  const total = idx.length, out = [];
+  const P3 = k => [X[k*3], X[k*3+1], X[k*3+2]];
+  for(let r = 0; r < 3 && idx.length > 30; r++){
+    let best = null;
+    for(let it = 0; it < 220; it++){
+      const a = P3(idx[(Math.random()*idx.length) | 0]), b = P3(idx[(Math.random()*idx.length) | 0]), c = P3(idx[(Math.random()*idx.length) | 0]);
+      const cr = V3.cross(V3.sub(b, a), V3.sub(c, a)), L = Math.hypot(cr[0], cr[1], cr[2]);
+      if(L < 1e-4) continue;
+      const n = V3.mul(cr, 1/L), d = V3.dot(n, a);
+      let cnt = 0; for(const k of idx) if(Math.abs(V3.dot(n, P3(k)) - d) < dtol(D[k])) cnt++;
+      if(!best || cnt > best.cnt) best = {n, d, cnt};
+    }
+    if(!best || best.cnt < total*0.12) break;
+    out.push({n:best.n, d:best.d});
+    idx = idx.filter(k => Math.abs(V3.dot(best.n, P3(k)) - best.d) >= dtol(D[k]));
+  }
+  return out;
+}
+
+// sample(x, y) gives meters at normalized view coords (origin top-left).
+// P is the view's projection, V its camera-to-world matrix.
+function captureObject(sample, P, V, eye, t, sx = 0.5, sy = 0.5){
+  const GW = 96, GHt = 72, N = GW*GHt;
+  const X = new Float32Array(N*3), D = new Float32Array(N);
+  for(let j = 0; j < GHt; j++) for(let i = 0; i < GW; i++){
+    const x = (i + 0.5)/GW, y = (j + 0.5)/GHt, d = sample(x, y), k = j*GW + i;
+    if(!(d > 0.15 && d < 6)) continue;
+    const p = xformP(V, [(2*x - 1)/P[0]*d, (1 - 2*y)/P[5]*d, -d]);
+    X[k*3] = p[0]; X[k*3+1] = p[1]; X[k*3+2] = p[2]; D[k] = d;
+  }
+  const P3 = k => [X[k*3], X[k*3+1], X[k*3+2]];
+  // Seed: the aimed sample, or the nearest one with a depth.
+  let seed = -1;
+  const ci = Math.min(GW - 1, Math.floor(sx*GW)), cj = Math.min(GHt - 1, Math.floor(sy*GHt));
+  for(let r = 0; r < 6 && seed < 0; r++) for(let dj = -r; dj <= r && seed < 0; dj++) for(let di = -r; di <= r; di++){
+    const i = ci + di, j = cj + dj; if(i < 0 || j < 0 || i >= GW || j >= GHt) continue;
+    if(D[j*GW + i] > 0){ seed = j*GW + i; break; }
+  }
+  if(seed < 0){ status('No depth there yet. Move the phone a little and tap again.'); return null; }
+  const S = P3(seed), sd = D[seed], surf = surfaceOf(S, dtol(sd)), bg = bigPlanes(X, D, N);
+  const o = {seed:S, reach:1.4, bg, on:null};
+  if(surf){ const org = [surf.P[12], surf.P[13], surf.P[14]]; o.on = {n:surf.n, d:V3.dot(surf.n, org)}; }
+  else o.on = bg.find(pl => onPl(pl, S, sd)) || null;
+  // Flood across the depth image: neighbors join when their depth is
+  // continuous with this one and they belong to the object.
+  const inObj = new Uint8Array(N), st = [seed], pts = [];
+  inObj[seed] = 1;
+  while(st.length){
+    const k = st.pop(), i = k % GW, j = (k / GW) | 0, d = D[k];
+    pts.push(k);
+    for(const [a, b] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const i2 = i + a, j2 = j + b; if(i2 < 0 || j2 < 0 || i2 >= GW || j2 >= GHt) continue;
+      const k2 = j2*GW + i2; if(inObj[k2] || !(D[k2] > 0)) continue;
+      if(Math.abs(D[k2] - d) > 0.025 + 0.03*d) continue;
+      if(!objAccepts(o, P3(k2), D[k2])) continue;
+      inObj[k2] = 1; st.push(k2);
+    }
+  }
+  if(pts.length < 25){ status('Could not make out an object there. Aim at its middle and tap again.'); return null; }
+  let c = [0, 0, 0];
+  for(const k of pts) c = V3.add(c, P3(k));
+  c = V3.mul(c, 1/pts.length);
+  let rad = 0.05;
+  for(const k of pts) rad = Math.max(rad, Math.hypot(...V3.sub(P3(k), c)));
+  const vox = new Uint8Array(ON3*ON3*ON3), org = c;
+  const mark = p => { const v = voxOf(org, p); if(v >= 0) vox[v] = 255; };
+  for(const k of pts) mark(P3(k));
+  // Projector: from the eye at the tap, framing the object.
+  let dir = V3.sub(c, eye); const dist = Math.hypot(...dir); dir = V3.norm(dir);
+  const up = Math.abs(dir[1]) > 0.95 ? [0, 0, -1] : [0, 1, 0];
+  const fov = Math.max(0.15, Math.min(2.4, 2*Math.atan(rad*1.08/Math.max(dist, 0.1))));
+  const proj = M4.mul(M4.persp(fov, 1, 0.05, 30), M4.lookAt(eye, c, up));
+  // A frame at the object facing the tap, for the light it gives off.
+  const n = V3.mul(dir, -1), R = V3.norm(Math.abs(n[1]) < 0.95 ? V3.cross([0, 1, 0], n) : V3.cross(n, [0, 0, 1]));
+  const tx = gl.createTexture();
+  gl.activeTexture(gl.TEXTURE0 + OBJ_UNIT); gl.bindTexture(gl.TEXTURE_3D, tx);
+  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+  gl.texImage3D(gl.TEXTURE_3D, 0, gl.R8, ON3, ON3, ON3, 0, gl.RED, gl.UNSIGNED_BYTE, vox);
+  for(const p of [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T, gl.TEXTURE_WRAP_R]) gl.texParameteri(gl.TEXTURE_3D, p, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.activeTexture(gl.TEXTURE0);
+  o.vox = vox; o.tx = tx; o.org = org; o.eye = eye.slice(); o.proj = proj; o.grow = t + 6; o.reach = rad + 0.3; o.seed = c;
+  o.n = pts.length;
+  const preset = S2[+$('sel2').value];
+  const it = {kind:'2d', obj:o, preset, prog:sceneProg(preset), size:2*rad, half:rad, born:t,
+    tgt:makeTarget(Math.max(512, QUALS[quality].tex)), M:M4.frame(R, n, V3.cross(R, n), c), anchor:null};
+  items.push(it);
+  status(`Mapping <b>${preset.name}</b> onto ${o.on ? 'the surface' : 'the object'}, ${(2*rad).toFixed(2)} m across. Move around it to cover more of it.`);
+  return it;
+}
+function voxOf(org, p){
+  const ix = Math.floor((p[0] - org[0])/OVX + ON3/2), iy = Math.floor((p[1] - org[1])/OVX + ON3/2), iz = Math.floor((p[2] - org[2])/OVX + ON3/2);
+  return (ix < 0 || iy < 0 || iz < 0 || ix >= ON3 || iy >= ON3 || iz >= ON3) ? -1 : (iz*ON3 + iy)*ON3 + ix;
+}
+// While it is young, the object takes in depth points next to (within two
+// cells of) what it already has, so sides seen later fill in.
+function growObject(it, sample, P, V, eye, t){
+  const o = it.obj; if(t > o.grow) return;
+  const add = [], N2 = ON3*ON3;
+  for(let j = 0; j < 48; j++) for(let i = 0; i < 64; i++){
+    const x = (i + 0.5)/64, y = (j + 0.5)/48, d = sample(x, y);
+    if(!(d > 0.15 && d < 6)) continue;
+    const p = xformP(V, [(2*x - 1)/P[0]*d, (1 - 2*y)/P[5]*d, -d]);
+    const v = voxOf(o.org, p); if(v < 0 || o.vox[v]) continue;
+    const ix = v % ON3, iy = ((v / ON3) | 0) % ON3, iz = (v / N2) | 0;
+    let near = false;
+    for(let dz = -2; dz <= 2 && !near; dz++) for(let dy = -2; dy <= 2 && !near; dy++) for(let dx = -2; dx <= 2; dx++){
+      const a = ix + dx, b = iy + dy, c = iz + dz; if(a < 0 || b < 0 || c < 0 || a >= ON3 || b >= ON3 || c >= ON3) continue;
+      if(o.vox[(c*ON3 + b)*ON3 + a] === 255){ near = true; break; }
+    }
+    if(near && objAccepts(o, p, d)) add.push(v);
+  }
+  if(!add.length) return;
+  for(const v of add) o.vox[v] = 255;
+  o.n += add.length;
+  gl.activeTexture(gl.TEXTURE0 + OBJ_UNIT); gl.bindTexture(gl.TEXTURE_3D, o.tx);
+  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+  gl.texSubImage3D(gl.TEXTURE_3D, 0, 0, 0, 0, ON3, ON3, ON3, gl.RED, gl.UNSIGNED_BYTE, o.vox);
+  gl.activeTexture(gl.TEXTURE0);
+}
+function drawObject(it, P, Vw, a){
+  if(!oprog.poll() || !dep.on) return;
+  const o = it.obj;
+  gl.useProgram(oprog.p);
+  bindDepth(oprog);
+  setU(oprog, 'uInvP', M4.inv(P)); setU(oprog, 'uInvV', M4.inv(Vw)); setU(oprog, 'uProj', o.proj);
+  setU(oprog, 'uOrg', o.org); setU(oprog, 'uPEye', o.eye); setU(oprog, 'uSpan', OSPAN);
+  setU(oprog, 'uA', a); setU(oprog, 'uAdd', wallLight ? 1 : 0);
+  gl.activeTexture(gl.TEXTURE0 + OBJ_UNIT); gl.bindTexture(gl.TEXTURE_3D, o.tx); setU(oprog, 'uVox', OBJ_UNIT);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, it.tgt.tx); setU(oprog, 'uTx', 0);
+  useBuf(tri); gl.drawArrays(gl.TRIANGLES, 0, 3);
+}
+// Depth samplers for capture and growth: the phone's depth map, or the
+// preview's synthetic one.
+function xrSampler(frame, view){
+  if(!session || session.depthUsage !== 'cpu-optimized') return null;
+  let di; try{ di = frame.getDepthInformation(view); }catch(e){ return null; }
+  if(!di) return null;
+  return (x, y) => { try{ return di.getDepthInMeters(x, y); }catch(e){ return 0; } };
+}
+const fakeSampler = (x, y) => fakeBuf[Math.min(FAKE_H - 1, Math.floor(y*FAKE_H))*FAKE_W + Math.min(FAKE_W - 1, Math.floor(x*FAKE_W))];
+
 // ---------------------------------------------------------------- UI
 const status = html => { $('status').innerHTML = html; };
 let session = null, refSpace = null, hitSrc = null, lastHit = null, lastAim = null, xrLayer = null;
@@ -1211,6 +1443,8 @@ $('btnFit').onclick = () => {
 $('btnLook').onclick = () => { wallLight = !wallLight; $('btnLook').textContent = 'Wall: ' + (wallLight ? 'Light' : 'Solid'); $('btnLook').classList.toggle('on', wallLight); };
 $('btnQ').onclick = () => { quality = (quality + 1) % QUALS.length; $('btnQ').textContent = 'Q: ' + QUALS[quality].n; if(session) applyScale(); };
 $('btnMic').onclick = micToggle;
+$('btnKind').onclick = () => { tapKind = tapKind === '3d' ? '2d' : '3d'; corners = []; updateDone();
+  $('btnKind').textContent = 'Tap: ' + tapKind.toUpperCase(); $('btnKind').classList.toggle('on', tapKind === '2d'); };
 $('btnGlow').onclick = () => { glowOn = !glowOn; $('btnGlow').textContent = 'Glow: ' + (glowOn ? 'On' : 'Off'); $('btnGlow').classList.toggle('on', glowOn); };
 $('btnUndo').onclick = () => { if(corners.length){ corners.pop(); updateDone(); return; } const it = items.pop(); if(it) dropItem(it); };
 $('btnDone').onclick = () => finishShape();
@@ -1252,6 +1486,7 @@ async function startAR(){
   hitSrc = await session.requestHitTestSource({space:viewer});
   session.addEventListener('select', () => {
     if(lastAim && lastAim.inOpening){ fillOpening(); return; }
+    if(tapKind === '2d'){ pendingObj = {}; return; }
     if(!lastHit){ status('No surface yet: move the phone slowly so it can see the room.'); return; }
     const M = lastHit.M;
     if(measure === 'corners'){
@@ -1259,6 +1494,7 @@ async function startAR(){
       updateDone();
       return;
     }
+    if(M[5] <= 0.75){ status('3D fractals stand on flat surfaces. Aim at a table or the floor, or switch to <b>Tap: 2D</b>.'); return; }
     const anchor = lastHit.res && lastHit.res.createAnchor ? lastHit.res.createAnchor() : null;
     place(M, lastHit.eye, anchor, lastHit.pe);
   });
@@ -1433,6 +1669,16 @@ function xrFrameBody(frame, s){
   }
 
   readPlanes(frame, t);
+  if(pendingObj){
+    pendingObj = null;
+    const v0 = pose.views[0], smp = xrSampler(frame, v0);
+    if(smp) captureObject(smp, v0.projectionMatrix, v0.transform.matrix, eye, t);
+    else status('Mapping onto objects needs depth sensing, which is not on for this phone.');
+  }
+  if(scanN % 3 === 0 && items.some(it => it.obj && t < it.obj.grow)){
+    const v0 = pose.views[0], smp = xrSampler(frame, v0);
+    if(smp) for(const it of items) if(it.obj) growObject(it, smp, v0.projectionMatrix, v0.transform.matrix, eye, t);
+  }
   if(scanN % 2 === 0) surfEvidence(frame, pose.views[0], eye, t);
   fitItems();
   const marks = [];
@@ -1463,6 +1709,8 @@ function xrFrameBody(frame, s){
       if(inOpen){
         const o = opening;
         status(`Opening found, ${(o.r1 - o.r0).toFixed(2)} × ${(o.u1 - o.u0).toFixed(2)} m: <b>tap to fill it with ${S2[+$('sel2').value].name}</b>`);
+      } else if(tapKind === '2d'){
+        if(!items.length || t - items[items.length-1].born > 7) status(`Tap to map <b>${S2[+$('sel2').value].name}</b> onto whatever you are aiming at`);
       } else if(measure === 'corners'){
         const k = corners.length;
         status(k === 0 ? 'Tap points around the <b>edge</b> of the table or wall: corners, curves, as many as you like'
@@ -1472,7 +1720,7 @@ function xrFrameBody(frame, s){
         const r = pe ? polyFit(pe.poly).r : 0, fits = fitMode && pe;
         status(horizontal
           ? (fits ? `Tap to fill this surface with <b>${S3[+$('sel3').value].name}</b> (${fitSize3(r).toFixed(2)} m so far)` : `Tap to grow <b>${S3[+$('sel3').value].name}</b> here`)
-          : (fits ? `Tap to cover this wall with <b>${S2[+$('sel2').value].name}</b>` : `Tap to hang <b>${S2[+$('sel2').value].name}</b> here`));
+          : `3D fractals stand on flat surfaces. Switch to <b>Tap: 2D</b> to map a field onto this`);
       }
     }
   }
@@ -1552,6 +1800,8 @@ function prevFrame(){
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   const P = M4.persp(1.0, w/h, 0.02, 50), Vw = M4.lookAt(eye, at, [0,1,0]);
   fakeDepth(P, M4.inv(Vw));
+  if(pendingObj){ const po = pendingObj; pendingObj = null; captureObject(fakeSampler, P, M4.inv(Vw), eye, t, po.sx ?? 0.5, po.sy ?? 0.5); }
+  for(const it of items) if(it.obj) growObject(it, fakeSampler, P, M4.inv(Vw), eye, t);
   drawView(P, Vw, eye, [0, 0, w, h], t, [], null, true);
 }
 $('btnPreview').onclick = startPreview;
@@ -1563,7 +1813,7 @@ $('btnPreview').onclick = startPreview;
   if(ok){ b.disabled = false; b.textContent = 'Start AR'; b.onclick = startAR; }
   else { b.textContent = 'AR not supported here'; if(!window.isSecureContext) $('splashMsg').textContent = 'AR needs HTTPS (or localhost). Open this page from the hosted site.'; }
 })();
-window.__ar = {items, progCache, S3, S2, dbg, placePoly, triangulate, dep, setCamFlip:v => { camFlip = !!v; }};
+window.__ar = {items, progCache, S3, S2, dbg, placePoly, triangulate, dep, mapAt:(sx, sy) => { pendingObj = {sx, sy}; }, setCamFlip:v => { camFlip = !!v; }};
 })();
 </script>
 </body></html>
