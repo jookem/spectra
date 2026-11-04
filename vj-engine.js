@@ -17,9 +17,18 @@ uniform float uBokeh;
 uniform float uDofDepth;
 // Depth for the flat families, read off the finished frame: brightness is
 // height. uDepth is the amount (0 = off), uDMode picks how it is shown
-// (0 relief, 1 parallax bands, 2 terrain flyover), uDTilt is the gyro plane
-// tilt so the pad steers the light, the layers and the flight.
+// (0 relief, 1 parallax bands, 2 terrain flyover, 3 Z: the field pulled out
+// toward the viewer and back), uDTilt is the gyro plane tilt so the pad steers
+// the light, the layers and the flight.
 uniform float uDepth,uDMode;
+// Where the viewer is, from AR head tracking: x right and y up (about -0.5..0.5
+// at the edges of the camera's view), z how far they have leaned in (log of the
+// face's size against where it started). uViewOn is 1 while a head is tracked.
+// Z traces the field from an eye at that spot, so the screen is a window.
+uniform vec3 uView; uniform float uViewOn;
+// Z: phase of the wave that carries bands of the field toward the viewer,
+// integrated on the host from Speed and the beat so it never jumps.
+uniform float uZPh;
 // Terrain flight distance, integrated on the host so it holds still with Auto
 // off and never jumps when the speed changes.
 uniform float uTerrZ;
@@ -102,6 +111,17 @@ vec4 bumpT(vec3 n,vec3 p,float wl,float px,float k){
   return vec4(normalize(n-g*k),h0);
 }
 // Parallax height: continuous, from a mip-2/3 blend of the frame.
+// Z height, -1 (back) .. 1 (out toward the viewer), from one coarse read of
+// the frame. Dark space sits back; anything lit rides a wave over brightness
+// and distance from the middle, so successive bands of the fractal rise and
+// fall in turn, and the beat lifts the bright parts forward.
+float ZH(vec2 p){
+  vec2 m=MR(p);
+  float l=mix(dot(textureLod(uScene,m,2.5).rgb,vec3(0.2126,0.7152,0.0722)),dot(textureLod(uScene,m,4.0).rgb,vec3(0.2126,0.7152,0.0722)),0.6);
+  float on=smoothstep(0.02,0.2,l);
+  float w=sin(6.2831853*(l*1.1-uZPh)+length(p-0.5)*4.0);
+  return mix(-0.7, clamp(w*0.75+l*0.35+uBeat*0.3*l-0.1,-1.0,1.0), on);
+}
 float PH(vec2 p){ vec2 m=MR(p); float a=mix(dot(textureLod(uScene,m,2.0).rgb,vec3(0.2126,0.7152,0.0722)),dot(textureLod(uScene,m,3.5).rgb,vec3(0.2126,0.7152,0.0722)),0.5); return a*a*(3.0-2.0*a); }
 void main(){
   vec2 uv=gl_FragCoord.xy/uRes;
@@ -115,7 +135,7 @@ void main(){
     // Parallax occlusion over a continuous height: view ray stepped down
     // through the height volume, refined between the last two steps, so the
     // surface slides without bands or tears. Driven by tilt plus a slow sway.
-    vec2 dir=(uDTilt*1.2+vec2(sin(uTime*0.21),cos(uTime*0.16))*0.55)*0.14*dA;
+    vec2 dir=(uDTilt*1.2+vec2(sin(uTime*0.21),cos(uTime*0.16))*0.55*(1.0-uViewOn*0.8)+uView.xy*2.4)*0.14*dA;
     const int NS=24; float stp=1.0/float(NS);
     float lay=1.0, hPrev=0.0, hCur=PH(uv), lPrev=1.0; vec2 p=uv;
     for(int i=0;i<NS;i++){ if(hCur>=lay) break; lPrev=lay; hPrev=hCur; lay-=stp; p=uv-dir*(1.0-lay); hCur=PH(p); }
@@ -135,11 +155,53 @@ void main(){
     pcol*=mix(1.0,(0.45+0.75*h)*(0.55+0.45*sh),dA);
     plx=true;
   }
-  if(dOn && uDMode>1.5){
+  bool zsp=false; vec3 zcol=vec3(0.0);
+  if(dOn && uDMode>2.5){
+    // Z: the field as a height map seen through the screen. Bands of the
+    // fractal, picked by brightness, are carried toward the viewer and back by
+    // a slow wave (the beat pushes them forward), and dark space sits behind.
+    // Each pixel's ray leaves an eye in front of the screen, so a head-tracked
+    // viewer who steps aside or up sees round the raised parts, as through a
+    // window; without tracking the eye sways a little on its own.
+    float ar=uRes.x/uRes.y; vec2 asp=vec2(ar,1.0);
+    vec2 sw=vec2(sin(uTime*0.19),cos(uTime*0.14))*0.10*(1.0-uViewOn);
+    vec3 E=vec3(uView.x*0.9*ar+sw.x+uDTilt.y*0.25, uView.y*0.8+sw.y+uDTilt.x*0.25, 1.7*exp(-clamp(uView.z,-0.7,0.7)*0.9));
+    vec3 S=vec3((uv-0.5)*asp,0.0), rd=normalize(S-E);
+    float H=0.03+0.17*dA;
+    const int NZ=32;
+    float t0=(H-E.z)/rd.z, t1=(-H-E.z)/rd.z, dt=(t1-t0)/float(NZ);
+    float t=t0, tp=t0; bool hit=false;
+    for(int i=0;i<=NZ;i++){
+      vec3 p=E+rd*t;
+      if(p.z<=ZH(p.xy/asp+0.5)*H){ hit=true; break; }
+      tp=t; t+=dt;
+    }
+    if(!hit) t=t1;
+    for(int k=0;k<5;k++){ float tm=0.5*(tp+t); vec3 p=E+rd*tm; if(p.z<=ZH(p.xy/asp+0.5)*H) t=tm; else tp=tm; }
+    vec3 p=E+rd*t; vec2 tc=p.xy/asp+0.5;
+    float h=ZH(tc);
+    vec2 ex=vec2(3.0/uRes.y)/asp*2.0;
+    float hx=(ZH(tc+vec2(ex.x,0.0))-ZH(tc-vec2(ex.x,0.0)))*H/(ex.x*2.0*ar);
+    float hy=(ZH(tc+vec2(0.0,ex.y))-ZH(tc-vec2(0.0,ex.y)))*H/(ex.y*2.0);
+    vec3 n=normalize(vec3(-hx,-hy,1.0));
+    // Walls (where the field climbs steeply) would show the frame stretched
+    // along the ray; they take a softer read and fall into shade instead.
+    float wall=1.0-smoothstep(0.12,0.5,n.z);
+    vec3 alb=mix(texture(uScene,MR(tc)).rgb, textureLod(uScene,MR(tc),3.0).rgb*0.6, wall);
+    // Light from above and in front of the viewer, so what comes forward
+    // catches it and what falls back goes into shade.
+    vec3 ld=normalize(vec3(-0.35,0.55,0.75)+vec3(uView.xy,0.0)*0.6);
+    float df=max(dot(n,ld),0.0);
+    float sp=pow(max(dot(n,normalize(ld-rd)),0.0),36.0);
+    float near=clamp(h*0.5+0.5,0.0,1.0);
+    zcol=alb*(0.55+0.7*df)*mix(0.7,1.2,near)+sp*(0.2+uBeat*0.5)*near;
+    zsp=true;
+  }
+  if(dOn && uDMode>1.5 && uDMode<2.5){
     // Terrain: the frame laid flat as a height field (mirror-tiled so it never
     // ends) and flown over. The scene keeps animating underneath.
     float ar=uRes.x/uRes.y; vec2 q=(uv-0.5)*vec2(ar,1.0);
-    float pit=0.42+uDTilt.x*0.35, yaw=uDTilt.y*0.7;
+    float pit=0.42+uDTilt.x*0.35-uView.y*0.6, yaw=uDTilt.y*0.7+uView.x*1.1;
     // Bank into the turn.
     float bk=-uDTilt.y*0.28; q=mat2(cos(bk),-sin(bk),sin(bk),cos(bk))*q;
     vec3 rd=normalize(vec3(q.x,q.y-pit,1.15));
@@ -323,6 +385,7 @@ void main(){
   }
   if(terr) col=mix(col,tcol,smoothstep(0.0,0.12,dA));
   if(plx) col=mix(col,pcol,smoothstep(0.0,0.12,dA));
+  if(zsp) col=mix(col,zcol,smoothstep(0.0,0.12,dA));
   // Shallow focal plane. A macro lens on something this small holds only a
   // narrow band sharp, and that limit is most of why a fractal photograph reads
   // as an object in space rather than a plot.
@@ -512,6 +575,13 @@ uniform float uZRot;
 // and the rest of the frame is empty exterior. The sweep still spans exactly
 // uZRat octaves whatever this is, so moving the start does not touch the wrap.
 uniform float uZBase;
+// Whole-figure frame of a field scene, from the host: xy the figure's center,
+// z the octave the bounded slider opens at (0 = the scene keeps its own
+// framing). Zoom 0 shows the whole figure; turning it up glides the frame
+// onto the detail center (uCtr) and down to the same deepest octave as before.
+uniform vec3 uFHome;
+float fhEx(float zt, float e0){ return uFHome.z>0.0 ? uFHome.z+zt*(e0+6.4-uFHome.z) : e0+zt*6.4; }
+vec2 fhCtr(vec2 c, float ex){ return uFHome.z>0.0 ? mix(uFHome.xy, c, smoothstep(uFHome.z+0.3, uFHome.z+2.4, ex)) : c; }
 // Translucency on the raymarched families. Detail was the slider here and it
 // barely moved the picture: on a distance-estimated surface the iteration count
 // stops changing the silhouette after about eight, and the march step count
@@ -568,6 +638,8 @@ uniform float uFill;
 // Exterior structure on the escape-time families. 0 off, 1 field grid (external
 // rays + flowing equipotential shells), 2 orbit traces, 3 both.
 uniform float uField;
+// Tiles on the open field (1 on): see esc_shade.
+uniform float uTile;
 // Line view on the 2D escape-time sets: 0 off, else the outline is drawn as one
 // glowing line this many render pixels out from the set (distance estimate
 // iso-contour). Small = hugs every filament, large = one smooth single line.
@@ -1085,6 +1157,40 @@ vec3 esc_shade(float i,float maxi,float m,vec2 z,vec2 dz,float st,float sn,float
   // chroma goes up keeps the band inside the knee, so a hot band turns redder
   // instead of turning white.
   col=mix(col,clamp(lm*0.90,0.0,1.0)+(col-lm)*1.26,max(fillw,jw*0.8));
+  // Tiles. The open field far from the set is where the bands stretch into
+  // flat washes, and it carries two coordinates of its own: the escape band
+  // (the smooth count) and the external angle of the escaped orbit, which
+  // doubles from one band to the next. Cut every band into angle sectors and
+  // the field becomes the hyperbolic mosaic those two draw: tiles that halve
+  // as they near the set, with the field lines along their seams. Each tile is
+  // a raised plate lit along its bevels, alternate tiles step in tone and hue,
+  // a ring sits in each one and swells on the bass, and the seams glow in the
+  // accent. Faded out where tiles shrink under a few pixels, so the filigree
+  // at the boundary is left as it was.
+  if(uTile>0.5){
+    const float TN=8.0;
+    float ea=atan(z.y,z.x)/6.2831853+0.5;
+    float aw=min(fwidth(ea),fwidth(fract(ea+0.5)))*TN, vw=fwidth(sm);
+    vec2 cu=vec2(fract(ea*TN),fract(sm)), cid=vec2(floor(ea*TN),floor(sm));
+    float mw=(1.0-smoothstep(0.07,0.28,max(aw,vw)))*fadeHF;
+    vec2 e2=min(cu,1.0-cu);
+    vec2 r=smoothstep(vec2(0.0),vec2(0.17),e2);
+    // Bevels lit in tile space: the outer and leading sides catch the light,
+    // the inner and trailing ones fall into shade.
+    float lit=1.0+0.32*(1.0-r.x)*(cu.x<0.5?1.0:-1.0)+0.42*(1.0-r.y)*(cu.y<0.5?-1.0:1.0);
+    float par=mod(cid.x+cid.y,2.0);
+    // Same color plan as the rest of the shading: alternate tiles step in
+    // value on one hue, lit bevels lean to the accent and shaded ones to its
+    // complement.
+    vec3 tb=mix(col,pal(ph*0.5+uHigh*0.2)*0.42,0.4);
+    float tl=clamp(lit*(0.7+0.3*r.x*r.y),0.0,1.5);
+    vec3 tcol=(mix(cpl*0.06,tb,min(tl,1.0))+acc*max(tl-1.0,0.0)*0.25)*mix(0.55,1.05,par);
+    float rr=0.27+0.07*uBass*uReact, rd=length(cu-0.5);
+    float ring=1.0-smoothstep(0.0,0.035+max(aw,vw)*1.2,abs(rd-rr));
+    float seam=max(1.0-smoothstep(0.0,max(aw*1.5,0.018),e2.x),1.0-smoothstep(0.0,max(vw*1.5,0.018),e2.y));
+    tcol+=acc*(ring*0.30*(0.7+uMid*0.6)+seam*0.40*(0.8+uBeat*0.8));
+    col=mix(col,tcol,mw);
+  }
   // Field grid. The escaped orbit's final angle is the external argument, so
   // slicing it draws the field lines that fan out from every bulb; slicing the
   // smooth count draws equipotential shells that echo the outline outward. The
@@ -3042,6 +3148,9 @@ vec3 esc2at(vec2 uv,int kind,float ex,vec2 ctrIn,float rotAdd,float bud,float ie
   maxi=int(min(float(maxi), mix(400.0,260.0,uSmooth)));
   float i=0.0,m=0.0;
   vec2 dz=vec2(1.0,0.0);
+  // Interior coordinate for Tiles: the orbit's derivative along itself, with
+  // its scale kept in lw so a long contraction never underflows.
+  vec2 dw=vec2(1.0,0.0); float lw=0.0;
   float sf=sfreq(sfScale()), st=0.0, sn=0.0, tr=1e9;
   vec2 pzr=vec2(1e9); float pkr=0.0, pkn=1.0; bool pj=uJewel>0.5; gPer=0.0;
   vec3 tw; float tr0; trapCfg(tw,tr0);
@@ -3080,13 +3189,18 @@ vec3 esc2at(vec2 uv,int kind,float ex,vec2 ctrIn,float rotAdd,float bud,float ie
       vec2 sz=vec2(sin(z.x)*cosh(z.y), cos(z.x)*sinh(z.y));
       vec2 dsz=vec2(cos(z.x)*cosh(z.y), -sin(z.x)*sinh(z.y));
       dz=cmul(c,cmul(dsz,dz));
+      dw=cmul(c,cmul(dsz,dw));
       z=cmul(c,sz);
     } else {
       if(kind==3) z=mix(z,abs(z),fold);
       if(kind==3) z.y=-z.y;
       dz=2.0*cmul(z,dz)+(kind==0?vec2(1.0,0.0):vec2(0.0));
+      // The Mandelbrot's orbit starts at 0, where the factor would zero the
+      // product for good; its first step is skipped.
+      if(k>0 || kind!=0) dw=2.0*cmul(z,dw);
       z=vec2(z.x*z.x-z.y*z.y,2.0*z.x*z.y)+c;
     }
+    { float qw=dot(dw,dw); if(qw<1e-16){ dw*=1e8; lw-=18.420681; } else if(qw>1e16){ dw*=1e-8; lw+=18.420681; } }
     m=dot(z,z);
     float ang=atan(z.y,z.x), lz=sqrt(m);
     float sv=0.5+0.5*sin(sf*ang); st=st*odk+sv; sn=sn*odk+1.0; gStL=sv;
@@ -3099,6 +3213,68 @@ vec3 esc2at(vec2 uv,int kind,float ex,vec2 ctrIn,float rotAdd,float bud,float ie
   float ish = dp ? max(i-uDeepBase,0.0) : i;
   float msh = dp ? max(uDeepShade-uDeepBase,32.0) : float(maxi);
   vec3 outc = inside ? esc_in(tr,st,sn,dz,msh) : esc_shade(ish,msh,m,z,dz,st,sn,tr);
+  // Tiles inside the set. Every point of a bulb is drawn onto the same
+  // attracting cycle, and the orbit's mean contraction per step (rho, the log
+  // of its derivative along itself over the steps taken) runs from 0 on the
+  // bulb's rim to minus infinity at its nucleus: the bulb's own radial
+  // coordinate. Terraces of it are rings centered on each nucleus, flowing
+  // slowly outward, each lit along its bevel with a seam that glows on the
+  // beat. Derivatives are taken here, before any branch on the inside test.
+  if(uTile>0.5 && !dp){
+    float rho=(lw+0.5*log(max(dot(dw,dw),1e-30)))/max(i,1.0);
+    // The bulb's angle. From the point the orbit settled on, step round its
+    // cycle until it comes back, multiplying the derivative on the way: that
+    // product is the cycle's multiplier, and its argument is the internal
+    // angle, constant along spokes from the nucleus to the rim. Only for the
+    // quadratic maps; the bound is kept out of the compiler's reach so the
+    // loop is not unrolled.
+    float ia=0.0; float hasA=0.0;
+    if(inside && (kind==0 || kind==1)){
+      vec2 w=z, lam=vec2(1.0,0.0), lb=vec2(1.0,0.0); float bd=1e9;
+      int PN=48+min(0,int(abs(uTime)));
+      for(int k=1;k<PN;k++){
+        lam=2.0*cmul(w,lam);
+        w=vec2(w.x*w.x-w.y*w.y,2.0*w.x*w.y)+c;
+        float d=dot(w-z,w-z);
+        if(d<bd*0.25 || d<1e-12){ bd=d; lb=lam; if(d<1e-10) break; }
+      }
+      ia=atan(lb.y,lb.x)/6.2831853+0.5; hasA=1.0;
+    }
+    float rv=log2(max(-rho,1e-5))*2.2-uTime*0.10*uSpeed;
+    // Spokes: more of them on the outer terraces, so tiles stay about square
+    // as the rings widen toward the rim.
+    float NS=6.0;
+    float av=ia*NS+uTime*0.03*uSpeed;
+    float rfw=fwidth(rv), afw=min(fwidth(av),fwidth(fract(av+0.5)));
+    float ru=fract(rv), rk=mod(floor(rv),2.0);
+    float rw=(1.0-smoothstep(0.12,0.4,rfw));
+    if(inside){
+      float au=fract(av), ak=mod(floor(av),2.0);
+      float aw2=(1.0-smoothstep(0.1,0.35,afw))*hasA;
+      float rb=min(ru,1.0-ru), ab=min(au,1.0-au);
+      float par=mod(rk+ak*aw2,2.0);
+      // Each tile a rounded plate: lit on its outer and leading bevels, in
+      // shade on the others, so the mosaic reads as carved.
+      float bx=smoothstep(0.0,0.2,rb), by=mix(1.0,smoothstep(0.0,0.2,ab),aw2);
+      float rlit=0.62+0.45*bx*by+0.32*(1.0-bx)*(ru<0.5?-1.0:1.0)+0.25*(1.0-by)*(au<0.5?1.0:-1.0)*aw2;
+      // The shading's color plan: one accent (the light the boundary gives
+      // off) and its complement for shadow. Neighboring tiles step in VALUE,
+      // not hue; the hue only drifts slowly along the ramp toward the nucleus.
+      // Lit bevels lean to the accent, shaded ones to the complement.
+      vec3 iac=pal(0.55+uBass*0.3), icp=comp(iac);
+      vec3 ib=pal(rv*0.035+uHigh*0.2);
+      float val=mix(0.42,0.95,par);
+      float L=clamp(rlit,0.0,1.5);
+      vec3 ic=(mix(icp*0.22,ib,min(L,1.0))+iac*max(L-1.0,0.0)*0.7)*val;
+      // A lens in each tile, swelling on the bass.
+      vec2 tq=vec2(ru-0.5,(au-0.5)*aw2);
+      float lr=0.22+0.06*uBass*uReact, ld=length(tq);
+      ic+=iac*(1.0-smoothstep(0.0,0.04+rfw,abs(ld-lr)))*0.35*aw2*(0.7+uMid*0.6);
+      float seam=max(1.0-smoothstep(0.0,max(rfw*1.5,0.02),rb),(1.0-smoothstep(0.0,max(afw*1.5,0.02),ab))*aw2);
+      ic+=iac*seam*0.5*(0.8+uBeat*0.9);
+      outc=mix(outc,ic,rw);
+    }
+  }
   // Orbit traces. Three seeds slide round the edge of the set and their orbits
   // are drawn on top as glowing polylines, so the empty field carries the
   // dynamics that made the shape. Parameter-plane families seed c on the main
@@ -3161,7 +3337,8 @@ vec3 escape2(vec2 uv,int kind){
   // One path. The Feigenbaum point and its delta, a Julia repelling fixed point
   // and its multiplier, and Sine Lambda's lambda at the origin all arrive as
   // the same three numbers now — see zLoopParams on the host.
-  vec2 anchor=uCtr; float ex=(uMode==7?0.75:2.1)+zt*(uMode==7?7.75:6.4); float rt=0.0; float iex=ex;
+  float ex=uMode==7 ? 0.75+zt*7.75 : fhEx(zt,2.1); float rt=0.0; float iex=ex;
+  vec2 anchor=uMode==7 ? uCtr : fhCtr(uCtr,ex);
   if(lp){ anchor=uZAnc; ex=uZBase+zt*uZRat; rt=-zt*uZRot; iex=uZBase+0.5*uZRat; }
   return esc2at(uv,kind,ex,anchor,rt,1.0,iex);
 }
@@ -3184,11 +3361,11 @@ vec3 escape2b(vec2 uv,int kind){
   // as the same three numbers and costs this program no extra tap.
   bool lp=uZLoop>=0.5;
   float zt=lp ? uZoom-floor(uZoom) : clamp(uZoom,0.0,1.0);
-  float ex=lp ? uZBase+zt*uZRat : 2.1+zt*6.4;
+  float ex=lp ? uZBase+zt*uZRat : fhEx(zt,2.1);
   float iex=lp ? uZBase+0.5*uZRat : ex;
   float sc=2.8*exp2(-ex);
   float pw0=2.0+uMorph*4.0+(uCA-0.5)*1.2+uMid*uReact*0.6;
-  vec2 ctr2 = lp ? uZAnc : uCtr;
+  vec2 ctr2 = lp ? uZAnc : fhCtr(uCtr,ex);
   float rt2 = lp ? -zt*uZRot : 0.0;
   vec2 p=uv*sc*rot(uTime*0.02*uSpeed*uSpin+uCamYaw+rt2)+ctr2+(uPan*rot(rt2))*sc*2.0;
   gPx=max(max(fwidth(p.x),fwidth(p.y)),1e-9);
@@ -3354,7 +3531,7 @@ vec3 escape2c(vec2 uv,int kind){
   // subject is the whole figure, which spans about 1.2 either side of the
   // origin, and the common 2.1-octave start frames a patch a fifth that size.
   float exB = uMode==39 ? 1.0 : 2.1;
-  float ex=lp ? uZBase+zt*uZRat : exB+zt*6.4;
+  float ex=lp ? uZBase+zt*uZRat : fhEx(zt,exB);
   float iex=lp ? uZBase+0.5*uZRat : ex;
   float sc=2.8*exp2(-ex);
   float rt3 = lp ? -zt*uZRot : 0.0;
@@ -3376,7 +3553,7 @@ vec3 escape2c(vec2 uv,int kind){
   // Upright: the time spin is dropped for this scene. A figure whose whole
   // point is its symmetry cannot be rolling.
   float hspin = uMode==39 ? -hth/3.0 : uTime*0.02*uSpeed*uSpin;
-  vec2 ctr3=lp?uZAnc:uCtr;
+  vec2 ctr3=lp?uZAnc:fhCtr(uCtr,ex);
 #if E2C_K==2
   {
     // Zoomed out the figure stays centered; zooming in, the frame glides off the
@@ -4775,19 +4952,19 @@ const PRESETS = [
   {name:'HexKochMosely',grp:'LATT',kind:'3D', mode:42, p:{morph:0.42,detail:0.60,speed:0.6,zoom:0.30,hue:0.45,ca:0.5,cb:0.45,cc:0.2,iter:0.5}},
   {name:'Tesseract',    grp:'LATT', kind:'3D', mode:41, p:{morph:0.45,detail:0.62,speed:0.5,zoom:0.22,hue:0.60,ca:0.5,cb:0.3,cc:0.34,iter:0.5}},
   // 2D escape-time
-  {name:'Mandelbrot',   grp:'FLD', kind:'2D', mode:6,  p:{morph:0.85,detail:0.35,speed:0.6,zoom:0.12,hue:0.2,ca:0.61,cb:0.36,cc:0.71,iter:0.64}},
+  {name:'Mandelbrot',   grp:'FLD', kind:'2D', mode:6,  p:{morph:0.85,detail:0.35,speed:0.6,zoom:0,hue:0.2,ca:0.61,cb:0.36,cc:0.71,iter:0.64}},
   {name:'Julia',        grp:'FLD', kind:'2D', mode:7,  p:{morph:0.5,detail:0.6,speed:1.0,zoom:0.05,hue:0.42,ca:0.2,cb:0.13,cc:0.35,iter:0.64}},
-  {name:'Sine Lambda',  grp:'FLD', kind:'2D', mode:8,  p:{morph:0.08,detail:0.22,speed:0.5,zoom:0.09,hue:0.05,ca:0.9,cb:0.31,cc:0.65,iter:0.33}},
+  {name:'Sine Lambda',  grp:'FLD', kind:'2D', mode:8,  p:{morph:0.08,detail:0.22,speed:0.5,zoom:0,hue:0.05,ca:0.9,cb:0.31,cc:0.65,iter:0.33}},
   {name:'Mirror Tunnel',grp:'TUN', kind:'2D', mode:10, p:{morph:0.55,detail:0.50,speed:1.1,zoom:0.40,hue:0.62,cc:0.3}},
   {name:'Flow',         grp:'TUN', kind:'2D', mode:11, p:{morph:0.42,detail:0.45,speed:1.0,zoom:0.45,hue:0.90,cc:0.5}},
-  {name:'Magnet',       grp:'FLD', kind:'2D', mode:17, p:{morph:0.23,detail:0.81,speed:0.5,zoom:0.26,hue:0.25,ca:0.42,cb:0.69,cc:0.22,iter:0.61}},
-  {name:'Phoenix',      grp:'FLD', kind:'2D', mode:18, p:{morph:0.46,detail:0.14,speed:0.6,zoom:0.3,hue:0.55,ca:0.69,cb:0.31,cc:0.21,iter:0.13}},
-  {name:'Ship Julia',   grp:'FLD', kind:'2D', mode:20, p:{morph:0.67,detail:0.72,speed:0.6,zoom:0.26,hue:0.08,ca:0.49,cb:0.8,cc:0.72,iter:0.85}},
+  {name:'Magnet',       grp:'FLD', kind:'2D', mode:17, p:{morph:0.23,detail:0.81,speed:0.5,zoom:0,hue:0.25,ca:0.42,cb:0.69,cc:0.22,iter:0.61}},
+  {name:'Phoenix',      grp:'FLD', kind:'2D', mode:18, p:{morph:0.46,detail:0.14,speed:0.6,zoom:0,hue:0.55,ca:0.69,cb:0.31,cc:0.21,iter:0.13}},
+  {name:'Ship Julia',   grp:'FLD', kind:'2D', mode:20, p:{morph:0.67,detail:0.72,speed:0.6,zoom:0,hue:0.08,ca:0.49,cb:0.8,cc:0.72,iter:0.85}},
   {name:'Celtic',       grp:'FLD', kind:'2D', mode:21, p:{morph:0.53,detail:0.66,speed:0.5,zoom:0.09,hue:0.45,ca:0.71,cb:0.8,cc:0.81,iter:0.44}},
   {name:'Newton',       grp:'FLD', kind:'2D', mode:19, p:{morph:0.41,detail:0.43,speed:0.45,zoom:0.31,hue:0.62,ca:0.43,cb:0.5,cc:0.2,iter:0.6}},
   {name:'Lyapunov',     grp:'FLD', kind:'2D', mode:37, p:{morph:0.4,detail:0.6,speed:0.4,zoom:0.28,hue:0.3,ca:0.5,cb:0.5,cc:0.3,iter:0.6}},
   {name:'Harmony',      grp:'FLD', kind:'2D', mode:39, p:{morph:0.5,detail:0.6,speed:0.35,zoom:0.02,hue:0.55,ca:0.5,cb:0.5,cc:0.3,iter:0.59}},
-  {name:'Spider',       grp:'FLD', kind:'2D', mode:38, p:{morph:0.35,detail:0.55,speed:0.5,zoom:0.32,hue:0.48,ca:0.5,cb:0.5,cc:0.35,iter:0.55}},
+  {name:'Spider',       grp:'FLD', kind:'2D', mode:38, p:{morph:0.35,detail:0.55,speed:0.5,zoom:0,hue:0.48,ca:0.5,cb:0.5,cc:0.35,iter:0.55}},
   // Synth / audio-reactive shaders
   {name:'Spectrum',     grp:'SYN', kind:'SYN', mode:22, p:{morph:0.3,detail:0.62,speed:0.8,zoom:0.5,hue:0,ca:0.55,cb:0.5,cc:0.3}},
   {name:'Tri Emitter',  grp:'SYN', kind:'SYN', mode:23, p:{morph:0.0,detail:0.55,speed:0.9,zoom:0.45,hue:0,ca:0.5,cb:0.5,cc:0.45}},
