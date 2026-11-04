@@ -87,7 +87,7 @@ class CamFly{
     // popped the fog/glow scale and snapped the pitch.
     const carry=keep?{vs:this.vs||0,scale:this.scale,tilt:this.tilt||0,t:this.t||0,ns:this.ns}:null;
     this.w=keep?(this.w??1):0;this.ret=false;this.needPush=!keep&&!!seed;
-    this.key=mode+':'+scene;this.scene=scene;this.mode=mode;this.t=0;this.dA=null;this.dfar0=dfar;this.sp=null;this.dS=null;this.tilt=0;this.d0=null;this.aim=null;this.go=null;this.tapReq=null;this.pTap=null;this.insp=null;this.safe=null;this.pPos=null;
+    this.key=mode+':'+scene;this.scene=scene;this.mode=mode;this.t=0;this.dA=null;this.dfar0=dfar;this.sp=null;this.dS=null;this.tilt=0;this.d0=null;this.aim=null;this.go=null;this.tapReq=null;this.pTap=null;this.insp=null;this.safe=null;this.pPos=null;this.enc=null;this.outT=0;this.crumbs=null;this.sq=1;this.sw=0;this.stk=0;
     const s=cur||seed||{p:[0,0,-dfar],f:[0,0,1],up:[0,1,0]};
     this.p=s.p.slice();this.f=V.nrm(s.f);this.up=V.nrm(s.up);
     this.scale=dfar*0.12;this.alt=dfar*0.05;this.altMax=dfar*0.05;this.altDir=-1;
@@ -131,6 +131,16 @@ class CamFly{
       }
     }
     this.data={d:v[0],n:V.nrm([v[1]-v[2],v[3]-v[4],v[5]-v[6]]),free:v.slice(7,24),dirs:this.pDirs,e};
+    // Cave: with the eye in the open, pixels 1-6 are rays along the axes (see
+    // render3's probe), since the flipped field gives no distance there. The
+    // nearest wall is the shortest of all 23 rays, and the way off it points
+    // away from the near walls, each weighted by how close it is.
+    if(this.caveOn&&v[0]>=0){
+      const ax=[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]]; let m=Infinity, nn=[0,0,0];
+      for(let i=0;i<6;i++){ const L=Math.max(Math.abs(v[1+i]),1e-6); m=Math.min(m,L); nn=V.sub(nn,V.sc(ax[i],1/(L*L))); }
+      for(const x of this.data.free)m=Math.min(m,Math.abs(x));
+      this.data.d=m; this.data.n=V.len(nn)>1e-12?V.nrm(nn):V.sc(this.f,-1);
+    }
     // The distance at the probed eye bounds a ball of empty space around it;
     // _guard keeps the rendered eye inside that ball (Surface only).
     if(this.pPos){ this.safe={P:this.pPos,dR:v[0]*0.6,n:this.data.n,need:null}; this.pPos=null; }
@@ -174,6 +184,10 @@ class CamFly{
   }
   _update(o){
     const key=o.mode+':'+o.scene;
+    // Cave toggled: the world flips, so every reading and trail is stale. The
+    // pose is kept; if it is now in rock the probe's push carries it out.
+    const cv=!!o.cave&&o.mode===3;
+    if(cv!==!!this.caveOn){ this.caveOn=cv; this.crumbs=null; this.enc=null; this.outT=0; this.sq=1; this.sw=0; this.d0=null; this.dS=null; this.data=null; this.skip=this.fence?1:0; this.aim=null; this.go=null; this.plan=null; }
     { const uc=o.gl&&o.gl.__uc, z=uc&&o.u&&o.u.uZoom?uc.get(o.u.uZoom):0; this.zoom=Math.min(1,Math.max(0,+z||0));
       const rp=uc&&o.u&&o.u.uRep?uc.get(o.u.uRep):0; this.rep=+rp||0; }
     if(key!==this.key)this.reset(o.mode,o.scene,o.dfar,o.gl&&o.prog?orbitPose(o.gl,o.prog,o.u,o.md,o.dfar):null);
@@ -231,7 +245,9 @@ class CamFly{
     // framing distance, so the camera fits the passages inside the body instead
     // of holding off the whole object as a landscape.
     const ins=this.mode===3;
-    const minT=ins?F*0.012:F*(o.rep?0.05:0.1);
+    // In a dead end the corridor scale squeezes down (sq), so passages too
+    // narrow for the normal stand-off become flyable instead of turning back.
+    const minT=ins?F*0.012*(this.sq??1):F*(o.rep?0.05:0.1);
     // Stand-off starts at the clearance the camera entered with and only
     // tightens toward the target, so entry never shoves the camera away.
     this.d0=Math.min(this.d0,Math.max(minT,d*0.98));
@@ -253,12 +269,47 @@ class CamFly{
       // the further out the camera is. A preference among the openings, never a
       // push, so it can't pin the camera against a wall between it and the center.
       const cdir=V.nrm(V.sc(this.p,-1)), kin=ins&&!o.rep?Math.min(4,Math.max(0,(V.len(this.p)/F-0.12)*8)):0;
-      for(let i=0;i<17;i++){const ang=i===0?0:(i<=8?0.45:0.95);const w=Math.pow(Math.max(0,D.free[i]/mx),4)*(1-ang*0.6)*sm2(minD*1.5,minD*4,D.free[i])*(1+kin*Math.max(0,V.dot(D.dirs[i],cdir)));best=V.add(best,V.sc(D.dirs[i],w));ws+=w;fs+=w*D.free[i];}
+      // Inside: a heading whose ray ran the probe's full reach without a hit
+      // leads out of the body into open space. Ranked by raw reach those exits
+      // always won (every passage is shorter than the sky), which is what
+      // carried the camera out into the fog. Here reach is capped at corridor
+      // scale so every flyable passage votes alike, and exits barely vote.
+      let ex=null, cap=mx, wIn=0;
+      if(ins){
+        // In a cave there is no outside to leave: a long ray is just a big chamber.
+        const reach=(D.e/0.15)*40; ex=D.free.map(x=>!this.caveOn&&x>=reach*0.9);
+        const enc=ex.reduce((a,x)=>a+(x?0:1),0)/17;
+        this.enc=this.enc==null?enc:this.enc+(enc-this.enc)*ease(2);
+        // Time spent out of the body (most headings open to the sky).
+        this.outT=this.enc<0.35?(this.outT||0)+dt:Math.max(0,(this.outT||0)-dt*2);
+        // Breadcrumbs: points along the way where the camera was enclosed,
+        // so leaving the body leads back the way it came in.
+        if(this.enc>0.6){ const cr=this.crumbs||(this.crumbs=[]), L=cr[cr.length-1]; if(!L||V.len(V.sub(L,this.p))>F*0.02){ cr.push(this.p.slice()); if(cr.length>64)cr.shift(); } }
+        cap=Math.max(minD*10,F*0.03);
+      }
+      for(let i=0;i<17;i++){const ang=i===0?0:(i<=8?0.45:0.95);const fr=ins?Math.min(D.free[i],cap):D.free[i];const w=Math.pow(Math.max(0,fr/cap),ins?2:4)*(1-ang*0.6)*sm2(minD*1.5,minD*4,D.free[i])*(1+kin*Math.max(0,V.dot(D.dirs[i],cdir)))*(ins&&ex[i]?0.03:1);if(ins&&!ex[i])wIn+=w;best=V.add(best,V.sc(D.dirs[i],w));ws+=w;fs+=w*D.free[i];}
       best=V.len(best)>1e-6?V.nrm(best):D.dirs[0];
       // A hole only counts when it is wide enough to fly through; a narrow
       // crack is treated as wall and the camera is pushed off the surface.
       const holeOk=d>Math.max(F*0.004,minD*0.25);
-      if(d<minD*2&&!(holeOk&&D.free[0]>d*6)){best=V.nrm(V.add(best,V.sc(n,1.5*(minD*2-d)/(minD*2))));}
+      // Inside and boxed in: no passage among the headings. Backing off the
+      // wall along its normal is what panned the view away from the fractal.
+      // Instead the stand-off squeezes and the heading swings sideways, toward
+      // the more open side, so the probe sees round the corner.
+      const dead=ins&&wIn<1e-4&&(this.outT||0)<0.4;
+      if(ins){
+        if(dead){ this.stk=(this.stk||0)+dt; this.sq=Math.max(0.3,(this.sq??1)-dt*0.25);
+          if(!this.sw){ const r0=V.nrm(V.cross(this.up,this.f)); let s=0; for(let i=1;i<17;i++)s+=V.dot(D.dirs[i],r0)*Math.min(D.free[i],cap); this.sw=s>=0?1:-1; }
+          best=V.nrm(rotAround(this.f,this.up,this.sw*1.1));
+        } else { this.stk=0; this.sw=0; this.sq=Math.min(1,(this.sq??1)+dt*0.05); }
+        // Out of the body: head back to a crumb a few steps behind the exit
+        // (or the center, before the camera has been inside), and walk the
+        // trail back until it is enclosed again.
+        if((this.outT||0)>0.4){ const cr=this.crumbs, H=cr&&cr.length?cr[Math.max(0,cr.length-5)]:[0,0,0];
+          best=V.nrm(V.add(best,V.sc(V.nrm(V.sub(H,this.p)),Math.min(6,(this.outT-0.4)*3))));
+          if(cr&&cr.length>1&&V.len(V.sub(H,this.p))<F*0.015)cr.splice(Math.max(1,cr.length-5),1); }
+      }
+      if(!dead&&d<minD*2&&!(holeOk&&D.free[0]>d*6)){best=V.nrm(V.add(best,V.sc(n,(ins?0.6:1.5)*(minD*2-d)/(minD*2))));}
       if(!o.rep&&V.len(this.p)>F*0.9){const back=V.nrm(V.sc(this.p,-1));best=V.nrm(V.add(best,V.sc(back,Math.min(8,(V.len(this.p)/F-0.9)*6))));}
       const r=V.nrm(V.cross(this.up,this.f)),u=V.cross(this.f,r);
       this.tf=V.nrm(V.add(this.tf,V.sc(V.sub(best,this.tf),ease(0.35))));
@@ -634,7 +685,7 @@ class CamFly{
     if(!this.sp)return false;
     const dt=Math.min(0.1,Math.max(0,o.dt||0));
     const tgt=orbitPose(o.gl,o.prog,o.u,o.md,o.dfar); if(!tgt){this.w=0;return false;}
-    this.ret=true;
+    this.ret=true; this.caveOn=false;
     this.w=Math.max(0,(this.w||0)-dt/3);
     // Target is the eye Orbit actually renders: its pose backed off by the
     // clearance push measured at entry. apply() hands the shader's own push
@@ -690,6 +741,8 @@ class CamFly{
     gl.uniform3f(u.uCamF,B.f[0],B.f[1],B.f[2]);gl.uniform3f(u.uCamR,B.r[0],B.r[1],B.r[2]);gl.uniform3f(u.uCamU,B.u[0],B.u[1],B.u[2]);
     gl.uniform1f(u.uCamScale,Math.max(this.scale,1e-6));
     if(u.uCamFog)gl.uniform1f(u.uCamFog,this.fogS||0);
+    // Cave skin: a fixed sliver of the framing distance, steady so walls never move.
+    if(u.uCave)gl.uniform1f(u.uCave,this.caveOn&&!this.ret?(this.dfar0||5)*0.002:0);
     this.applyTgt(gl,u,P);
   }
   // Target highlight in the scene: x,y,z the point, w its radius; K = strength,

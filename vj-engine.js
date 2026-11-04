@@ -484,6 +484,13 @@ float tgtSel(bool hit,vec3 p,float Rg){ if(!hit) return 0.0; if(uRep<=0.0) retur
   vec3 a=floor(p/uRep+0.5), b=floor(uTgt.xyz/uRep+0.5); return all(equal(a,b))?1.0:0.0; }
 // Fog / reach length for the inside views (host-smoothed open space).
 uniform float uCamFog;
+// Cave (View Inside, toggled): the distance field is flipped so the fractal's
+// solid is open space and the air around it is rock. The value is the wall's
+// skin thickness (0 off). Inside a solid most estimators are unsigned (they
+// read about 0, not minus the depth), so the flipped field there is only a
+// floor: the marches below step at least a fixed share of the corridor scale
+// through it and find walls by the sign change, not by the field shrinking.
+uniform float uCave;
 vec4 gProbe=vec4(0.0);
 // Probe pixel 25: the target color, so the host's marker ring matches it.
 vec4 gProbeC=vec4(0.0);
@@ -2249,10 +2256,15 @@ vec3 render3(vec2 uv){
     // One map() call site for both probe kinds: every call site is a full
     // inlined copy of the estimator, and compile time scales with the count.
     int px=int(gl_FragCoord.x); float tq=0.0, v=0.0;
-    vec3 po=uCamPos, dv=uCamF; bool pt=px<7;
+    vec3 po=uCamPos, dv=uCamF; bool pt=px<7, cav=uCave>0.0, rk=false;
+    vec3 o=vec3(0.0);
     if(pt){
-      vec3 o=px==0?vec3(0.0):px==1?vec3(1,0,0):px==2?vec3(-1,0,0):px==3?vec3(0,1,0):px==4?vec3(0,-1,0):px==5?vec3(0,0,1):vec3(0,0,-1);
-      po=uCamPos+o*uCamScale*0.15;
+      o=px==0?vec3(0.0):px==1?vec3(1,0,0):px==2?vec3(-1,0,0):px==3?vec3(0,1,0):px==4?vec3(0,-1,0):px==5?vec3(0,0,1):vec3(0,0,-1);
+      // Cave: the flipped field says nothing about distance in the open, so
+      // the axis pixels march rays along the axes instead (the host takes the
+      // nearest wall and its side from them). Eye in rock: they fall back to
+      // field samples one offset away, for the gradient that leads out.
+      if(cav) dv=o; else po=uCamPos+o*uCamScale*0.15;
     } else {
       int k=px-7;
       // pixel 24: the tapped ray, for travel-to-point. length(uCamTap)-1 is
@@ -2264,7 +2276,11 @@ vec3 render3(vec2 uv){
     // Same 40-step loop as before for every pixel: a longer constant bound is
     // unrolled by some Windows drivers and multiplied the compile time.
     bool tp=px==24; float maxL=uCamScale*(tp?400.0:40.0), t=tp?max(length(uCamTap)-1.0,0.0):0.0; bool cv=false;
-    for(int s=NZERO;s<40;s++){ float h=map(po+dv*t,tq); if(pt){ t=h; cv=true; break; } if(h<(tp?max(t,uCamScale)*0.0015:maxL*0.003)){ cv=true; break; } t+=h*(tp?0.9:0.8); if(t>maxL){t=maxL;cv=true;break;} }
+    for(int s=NZERO;s<40;s++){ float h=map(po+dv*t,tq);
+      if(pt&&cav&&px>0){ if(rk){ t=h; cv=true; break; } if(s==0&&h<0.0){ rk=true; po+=o*uCamScale*0.15; continue; } }
+      else if(pt){ t=h; cv=true; break; }
+      if(cav){ if(h<0.0){ cv=true; break; } t+=max(h,t*0.05+uCamScale*0.15); if(t>maxL){t=maxL;cv=true;break;} continue; }
+      if(h<(tp?max(t,uCamScale)*0.0015:maxL*0.003)){ cv=true; break; } t+=h*(tp?0.9:0.8); if(t>maxL){t=maxL;cv=true;break;} }
     v=(tp&&!cv)?-max(t,1e-9):t;
     gProbe=vec4(v,0.0,0.0,0.0); return vec3(0.0);
   }
@@ -2485,6 +2501,9 @@ vec3 render3(vec2 uv){
   // the eye on the plane every ray started inside it and the frame filled.
   // Now only rays near level stay in it that far, which draws the horizon line.
   float iBw=max(uCamScale,1e-5)*0.22;
+  // Cave march state: the last step, and the bracket round a wall crossing
+  // (cLo in the open, cHi in rock) once one is found.
+  bool cav=fc&&uCave>0.0; float cStp=0.0, cLo=-1.0, cHi=0.0, cMin=max(uCamScale,1e-5)*0.2;
   for(int i=NZERO;i<256;i++){
     if(i>=steps) break;
     p=ro+rd*d;
@@ -2497,9 +2516,9 @@ vec3 render3(vec2 uv){
     // the approach. Once the march continues through the body h sits at zero,
     // so leaving this unguarded added a twelfth of a unit per interior step and
     // the object went to white. It only accumulates before the first hit.
-    if(!hit) glow+=exp(-(uRep>0.0?min(gDR,1e3):h)*22.0/(fc?mix(1.0,uCamScale*3.0,cw):1.0))*0.012;
+    if(!hit&&!cav) glow+=exp(-(uRep>0.0?min(gDR,1e3):h)*22.0/(fc?mix(1.0,uCamScale*3.0,cw):1.0))*0.012;
     if(fc){
-      float tr=exp(-d/iFog), ah=abs(h);
+      float tr=exp(-d/iFog), ah=cav?max(h,cMin):abs(h);
       float py=uRep>0.0?p.y-uRep*floor(p.y/uRep+0.5):p.y;
       band+=ah*relax*exp(-abs(py)/iBw)*tr*smoothstep(iBw*6.0,iBw*20.0,d)/iBw;
       float gw=exp(-ah*6.0/max(uCamScale,1e-5))*tr;
@@ -2507,6 +2526,19 @@ vec3 render3(vec2 uv){
       hst=float(i);
     }
     float eps = max(pxw*d*epsK, fc?max(uCamScale*2e-3,1e-6):2.0e-5);
+    if(cav){
+      // Walls by sign change: step through the open at no less than cMin, and
+      // once a step lands in rock, halve the bracket until it is within eps.
+      if(cLo>=0.0){ if(h<0.0) cHi=d; else cLo=d; }
+      else if(h<0.0){ if(i==0){ hit=true; hp=p; htrap=trap; hd=d; break; } cLo=d-cStp; cHi=d; }
+      if(cLo>=0.0){
+        if(cHi-cLo<eps*2.0){ hit=true; hp=ro+rd*cHi; htrap=trap; hd=cHi; hlv=gLv; hlvN=gLvN; break; }
+        d=(cLo+cHi)*0.5; continue;
+      }
+      cStp=max(h*relax,cMin+d*0.004); d+=cStp;
+      if(d>max(uCamScale*60.0,uCamFog*40.0)) break;
+      continue;
+    }
     float rt = h/eps;
     if(rt<minr){ minr=rt; mind=d; mtrap=trap; }
     if(h<eps){ hit=true; hp=p; htrap=trap; hd=d; hlv=gLv; hlvN=gLvN; break; }
@@ -5081,7 +5113,7 @@ const _mapFor = m => _normFor(m).def + 'float mapG(vec3 p,out float trap){\n  tr
   // third of the cells, and a small color shift. All are isometries or a
   // uniform scale, so the distance stays valid; the cap at the cell wall stops
   // a step from carrying the ray into a neighbor that is turned differently.
-  + 'float map(vec3 p,out float trap){\n  vec3 pq=p; float ks=1.0, bnd=1e9, csh=0.0;\n  if(uRep>0.0){\n    vec3 cid=floor(p/uRep+0.5); vec3 lp=p-cid*uRep;\n    vec3 hr=fract(sin(vec3(dot(cid,vec3(127.1,311.7,74.7)),dot(cid,vec3(269.5,183.3,246.1)),dot(cid,vec3(113.5,271.9,124.6))))*43758.5453);\n    bnd=uRep*0.5-max(abs(lp.x),max(abs(lp.y),abs(lp.z)));\n    pq=lp;\n    pq.xz*=rot(hr.x*6.2831853*uRepV.y); pq.xy*=rot((hr.y-0.5)*1.4*uRepV.y);\n    if(hr.z<0.33*uRepV.y) pq.x=abs(pq.x);\n    ks=mix(clamp(uRepV.x,0.08,1.0),1.0,pow(fract(hr.y*7.13+hr.z),1.3)); pq-=(fract(hr.zxy*vec3(5.3,8.9,3.7))-0.5)*(1.0-ks)*uRep*0.84*uRepV.w; pq/=ks;\n    csh=(hr.z-0.5)*0.5;\n    vec3 hv=fract(hr*vec3(13.7,29.3,7.9)+hr.zxy);\n    vec3 hw=fract(hv*vec3(41.3,17.9,23.1)+hr.yzx);\n    vec3 hx=fract(hw*vec3(11.1,37.7,19.3)+hv.zxy);\n    float vk=uRepV.z;\n    gVM=(hv.x-0.5)*1.1*vk; gVA=(hv.y-0.5)*1.0*vk; gVB=(hv.z-0.5)*1.0*vk; gVC=(hw.x-0.5)*0.8*vk;\n    gVZ=(hw.y-0.5)*0.6*vk; gVS=(hw.z-0.5)*2.4*uSpin*vk; gVP=(hx.x-0.5)*1.2*vk; gVF=mix(1.0,mix(0.55,1.45,hx.y),vk);\n    csh=(hx.z-0.5)*0.7*vk;\n  }\n  float lod0=gLod; gLod*=' + _normFor(m).k + ';\n  float d=mapG(pq*' + _normFor(m).a + '+' + _normFor(m).c + ',trap)*ks/' + _normFor(m).k + ';\n  gLod=lod0;\n  gVM=0.0; gVA=0.0; gVB=0.0; gVC=0.0; gVZ=0.0; gVS=0.0; gVP=0.0; gVF=1.0;\n  gDR=d;\n  if(uRep>0.0){ d=min(d,max(bnd,0.0)+uRep*0.04); trap=clamp(trap+csh,0.0,1.0); }\n  float dt=sdText3(p);\n  if(dt<d){ trap=-1.0; gDR=dt; return dt; }\n  return d;\n}\n';
+  + 'float map(vec3 p,out float trap){\n  vec3 pq=p; float ks=1.0, bnd=1e9, csh=0.0;\n  if(uRep>0.0){\n    vec3 cid=floor(p/uRep+0.5); vec3 lp=p-cid*uRep;\n    vec3 hr=fract(sin(vec3(dot(cid,vec3(127.1,311.7,74.7)),dot(cid,vec3(269.5,183.3,246.1)),dot(cid,vec3(113.5,271.9,124.6))))*43758.5453);\n    bnd=uRep*0.5-max(abs(lp.x),max(abs(lp.y),abs(lp.z)));\n    pq=lp;\n    pq.xz*=rot(hr.x*6.2831853*uRepV.y); pq.xy*=rot((hr.y-0.5)*1.4*uRepV.y);\n    if(hr.z<0.33*uRepV.y) pq.x=abs(pq.x);\n    ks=mix(clamp(uRepV.x,0.08,1.0),1.0,pow(fract(hr.y*7.13+hr.z),1.3)); pq-=(fract(hr.zxy*vec3(5.3,8.9,3.7))-0.5)*(1.0-ks)*uRep*0.84*uRepV.w; pq/=ks;\n    csh=(hr.z-0.5)*0.5;\n    vec3 hv=fract(hr*vec3(13.7,29.3,7.9)+hr.zxy);\n    vec3 hw=fract(hv*vec3(41.3,17.9,23.1)+hr.yzx);\n    vec3 hx=fract(hw*vec3(11.1,37.7,19.3)+hv.zxy);\n    float vk=uRepV.z;\n    gVM=(hv.x-0.5)*1.1*vk; gVA=(hv.y-0.5)*1.0*vk; gVB=(hv.z-0.5)*1.0*vk; gVC=(hw.x-0.5)*0.8*vk;\n    gVZ=(hw.y-0.5)*0.6*vk; gVS=(hw.z-0.5)*2.4*uSpin*vk; gVP=(hx.x-0.5)*1.2*vk; gVF=mix(1.0,mix(0.55,1.45,hx.y),vk);\n    csh=(hx.z-0.5)*0.7*vk;\n  }\n  float lod0=gLod; gLod*=' + _normFor(m).k + ';\n  float d=mapG(pq*' + _normFor(m).a + '+' + _normFor(m).c + ',trap)*ks/' + _normFor(m).k + ';\n  gLod=lod0;\n  gVM=0.0; gVA=0.0; gVB=0.0; gVC=0.0; gVZ=0.0; gVS=0.0; gVP=0.0; gVF=1.0;\n  gDR=d;\n  if(uCave>0.0){ d=uCave-d; gDR=d; }\n  if(uRep>0.0){ d=min(d,max(bnd,0.0)+uRep*0.04); trap=clamp(trap+csh,0.0,1.0); }\n  float dt=sdText3(p);\n  if(dt<d){ trap=-1.0; gDR=dt; return dt; }\n  return d;\n}\n';
 
 const _2D_PATH = m => m<=9 ? ['P_E2A','escape2(uv,uMode-6)']
   : m===10 ? ['P_TUN','tunnel(uv)']
