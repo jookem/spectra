@@ -554,6 +554,12 @@ uniform float uCamFog;
 // floor: the marches below step at least a fixed share of the corridor scale
 // through it and find walls by the sign change, not by the field shrinking.
 uniform float uCave;
+// Invert (toggled): geometric inversion of the space the fractal is drawn in.
+// xyz is the 3D inversion center, w its radius squared; w 0 is off. 2D reads w
+// only, as the radius squared about the middle of the frame. A sphere of
+// radius a about the origin, inverted about a center 2a out with R^2 = 3a^2,
+// lands back on itself, so the inverted 3D fractal keeps the scene's framing.
+uniform vec4 uInv;
 vec4 gProbe=vec4(0.0);
 // Probe pixel 25: the target color, so the host's marker ring matches it.
 vec4 gProbeC=vec4(0.0);
@@ -734,6 +740,13 @@ mat2 rot(float a){float c=cos(a),s=sin(a);return mat2(c,-s,s,c);}
 // edge to edge as one seamless pattern. No per-copy border, turn or variety:
 // those broke the illusion of a tiled wall.
 float gRepH=0.0, gRepB=1.0;
+// Invert: the plane turned inside out about the middle of the frame. Infinity
+// sits at the center, the set's outside wraps it as a ring and its inside fills
+// the edges. Applied before zoom, so the endless zoom still runs inward.
+vec2 inv2(vec2 uv){
+  if(uInv.w<=0.0) return uv;
+  return uv*(uInv.w/max(dot(uv,uv),1e-6));
+}
 vec2 rep2(vec2 uv){
   gRepH=0.0; gRepB=1.0;
   if(uRep<=0.0) return uv;
@@ -5290,7 +5303,11 @@ const _mapFor = m => _normFor(m).def + 'float mapG(vec3 p,out float trap){\n  tr
   // third of the cells, and a small color shift. All are isometries or a
   // uniform scale, so the distance stays valid; the cap at the cell wall stops
   // a step from carrying the ray into a neighbor that is turned differently.
-  + 'float map(vec3 p,out float trap){\n  vec3 pq=p; float ks=1.0, bnd=1e9, csh=0.0;\n  if(uRep>0.0){\n    vec3 cid=floor(p/uRep+0.5); vec3 lp=p-cid*uRep;\n    vec3 hr=fract(sin(vec3(dot(cid,vec3(127.1,311.7,74.7)),dot(cid,vec3(269.5,183.3,246.1)),dot(cid,vec3(113.5,271.9,124.6))))*43758.5453);\n    bnd=uRep*0.5-max(abs(lp.x),max(abs(lp.y),abs(lp.z)));\n    pq=lp;\n    pq.xz*=rot(hr.x*6.2831853*uRepV.y); pq.xy*=rot((hr.y-0.5)*1.4*uRepV.y);\n    if(hr.z<0.33*uRepV.y) pq.x=abs(pq.x);\n    ks=mix(clamp(uRepV.x,0.08,1.0),1.0,pow(fract(hr.y*7.13+hr.z),1.3)); pq-=(fract(hr.zxy*vec3(5.3,8.9,3.7))-0.5)*(1.0-ks)*uRep*0.84*uRepV.w; pq/=ks;\n    csh=(hr.z-0.5)*0.5;\n    vec3 hv=fract(hr*vec3(13.7,29.3,7.9)+hr.zxy);\n    vec3 hw=fract(hv*vec3(41.3,17.9,23.1)+hr.yzx);\n    vec3 hx=fract(hw*vec3(11.1,37.7,19.3)+hv.zxy);\n    float vk=uRepV.z;\n    gVM=(hv.x-0.5)*1.1*vk; gVA=(hv.y-0.5)*1.0*vk; gVB=(hv.z-0.5)*1.0*vk; gVC=(hw.x-0.5)*0.8*vk;\n    gVZ=(hw.y-0.5)*0.6*vk; gVS=(hw.z-0.5)*2.4*uSpin*vk; gVP=(hx.x-0.5)*1.2*vk; gVF=mix(1.0,mix(0.55,1.45,hx.y),vk);\n    csh=(hx.z-0.5)*0.7*vk;\n  }\n  float lod0=gLod; gLod*=' + _normFor(m).k + ';\n  float d=mapG(pq*' + _normFor(m).a + '+' + _normFor(m).c + ',trap)*ks/' + _normFor(m).k + ';\n  gLod=lod0;\n  gVM=0.0; gVA=0.0; gVB=0.0; gVC=0.0; gVZ=0.0; gVS=0.0; gVP=0.0; gVF=1.0;\n  gDR=d;\n  if(uCave>0.0){ d=uCave-d; gDR=d; }\n  if(uRep>0.0){ d=min(d,max(bnd,0.0)+uRep*0.04); trap=clamp(trap+csh,0.0,1.0); }\n  float dt=sdText3(p);\n  if(dt<d){ trap=-1.0; gDR=dt; return dt; }\n  return d;\n}\n';
+// Invert maps each point through a sphere before the family sees it. With x, y
+// measured from the center, |x'-y'| = R^2|x-y|/(|x||y|), so a field value D in
+// the inverted space bounds the true distance by D|x|^2/(R^2+D|x|): exact, not
+// a fudge, and it stays finite at the center, where the image runs to infinity.
+  + 'float map(vec3 p,out float trap){\n  vec3 pq=p; float ks=1.0, bnd=1e9, csh=0.0;\n  if(uRep>0.0){\n    vec3 cid=floor(p/uRep+0.5); vec3 lp=p-cid*uRep;\n    vec3 hr=fract(sin(vec3(dot(cid,vec3(127.1,311.7,74.7)),dot(cid,vec3(269.5,183.3,246.1)),dot(cid,vec3(113.5,271.9,124.6))))*43758.5453);\n    bnd=uRep*0.5-max(abs(lp.x),max(abs(lp.y),abs(lp.z)));\n    pq=lp;\n    pq.xz*=rot(hr.x*6.2831853*uRepV.y); pq.xy*=rot((hr.y-0.5)*1.4*uRepV.y);\n    if(hr.z<0.33*uRepV.y) pq.x=abs(pq.x);\n    ks=mix(clamp(uRepV.x,0.08,1.0),1.0,pow(fract(hr.y*7.13+hr.z),1.3)); pq-=(fract(hr.zxy*vec3(5.3,8.9,3.7))-0.5)*(1.0-ks)*uRep*0.84*uRepV.w; pq/=ks;\n    csh=(hr.z-0.5)*0.5;\n    vec3 hv=fract(hr*vec3(13.7,29.3,7.9)+hr.zxy);\n    vec3 hw=fract(hv*vec3(41.3,17.9,23.1)+hr.yzx);\n    vec3 hx=fract(hw*vec3(11.1,37.7,19.3)+hv.zxy);\n    float vk=uRepV.z;\n    gVM=(hv.x-0.5)*1.1*vk; gVA=(hv.y-0.5)*1.0*vk; gVB=(hv.z-0.5)*1.0*vk; gVC=(hw.x-0.5)*0.8*vk;\n    gVZ=(hw.y-0.5)*0.6*vk; gVS=(hw.z-0.5)*2.4*uSpin*vk; gVP=(hx.x-0.5)*1.2*vk; gVF=mix(1.0,mix(0.55,1.45,hx.y),vk);\n    csh=(hx.z-0.5)*0.7*vk;\n  }\n  float ir=0.0;\n  if(uInv.w>0.0){ vec3 iq=pq-uInv.xyz; float ir2=max(dot(iq,iq),1e-8); ir=sqrt(ir2); pq=uInv.xyz+iq*(uInv.w/ir2); }\n  float lod0=gLod; gLod*=' + _normFor(m).k + ';\n  float d=mapG(pq*' + _normFor(m).a + '+' + _normFor(m).c + ',trap)/' + _normFor(m).k + ';\n  if(uInv.w>0.0) d=d*ir*ir/(uInv.w+abs(d)*ir);\n  d*=ks;\n  gLod=lod0;\n  gVM=0.0; gVA=0.0; gVB=0.0; gVC=0.0; gVZ=0.0; gVS=0.0; gVP=0.0; gVF=1.0;\n  gDR=d;\n  if(uCave>0.0){ d=uCave-d; gDR=d; }\n  if(uRep>0.0){ d=min(d,max(bnd,0.0)+uRep*0.04); trap=clamp(trap+csh,0.0,1.0); }\n  float dt=sdText3(p);\n  if(dt<d){ trap=-1.0; gDR=dt; return dt; }\n  return d;\n}\n';
 
 const _2D_PATH = m => m<=9 ? ['P_E2A','escape2(uv,uMode-6)']
   : m===10 ? ['P_TUN','tunnel(uv)']
@@ -5306,7 +5323,7 @@ const _frag2D = m => {
   // per-copy hue and border on the color after — still one call site.
   return _HEAD + '#define '+def+' 1\n' + (def==='P_E2C' ? '#define E2C_K '+(m-37)+'\n' : '')
     + (def==='P_E2B' ? '#define E2B_K '+(m-17)+'\n' : '') + _B2 + _VID
-    + _TAILSRC.replace(_DISPATCH, '  vec3 col='+call.replace('(uv', '((rep2(uv)-uFocus)*exp2(-uZX.x*uZX.y*uZX.z)')+';\n'
+    + _TAILSRC.replace(_DISPATCH, '  vec3 col='+call.replace('(uv', '((inv2(rep2(uv))-uFocus)*exp2(-uZX.x*uZX.y*uZX.z)')+';\n'
       + '  if(uRep>0.0) col=hueRot(col,gRepH*6.2831853)*gRepB;\n');
 };
 const FRAG_SYN = _HEAD + _BS + _VID + _tail('synth(uv,uMode-22)');
