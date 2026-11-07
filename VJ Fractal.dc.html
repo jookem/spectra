@@ -12815,6 +12815,7 @@ class Component extends DCLogic {
       // Record which video build this source is (second look in or out), so
       // upgradeStep can tell a program that no longer matches the Stack chip.
       p._vid2 = !!(this.E.getVid2 && this.E.getVid2());
+      p._fk = this.E.flagKey ? this.E.flagKey() : '';
       gl.shaderSource(p._fs, this.E.FRAG_FOR(p._mode, !!p._fast, !!(p._safe || this._safeGL))); gl.compileShader(p._fs);
       p._stage = 2;
     } else {
@@ -13486,16 +13487,17 @@ class Component extends DCLogic {
     if(document.hidden) return;
     if(!gl || !P || this.pend || this.scan) { if(this.upg && this.upg.fam !== this.fam) this.dropUpg(); return; }
     const mode = (this.props.shading ?? 'full');
-    const v2 = !!(this.E.getVid2 && this.E.getVid2());
-    // A video rebuild (Stack toggled) is not a shading upgrade: 'fast' must not
-    // drop it, but a toggle back before it lands makes it moot.
+    const v2 = this.E.flagKey ? this.E.flagKey() : String(!!(this.E.getVid2 && this.E.getVid2()));
+    // A build-flag rebuild (Stack, a camera view, Cave or Invert toggled) is not
+    // a shading upgrade: 'fast' must not drop it, but a toggle back before it
+    // lands makes it moot.
     if(this.upg && (this.upg.fam !== this.fam || (this.upg.v2 == null ? mode === 'fast' : this.upg.v2 !== v2))){ this.dropUpg(); return; }
     if(!this.upg){
       // The program on screen was built for the other Stack state: rebuild it
       // with the same shading and safety, paced like any upgrade, and swap it in.
       // The old one keeps drawing until then; without VID2 it shows the first
       // look only.
-      if(!!P._vid2 !== v2){
+      if((P._fk ?? '') !== v2){
         const p = gl.createProgram(); p._mode = P._mode; p._stage = 0; p._fast = !!P._fast; p._safe = !!P._safe;
         this.upg = {fam: this.fam, p, t0: performance.now(), v2};
         return;
@@ -13535,12 +13537,21 @@ class Component extends DCLogic {
   // compile on Windows the rest of the time. On a change: flip the engine flag,
   // drop every cached program except the one on screen (they rebuild on demand)
   // and let upgradeStep swap the on-screen one for a matching build.
+  // The same goes for the camera views (CAMV: Fly, Surface, Inside, and the
+  // glide back to Orbit), Cave (CAVE) and Invert (INV): Orbit with neither
+  // toggle builds without any of that code, a third faster on Windows.
   syncVid2(){
     const E = this.E; if(!E || !E.setVid2) return;
-    const vd = this.state.vid || {};
-    const want = !!(vd.stack || (vd.mode2|0) > 0);
-    if(want === E.getVid2()) return;
-    E.setVid2(want);
+    const vd = this.state.vid || {}, s = this.state;
+    const k0 = E.flagKey ? E.flagKey() : '';
+    E.setVid2(!!(vd.stack || (vd.mode2|0) > 0));
+    if(E.setFlag){
+      const cv = s.camView|0;
+      E.setFlag('CAMV', cv > 0 || !!(this.camFly && this.camFly.sp));
+      E.setFlag('CAVE', cv === 3 && !!s.camCave);
+      E.setFlag('INV', !!s.invert);
+    }
+    if((E.flagKey ? E.flagKey() : '') === k0) return;
     const gl = this.gl; if(!gl) return;
     for(const f of Object.keys(this.progs || {})){
       if(f === this.fam || (this.pend && this.pend.fam === f)) continue;
@@ -17086,18 +17097,28 @@ class Component extends DCLogic {
       if(u.uRepV) gl.uniform4f(u.uRepV, this.state.repSize ?? 0.26, this.state.repTurn ?? 1, this.state.repVar ?? 1, this.state.repDrift ?? 0.5);
       // Invert. 3D: the center sits two bounding radii out (a ~ a quarter of the
       // framing distance) with R^2 = 3a^2, so the bounding ball maps onto itself
-      // and the framing holds; it circles slowly while Auto runs, so the fold
-      // travels over the form. 2D: R^2 about the middle of the frame.
+      // and the framing holds. 2D: R^2 about the middle of the frame. The center
+      // is fixed: it used to circle under Auto, which reshaped the form all the
+      // time, so the Orbit pivot wandered and Fly, Surface and Inside had the
+      // walls moving under the camera.
       if(u.uInv){
-        const nowI = performance.now(), dtI = Math.min(0.1, (nowI-(this._invT||nowI))/1000); this._invT = nowI;
-        if(this.state.auto!==false) this._invPh = (this._invPh||0) + dtI*0.05;
         if(!this.state.invert) gl.uniform4f(u.uInv, 0, 0, 0, 0);
         else if(fam3){
-          const a = dfar*0.24, ph = this._invPh||0, el = 0.35;
+          const a = dfar*0.24, ph = 0.6, el = 0.35;
           gl.uniform4f(u.uInv, 2*a*Math.cos(el)*Math.cos(ph), 2*a*Math.sin(el), 2*a*Math.cos(el)*Math.sin(ph), 3*a*a);
         } else gl.uniform4f(u.uInv, 0, 0, 0, 0.36);
       }
       const cmv = fam3 ? (this.state.camView||0) : 0;
+      // A target belongs to the view it was set in. On any view change, drop a
+      // press still being timed, the camera's aim / travel / ring, and the
+      // marker on screen, so nothing set in Fly turns up in Surface, Inside or
+      // the glide back to Orbit (that branch never redraws the marker).
+      if(cmv !== this._cmvPrev){
+        this._cmvPrev = cmv;
+        clearTimeout(this.holdT); clearTimeout(this.tapTimer); this.chg0 = null;
+        if(this.camFly && this.camFly.clearTgt) this.camFly.clearTgt();
+        if(this._tapVis) this.drawTapMark(true);
+      }
       let camOk = false;
       if(cmv>0 && window.CamFly){
         try{

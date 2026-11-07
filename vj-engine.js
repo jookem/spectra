@@ -560,6 +560,26 @@ uniform float uCave;
 // radius a about the origin, inverted about a center 2a out with R^2 = 3a^2,
 // lands back on itself, so the inverted 3D fractal keeps the scene's framing.
 uniform vec4 uInv;
+// Camera views, Cave and Invert are compiled in only while the host has them on
+// (setFlag: CAMV, CAVE, INV), like the second video look. Each is a branch in
+// map() or the primary march, and every map() call site is a full inlined copy
+// under FXC: together they made every 3D program about a third slower to build,
+// though plain Orbit with neither toggle uses none of it.
+#ifdef CAMV
+#define FC_ON (uCamMode>0.5)
+#else
+#define FC_ON false
+#endif
+#ifdef CAVE
+#define CAVE_ON (uCave>0.0)
+#else
+#define CAVE_ON false
+#endif
+#ifdef INV
+#define INV_ON (uInv.w>0.0)
+#else
+#define INV_ON false
+#endif
 vec4 gProbe=vec4(0.0);
 // Probe pixel 25: the target color, so the host's marker ring matches it.
 vec4 gProbeC=vec4(0.0);
@@ -744,7 +764,7 @@ float gRepH=0.0, gRepB=1.0;
 // sits at the center, the set's outside wraps it as a ring and its inside fills
 // the edges. Applied before zoom, so the endless zoom still runs inward.
 vec2 inv2(vec2 uv){
-  if(uInv.w<=0.0) return uv;
+  if(!INV_ON) return uv;
   return uv*(uInv.w/max(dot(uv,uv),1e-6));
 }
 vec2 rep2(vec2 uv){
@@ -2375,7 +2395,7 @@ vec3 render3(vec2 uv){
     // One map() call site for both probe kinds: every call site is a full
     // inlined copy of the estimator, and compile time scales with the count.
     int px=int(gl_FragCoord.x); float tq=0.0, v=0.0;
-    vec3 po=uCamPos, dv=uCamF; bool pt=px<7, cav=uCave>0.0, rk=false;
+    vec3 po=uCamPos, dv=uCamF; bool pt=px<7, cav=CAVE_ON, rk=false;
     vec3 o=vec3(0.0);
     if(pt){
       o=px==0?vec3(0.0):px==1?vec3(1,0,0):px==2?vec3(-1,0,0):px==3?vec3(0,1,0):px==4?vec3(0,-1,0):px==5?vec3(0,0,1):vec3(0,0,-1);
@@ -2404,7 +2424,7 @@ vec3 render3(vec2 uv){
     gProbe=vec4(v,0.0,0.0,0.0); return vec3(0.0);
   }
   palPre();
-  bool fc=uCamMode>0.5;
+  bool fc=FC_ON;
   // Blend weight into the flying views, 0..1, carried in uCamMode's fraction
   // above 1 (host ramps it). At 0 every fly-specific scale below equals the
   // orbit's, so entering or leaving Fly/Surface never changes the frame.
@@ -2622,7 +2642,7 @@ vec3 render3(vec2 uv){
   float iBw=max(uCamScale,1e-5)*0.22;
   // Cave march state: the last step, and the bracket round a wall crossing
   // (cLo in the open, cHi in rock) once one is found.
-  bool cav=fc&&uCave>0.0; float cStp=0.0, cLo=-1.0, cHi=0.0, cMin=max(uCamScale,1e-5)*0.2;
+  bool cav=fc&&CAVE_ON; float cStp=0.0, cLo=-1.0, cHi=0.0, cMin=max(uCamScale,1e-5)*0.2;
   for(int i=NZERO;i<256;i++){
     if(i>=steps) break;
     p=ro+rd*d;
@@ -5307,7 +5327,7 @@ const _mapFor = m => _normFor(m).def + 'float mapG(vec3 p,out float trap){\n  tr
 // measured from the center, |x'-y'| = R^2|x-y|/(|x||y|), so a field value D in
 // the inverted space bounds the true distance by D|x|^2/(R^2+D|x|): exact, not
 // a fudge, and it stays finite at the center, where the image runs to infinity.
-  + 'float map(vec3 p,out float trap){\n  vec3 pq=p; float ks=1.0, bnd=1e9, csh=0.0;\n  if(uRep>0.0){\n    vec3 cid=floor(p/uRep+0.5); vec3 lp=p-cid*uRep;\n    vec3 hr=fract(sin(vec3(dot(cid,vec3(127.1,311.7,74.7)),dot(cid,vec3(269.5,183.3,246.1)),dot(cid,vec3(113.5,271.9,124.6))))*43758.5453);\n    bnd=uRep*0.5-max(abs(lp.x),max(abs(lp.y),abs(lp.z)));\n    pq=lp;\n    pq.xz*=rot(hr.x*6.2831853*uRepV.y); pq.xy*=rot((hr.y-0.5)*1.4*uRepV.y);\n    if(hr.z<0.33*uRepV.y) pq.x=abs(pq.x);\n    ks=mix(clamp(uRepV.x,0.08,1.0),1.0,pow(fract(hr.y*7.13+hr.z),1.3)); pq-=(fract(hr.zxy*vec3(5.3,8.9,3.7))-0.5)*(1.0-ks)*uRep*0.84*uRepV.w; pq/=ks;\n    csh=(hr.z-0.5)*0.5;\n    vec3 hv=fract(hr*vec3(13.7,29.3,7.9)+hr.zxy);\n    vec3 hw=fract(hv*vec3(41.3,17.9,23.1)+hr.yzx);\n    vec3 hx=fract(hw*vec3(11.1,37.7,19.3)+hv.zxy);\n    float vk=uRepV.z;\n    gVM=(hv.x-0.5)*1.1*vk; gVA=(hv.y-0.5)*1.0*vk; gVB=(hv.z-0.5)*1.0*vk; gVC=(hw.x-0.5)*0.8*vk;\n    gVZ=(hw.y-0.5)*0.6*vk; gVS=(hw.z-0.5)*2.4*uSpin*vk; gVP=(hx.x-0.5)*1.2*vk; gVF=mix(1.0,mix(0.55,1.45,hx.y),vk);\n    csh=(hx.z-0.5)*0.7*vk;\n  }\n  float ir=0.0;\n  if(uInv.w>0.0){ vec3 iq=pq-uInv.xyz; float ir2=max(dot(iq,iq),1e-8); ir=sqrt(ir2); pq=uInv.xyz+iq*(uInv.w/ir2); }\n  float lod0=gLod; gLod*=' + _normFor(m).k + ';\n  float d=mapG(pq*' + _normFor(m).a + '+' + _normFor(m).c + ',trap)/' + _normFor(m).k + ';\n  if(uInv.w>0.0) d=d*ir*ir/(uInv.w+abs(d)*ir);\n  d*=ks;\n  gLod=lod0;\n  gVM=0.0; gVA=0.0; gVB=0.0; gVC=0.0; gVZ=0.0; gVS=0.0; gVP=0.0; gVF=1.0;\n  gDR=d;\n  if(uCave>0.0){ d=uCave-d; gDR=d; }\n  if(uRep>0.0){ d=min(d,max(bnd,0.0)+uRep*0.04); trap=clamp(trap+csh,0.0,1.0); }\n  float dt=sdText3(p);\n  if(dt<d){ trap=-1.0; gDR=dt; return dt; }\n  return d;\n}\n';
+  + 'float map(vec3 p,out float trap){\n  vec3 pq=p; float ks=1.0, bnd=1e9, csh=0.0;\n  if(uRep>0.0){\n    vec3 cid=floor(p/uRep+0.5); vec3 lp=p-cid*uRep;\n    vec3 hr=fract(sin(vec3(dot(cid,vec3(127.1,311.7,74.7)),dot(cid,vec3(269.5,183.3,246.1)),dot(cid,vec3(113.5,271.9,124.6))))*43758.5453);\n    bnd=uRep*0.5-max(abs(lp.x),max(abs(lp.y),abs(lp.z)));\n    pq=lp;\n    pq.xz*=rot(hr.x*6.2831853*uRepV.y); pq.xy*=rot((hr.y-0.5)*1.4*uRepV.y);\n    if(hr.z<0.33*uRepV.y) pq.x=abs(pq.x);\n    ks=mix(clamp(uRepV.x,0.08,1.0),1.0,pow(fract(hr.y*7.13+hr.z),1.3)); pq-=(fract(hr.zxy*vec3(5.3,8.9,3.7))-0.5)*(1.0-ks)*uRep*0.84*uRepV.w; pq/=ks;\n    csh=(hr.z-0.5)*0.5;\n    vec3 hv=fract(hr*vec3(13.7,29.3,7.9)+hr.zxy);\n    vec3 hw=fract(hv*vec3(41.3,17.9,23.1)+hr.yzx);\n    vec3 hx=fract(hw*vec3(11.1,37.7,19.3)+hv.zxy);\n    float vk=uRepV.z;\n    gVM=(hv.x-0.5)*1.1*vk; gVA=(hv.y-0.5)*1.0*vk; gVB=(hv.z-0.5)*1.0*vk; gVC=(hw.x-0.5)*0.8*vk;\n    gVZ=(hw.y-0.5)*0.6*vk; gVS=(hw.z-0.5)*2.4*uSpin*vk; gVP=(hx.x-0.5)*1.2*vk; gVF=mix(1.0,mix(0.55,1.45,hx.y),vk);\n    csh=(hx.z-0.5)*0.7*vk;\n  }\n  float ir=0.0;\n  if(INV_ON){ vec3 iq=pq-uInv.xyz; float ir2=max(dot(iq,iq),1e-8); ir=sqrt(ir2); pq=uInv.xyz+iq*(uInv.w/ir2); }\n  float lod0=gLod; gLod*=' + _normFor(m).k + ';\n  float d=mapG(pq*' + _normFor(m).a + '+' + _normFor(m).c + ',trap)/' + _normFor(m).k + ';\n  if(INV_ON) d=d*ir*ir/(uInv.w+abs(d)*ir);\n  d*=ks;\n  gLod=lod0;\n  gVM=0.0; gVA=0.0; gVB=0.0; gVC=0.0; gVZ=0.0; gVS=0.0; gVP=0.0; gVF=1.0;\n  gDR=d;\n  if(CAVE_ON){ d=uCave-d; gDR=d; }\n  if(uRep>0.0){ d=min(d,max(bnd,0.0)+uRep*0.04); trap=clamp(trap+csh,0.0,1.0); }\n  float dt=sdText3(p);\n  if(dt<d){ trap=-1.0; gDR=dt; return dt; }\n  return d;\n}\n';
 
 const _2D_PATH = m => m<=9 ? ['P_E2A','escape2(uv,uMode-6)']
   : m===10 ? ['P_TUN','tunnel(uv)']
@@ -5377,10 +5397,18 @@ const _stripDead = src => {
 };
 // Second video look on or off for every program built from here on (see
 // videoLayer). Every builder goes through _slim, so the define is added there.
+// The other build flags work the same way: CAMV (Fly, Surface and Inside),
+// CAVE (Cave in Inside) and INV (Invert). flagKey() names the combination, so
+// the host can tell a program built for another one and rebuild it.
 let _vid2 = false;
+const _fl = {CAMV:false, CAVE:false, INV:false};
 const setVid2 = on => { _vid2 = !!on; };
 const getVid2 = () => _vid2;
-const _slim = src => _stripDead((_vid2 ? src.replace(/^(#version[^\n]*\n)/, '$1#define VID2 1\n') : src)
+const setFlag = (k, on) => { if(k in _fl) _fl[k] = !!on; };
+const getFlag = k => !!_fl[k];
+const flagKey = () => (_vid2 ? 'V2 ' : '') + Object.keys(_fl).filter(k => _fl[k]).join(' ');
+const _defs = () => (_vid2 ? '#define VID2 1\n' : '') + Object.keys(_fl).filter(k => _fl[k]).map(k => '#define ' + k + ' 1\n').join('');
+const _slim = src => _stripDead((_defs() ? src.replace(/^(#version[^\n]*\n)/, '$1' + _defs()) : src)
   .replace(/\/\*[\s\S]*?\*\//g, '').replace(/[ \t]*\/\/[^\n]*/g, '').replace(/\n\s*\n+/g, '\n'));
 // Safe variant for drivers that reject the optimized program (seen on a Pixel):
 // the palette table goes back to direct pal() calls, no derivative normals, no
@@ -5501,5 +5529,5 @@ void main(){
   fragColor=vec4(col,1.0);
 }
 `);
-window.VJE = {VIDFX_FRAG,setVid2,getVid2,ifsCenter,VERT,FRAG_FOR,LITE_FOR,VEC_FOR,VEC_POST,MAPLIB_FOR,FAM_OF,POST,PAL_NAMES,XF_NAMES,PRESETS,SLIDER_DEFS,SOURCES,VID_MODES,KEYMAP,GLYPHS};
+window.VJE = {VIDFX_FRAG,setVid2,getVid2,setFlag,getFlag,flagKey,ifsCenter,VERT,FRAG_FOR,LITE_FOR,VEC_FOR,VEC_POST,MAPLIB_FOR,FAM_OF,POST,PAL_NAMES,XF_NAMES,PRESETS,SLIDER_DEFS,SOURCES,VID_MODES,KEYMAP,GLYPHS};
 })();

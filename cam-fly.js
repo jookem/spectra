@@ -79,6 +79,11 @@ class CamFly{
     gl.bufferData(gl.PIXEL_PACK_BUFFER,32*4,gl.STREAM_READ);gl.bindBuffer(gl.PIXEL_PACK_BUFFER,null);
     this.px=new Uint8Array(32*4);this.fence=null;this.key=null;this.data=null;
   }
+  // Every piece of the target system: an aim waiting for its confirm, a travel
+  // under way, a press-and-hold ring, the arrival pop and the route. A target
+  // belongs to the view it was set in, so a view change or the glide back to
+  // Orbit drops it rather than carrying the ring and highlight across.
+  clearTgt(){ this.aim=null;this.go=null;this.chg=null;this.arr=null;this.tapReq=null;this.pTap=null;this.autoGo=false;this.plan=null;this.insp=null; }
   reset(mode,scene,dfar,seed){
     const keep=this.sp&&this.scene===scene&&this.mode!==mode;
     const cur=keep?{p:this.sp.slice(),f:this.sf.slice(),up:this.su.slice()}:null;
@@ -87,7 +92,7 @@ class CamFly{
     // popped the fog/glow scale and snapped the pitch.
     const carry=keep?{vs:this.vs||0,scale:this.scale,tilt:this.tilt||0,t:this.t||0,ns:this.ns}:null;
     this.w=keep?(this.w??1):0;this.ret=false;this.needPush=!keep&&!!seed;
-    this.key=mode+':'+scene;this.scene=scene;this.mode=mode;this.t=0;this.dA=null;this.dfar0=dfar;this.sp=null;this.dS=null;this.tilt=0;this.d0=null;this.aim=null;this.go=null;this.tapReq=null;this.pTap=null;this.insp=null;this.safe=null;this.pPos=null;this.enc=null;this.outT=0;this.crumbs=null;this.sq=1;this.sw=0;this.stk=0;
+    this.key=mode+':'+scene;this.scene=scene;this.mode=mode;this.t=0;this.dA=null;this.dfar0=dfar;this.sp=null;this.dS=null;this.tilt=0;this.d0=null;this.clearTgt();this.safe=null;this.pPos=null;this.enc=null;this.outT=0;this.crumbs=null;this.sq=1;this.sw=0;this.stk=0;
     const s=cur||seed||{p:[0,0,-dfar],f:[0,0,1],up:[0,1,0]};
     this.p=s.p.slice();this.f=V.nrm(s.f);this.up=V.nrm(s.up);
     this.scale=dfar*0.12;this.alt=dfar*0.05;this.altMax=dfar*0.05;this.altDir=-1;
@@ -524,7 +529,7 @@ class CamFly{
   // flight the same applies: the current trip carries on while a new point is
   // aimed, and confirming it swaps the destination.
   tap(sx,sy,W,H){
-    if(!this.sp||!this.B)return 'none';
+    if(!this.sp||!this.B||this.ret)return 'none';
     const m=this.mark(W,H);
     if(m&&m.state==='aim'&&Math.hypot(m.x-sx,m.y-sy)<Math.max(90,Math.min(W,H)*0.12))return this.confirm();
     const ux=(2*sx-W)/H, uy=(H-2*sy)/H, B=this.B;
@@ -534,7 +539,7 @@ class CamFly{
   // Press and hold: on the aimed ring it confirms; anywhere else it aims there
   // and sets off as soon as the probe lands, with no second tap to chase.
   hold(sx,sy,W,H){
-    if(!this.sp||!this.B)return 'none';
+    if(!this.sp||!this.B||this.ret)return 'none';
     const m=this.mark(W,H);
     if(m&&m.state==='aim'&&Math.hypot(m.x-sx,m.y-sy)<Math.max(90,Math.min(W,H)*0.12))return this.confirm();
     const r=this.tap(sx,sy,W,H); if(r==='aim')this.autoGo=true; return r;
@@ -547,7 +552,7 @@ class CamFly{
   // full range and routes round whatever is in the way; Surface picks the
   // point on the fractal instead.
   charge(sx,sy,W,H,t0){
-    if(!this.sp||!this.B)return 'none';
+    if(!this.sp||!this.B||this.ret)return 'none';
     const ux=(2*sx-W)/H, uy=(H-2*sy)/H, B=this.B, F=this.dfar0||5;
     const dir=V.nrm(V.add(V.add(V.sc(B.r,ux),V.sc(B.u,uy)),V.sc(B.f,B.fl)));
     const cell=this.rep>0;
@@ -685,6 +690,7 @@ class CamFly{
     if(!this.sp)return false;
     const dt=Math.min(0.1,Math.max(0,o.dt||0));
     const tgt=orbitPose(o.gl,o.prog,o.u,o.md,o.dfar); if(!tgt){this.w=0;return false;}
+    if(!this.ret)this.clearTgt();
     this.ret=true; this.caveOn=false;
     this.w=Math.max(0,(this.w||0)-dt/3);
     // Target is the eye Orbit actually renders: its pose backed off by the
@@ -696,7 +702,10 @@ class CamFly{
     // kick at the start. It never jumps the rest of the way at the end either:
     // it just keeps easing until the gap is invisible.
     if(!this.wasRet)this.rt=0; this.rt=(this.rt||0)+dt;
-    const s=1-Math.exp(-2.2*(0.15+0.85*sm(this.rt/1.2))*dt);
+    // After the first 1.2 s the pull keeps tightening. At a fixed rate the eye
+    // trailed the turning Orbit pose by a constant lag, never came within the
+    // finish tolerance, and the glide (and the camera-view build) never ended.
+    const s=1-Math.exp(-2.2*(0.15+0.85*sm(this.rt/1.2))*(1+Math.max(0,this.rt-1.2)*4)*dt);
     this.vs=(this.vs||0)*Math.exp(-dt*1.8);
     this.sp=V.add(this.sp,V.sc(this.sf,this.vs*dt*(1-sm(this.rt/1.2))));
     this.sp=V.add(this.sp,V.sc(V.sub(tp,this.sp),s));
@@ -705,7 +714,7 @@ class CamFly{
     this.tilt=Math.max(0,(this.tilt||0)-dt/2);
     this.p=this.sp.slice();this.f=this.sf.slice();this.up=this.su.slice();
     this.wasRet=true;
-    if(this.w<=0&&V.len(V.sub(tp,this.sp))<o.dfar*0.0015&&V.dot(this.sf,tgt.f)>0.99999&&V.dot(this.su,tgt.up)>0.9999){this.key=null;this.sp=null;this.wasRet=false;return false;}
+    if(this.w<=0&&(this.rt>8||V.len(V.sub(tp,this.sp))<o.dfar*0.0015&&V.dot(this.sf,tgt.f)>0.99999&&V.dot(this.su,tgt.up)>0.9999)){this.key=null;this.sp=null;this.wasRet=false;return false;}
     if(this.w<=0)this.w=0.0001;
     return true;
   }
@@ -749,6 +758,7 @@ class CamFly{
   // kind (0 surface point, 1 open space), sweep (0..1 confirmation pulse).
   applyTgt(gl,u,P){
     if(!u.uTgt)return;
+    if(this.ret){ gl.uniform4f(u.uTgt,0,0,0,0); return; }
     const now=performance.now(); let T=null,k=0,sw=1;
     if(this.aim){ const a=(now-this.aim.t0)/1000; T=this.aim; k=Math.min(1,a/0.25)*(1-Math.max(0,a/5-0.7)/0.3); sw=Math.min(1,a/0.9); }
     else if(this.go){ const g=this.go, pr=Math.min(1,Math.max(0,1-V.len(V.sub(g.S,P))/g.L0)), a=(now-(g.t1||now))/1000;
