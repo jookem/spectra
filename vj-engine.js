@@ -887,6 +887,27 @@ vec3 pal(float t){
 // of on another arbitrary point of the ramp — arbitrary taps summed together
 // were most of what turned the Fields brown.
 vec3 comp(vec3 c){ return max(vec3(dot(c,vec3(0.6667)))-c, 0.0); }
+// One Tiles cell drawn as a scale (shared by the open field and the bulb
+// interiors). cu is the cell coordinate, x across, y toward the root edge at
+// y = 1; the scale is a dome anchored there whose rounded free edge hangs
+// over the next row, with a dark gap beyond it. ew is the edge width in cell
+// units (antialiasing), tb the cell's base color, wave a band of light passing
+// through. Color plan: lit side to the accent, shade and gaps to the complement.
+vec3 scaleTile(vec2 cu, float ew, vec3 tb, vec3 acc, vec3 cpl, float wave){
+  vec2 q=vec2((cu.x-0.5)/0.56, cu.y-1.0);
+  float d=length(q);
+  float body=1.0-smoothstep(1.0-ew,1.0,d);
+  float h=sqrt(max(1.0-d*d,0.0));
+  vec3 n=normalize(vec3(q.x/0.56, q.y, h*0.9+0.08));
+  vec3 L=normalize(vec3(-0.35,-0.65,0.68));
+  float dif=max(dot(n,L),0.0);
+  float glint=pow(max(dot(reflect(-L,n),vec3(0.0,0.0,1.0)),0.0),22.0);
+  vec3 scl=mix(cpl*0.05,tb,0.25+0.85*dif)+acc*(glint*0.55+wave*0.22*dif);
+  float rim=1.0-smoothstep(0.0,ew*1.5,abs(d-1.0+ew*0.5));
+  scl+=acc*rim*0.35*(0.7+uBeat*0.9);
+  vec3 gap=cpl*0.04+tb*0.10*smoothstep(1.0,1.6,d);
+  return mix(gap,scl,body);
+}
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
   float a=hash(i),b=hash(i+vec2(1,0)),c=hash(i+vec2(0,1)),d=hash(i+vec2(1,1));
@@ -1195,33 +1216,27 @@ vec3 esc_shade(float i,float maxi,float m,vec2 z,vec2 dz,float st,float sn,float
   // (the smooth count) and the external angle of the escaped orbit, which
   // doubles from one band to the next. Cut every band into angle sectors and
   // the field becomes the hyperbolic mosaic those two draw: tiles that halve
-  // as they near the set, with the field lines along their seams. Each tile is
-  // a raised plate lit along its bevels, alternate tiles step in tone and hue,
-  // a ring sits in each one and swells on the bass, and the seams glow in the
-  // accent. Faded out where tiles shrink under a few pixels, so the filigree
-  // at the boundary is left as it was.
+  // as they near the set. Each tile is drawn as a scale: a dome anchored on
+  // the tile's inner edge whose rounded free edge hangs outward over the band
+  // beyond, so the field reads as overlapping shingles shrinking into the
+  // set, with dark gaps between the free edges. The scales are lit as domes
+  // with a glint, alternate scales step in value by the binary digit of the
+  // external angle (the classic binary decomposition, so the mosaic still
+  // shows the tree of field lines), and a band of light rolls inward through
+  // the shingles, lifted by the bass. Faded out where tiles shrink under a
+  // few pixels, so the filigree at the boundary is left as it was. (The flat
+  // bevelled plates with a ring in each read as clutter, not structure.)
   if(uTile>0.5){
     const float TN=8.0;
     float ea=atan(z.y,z.x)/6.2831853+0.5;
     float aw=min(fwidth(ea),fwidth(fract(ea+0.5)))*TN, vw=fwidth(sm);
     vec2 cu=vec2(fract(ea*TN),fract(sm)), cid=vec2(floor(ea*TN),floor(sm));
     float mw=(1.0-smoothstep(0.07,0.28,max(aw,vw)))*fadeHF;
-    vec2 e2=min(cu,1.0-cu);
-    vec2 r=smoothstep(vec2(0.0),vec2(0.17),e2);
-    // Bevels lit in tile space: the outer and leading sides catch the light,
-    // the inner and trailing ones fall into shade.
-    float lit=1.0+0.32*(1.0-r.x)*(cu.x<0.5?1.0:-1.0)+0.42*(1.0-r.y)*(cu.y<0.5?-1.0:1.0);
-    float par=mod(cid.x+cid.y,2.0);
-    // Same color plan as the rest of the shading: alternate tiles step in
-    // value on one hue, lit bevels lean to the accent and shaded ones to its
-    // complement.
-    vec3 tb=mix(col,pal(ph*0.5+uHigh*0.2)*0.42,0.4);
-    float tl=clamp(lit*(0.7+0.3*r.x*r.y),0.0,1.5);
-    vec3 tcol=(mix(cpl*0.06,tb,min(tl,1.0))+acc*max(tl-1.0,0.0)*0.25)*mix(0.55,1.05,par);
-    float rr=0.27+0.07*uBass*uReact, rd=length(cu-0.5);
-    float ring=1.0-smoothstep(0.0,0.035+max(aw,vw)*1.2,abs(rd-rr));
-    float seam=max(1.0-smoothstep(0.0,max(aw*1.5,0.018),e2.x),1.0-smoothstep(0.0,max(vw*1.5,0.018),e2.y));
-    tcol+=acc*(ring*0.30*(0.7+uMid*0.6)+seam*0.40*(0.8+uBeat*0.8));
+    float ew=max(max(aw,vw)*1.4,0.02);
+    float bit=mod(cid.x,2.0);
+    float wave=pow(1.0-fract(sm*0.125-uTime*0.22*uSpeed),5.0)*(0.6+uBass*uReact*1.4);
+    vec3 tb=mix(col,pal(ph*0.5+uHigh*0.2)*0.55,0.45)*mix(0.62,1.08,bit);
+    vec3 tcol=scaleTile(cu,ew,tb,acc,cpl,wave);
     col=mix(col,tcol,mw);
   }
   // Field grid. The escaped orbit's final angle is the external argument, so
@@ -3154,14 +3169,13 @@ vec3 esc2at(vec2 uv,int kind,float ex,vec2 ctrIn,float rotAdd,float bud,float ie
   // 1.5 now, so mid-slider is the strongest banding and the travel stays inside
   // the range where structure exists.
   else if(kind==2){ c=vec2(1.5+(uCA-0.5)*1.3, (uCB-0.5)*1.1); z=p*2.4; }
-  // C Re / C Im shift c in VIEW units, not set units. A fixed 0.55 offset is a
-  // few percent of the frame at the top level but several screen widths once
-  // zoomed toward the seahorse valley — any setting off-center threw the view
-  // into the interior and the scene went black unless C Re sat at an extreme
-  // that happened to land back on the boundary. Scaled by sc, full travel is
-  // about one frame width at every depth, so the controls steer across the
-  // spirals instead of away from them.
-  else { c=p+vec2((uCA-0.5),(uCB-0.5))*min(0.55, sc*1.2); z=vec2(0.0); }
+  // Mandelbrot: Seed re / Seed im start the orbit at z0 instead of 0. They used
+  // to add an offset to c, and since c IS the plane coordinate that was only a
+  // pan. A seed reshapes the set itself (it is a slice through the 4D
+  // Julia-Mandelbrot space): bulbs swell, split and tear open. Centered is
+  // the classic set. Held at 0 in the endless loop, whose anchor is only
+  // self-similar for z0 = 0, so a seed there would show at every wrap.
+  else { c=p; z=uZLoop<0.5 ? vec2(uCA-0.5,uCB-0.5)*1.3 : vec2(0.0); }
   float fold=clamp(uMorph,0.0,1.0);
   float odk=orbitKeep();
   // The escape loop is the whole cost of this program. The ceiling was 900,
@@ -3284,27 +3298,18 @@ vec3 esc2at(vec2 uv,int kind,float ex,vec2 ctrIn,float rotAdd,float bud,float ie
     if(inside){
       float au=fract(av), ak=mod(floor(av),2.0);
       float aw2=(1.0-smoothstep(0.1,0.35,afw))*hasA;
-      float rb=min(ru,1.0-ru), ab=min(au,1.0-au);
       float par=mod(rk+ak*aw2,2.0);
-      // Each tile a rounded plate: lit on its outer and leading bevels, in
-      // shade on the others, so the mosaic reads as carved.
-      float bx=smoothstep(0.0,0.2,rb), by=mix(1.0,smoothstep(0.0,0.2,ab),aw2);
-      float rlit=0.62+0.45*bx*by+0.32*(1.0-bx)*(ru<0.5?-1.0:1.0)+0.25*(1.0-by)*(au<0.5?1.0:-1.0)*aw2;
-      // The shading's color plan: one accent (the light the boundary gives
-      // off) and its complement for shadow. Neighboring tiles step in VALUE,
-      // not hue; the hue only drifts slowly along the ramp toward the nucleus.
-      // Lit bevels lean to the accent, shaded ones to the complement.
+      // Each tile a scale (scaleTile) rooted on the nucleus side, so a bulb
+      // reads as petals closing in on its center. Neighboring tiles step in
+      // VALUE, not hue; the hue only drifts slowly along the ramp toward the
+      // nucleus. Where the spokes are too fine to draw (aw2 0) the scales
+      // widen into whole domed rings. A light wave rolls in toward the nucleus.
       vec3 iac=pal(0.55+uBass*0.3), icp=comp(iac);
-      vec3 ib=pal(rv*0.035+uHigh*0.2);
-      float val=mix(0.42,0.95,par);
-      float L=clamp(rlit,0.0,1.5);
-      vec3 ic=(mix(icp*0.22,ib,min(L,1.0))+iac*max(L-1.0,0.0)*0.7)*val;
-      // A lens in each tile, swelling on the bass.
-      vec2 tq=vec2(ru-0.5,(au-0.5)*aw2);
-      float lr=0.22+0.06*uBass*uReact, ld=length(tq);
-      ic+=iac*(1.0-smoothstep(0.0,0.04+rfw,abs(ld-lr)))*0.35*aw2*(0.7+uMid*0.6);
-      float seam=max(1.0-smoothstep(0.0,max(rfw*1.5,0.02),rb),(1.0-smoothstep(0.0,max(afw*1.5,0.02),ab))*aw2);
-      ic+=iac*seam*0.5*(0.8+uBeat*0.9);
+      vec3 ib=pal(rv*0.035+uHigh*0.2)*mix(0.42,0.95,par);
+      vec2 tcu=vec2(mix(0.5,au,aw2), ru);
+      float iew=max(max(rfw,afw*aw2)*1.4,0.02);
+      float iwv=pow(1.0-fract(rv*0.125-uTime*0.22*uSpeed),5.0)*(0.6+uBass*uReact*1.4);
+      vec3 ic=scaleTile(tcu,iew,ib,iac,icp,iwv);
       outc=mix(outc,ic,rw);
     }
   }
@@ -4985,7 +4990,7 @@ const PRESETS = [
   {name:'HexKochMosely',grp:'LATT',kind:'3D', mode:42, p:{morph:0.42,detail:0.60,speed:0.6,zoom:0.30,hue:0.45,ca:0.5,cb:0.45,cc:0.2,iter:0.5}},
   {name:'Tesseract',    grp:'LATT', kind:'3D', mode:41, p:{morph:0.45,detail:0.62,speed:0.5,zoom:0.22,hue:0.60,ca:0.5,cb:0.3,cc:0.34,iter:0.5}},
   // 2D escape-time
-  {name:'Mandelbrot',   grp:'FLD', kind:'2D', mode:6,  p:{morph:0.85,detail:0.35,speed:0.6,zoom:0,hue:0.2,ca:0.61,cb:0.36,cc:0.71,iter:0.64}},
+  {name:'Mandelbrot',   grp:'FLD', kind:'2D', mode:6,  p:{morph:0.85,detail:0.35,speed:0.6,zoom:0,hue:0.2,ca:0.5,cb:0.5,cc:0.71,iter:0.64}},
   {name:'Julia',        grp:'FLD', kind:'2D', mode:7,  p:{morph:0.5,detail:0.6,speed:1.0,zoom:0.05,hue:0.42,ca:0.2,cb:0.13,cc:0.35,iter:0.64}},
   {name:'Sine Lambda',  grp:'FLD', kind:'2D', mode:8,  p:{morph:0.08,detail:0.22,speed:0.5,zoom:0,hue:0.05,ca:0.9,cb:0.31,cc:0.65,iter:0.33}},
   {name:'Mirror Tunnel',grp:'TUN', kind:'2D', mode:10, p:{morph:0.55,detail:0.50,speed:1.1,zoom:0.40,hue:0.62,cc:0.3}},
@@ -5407,6 +5412,22 @@ const getVid2 = () => _vid2;
 const setFlag = (k, on) => { if(k in _fl) _fl[k] = !!on; };
 const getFlag = k => !!_fl[k];
 const flagKey = () => (_vid2 ? 'V2 ' : '') + Object.keys(_fl).filter(k => _fl[k]).join(' ');
+// Which flags a built source actually reacts to. Every program carries the
+// defines' #ifdef blocks in its head, but a 2D scene never calls the camera,
+// cave or (for most families) invert code, so a flag it does not use must not
+// make the host rebuild it: toggling a camera view used to recompile the 2D
+// scene on screen, flashing "Upgrading shading" for nothing. A flag counts
+// when its macro is used past its own two #define lines.
+const _FMAC = {CAMV:'FC_ON', CAVE:'CAVE_ON', INV:'INV_ON'};
+const flagRel = src => {
+  const r = [];
+  if(/#ifdef VID2\b/.test(src)) r.push('V2');
+  for(const k in _FMAC) if((src.match(new RegExp('\\b' + _FMAC[k] + '\\b', 'g')) || []).length > 2) r.push(k);
+  return r;
+};
+// flagKey() restricted to the flags in rel (a flagRel() result).
+const flagKeyIn = rel => !rel ? flagKey()
+  : (_vid2 && rel.includes('V2') ? 'V2 ' : '') + Object.keys(_fl).filter(k => _fl[k] && rel.includes(k)).join(' ');
 const _defs = () => (_vid2 ? '#define VID2 1\n' : '') + Object.keys(_fl).filter(k => _fl[k]).map(k => '#define ' + k + ' 1\n').join('');
 const _slim = src => _stripDead((_defs() ? src.replace(/^(#version[^\n]*\n)/, '$1' + _defs()) : src)
   .replace(/\/\*[\s\S]*?\*\//g, '').replace(/[ \t]*\/\/[^\n]*/g, '').replace(/\n\s*\n+/g, '\n'));
@@ -5529,5 +5550,5 @@ void main(){
   fragColor=vec4(col,1.0);
 }
 `);
-window.VJE = {VIDFX_FRAG,setVid2,getVid2,setFlag,getFlag,flagKey,ifsCenter,VERT,FRAG_FOR,LITE_FOR,VEC_FOR,VEC_POST,MAPLIB_FOR,FAM_OF,POST,PAL_NAMES,XF_NAMES,PRESETS,SLIDER_DEFS,SOURCES,VID_MODES,KEYMAP,GLYPHS};
+window.VJE = {VIDFX_FRAG,setVid2,getVid2,setFlag,getFlag,flagKey,flagRel,flagKeyIn,ifsCenter,VERT,FRAG_FOR,LITE_FOR,VEC_FOR,VEC_POST,MAPLIB_FOR,FAM_OF,POST,PAL_NAMES,XF_NAMES,PRESETS,SLIDER_DEFS,SOURCES,VID_MODES,KEYMAP,GLYPHS};
 })();

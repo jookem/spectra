@@ -4868,7 +4868,7 @@ class Component extends DCLogic {
       41:{morph:'Perspective', ca:'4D phase', cb:'Glaze', cc:'Edge', iter:'Rotation'},
       42:{morph:'Block', ca:'Sweep', cb:'Bands', cc:'Axis', detail:'Fog', spinr:'Glow', iter:'Iterations'},
       // 2D escape-time — shared shading
-      6:{morph:'Orbit', ca:'c re', cb:'c im', cc:'Stripe', detail:'Edge'},
+      6:{morph:'Orbit', ca:'Seed re', cb:'Seed im', cc:'Stripe', detail:'Edge'},
       7:{morph:'c drift', ca:'c re', cb:'c im', cc:'Stripe', detail:'Edge'},
       8:{morph:'Orbit', ca:'c re', cb:'c im', cc:'Stripe', detail:'Edge'},
       17:{morph:'Shift', ca:'Drift', cb:'Twist', cc:'Stripe', detail:'Edge'},
@@ -12815,8 +12815,11 @@ class Component extends DCLogic {
       // Record which video build this source is (second look in or out), so
       // upgradeStep can tell a program that no longer matches the Stack chip.
       p._vid2 = !!(this.E.getVid2 && this.E.getVid2());
-      p._fk = this.E.flagKey ? this.E.flagKey() : '';
-      gl.shaderSource(p._fs, this.E.FRAG_FOR(p._mode, !!p._fast, !!(p._safe || this._safeGL))); gl.compileShader(p._fs);
+      const fsrc = this.E.FRAG_FOR(p._mode, !!p._fast, !!(p._safe || this._safeGL));
+      // Only the flags this source reacts to count toward its key (see flagRel).
+      p._rel = this.E.flagRel ? this.E.flagRel(fsrc) : null;
+      p._fk = this.E.flagKeyIn ? this.E.flagKeyIn(p._rel) : (this.E.flagKey ? this.E.flagKey() : '');
+      gl.shaderSource(p._fs, fsrc); gl.compileShader(p._fs);
       p._stage = 2;
     } else {
       gl.attachShader(p, p._vs);
@@ -13487,7 +13490,7 @@ class Component extends DCLogic {
     if(document.hidden) return;
     if(!gl || !P || this.pend || this.scan) { if(this.upg && this.upg.fam !== this.fam) this.dropUpg(); return; }
     const mode = (this.props.shading ?? 'full');
-    const v2 = this.E.flagKey ? this.E.flagKey() : String(!!(this.E.getVid2 && this.E.getVid2()));
+    const v2 = this.E.flagKeyIn ? this.E.flagKeyIn(P._rel) : this.E.flagKey ? this.E.flagKey() : String(!!(this.E.getVid2 && this.E.getVid2()));
     // A build-flag rebuild (Stack, a camera view, Cave or Invert toggled) is not
     // a shading upgrade: 'fast' must not drop it, but a toggle back before it
     // lands makes it moot.
@@ -13497,7 +13500,11 @@ class Component extends DCLogic {
       // with the same shading and safety, paced like any upgrade, and swap it in.
       // The old one keeps drawing until then; without VID2 it shows the first
       // look only.
+      // A build that already failed for this family and key is not retried:
+      // it would loop, rebuilding and failing every frame under the busy sign.
+      const bad = this._upgBad || {};
       if((P._fk ?? '') !== v2){
+        if(bad[this.fam + '|' + v2]) return;
         const p = gl.createProgram(); p._mode = P._mode; p._stage = 0; p._fast = !!P._fast; p._safe = !!P._safe;
         this.upg = {fam: this.fam, p, t0: performance.now(), v2};
         return;
@@ -13505,7 +13512,7 @@ class Component extends DCLogic {
       if(!P._fast || mode === 'fast') return;   // only 'auto' builds fast-first, so only it upgrades
       // A family implicated in a GPU reset stays on its slim build: the full
       // program is the thing that reset the card.
-      if(P._safe) return;
+      if(P._safe || bad[this.fam + '|full']) return;
       const now = performance.now();
       if(this._upgFam !== this.fam){ this._upgFam = this.fam; this._upgAt = now; return; }
       if(now - this._upgAt < (mode === 'full' ? 0 : 3500)) return;
@@ -13520,10 +13527,11 @@ class Component extends DCLogic {
     }
     const lw = this.linkWait(U.p, U.t0);
     if(lw === 'wait') return;
-    if(lw === 'drop'){ try{ gl.deleteProgram(U.p); }catch(e){} this.upg = null; this._upgFam = null; return; }
+    const upgFail = () => { (this._upgBad || (this._upgBad = {}))[U.fam + '|' + (U.v2 ?? 'full')] = true; };
+    if(lw === 'drop'){ try{ gl.deleteProgram(U.p); }catch(e){} this.upg = null; this._upgFam = null; upgFail(); return; }
     this.upg = null;
     const old = this.progs[U.fam];
-    if(!this.finishFamily(U.fam, U.p)){ this.progs[U.fam] = old; return; }
+    if(!this.finishFamily(U.fam, U.p)){ this.progs[U.fam] = old; upgFail(); return; }
     if(this.fam === U.fam){ const np = this.progs[U.fam]; gl.useProgram(np); this.prog = np; this.u = this.us[U.fam]; }
     if(old && old !== U.p){ try{ gl.deleteProgram(old); }catch(e){} }
     this.gGrace = performance.now() + 600;
@@ -13555,7 +13563,10 @@ class Component extends DCLogic {
     const gl = this.gl; if(!gl) return;
     for(const f of Object.keys(this.progs || {})){
       if(f === this.fam || (this.pend && this.pend.fam === f)) continue;
-      const p = this.progs[f]; if(p){ try{ gl.deleteProgram(p); }catch(e){} }
+      const p = this.progs[f];
+      // A program none of whose flags changed is still the right build.
+      if(p && p._rel && E.flagKeyIn && E.flagKeyIn(p._rel) === (p._fk ?? '')) continue;
+      if(p){ try{ gl.deleteProgram(p); }catch(e){} }
       delete this.progs[f]; delete this.us[f];
     }
     if(this.vfx){ try{ gl.deleteProgram(this.vfx.p); gl.deleteTexture(this.vfx.tex); }catch(e){} this.vfx = null; }
@@ -16316,7 +16327,7 @@ class Component extends DCLogic {
     const P = this.pend && this.pend.p;
     let label = '';
     if(P) label = 'Building ' + (((this.E && this.E.PRESETS.find(q => q.mode === P._mode)) || {}).name || 'scene');
-    else if(this.upg) label = 'Upgrading shading';
+    else if(this.upg) label = this.upg.v2 != null ? 'Rebuilding for the new setting' : 'Upgrading shading';
     else if(this.vec && !this.vec.ready) label = 'Building vector view';
     const on = !!label && this.state.mic === 'live';
     if(on !== this._busyOn){ this._busyOn = on; el.style.display = on ? 'flex' : 'none'; this._busyT = on ? performance.now() : 0; }
@@ -16866,10 +16877,9 @@ class Component extends DCLogic {
       this.washT = t;
       const zg = zEff, base = this.ctrTo || this.ctrVal;
       const sdW = this.probeSd(zg, base);
-      // Holding still, the frame keeps drifting onto the nearest detail too,
-      // so a scene that opens with its structure off to one side settles it
-      // into the frame over a second or two.
-      if(sdW >= MINSD && !this.ctrTo && !this.manual2D) this.ctrAim(md, zg, 0.25);
+      // A frame that still has structure is left where it is. It used to keep
+      // drifting onto the nearest detail twice a second, which read as an
+      // auto pan nobody asked for; only a frame gone flat is moved now.
       if(sdW >= 0 && sdW < MINSD){
         const vw = this.view2(md, zg);
         const RR = [[1,0],[-1,0],[0,1],[0,-1],[0.7,0.7],[-0.7,0.7],[0.7,-0.7],[-0.7,-0.7]];
