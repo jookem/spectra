@@ -3713,7 +3713,7 @@ class Component extends DCLogic {
      'uTex','uVidMix','uHasTex','uVidFlip','uVidFlipV','uVidMode','uVidMode2','uPrev','uFeed','uDrift','uCamYaw','uCamPitch','uCamAuto','uPan','uOrbit','uCA','uCB','uCC','uIter','uXfade','uXfMode','uCtr','uFocus','uPalSel','uSpec',
      'uRepV','uSceneOff','uLook','uZX','uZLoop','uZAnc','uZRat','uZRot','uZBase','uFHome','uIOR','uZIter','uTravel','uStrobe','uSat','uGam','uSpan','uWarm','uFill','uField','uTile','uLine','uJewel','uDOF','uRim','uLights','uLvPh','uCoCOut','uSpin','uSmooth','uChroma','uNote','uNoteConf','uTonal','uChordChg','uBeatPh','uCtr3','uDepthOut','uCamRoll','uHist','uSynHist','uSynEv','uSynCam','uSynVar',
      'uGly',
-     'uTxt','uTxtOn','uTxtDepth','uTxtScale','uTxtY','uTxtX','uTxtZ','uTxtRot','uTxtRx','uTxtRy','uTxtHue','uTxtWeight','uTxtWarp','uTxtInk','uTxtLit','uTxtJit','uTxtAsp','uPlane','uDeep','uDeepPix','uDeepBase','uDeepShade','uDeepMax','uRefLen','uDeepOff','uOrb','uCamMode','uCamScale','uRep','uCamProbe','uCamPos','uCamF','uCamR','uCamU','uCamTap','uTgt','uTgtK','uTgtC','uCamFog','uShield','uHueRot','uCave','uInv','uClrPass','uClrOn','uClrTex'];
+     'uTxt','uTxtOn','uTxtDepth','uTxtScale','uTxtY','uTxtX','uTxtZ','uTxtRot','uTxtRx','uTxtRy','uTxtHue','uTxtWeight','uTxtWarp','uTxtInk','uTxtLit','uTxtJit','uTxtAsp','uPlane','uDeep','uDeepPix','uDeepBase','uDeepShade','uDeepMax','uRefLen','uDeepOff','uOrb','uCamMode','uCamScale','uRep','uCamProbe','uCamPos','uCamF','uCamR','uCamU','uCamTap','uTgt','uTgtK','uTgtC','uCamFog','uShield','uHueRot','uCave','uInv','uClrPass','uClrOn','uClrTex','uClrPrev'];
     // A canvas scene has no shader family — compile mode 0 so the GL path is
     // still initialized for whenever the user switches back to a fractal.
     // Safe start on weak GPUs (integrated / software). Compiling a raymarch
@@ -12855,7 +12855,7 @@ class Component extends DCLogic {
     // glRaw and glLoseExt are deliberately NOT cleared here — they are the only
     // route back to a lost context, and this method is called from the loss
     // handler itself.
-    this.gl = null; this.prog = null; this.vfx = null; this.vec = null; this.vecCache = null; this.vecFB = null; this.vpickFB = null; this.vpick = null; this.vpost = null; this._ucap = null; this.u = null; this.fam = null; this.deep = null; this.camFly = null; this.clrT = null; this.clrF = null;
+    this.gl = null; this.prog = null; this.vfx = null; this.vec = null; this.vecCache = null; this.vecFB = null; this.vpickFB = null; this.vpick = null; this.vpost = null; this._ucap = null; this.u = null; this.fam = null; this.deep = null; this.camFly = null; this.clrT = null; this.clrF = null; this.clrTs = null; this.clrFs = null;
     this.progs = {}; this.us = {};
     this.pend = null; this.warmInflight = null; this._pext = undefined;
     this.fb = null; this.fbSize = {w:0,h:0}; this.postProg = null;
@@ -13143,32 +13143,46 @@ class Component extends DCLogic {
   // result stays on the GPU in a 1x1 texture on unit 7, so nothing is read back.
   // Returns true when the frame should read it; on any failure the frame
   // solves it inline exactly as before.
+  // Two 1x1 targets in turn: the pass writes one while reading last frame's
+  // push from the other, so the push is smoothed over time (see uClrPrev).
   clrPre(){
     const gl = this.gl, u = this.u;
     if(this._clrFail || !u || !u.uClrPass || !u.uClrOn || !u.uClrTex || this.is2D() || this.isCanvasScene()) return false;
-    if(!this.clrT){
-      const t = gl.createTexture(), f = gl.createFramebuffer();
-      gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, t);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-      const fb0 = gl.getParameter(gl.FRAMEBUFFER_BINDING);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
-      const ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
-      gl.bindFramebuffer(gl.FRAMEBUFFER, fb0); gl.activeTexture(gl.TEXTURE0);
-      if(!ok){ gl.deleteFramebuffer(f); gl.deleteTexture(t); this._clrFail = true; return false; }
-      this.clrT = t; this.clrF = f;
+    if(!this.clrTs){
+      const ts = [], fs = [];
+      for(let n=0;n<2;n++){
+        const t = gl.createTexture(), f = gl.createFramebuffer();
+        gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, t);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        const fb0 = gl.getParameter(gl.FRAMEBUFFER_BINDING);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+        const ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fb0); gl.activeTexture(gl.TEXTURE0);
+        if(!ok){ gl.deleteFramebuffer(f); gl.deleteTexture(t); ts.forEach(x=>gl.deleteTexture(x)); fs.forEach(x=>gl.deleteFramebuffer(x)); this._clrFail = true; return false; }
+        ts.push(t); fs.push(f);
+      }
+      this.clrTs = ts; this.clrFs = fs; this.clrI = 0; this.clrProg = null;
     }
+    // Last frame's push is only a valid start in the same program: a scene
+    // change starts the smoothing over from the new scene's own value.
+    const same = this.clrProg === this.prog; this.clrProg = this.prog;
+    const w = this.clrI, r = 1 - w; this.clrI = r;
+    this.clrT = this.clrTs[w]; this.clrF = this.clrFs[w];
     const fb0 = gl.getParameter(gl.FRAMEBUFFER_BINDING), vp = gl.getParameter(gl.VIEWPORT);
     const blend = gl.isEnabled(gl.BLEND), dith = gl.isEnabled(gl.DITHER);
     // Unbound while it is the target: a texture both sampled and drawn into is
     // a feedback loop and WebGL refuses the draw.
-    gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, null);
+    gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, same ? this.clrTs[r] : null);
+    gl.uniform1i(u.uClrTex, 7);
+    if(u.uClrPrev) gl.uniform1f(u.uClrPrev, same ? 1 : 0);
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.clrF); gl.viewport(0, 0, 1, 1);
     // The bytes are a float's bits, so nothing may blend or dither them.
     if(blend) gl.disable(gl.BLEND); if(dith) gl.disable(gl.DITHER);
     gl.uniform1f(u.uClrOn, 0); gl.uniform1f(u.uClrPass, 1);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     gl.uniform1f(u.uClrPass, 0);
+    if(u.uClrPrev) gl.uniform1f(u.uClrPrev, 0);
     if(blend) gl.enable(gl.BLEND); if(dith) gl.enable(gl.DITHER);
     gl.bindFramebuffer(gl.FRAMEBUFFER, fb0); gl.viewport(vp[0], vp[1], vp[2], vp[3]);
     gl.bindTexture(gl.TEXTURE_2D, this.clrT); gl.uniform1i(u.uClrTex, 7);
@@ -16647,7 +16661,11 @@ class Component extends DCLogic {
     // clock freezes that motion while sliders, audio bands and the camera stay
     // live, so AUTO reads as one switch over everything self-driven.
     const spdF = (auto ? 1 : 0) * (0.18 + e.speed*e.speed*3.85);
-    const dS = this.shPrev==null ? 0 : Math.min(0.05, tt-this.shPrev);
+    // Capped at a quarter second, for a hiccup like a tab coming back. The cap
+    // was 50 ms, and a heavy 3D scene often takes longer than that per frame:
+    // every such frame lost the excess, so the turn sped and slowed with the
+    // frame time and read as stutter.
+    const dS = this.shPrev==null ? 0 : Math.min(0.25, tt-this.shPrev);
     this.shPrev = tt;
     this.shClock = (this.shClock||0) + dS*spdF;
     gl.uniform1f(u.uTime, this.shClock);

@@ -532,6 +532,9 @@ uniform float uCamMode,uCamScale,uRep,uCamProbe;
 // 1x1 RGBA8 texture, and the frame then reads it with uClrOn 1. Any other draw
 // of the program leaves uClrOn at 0 and solves it inline as before.
 uniform float uClrPass,uClrOn;
+// 1 when uClrTex holds the previous frame's push (the clearance pass smooths
+// toward the new value from it), 0 on the first frame of a scene.
+uniform float uClrPrev;
 uniform sampler2D uClrTex;
 // Repeat variation: x = smallest copy (fraction of full size), y = turn amount,
 // z = per-copy parameter spread, w = off-center drift of the smaller copies.
@@ -2697,6 +2700,17 @@ vec3 render3(vec2 uv){
     // The flying views keep their own stand-off on the host; a second push here
     // along the view axis fought it and read as the camera bobbing.
     push=clr*1.4*k*k*(3.0-2.0*k)*(1.0-cw);
+    // Smoothed over time. The shell average still jumps as the form turns past
+    // the eye, and taken raw every frame the camera distance twitched with it,
+    // which read as the rotation stuttering. The pass reads last frame's push
+    // and moves part of the way: quickly when the surface comes closer (the eye
+    // must not end up inside it), slowly when it backs off.
+    if(uClrPass>0.5 && uClrPrev>0.5){
+      highp uvec4 pb=uvec4(texelFetch(uClrTex,ivec2(0),0)*255.0+0.5);
+      float pp=uintBitsToFloat(pb.r|(pb.g<<8)|(pb.b<<16)|(pb.a<<24));
+      if(!(abs(pp)<1e6)) pp=push;
+      push=pp+(push-pp)*(push>pp?0.35:0.08);
+    }
     if(uClrPass>0.5){ gProbe=vec4(push,0.0,0.0,0.0); return vec3(0.0); }
   }
   ro-=f*push;
