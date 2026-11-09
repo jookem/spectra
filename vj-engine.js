@@ -1860,7 +1860,7 @@ float tessFrac(vec3 p,out float trap){
 // evaluated, one per step, which is what keeps the field affordable.
 //   tw  pitch (loose ladder -> tight coil)    ca  groove (strand phase offset)
 //   cb  field spacing (dense -> open)          cc  grain (in the color, not the shape)
-//   uIter pairs per turn   uDetail rod thickness   bass: swell
+//   uIter pairs per turn   cc rod thickness (Detail is Fog on 3D)   bass: swell
 //   high: base pairs light up                 beat: twist ripple down the strands
 float dnaHash(float n){ return fract(sin(n*12.9898)*43758.5453); }
 float dnaSeg(vec2 p, vec2 a, vec2 b){ vec2 pa=p-a, ba=b-a; float h=clamp(dot(pa,ba)/dot(ba,ba),0.0,1.0); return length(pa-ba*h); }
@@ -1873,7 +1873,7 @@ float dnaOne(vec3 p, float ph, float seed, out float trap, float tw, float ca, f
   float stretch=sqrt(1.0+k*k*R*R);
   float ph2=3.14159265-(ca-0.5)*1.7;
   vec2 c1=vec2(R,0.0), c2=R*vec2(cos(ph2),sin(ph2));
-  float rb=(0.075+clamp(uDetail,0.0,1.0)*0.07)*(1.0+uBass*uReact*0.25);
+  float rb=(0.075+clamp(cc,0.0,1.0)*0.07)*(1.0+uBass*uReact*0.25);
   float d=min(length(q.xz-c1),length(q.xz-c2))-rb; trap=0.12;
   // Base pairs: a rod from one backbone to the other at each step, sunk into
   // both, so every rung is joined at both ends. Its two halves take two
@@ -1892,7 +1892,7 @@ float dnaOne(vec3 p, float ph, float seed, out float trap, float tw, float ca, f
   }
   // Grain: the ridged texture of the reference, carried in the color index
   // only. Moving the surface itself cost six sines per step on every helix.
-  if(cc>0.01){ vec3 g=p*vec3(23.0,19.0,23.0); trap+=cc*0.05*sin(g.x+g.y*0.7)*sin(g.z-g.y*0.9); }
+  { vec3 g=p*vec3(23.0,19.0,23.0); trap+=0.0275*sin(g.x+g.y*0.7)*sin(g.z-g.y*0.9); }
   return d/stretch;
 }
 float dna(vec3 p, out float trap, float tw, float ca, float cb, float cc){
@@ -1927,7 +1927,7 @@ float dna(vec3 p, out float trap, float tw, float ca, float cb, float cc){
 // lattice plus three neighbors: four candidates a level, whatever the count.
 //   morph  floret size     ca  profile exponent c (pointed -> domed)
 //   cb     floret tilt     cc  growth: florets drift out from the tip
-//   uDetail  levels 1..3   bass: florets swell   beat: a pulse down the levels
+//   uIter  levels 1..3 (Detail is Fog on 3D)   bass: florets swell   beat: a pulse down the levels
 float romHead(vec3 q, float H, float c){
   // The solid under z = H*(1-rho)^c on the unit disc, as a distance estimate:
   // height over the profile divided by the slope, capped by base and rim.
@@ -1948,7 +1948,7 @@ float romHalf(vec3 q, float sc, out float trap){
   float fs=mix(0.17,0.25,clamp(uMorph,0.0,1.0))*(1.0+uBass*uReact*0.1);
   float tilt=mix(0.0,0.55,clamp(uCB,0.0,1.0));
   float flow=uTime*uSpeed*clamp(uCC,0.0,1.0)*0.04;
-  int lv=1+int(floor(clamp(uDetail,0.0,1.0)*2.99));
+  int lv=1+int(floor(clamp(uIter,0.0,1.0)*2.99));
   float d=1e9; trap=0.2;
   for(int L=0;L<4;L++){
     float dh=romHead(q,H,c);
@@ -2732,6 +2732,11 @@ vec3 render3(vec2 uv){
     }
     float rt = h/eps;
     if(rt<minr){ minr=rt; mind=d; mtrap=trap; }
+    // Under Repeat map() is capped by the distance to the cell wall, and far
+    // off eps (a pixel's width) grows past that cap: the invisible wall then
+    // passed as a hit and the far field drew the cell grid. A hit has to be
+    // on the fractal itself (gDR) or the shield; a wall just gets stepped over.
+    if(h<eps && uRep>0.0 && !shHit && gDR>eps){ d+=max(h*relax,eps); continue; }
     if(h<eps){ hit=true; hp=p; htrap=trap; hd=d; hlv=gLv; hlvN=gLvN; break; }
     d+=h*relax;
     // Orbit stops 7 units past the camera. The tesseract's camera sits inside
@@ -5038,11 +5043,11 @@ const PRESETS = [
   {name:'Tetra Fold',   grp:'LATT', kind:'3D', mode:32, p:{morph:0.4,detail:0.6,speed:0.7,zoom:0.45,hue:0.4,ca:0.5,cb:0.5,cc:0.35,iter:0.55}},
   {name:'Menger Rot',   grp:'LATT', kind:'3D', mode:33, p:{morph:0.4,detail:0.62,speed:0.6,zoom:0.45,hue:0.78,ca:0.5,cb:0.5,cc:0.5,iter:0.5}},
   {name:'Gyroid',       grp:'BULB', kind:'3D', mode:34, p:{morph:0.5,detail:0.62,speed:0.55,zoom:0.44,hue:0.02,ca:0.45,cb:0.32,cc:0.4,iter:0.6}},
-  {name:'DNA',          grp:'LATT', kind:'3D', mode:43, p:{morph:0.45,detail:0.15,speed:0.5,zoom:0.4,hue:0.55,ca:0.62,cb:0,cc:0.55,iter:0.5}},
+  {name:'DNA',          grp:'LATT', kind:'3D', mode:43, p:{morph:0.45,detail:0.55,speed:0.5,zoom:0.4,hue:0.55,ca:0.62,cb:0,cc:0.62,iter:0.5}},
   {name:'Spudsville',   grp:'BULB', kind:'3D', mode:35, p:{morph:0.45,detail:0.62,speed:0.55,zoom:0.28,hue:0.7,ca:0.5,cb:0.5,cc:0.4,iter:0.5}},
   {name:'Quat Mandel',  grp:'BULB', kind:'3D', mode:36, p:{morph:0.4,detail:0.6,speed:0.7,zoom:0.42,hue:0.9,ca:0.5,cb:0.5,cc:0.35,iter:0.58}},
   {name:'HexKochMosely',grp:'LATT',kind:'3D', mode:42, p:{morph:0.42,detail:0.60,speed:0.6,zoom:0.30,hue:0.45,ca:0.5,cb:0.45,cc:0.2,iter:0.5}},
-  {name:'Tesseract',    grp:'LATT', kind:'3D', mode:41, p:{morph:0.45,detail:0.62,speed:0.5,zoom:0.22,hue:0.60,ca:0.5,cb:0.3,cc:0.34,iter:0.5}},
+  {name:'Tesseract',    grp:'LATT', kind:'3D', mode:41, p:{morph:0.45,detail:0.55,speed:0.5,zoom:0.22,hue:0.60,ca:0.5,cb:0.3,cc:0.34,iter:0.5}},
   // 2D escape-time
   {name:'Mandelbrot',   grp:'FLD', kind:'2D', mode:6,  p:{morph:0.85,detail:0.35,speed:0.6,zoom:0,hue:0.2,ca:0.5,cb:0.5,cc:0.71,iter:0.64}},
   {name:'Julia',        grp:'FLD', kind:'2D', mode:7,  p:{morph:0.5,detail:0.6,speed:1.0,zoom:0.05,hue:0.42,ca:0.2,cb:0.13,cc:0.35,iter:0.64}},
@@ -5097,7 +5102,7 @@ const PRESETS = [
   {name:'Sphere',grp:'SCN', kind:'2DC', mode:116,p:{morph:0.5,detail:0.5,speed:0.5,zoom:0.5,hue:0.75,ca:0.3,cb:0.5,cc:0.3,iter:0.5}},
   // Added last so the stored slots and cues, which name scenes by index, keep theirs.
   {name:'Cathedral',grp:'LATT', kind:'3D', mode:45,p:{morph:0.45,detail:0.75,speed:0.4,zoom:0.58,hue:0.08,ca:0.5,cb:0.5,cc:0.3,iter:0.7}},
-  {name:'Romanesco',grp:'BULB', kind:'3D', mode:44,p:{morph:0.5,detail:0.3,speed:0.5,zoom:0.42,hue:0.25,ca:0.5,cb:0.45,cc:0.35,iter:0.5}},
+  {name:'Romanesco',grp:'BULB', kind:'3D', mode:44,p:{morph:0.5,detail:0.55,speed:0.5,zoom:0.42,hue:0.25,ca:0.5,cb:0.45,cc:0.35,iter:0.5}},
   {name:'Quadratic Map', grp:'ATTR', kind:'2DC', mode:117,p:{morph:0.3,detail:0.5,speed:0.3,zoom:0.5,hue:0.02,ca:0.0,cb:0.45,cc:0.85,iter:0.3}},
   {name:'Clifford',      grp:'ATTR', kind:'2DC', mode:118,p:{morph:0.5,detail:0.5,speed:0.4,zoom:0.5,hue:0.55,ca:0.5,cb:0.45,cc:0.8,iter:0.4}},
   {name:'Halvorsen',     grp:'ATTR', kind:'2DC', mode:119,p:{morph:0.5,detail:0.55,speed:0.5,zoom:0.5,hue:0.75,ca:0.5,cb:0.45,cc:0.6,iter:0.45}},

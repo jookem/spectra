@@ -4863,18 +4863,16 @@ class Component extends DCLogic {
       34:{morph:'Threshold', ca:'Frequency', cb:'Shell', cc:'Ball', detail:'Fog', spinr:'Glow', iter:'Iterations'},
       35:{morph:'Scale', ca:'Scale ±', cb:'Inversion', cc:'Offset', detail:'Fog', spinr:'Glow', iter:'Iterations'},
       36:{morph:T.morph, ca:'Slice z', cb:'Slice w', cc:T.cc, detail:'Fog', spinr:'Glow', iter:'Iterations'},
-      // 41 keeps Detail: it is the one 3D scene excluded from the refraction
-      // swap, so the slider really is march detail there.
-      41:{morph:'Perspective', ca:'4D phase', cb:'Glaze', cc:'Edge', iter:'Rotation'},
+      41:{morph:'Perspective', ca:'4D phase', cb:'Glaze', cc:'Edge', iter:'Rotation', detail:'Fog', spinr:'Glow'},
       42:{morph:'Block', ca:'Sweep', cb:'Bands', cc:'Axis', detail:'Fog', spinr:'Glow', iter:'Iterations'},
       // 2D escape-time — shared shading
       6:{morph:'Orbit', ca:'Seed re', cb:'Seed im', cc:'Stripe', detail:'Edge'},
       7:{morph:'c drift', ca:'c re', cb:'c im', cc:'Stripe', detail:'Edge'},
       8:{morph:'Orbit', ca:'c re', cb:'c im', cc:'Stripe', detail:'Edge'},
       17:{morph:'Shift', ca:'Drift', cb:'Twist', cc:'Stripe', detail:'Edge'},
-      43:{morph:'Twist', ca:'Groove', cb:'Spacing', cc:'Grain', iter:'Pairs', detail:'Thickness'},
-      44:{morph:'Florets', ca:'Profile', cb:'Tilt', cc:'Grow', detail:'Levels'},
-      45:{morph:'Scale', ca:'Inner R', cb:'Fold', cc:'Twist'},
+      43:{morph:'Twist', ca:'Groove', cb:'Spacing', cc:'Thickness', iter:'Pairs', detail:'Fog', spinr:'Glow'},
+      44:{morph:'Florets', ca:'Profile', cb:'Tilt', cc:'Grow', iter:'Levels', detail:'Fog', spinr:'Glow'},
+      45:{morph:'Scale', ca:'Inner R', cb:'Fold', cc:'Twist', detail:'Fog', spinr:'Glow', iter:'Iterations'},
       18:{morph:'Memory', ca:'c re', cb:'c im', cc:'Stripe', detail:'Edge'},
       20:{morph:'Orbit', ca:'c re', cb:'c im', cc:'Stripe', detail:'Edge'},
       21:{morph:'Celtic', ca:'Power ±', cb:'Buffalo', cc:'Stripe', detail:'Edge'},
@@ -4933,7 +4931,7 @@ class Component extends DCLogic {
     // mandatory from the same condition the swap itself uses.
     const p3 = this.E && this.E.PRESETS.find(p => p.mode === mode);
     if(p3 && p3.kind === '3D')
-      return mode === 41 ? {iter:'Rotation'} : {detail:'Fog', spinr:'Glow', iter:'Iterations'};
+      return {detail:'Fog', spinr:'Glow', iter:'Iterations'};
     return null;
   }
 
@@ -16679,15 +16677,15 @@ class Component extends DCLogic {
     // budget is pinned to a fixed mid-high value and the slider is handed to an
     // optical property that does read — opaque stone through to lit wax.
     const dp3 = this.dPreset || this.E.PRESETS[this.state.preset];
-    // Mode 41 is the exception and keeps Detail: on the glass lattice the
-    // slider sets the reflection and transmission ray budgets, which is a real
-    // lever on both look and frame rate, and the scene is already translucent.
-    const k3 = dp3.kind === '3D' && dp3.mode !== 41;
+    // Every 3D scene, the glass lattice (41) included, has Fog on Detail; 41's
+    // reflection and transmission ray budgets hold at their old default (0.62)
+    // like every other scene's march detail. 41 still skips the refraction.
+    const k3 = dp3.kind === '3D';
     gl.uniform1f(u.uDetail, k3 ? 0.62 : e.detail);
     // 3D: Detail and Spin were near-invisible here (refraction strength and a
     // slow auto-turn), so the two slots drive Fog and Glow instead. Refraction
     // stays at its old default; the turn is the Spin toggle at design speed.
-    if(u.uIOR) gl.uniform1f(u.uIOR, k3 ? 0.55 : 0);
+    if(u.uIOR) gl.uniform1f(u.uIOR, k3 && dp3.mode !== 41 ? 0.55 : 0);
     if(u.uLook) gl.uniform2f(u.uLook, k3 ? (e.detail ?? 0.55)/0.55 : 1, k3 ? (e.spinr ?? 0.5)*2 : 1);
     gl.uniform1f(u.uReact, e.react*1.4);
     gl.uniform1f(u.uSpeed, 1.0);
