@@ -54,6 +54,21 @@ for (const f of Object.keys(ids)) {
 }
 
 let t = norm(fs.readFileSync(path.join(dir, 'VJ Fractal.dc.html'), 'utf8'));
+// Refuse to build a page whose scripts do not parse. An unescaped quote in the
+// What's new notes once shipped as "Unexpected identifier" on load; this
+// catches that class of mistake here instead of on the user's screen.
+{
+  const bad = [];
+  const tryParse = (name, js) => { try { new Function(js); } catch (e) { bad.push(name + ': ' + e.message); } };
+  const i = t.indexOf('<script type="text/x-dc"');
+  if (i >= 0) {
+    const a = t.indexOf('>', i) + 1, b = t.indexOf('</script>', a);
+    tryParse('VJ Fractal.dc.html component', t.slice(a, b).replace(/^\s*import[^\n]*\n/gm, '').replace(/export default /, ''));
+  }
+  for (const f of ['support.js', 'vj-engine.js', 'deep-zoom.js', 'cam-fly.js', 'wave-mesh.js', 'wave-gl.js', 'scene-thumbs.js'])
+    if (fs.existsSync(path.join(dir, f))) tryParse(f, fs.readFileSync(path.join(dir, f), 'utf8'));
+  if (bad.length) { console.error('Build stopped, script does not parse:\n  ' + bad.join('\n  ')); process.exit(1); }
+}
 const fonts = oldTpl.match(/<style>\/\* vietnamese \*\/[\s\S]*?<\/style>/);
 if (!fonts) throw new Error('inlined font faces not found in the previous build');
 t = t.replace(/<meta name="ext-resource-dependency"[^>]*>\n?/, '');
