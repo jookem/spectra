@@ -2661,7 +2661,9 @@ vec3 render3(vec2 uv){
   // down gathered more haze, not less.
   float fogK=clamp(uLook.x,0.0,1.0);
   float iFog=max(uCamScale,uCamFog)*14.0/clamp(uLook.x,0.5,4.0);
-  bool shOn=fc&&uShield>0.0, shHit=false;
+  // Shield state at the step that hit: shF the fractal's own distance there
+  // (negative = inside rock, so the face is a cut), shK the blend width.
+  bool shOn=fc&&uShield>0.0, shHit=false; float shF=0.0, shK=max(uShield,1e-6)*0.28;
   // Thin sheet, and only counted a few corridor widths out from the eye: with
   // the eye on the plane every ray started inside it and the frame filled.
   // Now only rays near level stay in it that far, which draws the horizon line.
@@ -2680,7 +2682,17 @@ vec3 render3(vec2 uv){
     // repeated corridor that summed to a solid wash of fog.
     float hA=uRep>0.0?min(gDR,1e3):h;
     // Shield: carve the bubble out of whatever the ray meets inside it.
-    if(shOn){ float sb=uShield-length(p-uCamPos); if(sb>h){ h=sb; shHit=true; } else shHit=false; hA=max(hA,sb); }
+    // A smooth max, not a hard one: within shK of the bubble the fractal's
+    // surface is drawn in toward it and meets it in a fillet, so the field
+    // reads as pressing on the rock rather than slicing a clean ball out.
+    // The smooth max overshoots the true distance by at most shK/4, which the
+    // march's relax covers.
+    if(shOn){
+      float sb=uShield-length(p-uCamPos), hf=h;
+      float q=clamp(0.5+0.5*(sb-h)/shK,0.0,1.0);
+      h=mix(h,sb,q)+shK*q*(1.0-q);
+      shHit=sb>hf-shK; shF=hf; hA=max(hA,sb);
+    }
     // Eye starting inside the surface: back it out along the ray. This was a
     // separate map() before the loop (a whole extra copy of the estimator).
     if(i==0 && h<0.001 && !fc){ ro-=rd*(abs(h)+0.6); continue; }
@@ -3081,9 +3093,22 @@ vec3 render3(vec2 uv){
     vec3 mc=pal(mistT/max(mist,1e-4)*2.6+uHigh*0.25);
     col+=mc*mc*(1.0-exp(-mist*0.012))*0.35*(hit?fk:1.0)*uLook.y*fogK*cw;
     col+=(iCol*1.4+vec3(0.10))*(1.0-exp(-band*0.25))*(0.8+uLoud*0.6)*fogK*cw;
-    // Shield face: where the bubble cut through rock, the cut face takes a thin
-    // wash of the accent, so the carve reads as the field, not as a glitch.
-    if(hit&&shHit){ col=mix(col, iCol*(0.55+uBeat*0.25), 0.35); }
+    // Shield face. Shaded from the fractal's own distance at the hit, so what
+    // the field shows is the shape of what it is pushing through:
+    //  - contact: where the bubble meets the real surface (shF near 0), a
+    //    bright seam that flares on the beat;
+    //  - cut: deeper into the rock the face dims to a translucent film of the
+    //    accent, and the rock's distance field is drawn on it as contour rings
+    //    rippling outward from the seam, one ring per slice of depth.
+    if(hit&&shHit){
+      float dep=max(-shF,0.0)/shK;
+      float cut=smoothstep(0.0,0.35,dep);
+      float seam=exp(-abs(shF)/(shK*0.12));
+      float rip=0.5+0.5*sin(dep*9.0-uTime*3.0);
+      float ring=smoothstep(0.82,1.0,rip)*exp(-dep*0.6);
+      col=mix(col, iCol*0.30+gP[10]*0.04, cut*0.55);
+      col+=iCol*(seam*(1.1+uBeat*0.9)+ring*cut*0.45);
+    }
   }
   // Inside views: the edge glow saturates. Hugging a wall in a tight passage
   // every step lands near the surface and the raw sum blew the frame out.
