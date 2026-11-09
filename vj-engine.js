@@ -2688,12 +2688,19 @@ vec3 render3(vec2 uv){
     // the approach. Once the march continues through the body h sits at zero,
     // so leaving this unguarded added a twelfth of a unit per interior step and
     // the object went to white. It only accumulates before the first hit.
-    if(!hit&&!cav) glow+=exp(-hA*22.0/(fc?mix(1.0,uCamScale*3.0,cw):1.0))*0.012;
+    // Glow, mist and band add a share per march step, tuned for steps the size
+    // of the gap to the fractal. Under Repeat the march also crawls in short
+    // steps across every cell wall, and at a full share each, the walls lit up
+    // as a grid. wk is the fraction of a full step actually taken, so the light
+    // follows distance travelled, not the number of steps.
+    float wk=uRep>0.0?clamp(max(h,0.0)/max(hA,1e-6),0.0,1.0):1.0;
+    if(!hit&&!cav) glow+=exp(-hA*22.0/(fc?mix(1.0,uCamScale*3.0,cw):1.0))*0.012*wk;
     if(fc){
       float tr=exp(-d/iFog), ah=cav?max(hA,cMin):abs(hA);
-      float py=uRep>0.0?p.y-uRep*floor(p.y/uRep+0.5):p.y;
-      band+=ah*relax*exp(-abs(py)/iBw)*tr*smoothstep(iBw*6.0,iBw*20.0,d)/iBw;
-      float gw=exp(-ah*6.0/max(uCamScale,1e-5))*tr;
+      // One sheet of light on the home plane. Repeated into every cell it drew
+      // a stack of horizontal sheets — the grid's other half.
+      band+=ah*relax*wk*exp(-abs(p.y)/iBw)*tr*smoothstep(iBw*6.0,iBw*20.0,d)/iBw;
+      float gw=exp(-ah*6.0/max(uCamScale,1e-5))*tr*wk;
       mist+=gw; mistT+=gw*trap;
       hst=float(i);
     }
@@ -3067,8 +3074,8 @@ vec3 render3(vec2 uv){
     vec3 iCol=gP[7]*gP[7];
     vec3 fogLit=iCol*(hit?0.42:0.75)+gP[10]*0.02;
     // Squared so the near structure keeps its dark, and the light gathers deep.
-    // A miss with Fog at 0 still needs a backdrop: the open-space tone, dimmed.
-    col=mix(col, fogLit, (hit?fk*fk*fogK:mix(0.35,1.0,fogK))*cw);
+    // A miss is open space: the lit fog at full Fog, black with Fog at 0.
+    col=hit?mix(col, fogLit, fk*fk*fogK*cw):mix(col, fogLit*fogK, cw);
     // Haze in the open space, colored by the trap it passed through, and the
     // band of light, both saturating so grazing rays don't blow out.
     vec3 mc=pal(mistT/max(mist,1e-4)*2.6+uHigh*0.25);
