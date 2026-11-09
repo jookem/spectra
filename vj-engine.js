@@ -871,6 +871,19 @@ void palSetup(){
         vec3(0.62,0.80,0.92), vec3(0.62,0.88,0.80), vec3(0.10,0.40,0.43)); }
   else { gPh=vec3(0.0,0.33,0.67); }
 }
+// Hue as a real turn of the color wheel, for the 3D scenes (uHueRot = 1, set
+// by the host). On the fixed-color palettes (Ember, Sienna, Payne...) the Hue
+// offset alone only slides along the palette's own few colors, so most of the
+// wheel was out of reach; turning the result about the gray axis as well puts
+// every hue on the dial. Both moves complete one cycle over the dial, so Hue 0
+// and Hue 1 are the palette as designed. The cosine palettes already sweep the
+// whole wheel and are left alone.
+uniform float uHueRot;
+vec3 hueTurn(vec3 c, float a){
+  const vec3 k=vec3(0.57735027);
+  float co=cos(a);
+  return max(c*co+cross(k,c)*sin(a)+k*dot(k,c)*(1.0-co), 0.0);
+}
 vec3 pal(float t){
   float tt=t*uSpan+uHue;
   vec3 base;
@@ -883,6 +896,7 @@ vec3 pal(float t){
     int i=int(min(floor(x),float(gPn)));
     base=mix(gPS[i],gPS[i+1],smoothstep(0.0,1.0,fract(x)));
   }
+  if(uHueRot>0.5 && gPk!=0) base=hueTurn(base, uHue*6.2831853);
   vec3 duo=0.5+0.5*cos(6.28318*(vec3(0.0,0.12,0.24)+tt*0.7));
   return palTrim(mix(base,duo,clamp(uCC,0.0,1.0)*(uPalSel==0?1.0:0.0)));
 }
@@ -2781,7 +2795,22 @@ vec3 render3(vec2 uv){
     // on the fractal itself (gDR) or the shield; a wall just gets stepped over.
     if(h<eps && uRep>0.0 && !shHit && gDR>eps){ d+=max(h*relax,eps); continue; }
     if(h<eps){ hit=true; hp=p; htrap=trap; hd=d; hlv=gLv; hlvN=gLvN; break; }
-    d+=h*relax;
+    // Repeat: map() only sees this cell's copy, so it caps every step at the
+    // cell wall and each wall cost several short steps. Far off, rays that ran
+    // near the cell edges crossed the most walls, spent their budget first and
+    // never reached the copies behind — the dark grid in the distance. Inside
+    // the cell only its own copy can be met before the ray leaves it, so the
+    // ray may go straight to whichever comes first: that copy (gDR) or the far
+    // wall of the cell (tEx), plus a hair to land in the next cell.
+    float stp=h*relax;
+    if(uRep>0.0 && !shHit && gDR>0.0){
+      vec3 lp=p-floor(p/uRep+0.5)*uRep;
+      vec3 sg=vec3(rd.x<0.0?-1.0:1.0, rd.y<0.0?-1.0:1.0, rd.z<0.0?-1.0:1.0);
+      vec3 tv=(sg*uRep*0.5-lp)/max(abs(rd),vec3(1e-6))*sg;
+      float tEx=max(min(tv.x,min(tv.y,tv.z)),0.0);
+      stp=max(stp, min(gDR*relax, tEx+uRep*0.002));
+    }
+    d+=stp;
     // Orbit stops 7 units past the camera. The tesseract's camera sits inside
     // the home cell, so under Repeat that cut off every neighbor.
     if(d>(fc?mix(dist0+7.0,max(uCamScale*60.0,uCamFog*40.0),cw):dist+((uMode==41)?max(7.0,uRep*2.5):7.0))) break;

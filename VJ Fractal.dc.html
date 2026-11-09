@@ -3713,7 +3713,7 @@ class Component extends DCLogic {
      'uTex','uVidMix','uHasTex','uVidFlip','uVidFlipV','uVidMode','uVidMode2','uPrev','uFeed','uDrift','uCamYaw','uCamPitch','uCamAuto','uPan','uOrbit','uCA','uCB','uCC','uIter','uXfade','uXfMode','uCtr','uFocus','uPalSel','uSpec',
      'uRepV','uSceneOff','uLook','uZX','uZLoop','uZAnc','uZRat','uZRot','uZBase','uFHome','uIOR','uZIter','uTravel','uStrobe','uSat','uGam','uSpan','uWarm','uFill','uField','uTile','uLine','uJewel','uDOF','uRim','uLights','uLvPh','uCoCOut','uSpin','uSmooth','uChroma','uNote','uNoteConf','uTonal','uChordChg','uBeatPh','uCtr3','uDepthOut','uCamRoll','uHist','uSynHist','uSynEv','uSynCam','uSynVar',
      'uGly',
-     'uTxt','uTxtOn','uTxtDepth','uTxtScale','uTxtY','uTxtX','uTxtZ','uTxtRot','uTxtRx','uTxtRy','uTxtHue','uTxtWeight','uTxtWarp','uTxtInk','uTxtLit','uTxtJit','uTxtAsp','uPlane','uDeep','uDeepPix','uDeepBase','uDeepShade','uDeepMax','uRefLen','uDeepOff','uOrb','uCamMode','uCamScale','uRep','uCamProbe','uCamPos','uCamF','uCamR','uCamU','uCamTap','uTgt','uTgtK','uTgtC','uCamFog','uShield','uCave','uInv','uClrPass','uClrOn','uClrTex'];
+     'uTxt','uTxtOn','uTxtDepth','uTxtScale','uTxtY','uTxtX','uTxtZ','uTxtRot','uTxtRx','uTxtRy','uTxtHue','uTxtWeight','uTxtWarp','uTxtInk','uTxtLit','uTxtJit','uTxtAsp','uPlane','uDeep','uDeepPix','uDeepBase','uDeepShade','uDeepMax','uRefLen','uDeepOff','uOrb','uCamMode','uCamScale','uRep','uCamProbe','uCamPos','uCamF','uCamR','uCamU','uCamTap','uTgt','uTgtK','uTgtC','uCamFog','uShield','uHueRot','uCave','uInv','uClrPass','uClrOn','uClrTex'];
     // A canvas scene has no shader family — compile mode 0 so the GL path is
     // still initialized for whenever the user switches back to a fractal.
     // Safe start on weak GPUs (integrated / software). Compiling a raymarch
@@ -16688,6 +16688,7 @@ class Component extends DCLogic {
     // stays at its old default; the turn is the Spin toggle at design speed.
     if(u.uIOR) gl.uniform1f(u.uIOR, k3 && dp3.mode !== 41 ? 0.55 : 0);
     if(u.uLook) gl.uniform2f(u.uLook, k3 ? (e.detail ?? 0.55)/0.55 : 1, k3 ? (e.spinr ?? 0.5)*2 : 1);
+    if(u.uHueRot) gl.uniform1f(u.uHueRot, k3 ? 1 : 0);
     gl.uniform1f(u.uReact, e.react*1.4);
     gl.uniform1f(u.uSpeed, 1.0);
     gl.uniform1f(u.uCA, e.ca);
