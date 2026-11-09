@@ -1530,8 +1530,12 @@ float menger(vec3 p){
   gLvN=float(mi);
   return d;
 }
+// Closest approach of the last ifs() orbit, for the color: the caller's old
+// trap was distance from the center, which sits past its clamp everywhere the
+// surface is, so the scene drew in one flat color.
+float gIfsT=0.0;
 float ifs(vec3 z,float ang,float scale){
-  vec3 off=vec3(1.0,0.92,1.08); mat2 R=rot(ang);
+  vec3 off=vec3(1.0,0.92,1.08); mat2 R=rot(ang); float tq=1e9;
   int ii=int(clamp((10.0+uZoom*5.0)*fi(),3.0,24.0));
   float sum=0.0;
   for(int i=0;i<24;i++){
@@ -1543,8 +1547,10 @@ float ifs(vec3 z,float ang,float scale){
     z.xz*=R;
     z=z*scale-off*(scale-1.0);
     sum+=1.0;
+    tq=min(tq,dot(z,z));
     if(dot(z,z)>4096.0) break;
   }
+  gIfsT=sqrt(tq);
   return length(z)*pow(scale,-sum);
 }
 float apollonian(vec3 p,out float trap){
@@ -1684,7 +1690,9 @@ float kleinian(vec3 p,out float trap){
   return 0.7*max(l-3.6,-(l*p.z)/4.0)/scale;
 }
 float juliabulb(vec3 p,out float trap){
-  vec3 z=p; float dr=1.0,r=0.0; trap=1.0;
+  // Closest approach started at 1e9, not 1.0: the orbit never comes inside the
+  // unit ball where the surface is, so from 1.0 it never moved (one flat color).
+  vec3 z=p; float dr=1.0,r=0.0; trap=1e9;
   float power=8.0+uMid*uReact*2.0;
   vec3 c=vec3((uCA-0.5)*1.4,(uCB-0.5)*1.4,(uCC-0.5)*1.0);
   int iters=int(clamp((9.0+uZoom*7.0)*fi(),3.0,38.0));
@@ -2255,14 +2263,16 @@ float map(vec3 p,out float trap){
       else if(r2<1.0){ float s=1.0/r2; q*=s; dr*=s; }
       q=q*sc+vec3(0.0,0.0,(uCC-0.5)*0.3); dr=dr*sc+1.0;
     }
-    trap=clamp(length(q)*0.1,0.0,1.0);
+    // Closest approach of the orbit (lb). The escaped size it used before was
+    // past the clamp everywhere: one flat color.
+    trap=sqrt(lb);
     float dm=length(q)/abs(dr);
     float stretch=max(1.0, kk/(rr*max(sin(phi),0.30)));
     return dm/stretch*0.8;
   } else if(uMode==32){
     float sc=1.85+(uCA-0.5)*0.35;
     float a=uTime*0.05*uSpeed+(uCB-0.5)*3.0+uMid*uReact*0.8;
-    float r=1.0; int it=0;
+    float r=1.0; int it=0; float tq=1e9;
     int N=int(clamp(10.0*fi(),2.0,24.0));
     for(int i=0;i<24;i++){
       if(i>=N) break;
@@ -2272,8 +2282,11 @@ float map(vec3 p,out float trap){
       if(p.y+p.z<0.0) p.zy=-p.yz;
       p=p*sc-vec3(sc-1.0);
       r*=sc; it=i;
+      tq=min(tq,dot(p,p));
     }
-    trap=clamp(float(it)/16.0,0.0,1.0);
+    // Closest approach of the orbit. The iteration count it used before is the
+    // same at every point, so the scene was one flat color.
+    trap=sqrt(tq);
     return (length(p)-1.1)/r;
   } else if(uMode==33){
     float a=uTime*0.05*uSpeed+(uCB-0.5)*2.5;
@@ -2315,7 +2328,9 @@ float map(vec3 p,out float trap){
   } else if(uMode==35){
     p.xz*=rot(uTime*0.045*uSpeed*uSpin);
     float sc=2.0+uMorph*0.7+(uCA-0.5)*0.5;
-    float dr=1.0; trap=1.0;
+    // Closest approach (min r2), started high: started at 1.0 it never moved,
+    // since the folded orbit stays outside the unit ball. One flat color.
+    float dr=1.0; trap=1e9;
     // Spudsville: base iteration count lowered (8 -> 6), and detail stops at the
     // pixel: once a fold's features (about 1/dr) fall below one pixel the loop
     // ends, so distant structure renders smooth instead of as speckle.
@@ -2335,6 +2350,7 @@ float map(vec3 p,out float trap){
       if(r2<trap){ trap=r2; gLv=float(i); }
     }
     gLvN=float(N);
+    trap=sqrt(trap);
     return (length(p)-2.0)/abs(dr);
   } else if(uMode==36){
     p.xy*=rot(uTime*0.05*uSpeed*uSpin);
@@ -2348,15 +2364,18 @@ float map(vec3 p,out float trap){
     qc.w += (uCB-0.5)*0.5;
     // z starts at the origin for a Mandelbrot; leaving that alone keeps the
     // family what it is.
-    float dr=1.0, r=0.0; trap=1.0;
+    float dr=1.0, r=0.0; trap=1e9;
     int N=int(clamp((10.0+uZoom*6.0)*fi(),3.0,34.0));
     for(int i=0;i<36;i++){
       if(i>=N) break;
       r=length(z); gLv=float(i); if(r>3.2) break;
       dr=2.0*r*dr+1.0;
       z=vec4(z.x*z.x-dot(z.yzw,z.yzw), 2.0*z.x*z.yzw)+qc;
-      trap=min(trap,r);
+      // From the second point on: z starts at the origin, so counting it made
+      // the closest approach 0 everywhere and the scene one flat color.
+      if(i>0) trap=min(trap,r);
     }
+    if(trap>1e8) trap=r;
     // Escape count, counted inward-first as the Mandelbulb.
     gLvN=float(N-2); gLv=max(gLvN-1.0-(gLv-2.0),0.0);
     return 0.5*log(max(r,1e-6))*r/max(dr,1e-6);
@@ -2366,8 +2385,9 @@ float map(vec3 p,out float trap){
     float sc=0.85+uMorph*0.35+(uCA-0.5)*0.3;
     return menger(p/sc)*sc;
   } else if(uMode==2){
-    trap=clamp(length(p)*0.5,0.0,1.0);
-    return ifs(p+vec3(1.0,0.92,1.08)*(1.0+(uCB-0.5)*0.55), 0.2+sin(uTime*0.09*uSpeed*uSpin)*0.18+(uCA-0.5)*0.3, 1.6+uMorph*0.45+(uCC-0.5)*0.3);
+    float dI=ifs(p+vec3(1.0,0.92,1.08)*(1.0+(uCB-0.5)*0.55), 0.2+sin(uTime*0.09*uSpeed*uSpin)*0.18+(uCA-0.5)*0.3, 1.6+uMorph*0.45+(uCC-0.5)*0.3);
+    trap=gIfsT;
+    return dI;
   } else if(uMode==3){
     p.xz*=rot(uTime*0.05*uSpeed*uSpin);
     return apollonian(p,trap);
@@ -5452,6 +5472,27 @@ const _normFor = m => {
   const a = [n[0]/_NT, n[1]/_NT, n[2]/_NT];
   return {def:'#define NORM3D 1\n', a:'vec3('+a.map(f).join(',')+')', c:'vec3('+[n[3],n[4],n[5]].map(f).join(',')+')', k:f(Math.max(...a))};
 };
+// Per-scene color stretch: trap*K+B, applied to the estimator's trap before
+// anything reads it. Measured (trap at the 10th/50th/90th percentile of the
+// surface at the scene's defaults): the scenes listed here used a sliver of
+// the palette, so the surface came out in one color at any Hue. K spreads the
+// middle 80% of the surface over one full palette cycle (0.385 of trap, at
+// pal(trap*2.6)); B keeps the median on the color the scene showed before.
+// mode: [K, B]. Kaleido IFS, Kleinian, Juliabulb and Spudsville record a real
+// closest approach now but in a thin band; Amazing Surf, Tetra Fold and Quat
+// Mandel spread on their own and only take the shift back to their old color.
+// Tesseract is left out: its glass is meant to sit on one value. K is kept to
+// 12 or less: much steeper, the color turns faster than a pixel can show.
+const _TRAPN = {
+  2:[10.0,-10.387], 13:[12.0,-3.915], 14:[8.0,-7.028], 35:[5.03,-7.852],
+  31:[1.0,0.4776], 32:[1.0,0.1808], 36:[1.0,-0.5372],
+  1:[1.736,-0.3207], 15:[4.05,-0.9583], 30:[3.365,-0.2481], 43:[1.713,-0.0952], 45:[1.17,-0.0221]
+};
+// Wrapped to one palette period (0.769 of trap = 2.0 of pal's argument, a
+// whole cycle of every palette shape), so a stretched value never leaves 0..1
+// (Repeat clamps there, and below -0.5 reads as the text layer) and the colors
+// stay continuous across the wrap.
+const _trapFor = m => _TRAPN[m] ? '  trap=mod(trap*' + _TRAPN[m][0].toFixed(4) + '+(' + _TRAPN[m][1].toFixed(4) + '),0.769231);\n' : '';
 const _mapFor = m => _normFor(m).def + 'float mapG(vec3 p,out float trap){\n  trap=0.0; gLv=0.0; gLvN=0.0;\n' + _fillFor(m) + (_BRANCH[String(m)] || _BRANCH['0']) + '\n}\n'
   // Repeat space with per-cell variation: each tile hashes its cell id into a
   // turn (any angle about a tilted axis), a size (26-100%, biased small, and
@@ -5463,7 +5504,7 @@ const _mapFor = m => _normFor(m).def + 'float mapG(vec3 p,out float trap){\n  tr
 // measured from the center, |x'-y'| = R^2|x-y|/(|x||y|), so a field value D in
 // the inverted space bounds the true distance by D|x|^2/(R^2+D|x|): exact, not
 // a fudge, and it stays finite at the center, where the image runs to infinity.
-  + 'float map(vec3 p,out float trap){\n  vec3 pq=p; float ks=1.0, bnd=1e9, csh=0.0;\n  if(uRep>0.0){\n    vec3 cid=floor(p/uRep+0.5); vec3 lp=p-cid*uRep;\n    vec3 hr=fract(sin(vec3(dot(cid,vec3(127.1,311.7,74.7)),dot(cid,vec3(269.5,183.3,246.1)),dot(cid,vec3(113.5,271.9,124.6))))*43758.5453);\n    bnd=uRep*0.5-max(abs(lp.x),max(abs(lp.y),abs(lp.z)));\n    pq=lp;\n    pq.xz*=rot(hr.x*6.2831853*uRepV.y); pq.xy*=rot((hr.y-0.5)*1.4*uRepV.y);\n    if(hr.z<0.33*uRepV.y) pq.x=abs(pq.x);\n    ks=mix(clamp(uRepV.x,0.08,1.0),1.0,pow(fract(hr.y*7.13+hr.z),1.3)); pq-=(fract(hr.zxy*vec3(5.3,8.9,3.7))-0.5)*(1.0-ks)*uRep*0.84*uRepV.w; pq/=ks;\n    csh=(hr.z-0.5)*0.5;\n    vec3 hv=fract(hr*vec3(13.7,29.3,7.9)+hr.zxy);\n    vec3 hw=fract(hv*vec3(41.3,17.9,23.1)+hr.yzx);\n    vec3 hx=fract(hw*vec3(11.1,37.7,19.3)+hv.zxy);\n    float vk=uRepV.z;\n    gVM=(hv.x-0.5)*1.1*vk; gVA=(hv.y-0.5)*1.0*vk; gVB=(hv.z-0.5)*1.0*vk; gVC=(hw.x-0.5)*0.8*vk;\n    gVZ=(hw.y-0.5)*0.6*vk; gVS=(hw.z-0.5)*2.4*uSpin*vk; gVP=(hx.x-0.5)*1.2*vk; gVF=mix(1.0,mix(0.55,1.45,hx.y),vk);\n    csh=(hx.z-0.5)*0.7*vk;\n  }\n  float ir=0.0;\n  if(INV_ON){ vec3 iq=pq-uInv.xyz; float ir2=max(dot(iq,iq),1e-8); ir=sqrt(ir2); pq=uInv.xyz+iq*(uInv.w/ir2); }\n  float lod0=gLod; gLod*=' + _normFor(m).k + ';\n  float d=mapG(pq*' + _normFor(m).a + '+' + _normFor(m).c + ',trap)/' + _normFor(m).k + ';\n  if(INV_ON) d=d*ir*ir/(uInv.w+abs(d)*ir);\n  d*=ks;\n  gLod=lod0;\n  gVM=0.0; gVA=0.0; gVB=0.0; gVC=0.0; gVZ=0.0; gVS=0.0; gVP=0.0; gVF=1.0;\n  gDR=d;\n  if(CAVE_ON){ d=uCave-d; gDR=d; }\n  if(uRep>0.0){ d=min(d,max(bnd,0.0)+uRep*0.04); trap=clamp(trap+csh,0.0,1.0); }\n  float dt=sdText3(p);\n  if(dt<d){ trap=-1.0; gDR=dt; return dt; }\n  return d;\n}\n';
+  + 'float map(vec3 p,out float trap){\n  vec3 pq=p; float ks=1.0, bnd=1e9, csh=0.0;\n  if(uRep>0.0){\n    vec3 cid=floor(p/uRep+0.5); vec3 lp=p-cid*uRep;\n    vec3 hr=fract(sin(vec3(dot(cid,vec3(127.1,311.7,74.7)),dot(cid,vec3(269.5,183.3,246.1)),dot(cid,vec3(113.5,271.9,124.6))))*43758.5453);\n    bnd=uRep*0.5-max(abs(lp.x),max(abs(lp.y),abs(lp.z)));\n    pq=lp;\n    pq.xz*=rot(hr.x*6.2831853*uRepV.y); pq.xy*=rot((hr.y-0.5)*1.4*uRepV.y);\n    if(hr.z<0.33*uRepV.y) pq.x=abs(pq.x);\n    ks=mix(clamp(uRepV.x,0.08,1.0),1.0,pow(fract(hr.y*7.13+hr.z),1.3)); pq-=(fract(hr.zxy*vec3(5.3,8.9,3.7))-0.5)*(1.0-ks)*uRep*0.84*uRepV.w; pq/=ks;\n    csh=(hr.z-0.5)*0.5;\n    vec3 hv=fract(hr*vec3(13.7,29.3,7.9)+hr.zxy);\n    vec3 hw=fract(hv*vec3(41.3,17.9,23.1)+hr.yzx);\n    vec3 hx=fract(hw*vec3(11.1,37.7,19.3)+hv.zxy);\n    float vk=uRepV.z;\n    gVM=(hv.x-0.5)*1.1*vk; gVA=(hv.y-0.5)*1.0*vk; gVB=(hv.z-0.5)*1.0*vk; gVC=(hw.x-0.5)*0.8*vk;\n    gVZ=(hw.y-0.5)*0.6*vk; gVS=(hw.z-0.5)*2.4*uSpin*vk; gVP=(hx.x-0.5)*1.2*vk; gVF=mix(1.0,mix(0.55,1.45,hx.y),vk);\n    csh=(hx.z-0.5)*0.7*vk;\n  }\n  float ir=0.0;\n  if(INV_ON){ vec3 iq=pq-uInv.xyz; float ir2=max(dot(iq,iq),1e-8); ir=sqrt(ir2); pq=uInv.xyz+iq*(uInv.w/ir2); }\n  float lod0=gLod; gLod*=' + _normFor(m).k + ';\n  float d=mapG(pq*' + _normFor(m).a + '+' + _normFor(m).c + ',trap)/' + _normFor(m).k + ';\n' + _trapFor(m) + '  if(INV_ON) d=d*ir*ir/(uInv.w+abs(d)*ir);\n  d*=ks;\n  gLod=lod0;\n  gVM=0.0; gVA=0.0; gVB=0.0; gVC=0.0; gVZ=0.0; gVS=0.0; gVP=0.0; gVF=1.0;\n  gDR=d;\n  if(CAVE_ON){ d=uCave-d; gDR=d; }\n  if(uRep>0.0){ d=min(d,max(bnd,0.0)+uRep*0.04); trap=clamp(trap+csh,0.0,1.0); }\n  float dt=sdText3(p);\n  if(dt<d){ trap=-1.0; gDR=dt; return dt; }\n  return d;\n}\n';
 
 const _2D_PATH = m => m<=9 ? ['P_E2A','escape2(uv,uMode-6)']
   : m===10 ? ['P_TUN','tunnel(uv)']
@@ -5681,5 +5722,5 @@ void main(){
   fragColor=vec4(col,1.0);
 }
 `);
-window.VJE = {VIDFX_FRAG,setVid2,getVid2,setFlag,getFlag,flagKey,flagRel,flagKeyIn,ifsCenter,VERT,FRAG_FOR,LITE_FOR,VEC_FOR,VEC_POST,MAPLIB_FOR,FAM_OF,POST,PAL_NAMES,XF_NAMES,PRESETS,SLIDER_DEFS,SOURCES,VID_MODES,KEYMAP,GLYPHS};
+window.VJE = {_TRAPN,VIDFX_FRAG,setVid2,getVid2,setFlag,getFlag,flagKey,flagRel,flagKeyIn,ifsCenter,VERT,FRAG_FOR,LITE_FOR,VEC_FOR,VEC_POST,MAPLIB_FOR,FAM_OF,POST,PAL_NAMES,XF_NAMES,PRESETS,SLIDER_DEFS,SOURCES,VID_MODES,KEYMAP,GLYPHS};
 })();
