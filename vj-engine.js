@@ -1858,9 +1858,13 @@ float tessFrac(vec3 p,out float trap){
 // cell), so one stands at the center and the line the camera looks down stays
 // clear; each has its own phase and drift. Only the nearest helix is ever
 // evaluated, one per step, which is what keeps the field affordable.
-//   tw  pitch (loose ladder -> tight coil)    ca  groove (strand phase offset)
-//   cb  field spacing (dense -> open)          cc  grain (in the color, not the shape)
-//   uIter pairs per turn   cc rod thickness (Detail is Fog on 3D)   bass: swell
+//
+// Supercoiled: the way real DNA packs, each column of the field is the double
+// helix coiled round an axis, that coil coiled again, and so on — a helix whose
+// axis is a helix, Levels deep. See dnaCoil.
+//   tw  pitch of every level (loose -> tight)  ca  groove (strand phase offset)
+//   cb  field spacing (dense -> open)          cc  rod thickness
+//   uIter supercoil levels (0..3)  ten base pairs a turn, as in B-DNA   bass: swell
 //   high: base pairs light up                 beat: twist ripple down the strands
 float dnaHash(float n){ return fract(sin(n*12.9898)*43758.5453); }
 float dnaSeg(vec2 p, vec2 a, vec2 b){ vec2 pa=p-a, ba=b-a; float h=clamp(dot(pa,ba)/dot(ba,ba),0.0,1.0); return length(pa-ba*h); }
@@ -1878,7 +1882,7 @@ float dnaOne(vec3 p, float ph, float seed, out float trap, float tw, float ca, f
   // Base pairs: a rod from one backbone to the other at each step, sunk into
   // both, so every rung is joined at both ends. Its two halves take two
   // colors, the way a base pair is drawn.
-  float npp=6.0+floor(clamp(uIter,0.0,1.0)*8.0);
+  float npp=10.0;
   float sp=pitch/npp;
   float slot=floor(p.y/sp+0.5), y0=slot*sp;
   float rr=rb*0.42;
@@ -1895,6 +1899,45 @@ float dnaOne(vec3 p, float ph, float seed, out float trap, float tw, float ca, f
   { vec3 g=p*vec3(23.0,19.0,23.0); trap+=0.0275*sin(g.x+g.y*0.7)*sin(g.z-g.y*0.9); }
   return d/stretch;
 }
+// One column: Levels of supercoil round the y axis, the double helix at the
+// bottom. Every level works in a frame where the structure below it runs up y
+// with an outer radius of 0.65 — the double helix's own size — so the levels
+// nest by one rule:
+//  - untwist about y (rotate xz by -k*y), which straightens the coiled strand
+//    into the line x=R, z=0;
+//  - step into that strand's own frame. The untwist makes the metric
+//    dx^2 + dy^2 + (dz + a*dy)^2 with a = kR, so the orthonormal frame at the
+//    strand is (x-R, (s^2*y + a*z)/s, z/s), s = sqrt(1+a^2): exact at the
+//    strand, a linear map everywhere, so the bound stays a bound;
+//  - scale by 1/F so the child is again 0.65 across.
+// R + 0.65F = 0.65 keeps every level inside its parent's envelope, and a point
+// further than a margin outside it gets the plain cylinder distance and no
+// deeper levels, so the cost is only paid near the surface. Each level gives
+// up 30% of its step to cover the untwist's stretch off the strand. F is kept
+// small next to the coil's bend (radius ~0.9 here against a strand 0.2 thick):
+// the frame is exact only on the strand, and at 0.38 the inside of each bend
+// squashed the rungs into ribbons.
+float dnaCoil(vec3 p, float seed, out float trap, float tw, float ca, float cc){
+  const float F=0.30, R=0.65*(1.0-F);
+  int L=int(floor(clamp(uIter,0.0,1.0)*3.99));
+  float P=mix(3.4,1.9,clamp(tw,0.0,1.0)), k=6.2831853/P, a=k*R, s=sqrt(1.0+a*a);
+  float m=1.0, turn=0.0;
+  for(int i=0;i<3;i++){
+    if(i>=L) break;
+    float env=length(p.xz)-0.65;
+    if(env>0.2){ trap=0.3; return env*m; }
+    float ph=seed*6.2831853+float(i)*1.7+uTime*0.07*uSpeed*float(i+1);
+    vec3 q=p; q.xz*=rot(-k*p.y+ph);
+    if(i==0) turn=floor(p.y/P);
+    p=vec3(q.x-R, (s*s*p.y+a*q.z)/s, q.z/s)/F;
+    m*=F*0.7;
+  }
+  float d=dnaOne(p, seed*6.2831853, seed, trap, tw, ca, cc)*m;
+  // Successive turns of the outermost coil step through the palette a little,
+  // so the coil reads as a coil from a distance.
+  if(L>0) trap+=0.05*sin(turn*1.3);
+  return d;
+}
 float dna(vec3 p, out float trap, float tw, float ca, float cb, float cc){
   p.xz*=rot(uTime*0.18*uSpeed*uSpin);
   p.y+=uTime*0.12*uSpeed;
@@ -1905,7 +1948,7 @@ float dna(vec3 p, out float trap, float tw, float ca, float cb, float cc){
   // The center helix keeps phase 0, so the scene opens on the same strand.
   float h=(cell.x==0.0 && row==0.0) ? 0.0 : dnaHash(dot(cell,vec2(7.13,3.71))+1.3);
   vec3 lp=vec3(p.x-ctr.x, p.y+h*9.0, p.z-ctr.y);
-  float d=dnaOne(lp, h*6.2831853, h, trap, tw, ca, cc), df=d;
+  float d=dnaCoil(lp, h, trap, tw, ca, cc), df=d;
   // Only this cell's helix is evaluated. A neighbor's is at least as far as
   // the cell edge plus the clear gap on its side (half a cell less the helix
   // radius), so the step never exceeds that and cannot jump past one.
@@ -5043,7 +5086,7 @@ const PRESETS = [
   {name:'Tetra Fold',   grp:'LATT', kind:'3D', mode:32, p:{morph:0.4,detail:0.6,speed:0.7,zoom:0.45,hue:0.4,ca:0.5,cb:0.5,cc:0.35,iter:0.55}},
   {name:'Menger Rot',   grp:'LATT', kind:'3D', mode:33, p:{morph:0.4,detail:0.62,speed:0.6,zoom:0.45,hue:0.78,ca:0.5,cb:0.5,cc:0.5,iter:0.5}},
   {name:'Gyroid',       grp:'BULB', kind:'3D', mode:34, p:{morph:0.5,detail:0.62,speed:0.55,zoom:0.44,hue:0.02,ca:0.45,cb:0.32,cc:0.4,iter:0.6}},
-  {name:'DNA',          grp:'LATT', kind:'3D', mode:43, p:{morph:0.45,detail:0.55,speed:0.5,zoom:0.4,hue:0.55,ca:0.62,cb:0,cc:0.62,iter:0.5}},
+  {name:'DNA',          grp:'LATT', kind:'3D', mode:43, p:{morph:0.45,detail:0.55,speed:0.5,zoom:0.4,hue:0.55,ca:0.62,cb:0,cc:0.62,iter:0.6}},
   {name:'Spudsville',   grp:'BULB', kind:'3D', mode:35, p:{morph:0.45,detail:0.62,speed:0.55,zoom:0.28,hue:0.7,ca:0.5,cb:0.5,cc:0.4,iter:0.5}},
   {name:'Quat Mandel',  grp:'BULB', kind:'3D', mode:36, p:{morph:0.4,detail:0.6,speed:0.7,zoom:0.42,hue:0.9,ca:0.5,cb:0.5,cc:0.35,iter:0.58}},
   {name:'HexKochMosely',grp:'LATT',kind:'3D', mode:42, p:{morph:0.42,detail:0.60,speed:0.6,zoom:0.30,hue:0.45,ca:0.5,cb:0.45,cc:0.2,iter:0.5}},
