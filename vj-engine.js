@@ -520,7 +520,7 @@ uniform vec3 uZX;
 // orbit in uOrb, offsets in float32, center held in BigInt on the host.
 uniform float uDeep,uDeepPix,uDeepBase,uDeepShade;
 uniform int uDeepMax,uRefLen;
-uniform vec2 uDeepOff;
+uniform vec2 uDeepOff,uDeepRot;
 uniform sampler2D uOrb;
 // Camera views on the 3D families (host cam-fly.js). uCamMode 0 orbit, 1 fly,
 // 2 surface; the eye and basis come from the host. uRep repeats space with that
@@ -614,6 +614,16 @@ uniform float uZBase;
 // framing). Zoom 0 shows the whole figure; turning it up glides the frame
 // onto the detail center (uCtr) and down to the same deepest octave as before.
 uniform vec3 uFHome;
+// True endless zoom (field-loops.js). uZoom is the slider (6.4 octaves a unit,
+// floored at 0 = the whole figure). The frame descends from uFHome straight onto
+// the anchor uZAnc, which stays put on screen, and from uZBase down runs the
+// anchor's similarity as a loop: every uZRat octaves the frame has turned by
+// uZRot and is the same picture again. gZOff is the escape count the descent
+// added inside the loop (uZCnt per octave), taken back off in the shading so the
+// colors repeat too; gZS is the frame's scale against the loop top, for the relief.
+uniform float uZCnt;
+uniform vec4 uZAux;
+float gZOff=0.0, gZS=1.0;
 float fhEx(float zt, float e0){ return uFHome.z>0.0 ? uFHome.z+zt*(e0+6.4-uFHome.z) : e0+zt*6.4; }
 vec2 fhCtr(vec2 c, float ex){ return uFHome.z>0.0 ? mix(uFHome.xy, c, smoothstep(uFHome.z+0.3, uFHome.z+2.4, ex)) : c; }
 // Translucency on the raymarched families. Detail was the slider here and it
@@ -759,6 +769,24 @@ vec2 wvLR(float x){ return texture(uSpec, vec2(clamp(x,0.0,1.0),0.75)).rg*2.0-1.
 float wvL(float x){ return wvLR(x).x; }
 
 mat2 rot(float a){float c=cos(a),s=sin(a);return mat2(c,-s,s,c);}
+float zlFrame(out float rt, out vec2 ctr){
+  float o=max(uZoom,0.0)*6.4;
+  float D=max(uZBase-uFHome.z,0.0);
+  float ol= o<D ? o : D+mod(o-D,uZRat);
+  rt=-ol/uZRat*uZRot;
+  // Fixed glide: over the first octaves of the descent the anchor slides to
+  // the middle of the screen, the same path every time; the loop below runs
+  // centred on it, so the wrap stays exact.
+  float gl=1.0-smoothstep(0.0,max(min(D,4.0),0.5),ol);
+  ctr=uZAnc+((uFHome.xy-uZAnc)*rot(rt))*(exp2(-ol)*gl);
+  // Counted from the top of the loop: only the loop has to repeat, and an
+  // offset from home would push the fast-escaping exterior below zero.
+  float lo=max(ol-D,0.0);
+  gZS=exp2(-lo);
+  gZOff=lo*uZCnt;
+  return uFHome.z+ol;
+}
+
 // Repeat on the 2D families: the frame tiled into an even wall of whole copies.
 // uRep is the cell height in screen units (2/n for n rows, 0 off), uRepV.w the
 // drift. Each cell has the frame's own shape and shows the entire frame scaled
@@ -997,8 +1025,8 @@ float fSeg(vec2 p,vec2 a,vec2 b){vec2 pa=p-a,ba=b-a;float h=clamp(dot(pa,ba)/max
 // trap — the three things that give 2D fractals the depth the 3D ones get
 // from raymarched normals.
 vec3 esc_shade(float i,float maxi,float m,vec2 z,vec2 dz,float st,float sn,float tr){
-  float sm=i-log2(max(log2(max(m,2.0)),1.0))+4.0;
-  float tt=sm/maxi;
+  float sm=i-gZOff-log2(max(log2(max(m,2.0)),1.0))+4.0;
+  float tt=sm/max(maxi-gZOff,1.0);
   float lz=sqrt(max(m,1.0001));
   float de=lz*log(lz)/max(length(dz),1e-8);
   if(uLine>0.5){
@@ -1015,7 +1043,7 @@ vec3 esc_shade(float i,float maxi,float m,vec2 z,vec2 dz,float st,float sn,float
   // screen-space gradient instead lights the whole exterior, so every shell and
   // filament is sculpted rather than a flat color band. This is what separates
   // the reference's embossed ropes from a plain escape-time plot.
-  float hgt=log(max(de,1e-7));
+  float hgt=log(max(de/gZS,1e-7));
   vec2 gr=vec2(dFdx(hgt),dFdy(hgt));
   // Where the height field is stepping by a lot per pixel the gradient is a
   // difference of unrelated samples, not a slope — lighting it produces the
@@ -3357,7 +3385,7 @@ vec3 esc2at(vec2 uv,int kind,float ex,vec2 ctrIn,float rotAdd,float bud,float ie
   // levels. Self-similar zoom holds the same amount of detail on screen the
   // whole way round, so one budget for the sweep is also the honest one.
   int maxi=int(max((60.0+iex*54.0)*fiE()*max(bud,0.55)*uZIter, 32.0));
-  maxi=int(min(float(maxi), mix(400.0,260.0,uSmooth)));
+  maxi=int(min(float(maxi), mix(400.0,260.0,uSmooth)))+int(ceil(gZOff));
   float i=0.0,m=0.0;
   vec2 dz=vec2(1.0,0.0);
   // Interior coordinate for Tiles: the orbit's derivative along itself, with
@@ -3373,14 +3401,15 @@ vec3 esc2at(vec2 uv,int kind,float ex,vec2 ctrIn,float rotAdd,float bud,float ie
   if(dp) gPx=gpd;
   if(dp){
     vec2 q=uv*rot(uTime*0.03*uSpeed*uSpin+uCamYaw+uCamRoll)+uPan*2.0;
-    vec2 dc=uDeepOff+q*uDeepPix, d=vec2(0.0);
+    vec2 dr=uDeepRot*uDeepPix;
+    vec2 dc=uDeepOff+cmul(q,dr), d=vec2(0.0);
     int mr=0; dz=vec2(0.0);
     // Uniform bound, not a constant: a constant 16384 invites the compiler to
     // unroll it, which is a boot-time hang on ANGLE.
     for(int k=0;k<uDeepMax;k++){
       vec2 Zm=texelFetch(uOrb,ivec2(mr&4095,mr>>12),0).xy;
       z=Zm+d;
-      dz=2.0*cmul(z,dz)+vec2(uDeepPix,0.0);
+      dz=2.0*cmul(z,dz)+dr;
       d=2.0*cmul(Zm,d)+cmul(d,d)+dc;
       mr++;
       z=texelFetch(uOrb,ivec2(mr&4095,mr>>12),0).xy+d;
@@ -3542,7 +3571,7 @@ vec3 escape2(vec2 uv,int kind){
   // the same three numbers now — see zLoopParams on the host.
   float ex=uMode==7 ? 0.75+zt*7.75 : fhEx(zt,2.1); float rt=0.0; float iex=ex;
   vec2 anchor=uMode==7 ? uCtr : fhCtr(uCtr,ex);
-  if(lp){ anchor=uZAnc; ex=uZBase+zt*uZRat; rt=-zt*uZRot; iex=uZBase+0.5*uZRat; }
+  if(lp){ ex=zlFrame(rt,anchor); iex=uFHome.z+3.0; }
   return esc2at(uv,kind,ex,anchor,rt,1.0,iex);
 }
 
@@ -3564,19 +3593,18 @@ vec3 escape2b(vec2 uv,int kind){
   // as the same three numbers and costs this program no extra tap.
   bool lp=uZLoop>=0.5;
   float zt=lp ? uZoom-floor(uZoom) : clamp(uZoom,0.0,1.0);
-  float ex=lp ? uZBase+zt*uZRat : fhEx(zt,2.1);
-  float iex=lp ? uZBase+0.5*uZRat : ex;
+  float rt2=0.0; vec2 ctr2; float ex;
+  if(lp) ex=zlFrame(rt2,ctr2); else { ex=fhEx(zt,2.1); ctr2=fhCtr(uCtr,ex); }
+  float iex=lp ? uFHome.z+3.0 : ex;
   float sc=2.8*exp2(-ex);
   float pw0=2.0+uMorph*4.0+(uCA-0.5)*1.2+uMid*uReact*0.6;
-  vec2 ctr2 = lp ? uZAnc : fhCtr(uCtr,ex);
-  float rt2 = lp ? -zt*uZRot : 0.0;
   vec2 p=uv*sc*rot(uTime*0.02*uSpeed*uSpin+uCamYaw+rt2)+ctr2+(uPan*rot(rt2))*sc*2.0;
   gPx=max(max(fwidth(p.x),fwidth(p.y)),1e-9);
     float ca=(uCA-0.5)*1.5, cb=(uCB-0.5)*1.5;
   if(kind==2){
     vec2 z=p*2.2+vec2(1e-4);
     float i=0.0;
-    int mi=int(clamp(40.0*fi(),20.0,80.0));
+    int mi=int(clamp(40.0*fi(),20.0,80.0))+int(ceil(gZOff));
     for(int k=0;k<mi;k++){
       vec2 z2=cmul(z,z);
       vec2 dz=cdiv(cmul(z2,z)-vec2(1.0,0.0), 3.0*z2);
@@ -3585,20 +3613,26 @@ vec3 escape2b(vec2 uv,int kind){
       i+=1.0;
     }
     float ang=atan(z.y,z.x)/6.28318;
-    float sh=1.0-clamp(i/(40.0*fi())*1.2,0.0,0.92);
+    float sh=1.0-clamp((i-gZOff)/(40.0*fi())*1.2,0.0,0.92);
     return pal(ang+uCB*0.5+uHigh*0.3)*sh*1.15+uBeat*0.12;
   }
-  vec2 z,c,zp=vec2(0.0);
+  vec2 z,c,zp=kind==1 ? uZAux.xy : vec2(0.0);
   float pw=pw0;
-  if(kind==0){ c=p; z=vec2(0.0); }
+  // Magnet is a Julia set of the magnet map now: drawn in its own plane, where
+  // it has repelling cycles to loop on (its parameter plane only repeats
+  // approximately). Drift / Twist move c.
+  if(kind==0){ c=vec2(1.9+(uCA-0.5)*0.8, 0.3+(uCB-0.5)*0.6); z=p; }
   else if(kind==1){ c=vec2(0.5667+ca*0.35, -0.5+cb*0.35); z=p; }
   // Ship Julia: each slider spans only the half that still has a set; above
   // the old midpoint c leaves the connected region and the plane goes empty.
   else if(kind==3){ float ca3=(uCA*0.5-0.5)*1.5, cb3=(uCB*0.5-0.5)*1.5; c=vec2(-1.12+ca3*0.17, 0.035+cb3*0.26); z=p; }
-  else { c=p; z=vec2(0.0); }
+  // Celtic is a Celtic JULIA set now, for the same reason as Magnet. c drift
+  // walks c along the diagonal; c re / c im move it freely.
+  else { c=vec2(-1.25+(uCA-0.5)*0.4+(uMorph-0.5)*0.15, 0.05+(uCB-0.5)*0.4+(uMorph-0.5)*0.15); z=p; }
   int maxi=int(min(max((56.0+iex*50.0)*fiE()*uZIter, 32.0), mix(400.0,260.0,uSmooth)));
   // Ship Julia past ~150 iterations resolves dust finer than a pixel: static.
   if(kind==3) maxi=min(maxi,int(mix(90.0,150.0,clamp(iex/6.0,0.0,1.0))));
+  maxi+=int(ceil(gZOff));
   float i=0.0,m=0.0;
   vec2 dz=vec2(1.0,0.0);
   float sf=sfreq(sfScale()), st=0.0, sn=0.0, tr=1e9;
@@ -3608,14 +3642,14 @@ vec3 escape2b(vec2 uv,int kind){
   for(int k=0;k<maxi;k++){
     // derivative of the local power map — good enough for shading on the
     // non-analytic (abs) variants too
-    dz=pw*cmul(cpow_d(z,pw-1.0),dz)+(kind==0?vec2(1.0,0.0):vec2(0.0));
+    dz=pw*cmul(cpow_d(z,pw-1.0),dz);
     if(kind==0){
       // MAGNET (type I), from the renormalization of the Ising model:
       // z <- ((z^2 + c - 1) / (2z + c - 2))^2. Two fates: escape to infinity,
       // or settle on the fixed point z = 1, so the set has a Mandelbrot-like
       // bulb plus a second, attracting basin with its own filigree. Morph bends
       // the "-1" toward the type-II-like shift, Cst B adds an imaginary twist.
-      vec2 cc2=c+vec2(0.0,(cb-0.5)*0.5);
+      vec2 cc2=c;
       float sh=mix(0.7,1.3,uMorph);
       vec2 nm=cmul(z,z)+cc2-vec2(sh,0.0);
       vec2 dn=2.0*z+cc2-vec2(2.0*sh,0.0);
@@ -3654,8 +3688,9 @@ vec3 escape2b(vec2 uv,int kind){
       // this family actually has to offer.
       // Fold floor 0.25: an unfolded (Mandelbrot) state framed on the Celtic
       // center is empty field.
-      z=vec2(mix(z2.x,abs(z2.x),0.25+0.75*clamp(uMorph,0.0,1.0)),
-             mix(z2.y,abs(z2.y),clamp(uCB,0.0,1.0)))+c;
+      // Full Celtic fold: every branch stays conformal (or anti-conformal),
+      // which is what the loop's similarity needs.
+      z=vec2(abs(z2.x),z2.y)+c;
     }
     m=dot(z,z);
     float ang=atan(z.y,z.x), lz=sqrt(m);
@@ -3734,10 +3769,10 @@ vec3 escape2c(vec2 uv,int kind){
   // subject is the whole figure, which spans about 1.2 either side of the
   // origin, and the common 2.1-octave start frames a patch a fifth that size.
   float exB = uMode==39 ? 1.0 : 2.1;
-  float ex=lp ? uZBase+zt*uZRat : fhEx(zt,exB);
-  float iex=lp ? uZBase+0.5*uZRat : ex;
+  float rt3=0.0; vec2 ctrL=vec2(0.0); float ex;
+  if(lp) ex=zlFrame(rt3,ctrL); else ex=fhEx(zt,exB);
+  float iex=lp ? uFHome.z+3.0 : ex;
   float sc=2.8*exp2(-ex);
-  float rt3 = lp ? -zt*uZRot : 0.0;
   // Harmony's constant has to be known BEFORE the sampling point, because the
   // frame has to undo the tilt the constant causes. For z^4+c with c = R e^(i0)
   // the substitution z = e^(i0/3) w conjugates the map to the same family at
@@ -3756,7 +3791,7 @@ vec3 escape2c(vec2 uv,int kind){
   // Upright: the time spin is dropped for this scene. A figure whose whole
   // point is its symmetry cannot be rolling.
   float hspin = uMode==39 ? -hth/3.0 : uTime*0.02*uSpeed*uSpin;
-  vec2 ctr3=lp?uZAnc:fhCtr(uCtr,ex);
+  vec2 ctr3=lp?ctrL:fhCtr(uCtr,ex);
 #if E2C_K==2
   {
     // Zoomed out the figure stays centered; zooming in, the frame glides off the
@@ -3768,22 +3803,32 @@ vec3 escape2c(vec2 uv,int kind){
       for(int k=0;k<12;k++){ vec2 z2=cmul(zf,zf), z3=cmul(z2,zf); zf-=cdiv(cmul(z2,z2)-zf+ch, 4.0*z3-vec2(1.0,0.0)); }
       float mu=4.0*pow(length(zf),3.0); if(mu>bm){ bm=mu; best=zf; }
     }
-    ctr3=mix(ctr3,best,smoothstep(1.7,3.4,ex));
+    if(!lp) ctr3=mix(ctr3,best,smoothstep(1.7,3.4,ex));
   }
 #endif
   vec2 p=uv*sc*rot(hspin+uCamYaw+rt3)+ctr3+(uPan*rot(rt3))*sc*2.0;
   gPx=max(max(fwidth(p.x),fwidth(p.y)),1e-9);
 #if E2C_K==0
   {
-    vec2 ab=p*0.55+vec2(3.1,3.1)+vec2((uCA-0.5),(uCB-0.5))*0.5;
-    float x=0.5, sum=0.0;
+    // The Lyapunov exponent of the complex logistic map z <- r z (1-z), taken
+    // over each point of its own plane. The old plot was the real map's
+    // (a,b) parameter plane, which only repeats approximately; this plane has
+    // repelling cycles, so the zoom loops exactly. Same reading: stable basin
+    // negative and solid, chaos and escape positive. The first gZOff steps are
+    // the ones the descent added, spent near the anchor, so they are skipped
+    // and the average is the same at every depth of the loop.
+    vec2 r=vec2(3.2+(uCA-0.5)*0.8+(uMorph-0.5)*0.3,(uCB-0.5)*0.8);
+    vec2 z=p; float sum=0.0, ws=0.0;
     int N=int(clamp(70.0*fi(),30.0,160.0));
-    for(int k=0;k<N;k++){
-      float r = (mod(float(k),3.0)<1.0) ? ab.x : ab.y;
-      x=clamp(r*x*(1.0-x),1e-5,1.0-1e-5);
-      sum+=log(abs(r*(1.0-2.0*x)));
+    int skp=int(floor(gZOff)); float fr=gZOff-float(skp);
+    for(int k=0;k<N+skp+1;k++){
+      vec2 d=cmul(r, vec2(1.0,0.0)-2.0*z);
+      float w = k<skp ? 0.0 : (k==skp ? 1.0-fr : (k==N+skp ? fr : 1.0));
+      sum+=log(max(length(d),1e-12))*w; ws+=w;
+      z=cmul(r,cmul(z,vec2(1.0,0.0)-z));
+      if(dot(z,z)>1e4) break;
     }
-    float lam=sum/float(N);
+    float lam=sum/max(ws,1.0);
     float tv=clamp(lam*mix(0.8,2.2,uDetail),-1.0,1.0);
     // The exponent is a height field: stable basins rise toward -1, chaos sinks
     // toward +1, and the zero line between is the fold. Lighting its screen
@@ -3820,8 +3865,11 @@ vec3 escape2c(vec2 uv,int kind){
   // Spider: z <- z^2 + c, c <- c/2 + z.
   const bool hq = E2C_K==2;   // compile-time: the other step is dropped
   vec2 z = hq ? p*(1.0-uChordChg*0.05) : p;
-  vec2 c = hq ? hrad*vec2(cos(hth),sin(hth)) : p+vec2((uCA-0.5),(uCB-0.5))*0.4;
-  int maxi=int(min(max((56.0+iex*46.0)*fiE()*uZIter, 32.0), mix(400.0,260.0,uSmooth)));
+  // Spider starts on the slice c = s z through its fixed point at the origin,
+  // which crosses the stable direction, so the picture repeats by 3/2 there.
+  // Cst A / B turn and stretch the slice.
+  vec2 c = hq ? hrad*vec2(cos(hth),sin(hth)) : cmul(p, vec2(1.0+(uCA-0.5)*0.8,(uCB-0.5)*0.8));
+  int maxi=int(min(max((56.0+iex*46.0)*fiE()*uZIter, 32.0), mix(400.0,260.0,uSmooth)))+int(ceil(gZOff));
   float i=0.0,m=0.0;
   vec2 dz=vec2(1.0,0.0);
   float sf=sfreq(1.0), st=0.0, sn=0.0, tr=1e9;

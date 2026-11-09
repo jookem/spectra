@@ -3,12 +3,36 @@
 // the GPU only ever sees small float32 offsets from the reference, so the zoom
 // runs to ~1e-30 instead of stopping at float precision (~1e-5).
 // Owns: the reference orbit texture (unit 6), a tiny probe program that reads
-// back escape counts for auto-steering, and the BigInt center.
+// back escape counts (iteration budget and color range only), and the BigInt
+// center.
+//
+// FRAMING. There is no steering. The zoom opens on the whole set (center -0.6,
+// depth 1) and goes straight in onto one Misiurewicz point M in seahorse
+// valley, which stays put on screen. Near M the set is self-similar with the
+// multiplier rho of M's cycle (Tan Lei): c -> M + rho (c - M) maps the picture
+// onto itself with every escape count larger by the period. The similarity is
+// asymptotic, so the loop starts LOOPD octaves down, where the mismatch is far
+// under a pixel; from there every |rho| octaves the frame has turned by
+// arg(rho) and is the same picture, so the phase wraps there. A true loop:
+// nothing is blended and nothing is hidden. Zoom out runs it backwards and
+// climbs back to the whole set.
 (function(){
 const FB=192n, FBn=192, TW=4096, UNIT=6;
 const toFix=d=>BigInt(Math.round(d*2**FBn));
 const toNum=b=>Number(b)/2**FBn;
-const MAXD=98;
+// M = f^24(0) on a 3-cycle: c = -0.74901711228836318233 + 0.13517943177843302771i
+// (mpmath, 90 digits), in 192-bit fixed point, and the cycle multiplier rho.
+const MX=-4701656615379604861248056551908820548103914160923311970185n,
+      MY=848535045804987379762600017783139323820212493194652052057n;
+const RX=4.32340450876674, RY=-5.540845870382749, PER=3;
+const LOOP=Math.log2(Math.hypot(RX,RY));        // ~2.8 octaves a turn of the loop
+const ROT=Math.atan2(RY,RX);                    // and the turn it takes
+// Home = the scene's whole-figure frame (fHome for the Mandelbrot).
+const HX=-0.6, D0=1.0, S0=2.6*2**-D0;
+// Where the loop starts, below home. The similarity error goes as the frame
+// size times |d z_24 / dc| (~2^9.5); at 31 octaves down that is ~1e-6 of the
+// frame, far under a pixel.
+const LOOPD=31;
 const PVS=`#version 300 es
 in vec2 a;void main(){gl_Position=vec4(a,0,1);}`;
 const PFS=`#version 300 es
@@ -27,7 +51,7 @@ void main(){
 }`;
 class DeepZoom{
   constructor(gl,opts){
-    this.gl=gl;this.cap=(opts&&opts.cap)||6000;
+    this.gl=gl;this.cap=(opts&&opts.cap)||7000;
     const sh=(t,s)=>{const x=gl.createShader(t);gl.shaderSource(x,s);gl.compileShader(x);if(!gl.getShaderParameter(x,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(x));return x;};
     const p=this.prog=gl.createProgram();
     gl.attachShader(p,sh(gl.VERTEX_SHADER,PVS));gl.attachShader(p,sh(gl.FRAGMENT_SHADER,PFS));
@@ -61,12 +85,13 @@ class DeepZoom{
     this.reset();
   }
   reset(){
-    this.cx=toFix(-0.75);this.cy=0n;this.rx=0n;this.ry=0n;
-    this.tx=0;this.ty=0;this.refLen=0;this.refIter=0;this.maxIter=400;
-    this.base=0;this.shade=200;this.depth=2.1;this.interior=0;
+    this.cx=toFix(HX);this.cy=0n;this.rx=0n;this.ry=0n;
+    this.refLen=0;this.refIter=0;this.maxIter=400;
+    this.base=0;this.shade=200;this.depth=D0;this.interior=0;
+    this.pix=S0;this.rc=1;this.rs=0;this.ph=null;
   }
   _bindOrb(){const gl=this.gl;gl.activeTexture(gl.TEXTURE0+UNIT);gl.bindTexture(gl.TEXTURE_2D,this.orb);}
-  S(){return 2.6*2**-this.depth;}
+  S(){return this.pix;}
   reference(){
     const gl=this.gl,N=this.maxIter+2,rows=Math.ceil(N/TW);
     const buf=new Float32Array(rows*TW*2);
@@ -101,7 +126,7 @@ class DeepZoom{
     gl.bindFramebuffer(gl.FRAMEBUFFER,fb);gl.viewport(vp[0],vp[1],vp[2],vp[3]);
     gl.bindVertexArray(vao);gl.useProgram(prog);
   }
-  _probeCollect(steer){
+  _probeCollect(){
     const gl=this.gl;if(!this.fence)return;
     if(gl.getSyncParameter(this.fence,gl.SYNC_STATUS)!==gl.SIGNALED)return;
     gl.deleteSync(this.fence);this.fence=null;
@@ -115,59 +140,33 @@ class DeepZoom{
     const want=Math.round(Math.min(this.cap,400+this.depth*220,Math.max(400,p99*1.5+200)));
     if(want>this.maxIter*1.15||want<this.maxIter*0.7)this.maxIter=want;
     if(esc){this.baseT=p02;this.shadeT=Math.max(p02+32,p99*1.15+20);}
-    if(!steer||this.depth<3)return;
-    // Small interior islands are minibrots: head for the nearest while it is
-    // still small. Big or edge-touching interiors (cardioid, grown minibrot)
-    // are ruled out with a margin, which sends the zoom along their filaments.
-    const lab=new Int32Array(tot).fill(-1),stk=[];let mb=null,mbs=-1e9;
-    const uvx=x=>(2*x+1-PW)/H,uvy=y=>(2*y+1-H)/H;
-    for(let k0=0;k0<tot;k0++){if(!I[k0]||lab[k0]>=0)continue;
-      let a=0,sx=0,sy=0,edge=false;stk.push(k0);lab[k0]=k0;
-      while(stk.length){const k=stk.pop(),x=k%PW,y=(k/PW)|0;a++;sx+=x;sy+=y;if(x===0||y===0||x===PW-1||y===H-1)edge=true;
-        if(x>0){const q=k-1;if(I[q]&&lab[q]<0){lab[q]=k0;stk.push(q);}}
-        if(x<PW-1){const q=k+1;if(I[q]&&lab[q]<0){lab[q]=k0;stk.push(q);}}
-        if(y>0){const q=k-PW;if(I[q]&&lab[q]<0){lab[q]=k0;stk.push(q);}}
-        if(y<H-1){const q=k+PW;if(I[q]&&lab[q]<0){lab[q]=k0;stk.push(q);}}}
-      const big=a>=tot*0.06||edge;
-      if(a>=3&&!big){const ux=uvx(sx/a),uy=uvy(sy/a);const sc=-Math.hypot(ux,uy);if(sc>mbs){mbs=sc;mb=[ux,uy];}}
-      if(big)for(let k=0;k<tot;k++)if(lab[k]===k0)I[k]=2;
-    }
-    let bx=0,by=0,found=false;
-    if(mb){bx=mb[0];by=mb[1];found=true;}
-    else{
-      let best=-1e9;const R=2;
-      for(let y=R;y<H-R;y++)for(let x=R;x<PW-R;x++){
-        const k=y*PW+x;if(I[k])continue;
-        let near=false;for(let v=-R;v<=R&&!near;v++)for(let u=-R;u<=R;u++)if(I[k+v*PW+u]===2){near=true;break;}
-        if(near)continue;
-        const n=px[k*4]+px[k*4+1]*256,ux=uvx(x),uy=uvy(y);
-        const sc=Math.log(n+1)-Math.hypot(ux,uy)*1.1;
-        if(sc>best){best=sc;bx=ux;by=uy;found=true;}
-      }
-    }
-    if(found){
-      // target is relative to the probe's center, which the view has since left
-      const S=this.probeS;
-      this.tx=bx*S-toNum(this.cx-this.probeCx);this.ty=by*S-toNum(this.cy-this.probeCy);
-    }
   }
-  // zoom: the host's unbounded zoom phase. Depth folds back at MAXD so a long
-  // set ping-pongs out and in rather than running past float32 range.
+  // zoom: the host's zoom, 6.4 octaves a unit, floored at 0 (the whole set).
   frame(o){
     const dt=Math.min(0.1,Math.max(0,o.dt||0));
-    let D=2.1+Math.max(0,o.zoom||0)*6.4;
-    const span=MAXD-2.1;let f=(D-2.1)%(2*span);if(f>span)f=2*span-f;
-    this.depth=2.1+f;
-    if(this.depth<3){
-      const hx=-0.75-toNum(this.cx),hy=-toNum(this.cy);
-      this.tx=hx;this.ty=hy;
+    const oz=Math.max(0,Math.min(1e6,(o.zoom||0)*6.4));
+    let ol=oz, ph=null;
+    if(oz>=LOOPD){ const u=(oz-LOOPD)/LOOP; ph=u-Math.floor(u); ol=LOOPD+ph*LOOP; }
+    // At a wrap the picture is the same but every escape count differs by the
+    // period, so the color range moves by exactly that and nothing is re-learned.
+    if(ph!=null && this.ph!=null && Math.abs(ph-this.ph)>0.5){
+      const d=(ph<this.ph ? -PER : PER);
+      this.base+=d; this.shade+=d;
+      if(this.baseT!=null){ this.baseT+=d; this.shadeT+=d; }
+      if(this.fence){this.gl.deleteSync(this.fence);this.fence=null;}
     }
-    const k=Math.min(1,dt*1.8),sx=this.tx*k,sy=this.ty*k;
-    if(sx||sy){this.cx+=toFix(sx);this.cy+=toFix(sy);this.tx-=sx;this.ty-=sy;}
+    this.ph=ph;
+    const th=-ol/LOOP*ROT, k=Math.pow(2,-ol), kx=k*Math.cos(th), ky=k*Math.sin(th);
+    // Fixed glide: the loop point slides to the middle over the first 4 octaves.
+    const gt=Math.min(1,ol/4), gg=1-gt*gt*(3-2*gt);
+    const wx=(HX-toNum(MX))*gg, wy=-toNum(MY)*gg;
+    this.cx=MX+toFix(wx*kx-wy*ky); this.cy=MY+toFix(wx*ky+wy*kx);
+    this.pix=S0*k; this.rc=Math.cos(th); this.rs=Math.sin(th);
+    this.depth=D0+ol;
     const S=this.S();
     const dr=Math.hypot(toNum(this.cx-this.rx),toNum(this.cy-this.ry))/S;
     if(this.refLen===0||dr>0.6||this.maxIter>this.refIter)this.reference();
-    this._probeCollect(o.steer!==false);
+    this._probeCollect();
     const now=performance.now();
     if(now-this.lastProbe>250){this._probeStart(o.aspect||16/9);this.lastProbe=now;}
     const ke=1-Math.pow(0.05,dt);
@@ -180,6 +179,7 @@ class DeepZoom{
     if(u.uDeepMax)gl.uniform1i(u.uDeepMax,this.maxIter);
     if(u.uDeepOff)gl.uniform2f(u.uDeepOff,toNum(this.cx-this.rx),toNum(this.cy-this.ry));
     if(u.uDeepPix)gl.uniform1f(u.uDeepPix,this.S());
+    if(u.uDeepRot)gl.uniform2f(u.uDeepRot,this.rc,this.rs);
     if(u.uDeepBase)gl.uniform1f(u.uDeepBase,this.base);
     if(u.uDeepShade)gl.uniform1f(u.uDeepShade,this.shade);
   }

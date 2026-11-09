@@ -36,6 +36,7 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
 </style>
 <script src="vj-engine.js?v=b52"></script>
 <script src="deep-zoom.js?v=b52"></script>
+<script src="field-loops.js?v=b52"></script>
 <script src="cam-fly.js?v=b52"></script>
 <script src="wave-mesh.js?v=b52"></script>
 <script src="wave-gl.js?v=b52"></script>
@@ -3711,9 +3712,9 @@ class Component extends DCLogic {
     this.progs = {}; this.us = {};
     this.UNAMES = ['uRes','uTime','uBass','uMid','uHigh','uLoud','uBeat','uJump','uHue','uMorph','uDetail','uZoom','uReact','uSpeed','uMode',
      'uTex','uVidMix','uHasTex','uVidFlip','uVidFlipV','uVidMode','uVidMode2','uPrev','uFeed','uDrift','uCamYaw','uCamPitch','uCamAuto','uPan','uOrbit','uCA','uCB','uCC','uIter','uXfade','uXfMode','uCtr','uFocus','uPalSel','uSpec',
-     'uRepV','uSceneOff','uLook','uZX','uZLoop','uZAnc','uZRat','uZRot','uZBase','uFHome','uIOR','uZIter','uTravel','uStrobe','uSat','uGam','uSpan','uWarm','uFill','uField','uTile','uLine','uJewel','uDOF','uRim','uLights','uLvPh','uCoCOut','uSpin','uSmooth','uChroma','uNote','uNoteConf','uTonal','uChordChg','uBeatPh','uCtr3','uDepthOut','uCamRoll','uHist','uSynHist','uSynEv','uSynCam','uSynVar',
+     'uRepV','uSceneOff','uLook','uZX','uZLoop','uZAnc','uZRat','uZRot','uZBase','uFHome','uZCnt','uZAux','uIOR','uZIter','uTravel','uStrobe','uSat','uGam','uSpan','uWarm','uFill','uField','uTile','uLine','uJewel','uDOF','uRim','uLights','uLvPh','uCoCOut','uSpin','uSmooth','uChroma','uNote','uNoteConf','uTonal','uChordChg','uBeatPh','uCtr3','uDepthOut','uCamRoll','uHist','uSynHist','uSynEv','uSynCam','uSynVar',
      'uGly',
-     'uTxt','uTxtOn','uTxtDepth','uTxtScale','uTxtY','uTxtX','uTxtZ','uTxtRot','uTxtRx','uTxtRy','uTxtHue','uTxtWeight','uTxtWarp','uTxtInk','uTxtLit','uTxtJit','uTxtAsp','uPlane','uDeep','uDeepPix','uDeepBase','uDeepShade','uDeepMax','uRefLen','uDeepOff','uOrb','uCamMode','uCamScale','uRep','uCamProbe','uCamPos','uCamF','uCamR','uCamU','uCamTap','uTgt','uTgtK','uTgtC','uCamFog','uShield','uHueRot','uCave','uInv','uClrPass','uClrOn','uClrTex','uClrPrev'];
+     'uTxt','uTxtOn','uTxtDepth','uTxtScale','uTxtY','uTxtX','uTxtZ','uTxtRot','uTxtRx','uTxtRy','uTxtHue','uTxtWeight','uTxtWarp','uTxtInk','uTxtLit','uTxtJit','uTxtAsp','uPlane','uDeep','uDeepPix','uDeepBase','uDeepShade','uDeepMax','uRefLen','uDeepOff','uDeepRot','uOrb','uCamMode','uCamScale','uRep','uCamProbe','uCamPos','uCamF','uCamR','uCamU','uCamTap','uTgt','uTgtK','uTgtC','uCamFog','uShield','uHueRot','uCave','uInv','uClrPass','uClrOn','uClrTex','uClrPrev'];
     // A canvas scene has no shader family — compile mode 0 so the GL path is
     // still initialized for whenever the user switches back to a fractal.
     // Safe start on weak GPUs (integrated / software). Compiling a raymarch
@@ -4829,7 +4830,13 @@ class Component extends DCLogic {
     // recursion levels) and the Exposure curve elsewhere.
     if(fam.slice(0,3) === '3d:') r.lite = 'Flow';
     if(fam === 'can') r.dof = '\u2014';
+    // On the endless-zoom fields 11 is Zoom \u00b1: a constant drive, still at the
+    // center, in to the right, out to the left.
+    if(this.zDrive(mode)) r.spinr = 'Zoom \u00b1';
     return r;
+  }
+  zDrive(mode){
+    return !!this.state.levels && this.is2Mode(mode) && this.zFree(mode);
   }
   paramLabels0(mode){
     // Injected fill-ins (see _fillFor in the engine): where an estimator ignores
@@ -4875,10 +4882,10 @@ class Component extends DCLogic {
       45:{morph:'Scale', ca:'Inner R', cb:'Fold', cc:'Twist', detail:'Fog', spinr:'Glow', iter:'Iterations'},
       18:{morph:'Memory', ca:'c re', cb:'c im', cc:'Stripe', detail:'Edge'},
       20:{morph:'Orbit', ca:'c re', cb:'c im', cc:'Stripe', detail:'Edge'},
-      21:{morph:'Celtic', ca:'Power ±', cb:'Buffalo', cc:'Stripe', detail:'Edge'},
+      21:{morph:'c drift', ca:'c re', cb:'c im', cc:'Stripe', detail:'Edge'},
       19:{morph:'Relax', ca:'Root re', cb:'Root im', cc:'Stripe'},
-      37:{morph:'Sequence', ca:'r a', cb:'r b', cc:'Stripe'},
-      38:{morph:'c drift', ca:'c re', cb:'c im', cc:'Stripe', detail:'Edge'},
+      37:{morph:'r drift', ca:'r re', cb:'r im', cc:'Stripe'},
+      38:{morph:'c drift', ca:'Slice re', cb:'Slice im', cc:'Stripe', detail:'Edge'},
       39:{morph:'Notes', ca:'Radius ±', cb:'Key ±', cc:'Stripe', detail:'Edge'},
       40:{morph:'Curl', ca:'—', cb:'Rotation ±', cc:'Claws', detail:'Plates'},
       10:{morph:'Mirrors', ca:'Mirrors ±', cb:'Core', cc:'Band', detail:'Rings', iter:'—'},
@@ -4964,10 +4971,10 @@ class Component extends DCLogic {
       43:['DNA','a field of double helices to fly through','Twist · Groove · Spacing · Grain'],
       45:['Cathedral','Mandelbox at negative scale','arcades of arches and ogee windows; Scale · Inner R · Fold · Twist'],
       44:['Romanesco','r = a·e^(bn), θ = n·137.5°, z = H(1−r/R)^c','each floret the whole head again; Florets · Profile · Tilt · Grow'],
-      17:['Magnet','z ← ((z² + c − 1)/(2z + c − 2))²','Ising-model renormalization'],
+      17:['Magnet','z ← ((z² + c − 1)/(2z + c − 2))²,  c fixed','z₀ is the pixel; Ising-model renormalization'],
       18:['Phoenix','z ← z² + c₁ + c₂·z₋₁','one-step memory'],
       20:['Ship Julia','z ← (|Re z| + i·Im z)² + c','Burning Ship with fixed c'],
-      21:['Celtic','z ← (|Re z²| + i·Im z²) + c','abs on the real part only'],
+      21:['Celtic','z ← (|Re z²| + i·Im z²) + c,  c fixed','z₀ is the pixel; abs on the real part only'],
       39:['Harmony','z ← z² + c,  c = r·e^(iθ)','θ = key center on the circle of fifths; r = tonal clarity'],
       40:['Golden Wave','c = e^(2πit)/2 − e^(4πit)/4,  t = 1/φ','Siegel disk at the golden rotation number, curled onto r = e^(θ·lnφ/(π/2))'],
       22:['Spectrum','hᵢ(x) = FFT(x, t − i·Δ)','seven past spectra receding in depth'],
@@ -11425,7 +11432,7 @@ class Component extends DCLogic {
 
   setP(key, v){
     const w = (key==='hue' || (key==='zoom' && this.zFree()))
-      ? (key==='hue' ? ((v%1)+1)%1 : v)
+      ? (key==='hue' ? ((v%1)+1)%1 : (this.zXF() ? v : Math.max(0, v)))
       : Math.min(1, Math.max(0, v));
     // A slider drag or a held touchpad gesture used to call setState on every
     // pointermove — around 60 full React reconciles a second of the whole deck
@@ -11675,6 +11682,7 @@ class Component extends DCLogic {
         let v = (s.p[key] ?? 0.5) + amt;
         if(key==='hue') v = ((v%1)+1)%1;
         else if(!(key==='zoom' && this.zFree())) v = Math.min(1,Math.max(0,v));
+        else if(!this.zXF()) v = Math.max(0, v);
         return {p:Object.assign({},s.p,{[key]:v})};
       });
     };
@@ -14722,8 +14730,12 @@ class Component extends DCLogic {
   // self-similarity by L^k, and k is chosen to put a sweep near three octaves.
   zLoopParams(mode, e){
     const ca = e.ca==null?0.5:e.ca, cb = e.cb==null?0.5:e.cb;
+    if(window.FieldLoops){
+      const fl = FieldLoops.params(mode, e, this.h);
+      if(fl) return fl;
+    }
     if(mode===6 || mode===9)
-      return {anc:[-1.4011551890920506, 0], rat:2.2230924, rot:0, ramp:1};
+      return {anc:[-1.4011551890920506, 0], rat:2.2230924, rot:0, ramp:1, home:[-0.6,0,1.0], base:9.0, cnt:0};
     if(mode===7){
       const cx = -0.4+(ca-0.5)*1.1+((e.morph==null?0.45:e.morph)-0.5)*0.25;
       const cy = 0.6+(cb-0.5)*1.1;
@@ -14878,6 +14890,7 @@ class Component extends DCLogic {
   // plane, Lyapunov is a parameter map and Celtic's whole view is noise, so
   // those keep their own framing.
   fHome(mode){
+    if(window.FieldLoops && FieldLoops.SCN[mode]) return FieldLoops.SCN[mode].home;
     return ({6:[-0.6,0,1.0], 8:[0,0,1.3], 17:[0,0,0.45], 18:[0,0,0.9], 20:[0,0,1.1], 38:[0,0,1.0]})[mode] || null;
   }
   anchorFor(mode){
@@ -14905,7 +14918,8 @@ class Component extends DCLogic {
   // a solid interior filling the right third, and half a frame to the left
   // trades it for boundary.
   viewOff(mode){
-    if(mode===21) return [-0.55,0];
+    // Celtic used to sit half a frame left of its cascade anchor; as a Julia
+    // set framed on its own figure it needs no offset.
     return [0,0];
   }
 
@@ -14955,36 +14969,19 @@ class Component extends DCLogic {
     const base = this.ctrVal || [0,0];
     const sd0 = this.probeSd(nz, base);
     if(sd0 < 0) return 'starved';
-    // Staying put alone dives straight into a fixed point, and a point a hair
-    // inside a lobe becomes a frame of flat lobe a few octaves later. Steering
-    // onto the nearest detail as it goes keeps the dive on the boundary.
-    if(sd0 >= MIN){ if(this.probeLineAim(md, nz, base)) this.ctrAim(md, nz, 0.3); this.ctrZoom = nz; return 'ok'; }
-    const vh = this.view2(md, nz);
-    const RR = [[1,0],[-1,0],[0,1],[0,-1],[0.7,0.7],[-0.7,0.7],[0.7,-0.7],[-0.7,-0.7]];
-    // The outer ring reaches past the frame edge; the move is eased on screen
-    // (ctrShow), so even that one glides rather than jumps.
-    for(const rad of [0.35, 0.7, 1.3]){
-      let best = null, bestSd = MIN;
-      for(let i=0;i<RR.length;i++){
-        const c = [base[0]+RR[i][0]*vh*rad, base[1]+RR[i][1]*vh*rad];
-        const sd = this.probeSd(nz, c);
-        if(sd < 0) return 'starved';
-        if(sd > bestSd){ bestSd = sd; best = c; }
-      }
-      if(best){ this.ctrVal = best; this.ctrZoom = nz; return 'ok'; }
-    }
-    const rc = this.recenter(md, e.ca, e.cb, tt, nz, base);
-    if(rc){
-      const sd = this.probeSd(nz, rc);
-      if(sd < 0) return 'starved';
-      if(sd >= MIN){ this.ctrVal = rc; this.ctrZoom = nz; return 'ok'; }
-    }
+    // No auto pan: the frame zooms straight in on the center it opened on,
+    // and stops where that center runs out of detail.
+    if(sd0 >= MIN){ this.ctrZoom = nz; return 'ok'; }
     return 'fail';
   }
 
   recenter(mode, ca, cb, t, zoom, from){
     const is2 = this.is2Mode(mode);
     if(!is2) return [0,0];
+    if(window.FieldLoops && FieldLoops.SCN[mode]){
+      const fl = this.zLoopParams(mode, this.eff || {});
+      if(fl) return fl.anc.slice();
+    }
     if(this.juliaCentered(mode)) return this.anchorFor(mode);
     if(zoom < 0.04 && !from) return this.anchorFor(mode);
     const sc = this.view2(mode, zoom);
@@ -15662,7 +15659,9 @@ class Component extends DCLogic {
     const pre = this.E && this.E.PRESETS.find(p => p.mode === md);
     if(!pre || pre.kind !== '2D') return false;
     if(md===6 || md===8 || md===9) return false;
-    if(md===21 && this.zSolve(md, null)) return false;
+    // Every Fields scene runs a true loop now (field-loops.js); only the
+    // tunnels keep the crossfade.
+    if(window.FieldLoops && FieldLoops.SCN[md]) return false;
     return true;
   }
   // The last frame before the wrap is held over the new level and keeps
@@ -15707,6 +15706,7 @@ class Component extends DCLogic {
     // Julia (7) is off this list: framed like Harmony, on its own figure, and
     // zoomed endlessly by the crossfade instead.
     if(md===6 || md===8 || md===9) return true;
+    if(window.FieldLoops && FieldLoops.SCN[md]) return true;
     // Harmony is off this list. It is a quartic Julia framed on its own figure,
     // and framing on the figure is incompatible with the wrap — see zSolveRaw.
     // Celtic loops only over the part of its Morph range where the fold stays
@@ -15720,8 +15720,9 @@ class Component extends DCLogic {
   // not seconds, so a fast zoom and a slow one both dissolve over the same
   // amount of magnification rather than the same amount of time.
   zWrapBlend(is2, md){
-    const ph = this.zEffLast;
-    if(this.deepOn) return 0;
+    // True loops wrap exactly; nothing to dissolve.
+    if(this.deepOn || (window.FieldLoops && FieldLoops.SCN[md])) return 0;
+    const ph = this.deepOn && this.deep ? this.deep.ph : this.zEffLast;
     if(!is2 || !this.zFree(md) || ph == null) return 0;
     let d = Math.abs(ph - (this._zPhPrev == null ? ph : this._zPhPrev));
     if(d > 0.5) d = 1 - d;                    // the phase just rolled over
@@ -16832,6 +16833,20 @@ class Component extends DCLogic {
     const is2 = this.is2Mode(md);
     const MINSD = 7.0;
     gl.uniform1i(u.uMode, md);
+    // Zoom \u00b1 (dial 11 on the endless fields): drives the zoom phase without
+    // stopping, either way. Signed square for a fine middle, two octaves a
+    // second at the ends. Written in place, committed to React twice a second.
+    {
+      const dtd = Math.min(0.1, Math.max(0, (t - (this._zdT || t))/1000));
+      this._zdT = t;
+      const v = ((e.spinr ?? 0.5) - 0.5)*2;
+      if(is2 && this.zDrive(md) && Math.abs(v) > 0.04){
+        const z1 = (this.state.p.zoom ?? 0.5) + v*Math.abs(v)*(2.0/6.4)*dtd;
+        this.state.p.zoom = this.zXF(md) ? z1 : Math.max(0, z1);
+        this.pDirty = true;
+        if(!this.dragging && !this.padLive && t - (this._zdC || 0) > 500){ this._zdC = t; this.commitP(); }
+      }
+    }
 
     // Zoom-out is instant (the center is always valid at a shallower depth) but
     // zoom-in has to validate each step, so a fixed small step made pushing in
@@ -16879,7 +16894,9 @@ class Component extends DCLogic {
     // The loop phase accumulates without bound so the smoother above never sees
     // a rollover to sweep back through; the wrap happens here, at the uniform,
     // which is the one point where it is invisible.
-    if(is2 && this.zFree(md)) zEff = zEff - Math.floor(zEff);
+    // Crossfade loops take the fraction; true loops take the whole value,
+    // floored at 0 (the whole figure), and fold it in the shader.
+    if(is2 && this.zFree(md)) zEff = this.zXF(md) ? zEff - Math.floor(zEff) : Math.max(0, zEff);
     else if(is2) zEff = Math.max(0, Math.min(1, zEff));
     this.zEffLast = zEff;
     // A looping family has no bottom to hit: zoomCap stays 1 while the phase
@@ -16908,12 +16925,12 @@ class Component extends DCLogic {
     // levels armed. The crossfade loop runs with the layer loop off.
     gl.uniform1f(u.uZLoop, (is2 && this.zFree(md) && !xf) ? 1 : 0);
     // Deep zoom replaces the self-similar loop on the Mandelbrot: a real descent
-    // to ~1e-30 via perturbation (deep-zoom.js), auto-steered while Auto is on.
+    // to ~1e-30 via perturbation (deep-zoom.js), framed on one fixed similarity loop (no steering).
     this.deepOn = false;
     if(is2 && md===6 && this.state.levels && window.DeepZoom){
       try{
         if(!this.deep) this.deep = new DeepZoom(gl);
-        this.deep.frame({dt:zdt, zoom:this.zSm, steer:this.state.auto!==false,
+        this.deep.frame({dt:zdt, zoom:this.zSm,
           aspect:gl.drawingBufferWidth/Math.max(1,gl.drawingBufferHeight)});
         this.deep.apply(gl,u);
         this.deepOn = true;
@@ -16936,43 +16953,30 @@ class Component extends DCLogic {
       // Harmony opens two and a half octaves shallower than the rest: its
       // anchor is a dendrite, not a cascade, so at the common depth the frame
       // holds three filaments and nothing else.
-      if(u.uZBase) gl.uniform1f(u.uZBase, this.zBase(md));
-      { const h = this.fHome(md) || [0, 0, 0]; if(u.uFHome) gl.uniform3f(u.uFHome, h[0], h[1], h[2]); }
-      if(this.zFree(md) && !xf && zl.ramp) rmp = Math.pow(2, zl.ramp*(zEff-1));
+      const tl = this.zFree(md) && !xf && zl.home;
+      if(u.uZBase) gl.uniform1f(u.uZBase, tl ? zl.base : this.zBase(md));
+      { const h = tl ? zl.home : (this.fHome(md) || [0, 0, 0]); if(u.uFHome) gl.uniform3f(u.uFHome, h[0], h[1], h[2]); }
+      if(u.uZCnt) gl.uniform1f(u.uZCnt, tl ? (zl.cnt || 0) : 0);
+      if(u.uZAux){ const a = zl.aux || [0,0,0,0]; gl.uniform4f(u.uZAux, a[0], a[1], a[2], a[3]); }
+      // Loop phase (null on the descent), for the Feigenbaum budget ramp.
+      this.zPhase = null;
+      if(tl){ const o = zEff*6.4, D = Math.max(0, zl.base - zl.home[2]); if(o >= D) this.zPhase = ((o - D) % zl.rat)/zl.rat; }
+      if(tl && zl.ramp) rmp = Math.pow(2, zl.ramp*((this.zPhase ?? 0) - 1));
     }
     if(u.uZIter) gl.uniform1f(u.uZIter, rmp);
     // Wash guard. A validated center goes stale (the set animates, the stick
     // zooms past what was checked). Twice a second, probe what is on screen; if
-    // it is flat, glide to the busiest nearby spot at this depth, and only if
-    // nothing nearby has structure, back the zoom out a step.
+    // it is flat, back the zoom out a step. It never moves the frame.
     if(this.ctrScene !== this.washScene){ this.washScene = this.ctrScene; this.ctrTo = null; this.washMiss = 0; }
     if(is2 && this.state.auto!==false && !this.state.levels && !this.zFree(md) && !this.pStarved && (t - (this.washT||0)) > 500
        && Math.hypot(this.pan.x||0, this.pan.y||0) < 0.35 && this.ctrVal){
       this.washT = t;
       const zg = zEff, base = this.ctrTo || this.ctrVal;
       const sdW = this.probeSd(zg, base);
-      // A frame that still has structure is left where it is. It used to keep
-      // drifting onto the nearest detail twice a second, which read as an
-      // auto pan nobody asked for; only a frame gone flat is moved now.
-      if(sdW >= 0 && sdW < MINSD){
-        const vw = this.view2(md, zg);
-        const RR = [[1,0],[-1,0],[0,1],[0,-1],[0.7,0.7],[-0.7,0.7],[0.7,-0.7],[-0.7,-0.7]];
-        let best = null, bestSd = MINSD;
-        for(const rad of [0.6, 1.4]){
-          for(let i=0;i<RR.length && !this.pStarved;i++){
-            const c2 = [base[0]+RR[i][0]*vw*rad, base[1]+RR[i][1]*vw*rad];
-            const sd = this.probeSd(zg, c2);
-            if(sd > bestSd){ bestSd = sd; best = c2; }
-          }
-          if(best) break;
-        }
-        if(best){ this.ctrTo = best; this.washMiss = 0; }
-        else if(!this.pStarved){
-          this.washMiss = (this.washMiss||0) + 1;
-          if(this.manual2D) this.setP('zoom', (this.state.p.zoom||0) - 0.05);
-          else { this.zoomCap = Math.max(0, zg - 0.05); this.ctrZoom = Math.min(this.ctrZoom, this.zoomCap); }
-          if(this.washMiss > 6){ this.ctrTo = this.anchorFor(md); this.washMiss = 0; }
-        }
+      // No auto pan: a frame gone flat backs the zoom out a step, in place.
+      if(sdW >= 0 && sdW < MINSD && !this.pStarved){
+        if(this.manual2D) this.setP('zoom', (this.state.p.zoom||0) - 0.05);
+        else { this.zoomCap = Math.max(0, zg - 0.05); this.ctrZoom = Math.min(this.ctrZoom, this.zoomCap); }
       }
     }
     if(this.ctrTo && this.ctrVal){
