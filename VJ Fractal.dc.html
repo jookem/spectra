@@ -968,7 +968,7 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
                 </sc-for>
               </select>
               <select value="{{ lineSel }}" onChange="{{ setLine }}" title="{{ lineTitle }}" style="display:{{ lineDisp }};font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid var(--acc30);background:rgba(8,9,10,0.34);color:var(--acc);appearance:none;-webkit-appearance:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
-                <sc-for list="{{ lineOptions }}" as="o" hint-placeholder-count="4">
+                <sc-for list="{{ lineOptions }}" as="o" hint-placeholder-count="3">
                   <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
                 </sc-for>
               </select>
@@ -1413,7 +1413,7 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
             </sc-for>
           </select>
           <select value="{{ lineSel }}" onChange="{{ setLine }}" title="{{ lineTitle }}" style="display:{{ lineDisp }};flex:1 1 0;min-width:0;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;padding:8px 4px;min-height:{{ selH }};box-sizing:border-box;cursor:pointer;appearance:none;-webkit-appearance:none;text-align:center;border:1px solid var(--acc30);color:var(--acc);background:rgba(8,9,10,0.34);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
-            <sc-for list="{{ lineOptions }}" as="o" hint-placeholder-count="4">
+            <sc-for list="{{ lineOptions }}" as="o" hint-placeholder-count="3">
               <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
             </sc-for>
           </select>
@@ -3713,7 +3713,7 @@ class Component extends DCLogic {
      'uTex','uVidMix','uHasTex','uVidFlip','uVidFlipV','uVidMode','uVidMode2','uPrev','uFeed','uDrift','uCamYaw','uCamPitch','uCamAuto','uPan','uOrbit','uCA','uCB','uCC','uIter','uXfade','uXfMode','uCtr','uFocus','uPalSel','uSpec',
      'uRepV','uSceneOff','uLook','uZX','uZLoop','uZAnc','uZRat','uZRot','uZBase','uFHome','uIOR','uZIter','uTravel','uStrobe','uSat','uGam','uSpan','uWarm','uFill','uField','uTile','uLine','uJewel','uDOF','uRim','uLights','uLvPh','uCoCOut','uSpin','uSmooth','uChroma','uNote','uNoteConf','uTonal','uChordChg','uBeatPh','uCtr3','uDepthOut','uCamRoll','uHist','uSynHist','uSynEv','uSynCam','uSynVar',
      'uGly',
-     'uTxt','uTxtOn','uTxtDepth','uTxtScale','uTxtY','uTxtX','uTxtZ','uTxtRot','uTxtRx','uTxtRy','uTxtHue','uTxtWeight','uTxtWarp','uTxtInk','uTxtLit','uTxtJit','uTxtAsp','uPlane','uDeep','uDeepPix','uDeepBase','uDeepShade','uDeepMax','uRefLen','uDeepOff','uOrb','uCamMode','uCamScale','uRep','uCamProbe','uCamPos','uCamF','uCamR','uCamU','uCamTap','uTgt','uTgtK','uTgtC','uCamFog','uCave','uInv','uClrPass','uClrOn','uClrTex'];
+     'uTxt','uTxtOn','uTxtDepth','uTxtScale','uTxtY','uTxtX','uTxtZ','uTxtRot','uTxtRx','uTxtRy','uTxtHue','uTxtWeight','uTxtWarp','uTxtInk','uTxtLit','uTxtJit','uTxtAsp','uPlane','uDeep','uDeepPix','uDeepBase','uDeepShade','uDeepMax','uRefLen','uDeepOff','uOrb','uCamMode','uCamScale','uRep','uCamProbe','uCamPos','uCamF','uCamR','uCamU','uCamTap','uTgt','uTgtK','uTgtC','uCamFog','uShield','uCave','uInv','uClrPass','uClrOn','uClrTex'];
     // A canvas scene has no shader family — compile mode 0 so the GL path is
     // still initialized for whenever the user switches back to a fractal.
     // Safe start on weak GPUs (integrated / software). Compiling a raymarch
@@ -14551,16 +14551,14 @@ class Component extends DCLogic {
     gl.viewport(0,0,gl.drawingBufferWidth,gl.drawingBufferHeight);
     const px = this.probePx, n = W*N;
     const L = i => 0.299*px[i*4] + 0.587*px[i*4+1] + 0.114*px[i*4+2];
-    const bm = this._probeBusy && this._probeBusy.length >= n ? this._probeBusy : (this._probeBusy = new Uint8Array(n));
     let s=0, s2=0, busy=0, cells=0;
     for(let y=0;y<N;y++){
       for(let x=0;x<W;x++){
         const i = y*W + x, l = L(i);
         s += l; s2 += l*l;
-        bm[i] = 0;
         if(x+1 < W && y+1 < N){
           cells++;
-          if(Math.abs(l - L(i+1)) + Math.abs(l - L(i+W)) > 9){ busy++; bm[i] = 1; }
+          if(Math.abs(l - L(i+1)) + Math.abs(l - L(i+W)) > 9)busy++;
         }
       }
     }
@@ -14568,6 +14566,56 @@ class Component extends DCLogic {
     const sd = Math.sqrt(Math.max(0, s2/n - m*m));
     const cov = cells ? busy/cells : 0;
     this.probeCov = cov;
+    return sd * Math.min(1, cov/0.40);
+  }
+  // Where the auto pan steers: the probe frame drawn as the Line Fine outline
+  // (the distance-estimate contour 1.5 px out from the set), and the aim taken
+  // from where that line is most concentrated. The outline marks the boundary
+  // itself, one pixel per filament, so its density is the density of structure
+  // — the shaded field's luminance edges also fire on stripes, glow and haze
+  // well away from the set. Scenes without the distance estimate (Newton,
+  // Lyapunov, Mirror Tunnel, Flow, Harmony) fall back to the shaded frame's
+  // edges. Sets probeAim; false when the budget could not afford the look.
+  probeLineAim(md, zoom, ctr){
+    const gl = this.gl, u = this.u, N = this.PB;
+    if(!gl || !this.probeFB){ this.probeAim = null; return false; }
+    if(this.pBudget <= 0){ this.pStarved = true; this.probeAim = null; return false; }
+    this.pBudget--;
+    const cv = this.canvasRef.current;
+    const asp = cv ? cv.width / Math.max(1, cv.height) : 16/9;
+    const W = Math.max(N, Math.min(this.PBW || N, Math.round(N*asp)));
+    const useLine = !!u.uLine && this.lineOk(md);
+    gl.uniform2f(u.uRes, W, N);
+    gl.uniform1f(u.uZoom, zoom);
+    gl.uniform2f(u.uCtr, ctr[0], ctr[1]);
+    if(u.uFocus){ const fo = this.goldFocus(zoom); gl.uniform2f(u.uFocus, fo[0], fo[1]); }
+    gl.uniform1f(u.uFeed, 0);
+    gl.uniform1f(u.uXfade, 0);
+    if(useLine) gl.uniform1f(u.uLine, 1.5);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.probeFB);
+    gl.viewport(0,0,W,N);
+    gl.drawArrays(gl.TRIANGLES,0,3);
+    gl.readPixels(0,0,W,N,gl.RGBA,gl.UNSIGNED_BYTE,this.probePx);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    if(useLine) gl.uniform1f(u.uLine, this.lineFxOk(md));
+    gl.uniform2f(u.uRes, gl.drawingBufferWidth, gl.drawingBufferHeight);
+    gl.viewport(0,0,gl.drawingBufferWidth,gl.drawingBufferHeight);
+    const px = this.probePx, n = W*N;
+    const L = i => 0.299*px[i*4] + 0.587*px[i*4+1] + 0.114*px[i*4+2];
+    const bm = this._probeBusy && this._probeBusy.length >= n ? this._probeBusy : (this._probeBusy = new Uint8Array(n));
+    if(useLine){
+      // Line pixels are the bright core; the glow round it is under a third of
+      // the core's level, so a cut at 45% of the frame's peak keeps only the line.
+      let pk = 0;
+      for(let i=0;i<n;i++){ const l = L(i); if(l > pk) pk = l; }
+      const cut = Math.max(24, pk*0.45);
+      for(let i=0;i<n;i++) bm[i] = L(i) > cut ? 1 : 0;
+    } else {
+      for(let y=0;y<N;y++) for(let x=0;x<W;x++){
+        const i = y*W + x, l = L(i);
+        bm[i] = (x+1 < W && y+1 < N && Math.abs(l - L(i+1)) + Math.abs(l - L(i+W)) > 9) ? 1 : 0;
+      }
+    }
     // Aim: where the frame's center should move so the detail fills it, in
     // screen units from the point the center maps to (the golden focus). The
     // frame is cut into 4x4-pixel tiles, each scored by how busy it is; every
@@ -14605,7 +14653,14 @@ class Component extends DCLogic {
       if(s > best){ best = s; aim = [(tx+0.5-ftx)*T*2/N, (ty+0.5-fty)*T*2/N]; }
     }
     this.probeAim = (aim && best > 0 && here < best*0.85) ? aim : null;
-    return sd * Math.min(1, cov/0.40);
+    return true;
+  }
+  // The Line value the frame draws with. Line Single (18) was removed; a value
+  // saved before that plays as Line Soft.
+  lineFxOk(md){
+    if(!this.lineOk(md)) return 0;
+    const v = +this.state.lineFx || 0;
+    return v > 6 ? 6 : v;
   }
   // The plane rotation a 2D family applies to the screen point, read from the
   // uniforms the frame just set (same formulas as esc2at / escape2b / c), so a
@@ -14889,7 +14944,7 @@ class Component extends DCLogic {
     // Staying put alone dives straight into a fixed point, and a point a hair
     // inside a lobe becomes a frame of flat lobe a few octaves later. Steering
     // onto the nearest detail as it goes keeps the dive on the boundary.
-    if(sd0 >= MIN){ this.ctrAim(md, nz, 0.3); this.ctrZoom = nz; return 'ok'; }
+    if(sd0 >= MIN){ if(this.probeLineAim(md, nz, base)) this.ctrAim(md, nz, 0.3); this.ctrZoom = nz; return 'ok'; }
     const vh = this.view2(md, nz);
     const RR = [[1,0],[-1,0],[0,1],[0,-1],[0.7,0.7],[-0.7,0.7],[0.7,-0.7],[-0.7,-0.7]];
     // The outer ring reaches past the frame edge; the move is eased on screen
@@ -17273,7 +17328,7 @@ class Component extends DCLogic {
     // 2D look on the escape-time families: 0 Relief, 1 Jewel (period-colored
     // interior, black field with a boundary halo, harder stripes).
     if(u.uJewel) gl.uniform1f(u.uJewel, this.state.jewel ? 1 : 0);
-    if(u.uLine) gl.uniform1f(u.uLine, this.lineOk(this.curMode()) ? (this.state.lineFx || 0) : 0);
+    if(u.uLine) gl.uniform1f(u.uLine, this.lineFxOk(this.curMode()));
     gl.uniform1f(u.uDOF, this.eff.dof ?? 0);
     const fx = this.state.fx || 0;
     // The ping-pong pass is what fills uPrev with the previous composited frame.
@@ -18353,8 +18408,8 @@ class Component extends DCLogic {
       dmodeOptions: [{v:'off',tag:'Depth Off'},{v:'0',tag:'Depth Relief'},{v:'1',tag:'Depth Parallax'},{v:'2',tag:'Depth Terrain'},{v:'3',tag:'Depth Z'}],
       setDMode: (e)=>{ if(e.target.value==='off'){ this.setState(st=>({p:Object.assign({}, st.p, {dpth:0})})); return; } const v = parseInt(e.target.value,10)||0; this.setState(st=>({dmode:v, p: (st.p.dpth||0) > 0.001 ? st.p : Object.assign({}, st.p, {dpth:0.5})})); },
       setField: (e)=>{ const v = e.target.value; this.setState(v === 't' ? {tiles:true, fieldFx:0} : {tiles:false, fieldFx: parseInt(v,10)||0}); },
-      lineSel: String(s.lineFx || 0),
-      lineOptions: [{v:'0',tag:'Line Off'},{v:'1.5',tag:'Line Fine'},{v:'6',tag:'Line Soft'},{v:'18',tag:'Line Single'}],
+      lineSel: String(Math.min(6, +s.lineFx || 0)),
+      lineOptions: [{v:'0',tag:'Line Off'},{v:'1.5',tag:'Line Fine'},{v:'6',tag:'Line Soft'}],
       setLine: (e)=>this.setState({lineFx: parseFloat(e.target.value)||0}),
       lookSel: s.jewel ? '1' : '0',
       lookOptions: [{v:'1',tag:'Look Jewel'},{v:'0',tag:'Look Relief'}],

@@ -752,6 +752,20 @@ class CamFly{
     if(u.uCamFog)gl.uniform1f(u.uCamFog,this.fogS||0);
     // Cave skin: a fixed sliver of the framing distance, steady so walls never move.
     if(u.uCave)gl.uniform1f(u.uCave,this.caveOn&&!this.ret?(this.dfar0||5)*0.002:0);
+    // Shield: a bubble round the eye that the shader carves out of anything it
+    // meets. Up within a quarter second while the camera travels (a tap flight,
+    // or Fly / Inside moving under its own steam), and it lingers about a second
+    // after, so a wall brushed at the end of a trip still opens. The radius is
+    // about half the clearance the camera keeps, so in open flight nothing is
+    // inside it — only a wall the steering failed to keep off gets carved.
+    if(u.uShield){
+      const now=performance.now(), sdt=Math.min(0.1,Math.max(0,(now-(this._shT||now))/1000)); this._shT=now;
+      const moving=!this.ret&&(!!this.go||((this.mode===1||this.mode===3)&&(this.vs||0)>0));
+      const cur=this.shK||0, tgt=moving?1:0;
+      this.shK=cur+(tgt-cur)*(1-Math.exp(-sdt*(tgt>cur?12:3)));
+      const F=this.dfar0||5, R=Math.min(F*0.05,Math.max(F*0.002,this.scale*0.45));
+      gl.uniform1f(u.uShield,this.shK>0.01?R*this.shK*we:0);
+    }
     this.applyTgt(gl,u,P);
   }
   // Target highlight in the scene: x,y,z the point, w its radius; K = strength,

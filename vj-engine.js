@@ -547,6 +547,11 @@ float tgtSel(bool hit,vec3 p,float Rg){ if(!hit) return 0.0; if(uRep<=0.0) retur
   vec3 a=floor(p/uRep+0.5), b=floor(uTgt.xyz/uRep+0.5); return all(equal(a,b))?1.0:0.0; }
 // Fog / reach length for the inside views (host-smoothed open space).
 uniform float uCamFog;
+// Shield: radius of a bubble round the flying camera (0 = off). Geometry inside
+// it is carved away on screen only — the camera's probe still sees the real
+// surface — so a brush with a wall mid-flight opens a hole instead of filling
+// the frame. The host raises it while the camera travels and lets it fade after.
+uniform float uShield;
 // Cave (View Inside, toggled): the distance field is flipped so the fractal's
 // solid is open space and the air around it is rock. The value is the wall's
 // skin thickness (0 off). Inside a solid most estimators are unsigned (they
@@ -2650,7 +2655,13 @@ vec3 render3(vec2 uv){
   // Both are attenuated by the same fog the surfaces get, so far haze and near
   // haze sit at the right depth.
   float mist=0.0, mistT=0.0, band=0.0, hst=0.0;
-  float iFog=max(uCamScale,uCamFog)*14.0/max(uLook.x,0.05);
+  // Fog dial: 0 clears the atmosphere entirely (lit fog, mist and the band);
+  // 1 is as designed. The reach the mist is gathered over no longer grows as
+  // the dial drops — at 0.05 it was twenty times the corridor, so turning Fog
+  // down gathered more haze, not less.
+  float fogK=clamp(uLook.x,0.0,1.0);
+  float iFog=max(uCamScale,uCamFog)*14.0/clamp(uLook.x,0.5,4.0);
+  bool shOn=fc&&uShield>0.0, shHit=false;
   // Thin sheet, and only counted a few corridor widths out from the eye: with
   // the eye on the plane every ray started inside it and the frame filled.
   // Now only rays near level stay in it that far, which draws the horizon line.
@@ -2663,6 +2674,13 @@ vec3 render3(vec2 uv){
     p=ro+rd*d;
     gLod=max(d,1e-3)*2.0/(uRes.y*1.7);
     float h=map(p,trap);
+    // Distance to the fractal itself for the atmosphere. Under Repeat map()
+    // also stops at every cell wall (the min with bnd), and counted as "near a
+    // surface" every wall crossing added mist and band light — down a long
+    // repeated corridor that summed to a solid wash of fog.
+    float hA=uRep>0.0?min(gDR,1e3):h;
+    // Shield: carve the bubble out of whatever the ray meets inside it.
+    if(shOn){ float sb=uShield-length(p-uCamPos); if(sb>h){ h=sb; shHit=true; } else shHit=false; hA=max(hA,sb); }
     // Eye starting inside the surface: back it out along the ray. This was a
     // separate map() before the loop (a whole extra copy of the estimator).
     if(i==0 && h<0.001 && !fc){ ro-=rd*(abs(h)+0.6); continue; }
@@ -2670,9 +2688,9 @@ vec3 render3(vec2 uv){
     // the approach. Once the march continues through the body h sits at zero,
     // so leaving this unguarded added a twelfth of a unit per interior step and
     // the object went to white. It only accumulates before the first hit.
-    if(!hit&&!cav) glow+=exp(-(uRep>0.0?min(gDR,1e3):h)*22.0/(fc?mix(1.0,uCamScale*3.0,cw):1.0))*0.012;
+    if(!hit&&!cav) glow+=exp(-hA*22.0/(fc?mix(1.0,uCamScale*3.0,cw):1.0))*0.012;
     if(fc){
-      float tr=exp(-d/iFog), ah=cav?max(h,cMin):abs(h);
+      float tr=exp(-d/iFog), ah=cav?max(hA,cMin):abs(hA);
       float py=uRep>0.0?p.y-uRep*floor(p.y/uRep+0.5):p.y;
       band+=ah*relax*exp(-abs(py)/iBw)*tr*smoothstep(iBw*6.0,iBw*20.0,d)/iBw;
       float gw=exp(-ah*6.0/max(uCamScale,1e-5))*tr;
@@ -3049,12 +3067,16 @@ vec3 render3(vec2 uv){
     vec3 iCol=gP[7]*gP[7];
     vec3 fogLit=iCol*(hit?0.42:0.75)+gP[10]*0.02;
     // Squared so the near structure keeps its dark, and the light gathers deep.
-    col=mix(col, fogLit, fk*fk*cw);
+    // A miss with Fog at 0 still needs a backdrop: the open-space tone, dimmed.
+    col=mix(col, fogLit, (hit?fk*fk*fogK:mix(0.35,1.0,fogK))*cw);
     // Haze in the open space, colored by the trap it passed through, and the
     // band of light, both saturating so grazing rays don't blow out.
     vec3 mc=pal(mistT/max(mist,1e-4)*2.6+uHigh*0.25);
-    col+=mc*mc*(1.0-exp(-mist*0.012))*0.35*(hit?fk:1.0)*uLook.y*cw;
-    col+=(iCol*1.4+vec3(0.10))*(1.0-exp(-band*0.25))*(0.8+uLoud*0.6)*cw;
+    col+=mc*mc*(1.0-exp(-mist*0.012))*0.35*(hit?fk:1.0)*uLook.y*fogK*cw;
+    col+=(iCol*1.4+vec3(0.10))*(1.0-exp(-band*0.25))*(0.8+uLoud*0.6)*fogK*cw;
+    // Shield face: where the bubble cut through rock, the cut face takes a thin
+    // wash of the accent, so the carve reads as the field, not as a glitch.
+    if(hit&&shHit){ col=mix(col, iCol*(0.55+uBeat*0.25), 0.35); }
   }
   // Inside views: the edge glow saturates. Hugging a wall in a tight passage
   // every step lands near the surface and the raw sum blew the frame out.
