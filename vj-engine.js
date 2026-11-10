@@ -2211,6 +2211,46 @@ float cubeKM(vec3 p,out float trap){
   return d*0.86;
 }
 
+// Amazing Surf on a sphere (31). The fractal is a slab: structure spreads
+// through its xy plane and has finite thickness in z. So the domain is
+// remapped before folding: the two plane axes become the sphere's angles and
+// the thickness axis becomes radius, which lays the surf round a ball as a
+// shell of radius R0.
+//
+//   model x = azimuth * k,   model y = (polar - PI/2) * k,   model z = r - R0
+//
+// k is chosen so a full turn of azimuth spans a whole number of the fold's
+// own period (the xy fold at +-fo repeats every 4*fo), which is what makes
+// the wrap close on itself instead of showing a seam at the back.
+//
+// The remap stretches space, so the model-space estimate is not a world
+// distance: one world unit along the azimuth covers k/(r*sin(polar)) of
+// model space. Dividing by the LARGEST local stretch keeps the estimate
+// conservative; sin() is floored so the poles, where the mapping is
+// singular, do not stall the march at zero.
+float surfShell(vec3 p, float R0, float sc, float fo, float mr, int N, out float lbo, out float lvo){
+  float kk=3.0*(4.0*fo)/6.2831853;
+  float rr=max(length(p),1e-4);
+  float th=atan(p.z,p.x);
+  float sph=clamp(p.y/rr,-1.0,1.0);
+  float phi=acos(sph);
+  vec3 q=vec3(th*kk, (phi-1.5707963)*kk, rr-R0);
+  float dr=1.0, lb=1e9; lvo=0.0;
+  for(int i=0;i<22;i++){
+    if(i>=N) break;
+    q.xy=2.0*clamp(q.xy,-fo,fo)-q.xy;          // plane fold on xy only
+    float r2=dot(q,q);
+    if(r2<lb){ lb=r2; lvo=float(i); }
+    if(r2<mr){ float s=1.0/mr; q*=s; dr*=s; }   // conditional sphere fold
+    else if(r2<1.0){ float s=1.0/r2; q*=s; dr*=s; }
+    q=q*sc+vec3(0.0,0.0,(uCC-0.5)*0.3); dr=dr*sc+1.0;
+  }
+  lbo=lb;
+  float dm=length(q)/abs(dr);
+  float stretch=max(1.0, kk/(rr*max(sin(phi),0.30)));
+  return dm/stretch*0.8;
+}
+
 // World size of one pixel at the current march distance, set by render3 just
 // before each map() call (0 = no limit). Scenes use it to stop iterating once
 // the next level of detail would be smaller than a pixel.
@@ -2256,56 +2296,26 @@ float map(vec3 p,out float trap){
     trap=clamp(r2*0.22,0.0,1.0);
     return max(rxy-0.92, abs(rxy*p.z)/max(length(p),1e-4))/df;
   } else if(uMode==31){
-    // Amazing Surf, wrapped onto a SPHERE instead of an infinite plane.
-    //
-    // The fractal is a slab: structure spreads through its xy plane and has
-    // finite thickness in z. So the domain is remapped before folding — the two
-    // plane axes become the sphere's angles and the thickness axis becomes
-    // radius, which lays the same surf around a ball as a shell.
-    //
-    //   model x = azimuth * k,   model y = (polar - PI/2) * k,   model z = r - R0
-    //
-    // k is chosen so a full turn of azimuth spans a whole number of the fold's
-    // own period (the xy fold at +-fo repeats every 4*fo), which is what makes
-    // the wrap close on itself instead of showing a seam at the back.
-    //
-    // The remap stretches space, so the model-space estimate is not a world
-    // distance: one world unit along the azimuth covers k/(r*sin(polar)) of
-    // model space. Dividing by the LARGEST local stretch keeps the estimate
-    // conservative; sin() is floored so the poles, where the mapping is
-    // singular, do not stall the march at zero.
+    // Amazing Surf, wrapped onto a SPHERE instead of an infinite plane (see
+    // surfShell). The sphere fold cuts windows through the shell at every
+    // Detail, so on its own the ball opened into cups. A second shell of the
+    // same surf sits just inside it, turned so its poles lie on the outer
+    // shell's equator and shifted half a fold, so its structure falls where
+    // the outer one has windows and the whole sphere is always filled.
     p.xz*=rot(uTime*0.03*uSpeed*uSpin);
     float sc=1.5+uMorph*0.6+(uCA-0.5)*0.4;
     float fo=1.0+(uCB-0.5)*0.5;
     float mr=0.5+(uCC-0.5)*0.4;
-    float R0=1.15;
-    float kk=3.0*(4.0*fo)/6.2831853;
-    float rr=max(length(p),1e-4);
-    float th=atan(p.z,p.x);
-    float sph=clamp(p.y/rr,-1.0,1.0);
-    float phi=acos(sph);
-    vec3 q=vec3(th*kk, (phi-1.5707963)*kk, rr-R0);
-    float dr=1.0, lb=1e9;
     int N=int(clamp(9.0*fi(),2.0,22.0));
     gLvN=float(N);
-    for(int i=0;i<22;i++){
-      if(i>=N) break;
-      q.xy=2.0*clamp(q.xy,-fo,fo)-q.xy;          // plane fold on xy only
-      float r2=dot(q,q);
-      if(r2<lb){ lb=r2; gLv=float(i); }
-      if(r2<mr){ float s=1.0/mr; q*=s; dr*=s; }   // conditional sphere fold
-      else if(r2<1.0){ float s=1.0/r2; q*=s; dr*=s; }
-      q=q*sc+vec3(0.0,0.0,(uCC-0.5)*0.3); dr=dr*sc+1.0;
-    }
-    // Closest approach of the orbit (lb). The escaped size it used before was
-    // past the clamp everywhere: one flat color.
-    trap=sqrt(lb);
-    float dm=length(q)/abs(dr);
-    float stretch=max(1.0, kk/(rr*max(sin(phi),0.30)));
-    // A solid ball just under the surf's mid-plane. The sphere fold cuts big
-    // windows through the shell at every Detail, so on its own the ball read
-    // as open cups; with this under it the surf is always a whole sphere.
-    return min(dm/stretch*0.8, rr-(R0-0.08));
+    float lbA, lvA, lbB, lvB;
+    float dA=surfShell(p,1.15,sc,fo,mr,N,lbA,lvA);
+    vec3 p2=vec3(p.x,p.z,-p.y);
+    p2.xz*=rot(1.0471976);   // half a fold: the period is a third of a turn
+    float dB=surfShell(p2,1.02,sc,fo,mr,N,lbB,lvB);
+    // Closest approach of the orbit (lb), of whichever shell is nearer.
+    if(dA<=dB){ trap=sqrt(lbA); gLv=lvA; return dA; }
+    trap=sqrt(lbB); gLv=lvB; return dB;
   } else if(uMode==32){
     float sc=1.85+(uCA-0.5)*0.35;
     float a=uTime*0.05*uSpeed+(uCB-0.5)*3.0+uMid*uReact*0.8;
