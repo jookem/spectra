@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<script src="./support.js?v=b57"></script>
+<script src="./support.js?v=b58"></script>
 <meta name="ext-resource-dependency" content="./csi.js" data-resource-id="csiJs">
 </head>
 <body>
@@ -34,13 +34,13 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
   @keyframes vjspin{to{transform:rotate(360deg)}}
   @keyframes vjscan{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
 </style>
-<script src="vj-engine.js?v=b57"></script>
-<script src="deep-zoom.js?v=b57"></script>
-<script src="field-loops.js?v=b57"></script>
-<script src="cam-fly.js?v=b57"></script>
-<script src="wave-mesh.js?v=b57"></script>
-<script src="wave-gl.js?v=b57"></script>
-<script src="scene-thumbs.js?v=b57"></script>
+<script src="vj-engine.js?v=b58"></script>
+<script src="deep-zoom.js?v=b58"></script>
+<script src="field-loops.js?v=b58"></script>
+<script src="cam-fly.js?v=b58"></script>
+<script src="wave-mesh.js?v=b58"></script>
+<script src="wave-gl.js?v=b58"></script>
+<script src="scene-thumbs.js?v=b58"></script>
 </helmet>
 <template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#08090A"/><circle cx="50" cy="50" r="22" fill="none" stroke="#C8FF2E" stroke-width="3"/><circle cx="50" cy="50" r="11" fill="none" stroke="#C8FF2E" stroke-width="2" opacity="0.6"/><circle cx="50" cy="50" r="3.5" fill="#C8FF2E"/></svg></template>
 <div style="position:relative;width:100vw;height:100dvh;overflow:hidden;background:#08090A;font-family:'JetBrains Mono',ui-monospace,monospace;color:#F2F3F0;user-select:none;-webkit-user-select:none;">
@@ -109,7 +109,7 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
           <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.42);">A SWRV Systems production</div>
           <div style="width:18px;height:1px;background:rgba(242,243,240,0.25);"></div>
         </div>
-        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 57 · 10 Nov 2026</div>
+        <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 58 · 10 Nov 2026</div>
       </div>
       <div style="max-width:420px;text-align:center;font-size:12.5px;line-height:1.7;color:rgba(242,243,240,0.55);">The visuals are driven entirely by what the microphone hears. Nothing is recorded or sent anywhere.</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:10px;width:100%;max-width:470px;">
@@ -183,7 +183,7 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
     <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
       <div style="font-family:Archivo,sans-serif;font-weight:700;font-size:54px;letter-spacing:-0.03em;line-height:1;">SPECTRA</div>
       <div style="font-size:9.5px;letter-spacing:0.26em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.36);">A SWRV Systems production</div>
-      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 57 · 10 Nov 2026</div>
+      <div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:rgba(242,243,240,0.5);">Build 58 · 10 Nov 2026</div>
     </div>
     <div ref="{{ warmWrapRef }}" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
       <div style="width:260px;height:2px;background:rgba(255,255,255,0.1);">
@@ -14471,9 +14471,9 @@ class Component extends DCLogic {
 
   // Start screen: the notes for this build. Keep it to what a returning user
   // would notice, newest first, and replace it on every release.
-  WHATS_NEW = {b:57, date:'10 Nov 2026', items:[
+  WHATS_NEW = {b:58, date:'10 Nov 2026', items:[
+    'Amazing Surf is a clear icosahedron: 20 flat triangular faces with raised edges, each one set with a plate of surf lace that lines up with its neighbours.',
     'Romanesco has no pinholes between florets: each floret flares wider at its base, closing the small gaps the background showed through.',
-    'Amazing Surf is now a solid icosahedron: the surf is folded through all three axes and carved into 20 faces, so it has no seam, no open side and no inner shell.',
     'With the Output window open, scene changes finish even when the Output covers the control window.'
   ]};
 
