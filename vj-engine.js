@@ -2218,17 +2218,18 @@ float cubeKM(vec3 p,out float trap){
   return d*0.86;
 }
 
-// Amazing Surf as a solid, carved into an icosahedron (31). The classic surf
-// folds only x and y, so it is a sheet; any closed shape made from it (the
-// sphere wrap this replaced) is a bent sheet with seams or holes where the
-// wrap fails. Here z is folded too, with a looser limit (fz) so the surf's
-// layered sheets survive inside a volume, and the scale is negative, which is
-// what opens the volume into pores (a positive scale fills it solid). Each step
-// adds the starting point back, as Amazing Surf does. The volume is then cut by
-// an icosahedron: the max() of two distance bounds is still a bound.
+// Amazing Surf as an icosahedron (31): a solid icosahedron, flat triangular
+// faces with raised edges, and a plate of Amazing Surf lace set into every
+// face. The surf (xy fold, sphere fold, scale, add c) is a flat pattern, so
+// each face gets its own copy with no bending: local xy is the position on the
+// face, folded into the triangle's own 3-fold mirror symmetry first so the
+// lace follows the triangle and matches its neighbour along every shared edge.
+// The lace is extruded ICO_DEPTH deep and stands on a core, so the gaps show
+// the core and the outline stays a clean 20-face solid.
 //
-// The icosahedron is the GDF form: abs(p) against four normals gives all 20
-// faces. Inradius R is set so the solid spans the Mandelbulb's 2.06 box.
+// GDF form: abs(p) against four normals covers all 20 faces (one whole face
+// per octant plus halves of three that straddle the coordinate planes). Inradius
+// R is set so the solid spans the Mandelbulb's 2.06 box.
 float sdIco(vec3 p, float R){
   vec3 a=abs(p);
   float d=dot(a,vec3(0.57735027));
@@ -2237,22 +2238,63 @@ float sdIco(vec3 p, float R){
   d=max(d,dot(a,vec3(0.93417236,0.0,0.35682209)));
   return d-R;
 }
-float surfIco(vec3 p, float sc, float fo, float mr, int N, out float lbo, out float lvo){
-  const float PS=1.4, FZ=1.6;
-  vec3 c=p*PS, q=c, fl=vec3(fo,fo,fo*FZ);
+const float ICO_R=0.963, ICO_DEPTH=0.07, ICO_PS=2.7, ICO_RIM=0.035;
+// Face k's normal n and tangent u, with v=cross(n,u) pointing at one of the
+// face's vertices. For the faces that straddle a coordinate plane that vertex
+// lies on the plane, so abs() and the triangle fold agree.
+void icoFace(int k, out vec3 n, out vec3 u){
+  if(k==0){ n=vec3(0.57735027); u=vec3(0.30901699,0.5,-0.80901699); }
+  else if(k==1){ n=vec3(0.0,0.35682209,0.93417236); u=vec3(1.0,0.0,0.0); }
+  else if(k==2){ n=vec3(0.35682209,0.93417236,0.0); u=vec3(0.0,0.0,1.0); }
+  else { n=vec3(0.93417236,0.0,0.35682209); u=vec3(0.0,1.0,0.0); }
+}
+// One face plate: surf lace plus an edge rim, extruded below the face plane.
+float surfFace(vec3 a, int k, float sc, float fo, float mr, int N, out float lbo, out float lvo){
+  vec3 n,u; icoFace(k,n,u); vec3 v=cross(n,u);
+  vec2 f=vec2(abs(dot(a,u)), dot(a,v));
+  const vec2 MN=vec2(-0.5,0.8660254);           // median through a lower vertex
+  for(int j=0;j<2;j++){ float t=dot(f,MN); if(t<0.0) f-=2.0*t*MN; f.x=abs(f.x); }
+  float e=ICO_R*0.38196601-dot(f,vec2(0.8660254,0.5));   // distance in to the edge
+  vec3 q=vec3(f*ICO_PS,0.0), c=q+vec3(0.0,0.0,(uCC-0.5)*0.6);
   float dr=1.0, lb=1e9, asc=abs(sc); lvo=0.0;
   for(int i=0;i<22;i++){
     if(i>=N) break;
-    q=2.0*clamp(q,-fl,fl)-q;                     // box fold, all three axes
+    q.xy=2.0*clamp(q.xy,-fo,fo)-q.xy;           // plane fold on xy only
     float r2=dot(q,q);
     if(r2<lb){ lb=r2; lvo=float(i); }
     if(r2<mr){ float s=1.0/mr; q*=s; dr*=s; }   // conditional sphere fold
     else if(r2<1.0){ float s=1.0/r2; q*=s; dr*=s; }
-    q=q*sc+c+vec3(0.0,0.0,(uCC-0.5)*0.6); dr=dr*asc+1.0;
+    q=q*sc+c; dr=dr*asc+1.0;
   }
   lbo=lb;
-  float dF=length(q)/abs(dr)/PS*0.8;
-  return max(dF, sdIco(p,0.963));
+  float d2=min(length(q)/abs(dr)/ICO_PS*0.8, e-ICO_RIM);
+  return max(d2, abs(dot(a,n)-(ICO_R-ICO_DEPTH*0.5))-ICO_DEPTH*0.5);
+}
+float surfIco(vec3 p, float sc, float fo, float mr, int N, out float lbo, out float lvo){
+  vec3 a=abs(p);
+  // Nearest face and the runner-up: each face's lace is kept to its own
+  // wedge (the bisector with the other face), so near an edge the neighbour's
+  // lace is still seen and the step never jumps over it. Scalars, not an
+  // array, and a loop FXC cannot unroll, so the surf body is inlined once.
+  float t0=dot(a,vec3(0.57735027)),
+        t1=dot(a,vec3(0.0,0.35682209,0.93417236)),
+        t2=dot(a,vec3(0.35682209,0.93417236,0.0)),
+        t3=dot(a,vec3(0.93417236,0.0,0.35682209));
+  int k1=0; float m1=t0;
+  if(t1>m1){ k1=1; m1=t1; } if(t2>m1){ k1=2; m1=t2; } if(t3>m1){ k1=3; m1=t3; }
+  int k2=-1; float m2=-1e9;
+  if(k1!=0 && t0>m2){ k2=0; m2=t0; } if(k1!=1 && t1>m2){ k2=1; m2=t1; }
+  if(k1!=2 && t2>m2){ k2=2; m2=t2; } if(k1!=3 && t3>m2){ k2=3; m2=t3; }
+  vec3 n1,n2,u; icoFace(k1,n1,u); icoFace(k2,n2,u);
+  float wedge=dot(a,n1-n2)/max(length(n1-n2),1e-4);   // >0: inside face k1's wedge
+  float d=1e9; lbo=1e9; lvo=0.0;
+  for(int j=min(0,int(abs(uTime)));j<2;j++){
+    float lb,lv;
+    float dj=max(surfFace(a, j==0?k1:k2, sc,fo,mr,N,lb,lv), j==0?-wedge:wedge);
+    if(dj<d){ d=dj; lbo=lb; lvo=lv; }
+  }
+  d=min(d, sdIco(p,ICO_R-ICO_DEPTH));                 // core under the lace
+  return max(d, sdIco(p,ICO_R));                      // faces cut flat
 }
 
 // World size of one pixel at the current march distance, set by render3 just
@@ -2300,12 +2342,12 @@ float map(vec3 p,out float trap){
     trap=clamp(r2*0.22,0.0,1.0);
     return max(rxy-0.92, abs(rxy*p.z)/max(length(p),1e-4))/df;
   } else if(uMode==31){
-    // Amazing Surf carved into an icosahedron (see surfIco).
+    // Amazing Surf as an icosahedron (see surfIco).
     p.xz*=rot(uTime*0.03*uSpeed*uSpin);
     p.yz*=rot(uTime*0.017*uSpeed*uSpin);
-    float sc=-(1.6+uMorph*0.6+(uCA-0.5)*0.4);
-    float fo=1.0+(uCB-0.5)*0.5;
-    float mr=0.5+(uCC-0.5)*0.4;
+    float sc=-(1.75+uMorph*0.55+(uCA-0.5)*0.4);
+    float fo=0.8+(uCB-0.5)*0.4;
+    float mr=0.4+(uCC-0.5)*0.3;
     int N=int(clamp(9.0*fi(),2.0,22.0));
     gLvN=float(N);
     float lb, lv;
