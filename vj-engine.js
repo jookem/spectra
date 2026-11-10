@@ -2017,7 +2017,9 @@ float gLod=0.0;
 // one cone head, base radius R and height H, with N florets on its face laid
 // out by Vogel's spiral,
 //   floret n:  r = R*sqrt(n/N),  theta = n * golden angle,  y = H*(1 - r/R)
-//   size:      s = decay * (r/R)^0.85     (nothing at the tip, largest at the rim)
+//   size:      s = decay * (r/R)^0.5      (nothing at the tip, largest at the rim)
+// The script's 0.85 left the upper half a bare cone: Vogel spacing is even
+// everywhere, so florets that small near the tip stood apart as lone spikes.
 //   axis:      tilted out from vertical by atan(R/H) + droop, turned to theta
 // and every floret is the whole head again, level after level. As in the
 // script a cone is drawn at every node, so each head stays solid under its
@@ -2062,7 +2064,10 @@ float romanesco(vec3 p, out float trap){
     // Stop at the last level, or once the next florets would be under a
     // couple of pixels: finer levels only shimmer.
     if(L>=lv || sc*decay*max(H,R)<gLod*2.0) break;
-    if(dc>reach){ d=min(d,(dc-reach)*sc); break; }
+    // Well clear of the face no floret can be nearer than dc-reach. Only taken
+    // with a margin: right at dc=reach that bound reaches zero, and the march
+    // stopped on it as if it were a surface, a smooth shell round the cone.
+    if(dc>reach*1.5){ d=min(d,(dc-reach)*sc); break; }
     // The nearest point on the face, as a (continuous) index along the spiral.
     float rho=length(q.xz), th=atan(q.z,q.x);
     float rf=clamp((rho*R-(q.y-H)*H)*R/LL,0.0,R);
@@ -2080,7 +2085,7 @@ float romanesco(vec3 p, out float trap){
       float rn=R*sqrt(n/N), an=n*GA;
       // Growing, the outermost floret shrinks away over its last index step
       // instead of vanishing off the rim.
-      float s=decay*pow(rn/R,0.85)*clamp(N+1.0-n,0.0,1.0)*(1.0+uBeat*uReact*0.15*sin(float(L)*2.0-uTime*6.0));
+      float s=decay*sqrt(rn/R)*clamp(N+1.0-n,0.0,1.0)*(1.0+uBeat*uReact*0.15*sin(float(L)*2.0-uTime*6.0));
       if(s<0.004) continue;
       float ca_=cos(an), sa_=sin(an);
       vec3 A=vec3(st*ca_,ct,st*sa_), Bx=vec3(ct*ca_,-st,ct*sa_), Bz=vec3(-sa_,0.0,ca_);
@@ -2158,32 +2163,32 @@ float cubeKM(vec3 p,out float trap){
   return d*0.86;
 }
 
-// Amazing Surf wrapped onto a dodecahedron (31). The fractal is a slab:
+// Amazing Surf wrapped onto an icosahedron (31). The fractal is a slab:
 // structure spreads through its xy plane and has finite thickness in z. The
 // slab is laid round the solid the way it was laid round a sphere: the two
 // plane axes become the sphere's angles, so the surf keeps its organic cells,
 // which grow and shrink as they flow over the surface. Only the thickness axis
-// changed: it is no longer distance from a sphere but from the dodecahedron
-// (sdDode), so the shell lies flat on 12 pentagonal faces and creases at the
+// changed: it is no longer distance from a sphere but from the icosahedron
+// (sdIco), so the shell lies flat on 20 triangular faces and creases at the
 // edges.
 //
-//   model x = azimuth * k,   model y = (polar - PI/2) * k,   model z = sdDode
+//   model x = azimuth * k,   model y = (polar - PI/2) * k,   model z = sdIco
 //
 // k is chosen so a full turn of azimuth spans a whole number of the fold's
 // own period (the xy fold at +-fo repeats every 4*fo). The angular remap
 // stretches space: one world unit along the azimuth covers k/(r*sin(polar))
 // of model space, so the estimate is divided by the largest local stretch;
 // sin() is floored so the poles, where the mapping is singular, do not stall
-// the march. sdDode is itself a distance bound, so the z axis adds no stretch.
+// the march. sdIco is itself a distance bound, so the z axis adds no stretch.
 //
-// GDF dodecahedron: abs(p) against three normals gives all 12 faces. Inradius
-// R is set so the solid spans the Mandelbulb's 2.06 box (the dodecahedron and
-// icosahedron share the inradius-to-circumradius ratio, so R is unchanged).
-float sdDode(vec3 p, float R){
+// GDF icosahedron: abs(p) against four normals gives all 20 faces. Inradius R
+// is set so the solid spans the Mandelbulb's 2.06 box.
+float sdIco(vec3 p, float R){
   vec3 a=abs(p);
-  float d=dot(a,vec3(0.0,0.52573111,0.85065081));
-  d=max(d,dot(a,vec3(0.52573111,0.85065081,0.0)));
-  d=max(d,dot(a,vec3(0.85065081,0.0,0.52573111)));
+  float d=dot(a,vec3(0.57735027));
+  d=max(d,dot(a,vec3(0.0,0.35682209,0.93417236)));
+  d=max(d,dot(a,vec3(0.35682209,0.93417236,0.0)));
+  d=max(d,dot(a,vec3(0.93417236,0.0,0.35682209)));
   return d-R;
 }
 // pa sets the angles (the surf pattern), z is the depth below the solid.
@@ -2258,11 +2263,11 @@ float map(vec3 p,out float trap){
     trap=clamp(r2*0.22,0.0,1.0);
     return max(rxy-0.92, abs(rxy*p.z)/max(length(p),1e-4))/df;
   } else if(uMode==31){
-    // Amazing Surf on a dodecahedron (see surfShell). The sphere fold cuts
+    // Amazing Surf on an icosahedron (see surfShell). The sphere fold cuts
     // windows through the shell, so a second shell of the same surf sits just
     // inside it, its pattern turned so its poles lie on the outer shell's
     // equator and shifted half a fold, so its structure falls where the outer
-    // one has windows. Both take their depth from the same dodecahedron, so
+    // one has windows. Both take their depth from the same icosahedron, so
     // the solid keeps one clean outline.
     p.xz*=rot(uTime*0.03*uSpeed*uSpin);
     float sc=1.5+uMorph*0.6+(uCA-0.5)*0.4;
@@ -2271,10 +2276,10 @@ float map(vec3 p,out float trap){
     int N=int(clamp(9.0*fi(),2.0,22.0));
     gLvN=float(N);
     float lbA, lvA, lbB, lvB;
-    float dA=surfShell(p, sdDode(p,0.963), sc,fo,mr,N,lbA,lvA);
+    float dA=surfShell(p, sdIco(p,0.963), sc,fo,mr,N,lbA,lvA);
     vec3 p2=vec3(p.x,p.z,-p.y);
     p2.xz*=rot(1.0471976);   // half a fold: the period is a third of a turn
-    float dB=surfShell(p2, sdDode(p,0.853), sc,fo,mr,N,lbB,lvB);
+    float dB=surfShell(p2, sdIco(p,0.853), sc,fo,mr,N,lbB,lvB);
     // Closest approach of the orbit (lb), of whichever shell is nearer.
     if(dA<=dB){ trap=sqrt(lbA); gLv=lvA; return dA; }
     trap=sqrt(lbB); gLv=lvB; return dB;
