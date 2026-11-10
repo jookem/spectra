@@ -2009,6 +2009,10 @@ float dna(vec3 p, out float trap, float tw, float ca, float cb, float cc){
   return min(df, -max(e.x,e.y)+C*0.5-0.75);
 }
 
+// World size of one pixel at the current march distance, set by render3 just
+// before each map() call (0 = no limit). Scenes use it to stop iterating once
+// the next level of detail would be smaller than a pixel.
+float gLod=0.0;
 // Romanesco (44). Built on the head's own parametric form. In cylindrical
 // coordinates each floret n sits at
 //   r_n = a * e^(b*n),   theta_n = n * golden angle,
@@ -2041,7 +2045,7 @@ float romHead(vec3 q, float H, float c){
   return max(d,rho-1.0)*0.9;
 }
 float romHalf(vec3 q, float sc, out float trap){
-  const float H=1.3, B=0.02699, G1=0.35014992, G2=-0.21640455;
+  const float H=2.2, B=0.02699, G1=0.35014992, G2=-0.21640455;
   // The spiral is spaced along the surface, not the radius: on the slope a
   // step dr is sqrt(1+H^2) times longer, so log r is scaled by that before
   // the lattice, which keeps the florets touching both ways.
@@ -2057,7 +2061,9 @@ float romHalf(vec3 q, float sc, out float trap){
     float dh=romHead(q,H,c);
     // No solid core under the florets: it showed through every gap as a
     // smooth cone. Only the last level is a solid head, the smallest floret.
-    if(L>=lv){ d=min(d,dh*sc); break; }
+    // Stop once the next florets would be under a pixel: finer levels only
+    // shimmer. sc is this head's world size.
+    if(L>=lv || sc*0.12<gLod){ d=min(d,dh*sc); break; }
     // Florets reach about a quarter of the head's size off its surface.
     if(dh>0.4){ d=min(d,(dh-0.3)*sc); break; }
     float rho=max(length(q.xz),1e-4), th=atan(q.z,q.x);
@@ -2095,66 +2101,45 @@ float romHalf(vec3 q, float sc, out float trap){
   }
   return d;
 }
-// The whole head: one spiral of florets wrapped round a closed egg, so it
-// is complete from any angle with no seam. The florets sit on the golden
-// lattice in Mercator coordinates (u = log tan(pi/4 + lat/2), theta), the
-// conformal map of the sphere, so one spiral runs tip to tip through the
-// widest point. Each floret is sized by the local scale (cos lat): largest
-// at the waist, shrinking into both tips. Each floret is the cone head above
-// with its own florets, so the self-similarity carries on down.
-float romanesco(vec3 p, out float trap){
+// Romanesco cluster: twelve whole heads, each the cone head above with its
+// spiral of florets, standing out from the centre along an icosahedron's
+// corner directions, so the bunch is complete from any angle.
+vec3 romDir(int k){
+  const float P=1.618034;
+  float s1=((k&1)==0)?1.0:-1.0, s2=((k&2)==0)?1.0:-1.0;
+  int c=k>>2;
+  vec3 v=(c==0)?vec3(0.0,s1*P,s2):((c==1)?vec3(s1*P,s2,0.0):vec3(s2,0.0,s1*P));
+  return v*0.52573111;
+}
+float romCluster(vec3 p, out float trap){
   p.xz*=rot(uTime*0.06*uSpeed*uSpin);
-  const float HY=1.12, B=0.02699, G1=0.35014992, G2=-0.21640455, ST=0.8;
-  float det=8.0*B*G2-13.0*B*G1;
-  float fs=mix(0.17,0.25,clamp(uMorph,0.0,1.0))*(1.0+uBass*uReact*0.1);
-  float tilt=mix(0.0,0.55,clamp(uCB,0.0,1.0));
-  float flow=uTime*uSpeed*clamp(uCC,0.0,1.0)*0.04;
-  const float sc=1.05; vec3 q=p/sc;
-  vec3 ra=vec3(1.0,HY,1.0);
-  float k0=length(q/ra), k1=max(length(q/(ra*ra)),1e-4);
-  float db=k0*(k0-1.0)/k1;
-  trap=0.2;
-  // No body: the egg showed through the gaps as a smooth oval. Far outside
-  // the shell the egg is still the bound.
-  float d=1e9;
-  if(db>0.55) return (db-0.4)*sc;
-  vec3 qs=q/ra;
-  float ph=asin(clamp(qs.y/max(length(qs),1e-4),-0.999,0.999)), th=atan(qs.z,qs.x);
-  float X=log(tan(0.78539816+0.5*ph))*ST+flow;
-  float fi=(G2*X-13.0*B*th)/det, fj=(-G1*X+8.0*B*th)/det;
-  vec2 ij0=floor(vec2(fi,fj));
-  float best=1e9; vec3 bq=q; float bs=1.0, bk=0.0;
-  for(int k=0;k<4;k++){
-    vec2 ij=ij0+vec2(float(k&1),float(k>>1));
-    float Xc=ij.x*8.0*B+ij.y*13.0*B, tc=ij.x*G1+ij.y*G2;
-    float phn=2.0*atan(exp((Xc-flow)/ST))-1.5707963;
-    if(abs(phn)>1.42) continue;
-    float cp=cos(phn), sp=sin(phn);
-    vec3 rad=vec3(cos(tc),0.0,sin(tc));
-    vec3 S=vec3(cp*rad.x,HY*sp,cp*rad.z);
-    vec3 N=normalize(vec3(cp*rad.x,sp/HY,cp*rad.z));
-    vec3 A=normalize(mix(N,vec3(0.0,sp>=0.0?1.0:-1.0,0.0),tilt*abs(sp)));
-    float fsz=fs*1.3*cp*(1.0+uBeat*uReact*0.12*sin(uTime*6.0));
-    vec3 Bz=vec3(-rad.z,0.0,rad.x), Bx=normalize(cross(A,Bz));
-    Bz=cross(Bx,A);
-    vec3 dl=(q-(S-A*fsz*0.25))/fsz;
+  const float sc=1.15, BB=0.62, S=0.3844;   // base distance, head size
+  vec3 q=p/sc;
+  // The three heads nearest by direction. Neighbouring bases overlap, so
+  // drawing only the nearest cut the others off in flat walls along the
+  // boundaries, and the march stepped past their florets there (the glow
+  // streaks). Three covers every point, corners included.
+  vec3 n=normalize(q+1e-5);
+  int k0=0,k1=0,k2=0; float c0=-2.0,c1=-2.0,c2=-2.0;
+  for(int k=0;k<12;k++){
+    float c=dot(n,romDir(k));
+    if(c>c0){ c2=c1; k2=k1; c1=c0; k1=k0; c0=c; k0=k; }
+    else if(c>c1){ c2=c1; k2=k1; c1=c; k1=k; }
+    else if(c>c2){ c2=c; k2=k; }
+  }
+  // A core just under the bases, so the hollow middle never shows through
+  // the gaps between heads.
+  float d=(length(q)-BB*0.8)*sc; trap=0.2;
+  for(int j=min(0,int(abs(uTime)));j<3;j++){
+    int kb=(j==0)?k0:((j==1)?k1:k2);
+    vec3 A=romDir(kb);
+    vec3 t0=normalize(cross(A,abs(A.y)<0.9?vec3(0.0,1.0,0.0):vec3(1.0,0.0,0.0)));
+    float tw=float(kb)*2.3999632;                // each head turned by the golden angle
+    vec3 Bx=t0*cos(tw)+cross(A,t0)*sin(tw), Bz=cross(Bx,A);
+    vec3 dl=(q-A*BB)/S;
     vec3 ql=vec3(dot(dl,Bx),dot(dl,A),dot(dl,Bz));
-    // Cheap pick: the floret whose bounding head is nearest.
-    float e=romHead(ql,1.3,1.0)*fsz;
-    if(e<best){ best=e; bq=ql; bs=fsz; bk=ij.x+ij.y*1.618; }
-  }
-  // An apex floret at each tip, where the spiral has shrunk away: a full head
-  // pointing out along the axis, so the poles are closed like a real head.
-  {
-    float sg=q.y>=0.0?1.0:-1.0, fsz=fs*1.3*0.42;
-    vec3 dl=(q-vec3(0.0,sg*(HY-fsz*0.25),0.0))/fsz;
-    vec3 ql=vec3(dl.x,sg*dl.y,dl.z*sg);
-    float e=romHead(ql,1.3,1.0)*fsz;
-    if(e<best){ best=e; bq=ql; bs=fsz; bk=sg; }
-  }
-  if(best<1e8){
-    float tf; float df=romHalf(bq,sc*bs,tf);
-    if(df<d){ d=df; trap=tf+0.06*fract(bk*0.618); }
+    float tf; float dj=romHalf(ql,sc*S,tf);
+    if(dj<d){ d=dj; trap=tf+0.06*fract(float(kb)*0.618); }
   }
   return d;
 }
@@ -2277,10 +2262,6 @@ float surfShell(vec3 pa, float z, float sc, float fo, float mr, int N, out float
   return dm/stretch*0.8;
 }
 
-// World size of one pixel at the current march distance, set by render3 just
-// before each map() call (0 = no limit). Scenes use it to stop iterating once
-// the next level of detail would be smaller than a pixel.
-float gLod=0.0;
 // Uncapped distance from the last map() call. With Repeat on, map() caps the
 // step at each cell wall; glow measured on the capped value lit every wall and
 // drew the cell grid into the fog.
@@ -2476,7 +2457,7 @@ float map(vec3 p,out float trap){
   } else if(uMode==43){
     return dna(p,trap,uMorph,uCA,uCB,uCC);
   } else if(uMode==44){
-    return romanesco(p,trap);
+    return romCluster(p,trap);
   } else if(uMode==45){
     // A corner of the box toward the camera: the middle of a face is a hollow
     // recess, the arcades and ornament gather on the edges and corners.
