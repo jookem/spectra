@@ -2013,135 +2013,90 @@ float dna(vec3 p, out float trap, float tw, float ca, float cb, float cc){
 // before each map() call (0 = no limit). Scenes use it to stop iterating once
 // the next level of detail would be smaller than a pixel.
 float gLod=0.0;
-// Romanesco (44). Built on the head's own parametric form. In cylindrical
-// coordinates each floret n sits at
-//   r_n = a * e^(b*n),   theta_n = n * golden angle,
-//   z_n = H * (1 - r_n/R)^c
-// so the head is the solid under that power profile (c < 1 domed, c > 1
-// hollow-sided), the florets follow the golden spiral out from the tip, and a
-// floret's size scales with its radius: big at the rim, tiny at the top. Every
-// floret is the same head again, smaller, so the sum over florets is the
-// function applied to itself, level after level.
-// The spiral is a lattice in (log r, theta). Its 8 and 13 parastichies make a
-// square cell when b = 0.027, so the nearest floret is a round-off in that
-// lattice plus three neighbors: four candidates a level, whatever the count.
-//   morph  floret size     ca  profile exponent c (pointed -> domed)
-//   cb     floret tilt     cc  growth: florets drift out from the tip
+// Romanesco (44), built the way the phyllotaxis instancing script builds it:
+// one cone head, base radius R and height H, with N florets on its face laid
+// out by Vogel's spiral,
+//   floret n:  r = R*sqrt(n/N),  theta = n * golden angle,  y = H*(1 - r/R)
+//   size:      s = decay * (r/R)^0.85     (nothing at the tip, largest at the rim)
+//   axis:      tilted out from vertical by atan(R/H) + droop, turned to theta
+// and every floret is the whole head again, level after level. As in the
+// script a cone is drawn at every node, so each head stays solid under its
+// florets: no hollow to show through, and no flat skirts where heads meet.
+//
+// Nearest floret: Vogel's spiral is the lattice n*(1, golden angle), wrapped in
+// angle. Around index n its shortest steps are two consecutive Fibonacci
+// numbers, F ~ 2.37*sqrt(n) (the parastichies the eye picks out), and such a
+// pair is a basis of the lattice. The point is located in that basis and the
+// four corners of its cell are the candidates, whatever N is.
+//   morph  floret size (decay)   ca  head height   cb  droop
+//   cc     growth: the spiral drifts out from the tip
 //   uIter  levels 1..3 (Detail is Fog on 3D)   bass: florets swell   beat: a pulse down the levels
-float romHead(vec3 q, float H, float c){
-  // The solid under z = H*(1-rho)^c on the unit disc, as a distance estimate:
-  // height over the profile divided by the slope, capped by base and rim.
-  // The base flares 35% wider, fading out by 0.6 up. Round bases on the
-  // square floret lattice touch along the cell edges but leave a hole in the
-  // middle of each cell (about 1.23 base radii from the nearest center), and
-  // with no core under them the background showed through. The flare covers
-  // it; the tip and the spiral are unchanged. Dividing the radius by a
-  // height-dependent w steepens the field by at most ~9%, hence the 0.9.
-  float w=1.0+0.35*clamp(1.0-q.y/0.6,0.0,1.0);
-  float rho=length(q.xz)/w, u=clamp(1.0-rho,0.0,1.0);
-  float z=H*pow(u,c), dz=H*c*pow(max(u,0.02),c-1.0);
-  float d=(q.y-z)/sqrt(1.0+dz*dz);
-  d=max(d,-q.y);
-  return max(d,rho-1.0)*0.9;
+float romCone(vec3 p, float R, float H){
+  // Exact solid cone, base disc at y=0, tip at y=H (iq's capped cone, r2=0).
+  float h=H*0.5;
+  vec2 q=vec2(length(p.xz), p.y-h);
+  vec2 k1=vec2(0.0,h), k2=vec2(-R,H);
+  vec2 ca=vec2(q.x-min(q.x,(q.y<0.0)?R:0.0), abs(q.y)-h);
+  vec2 cb=q-k1+k2*clamp(dot(k1-q,k2)/dot(k2,k2),0.0,1.0);
+  float s=(cb.x<0.0 && ca.y<0.0)?-1.0:1.0;
+  return s*sqrt(min(dot(ca,ca),dot(cb,cb)));
 }
-float romHalf(vec3 q, float sc, out float trap){
-  const float H=2.2, B=0.02699, G1=0.35014992, G2=-0.21640455;
-  // The spiral is spaced along the surface, not the radius: on the slope a
-  // step dr is sqrt(1+H^2) times longer, so log r is scaled by that before
-  // the lattice, which keeps the florets touching both ways.
-  const float SF=1.64;
-  float c=mix(1.1,0.55,clamp(uCA,0.0,1.0));
-  float det=8.0*B*G2-13.0*B*G1;
-  float fs=mix(0.17,0.25,clamp(uMorph,0.0,1.0))*(1.0+uBass*uReact*0.1);
-  float tilt=mix(0.0,0.55,clamp(uCB,0.0,1.0));
-  float flow=uTime*uSpeed*clamp(uCC,0.0,1.0)*0.04;
+float romanesco(vec3 p, out float trap){
+  p.xz*=rot(uTime*0.06*uSpeed*uSpin);
+  const float R=1.5, N=120.0, GA=2.3999632, LPHI=0.48121183, TAU=6.2831853;
+  float H=mix(1.4,2.6,clamp(uCA,0.0,1.0));
+  float decay=mix(0.12,0.20,clamp(uMorph,0.0,1.0))*(1.0+uBass*uReact*0.1);
+  float tilt=atan(R/H)+mix(0.0,0.3,clamp(uCB,0.0,1.0));
+  float ct=cos(tilt), st=sin(tilt);
+  float grow=fract(uTime*uSpeed*clamp(uCC,0.0,1.0)*0.15);
   int lv=1+int(floor(clamp(uIter,0.0,1.0)*2.99));
-  float d=1e9; trap=0.2;
+  // How far a floret and everything on it can stand off the parent's face.
+  float reach=decay*max(H,R)*1.3;
+  float LL=R*R+H*H;
+  // The head centered on the origin.
+  vec3 q=p; q.y+=H*0.45;
+  float sc=1.0, d=1e9; trap=0.2;
   for(int L=0;L<4;L++){
-    float dh=romHead(q,H,c);
-    // No solid core under the florets: it showed through every gap as a
-    // smooth cone. Only the last level is a solid head, the smallest floret.
-    // Stop once the next florets would be under a pixel: finer levels only
-    // shimmer. sc is this head's world size.
-    if(L>=lv || sc*0.12<gLod){ d=min(d,dh*sc); break; }
-    // Florets reach about a quarter of the head's size off its surface.
-    if(dh>0.4){ d=min(d,(dh-0.3)*sc); break; }
-    float rho=max(length(q.xz),1e-4), th=atan(q.z,q.x);
-    float X=SF*log(rho)+flow;                   // the n*b of r = a e^(b n), along the surface
-    float fi=(G2*X-13.0*B*th)/det, fj=(-G1*X+8.0*B*th)/det;
-    vec2 ij0=floor(vec2(fi,fj));
-    float best=1e9; vec3 bq=q; float bs=1.0, bk=0.0;
-    for(int k=0;k<4;k++){
-      vec2 ij=ij0+vec2(float(k&1),float(k>>1));
-      float Xc=ij.x*8.0*B+ij.y*13.0*B, tc=ij.x*G1+ij.y*G2;
-      float rn=exp((Xc-flow)/SF);
-      if(rn>1.02 || rn<0.03) continue;
-      float un=1.0-rn, zn=H*pow(un,c), sl=H*c*pow(max(un,0.02),c-1.0);
-      float fsz=fs*rn*SF*0.62*(1.0+uBeat*uReact*0.15*sin(float(L)*2.0-uTime*6.0));
-      vec3 rad=vec3(cos(tc),0.0,sin(tc));
-      // Floret axis: the profile's outward normal, leaned toward vertical.
-      vec3 A=normalize(mix(normalize(vec3(rad.x*sl,1.0,rad.z*sl)),vec3(0.0,1.0,0.0),tilt));
-      vec3 Bz=vec3(-rad.z,0.0,rad.x), Bx=cross(A,Bz);
-      vec3 dl=(q-(vec3(rn*rad.x,zn,rn*rad.z)-A*fsz*0.25))/fsz;
+    float dc=romCone(q,R,H);
+    d=min(d,dc*sc);
+    // Stop at the last level, or once the next florets would be under a
+    // couple of pixels: finer levels only shimmer.
+    if(L>=lv || sc*decay*max(H,R)<gLod*2.0) break;
+    if(dc>reach){ d=min(d,(dc-reach)*sc); break; }
+    // The nearest point on the face, as a (continuous) index along the spiral.
+    float rho=length(q.xz), th=atan(q.z,q.x);
+    float rf=clamp((rho*R-(q.y-H)*H)*R/LL,0.0,R);
+    float u=N*rf*rf/(R*R)-grow, tg=th-grow*GA;
+    float k=max(floor(log(5.3*sqrt(max(u,1.0)))/LPHI-0.5),2.0);
+    float Fa=floor(exp(k*LPHI)/2.2360680+0.5), Fb=floor(exp((k+1.0)*LPHI)/2.2360680+0.5);
+    float da=Fa*GA-TAU*floor(Fa*GA/TAU+0.5), db=Fb*GA-TAU*floor(Fb*GA/TAU+0.5);
+    float det=Fa*db-Fb*da;
+    vec2 ij0=floor(vec2(u*db-Fb*tg, Fa*tg-u*da)/det);
+    float best=1e9; vec3 bq=q; float bs=1.0, bn=0.0;
+    for(int c=0;c<4;c++){
+      vec2 ij=ij0+vec2(float(c&1),float(c>>1));
+      float n=ij.x*Fa+ij.y*Fb+grow;
+      if(n<=0.0 || n>N+1.0) continue;
+      float rn=R*sqrt(n/N), an=n*GA;
+      // Growing, the outermost floret shrinks away over its last index step
+      // instead of vanishing off the rim.
+      float s=decay*pow(rn/R,0.85)*clamp(N+1.0-n,0.0,1.0)*(1.0+uBeat*uReact*0.15*sin(float(L)*2.0-uTime*6.0));
+      if(s<0.004) continue;
+      float ca_=cos(an), sa_=sin(an);
+      vec3 A=vec3(st*ca_,ct,st*sa_), Bx=vec3(ct*ca_,-st,ct*sa_), Bz=vec3(-sa_,0.0,ca_);
+      vec3 dl=(q-vec3(rn*ca_,H*(1.0-rn/R),rn*sa_))/s;
       vec3 ql=vec3(dot(dl,Bx),dot(dl,A),dot(dl,Bz));
-      float db=romHead(ql,H,c)*fsz;
-      if(db<best){ best=db; bq=ql; bs=fsz; bk=ij.x+ij.y*1.618; }
+      float dd=romCone(ql,R,H)*s;
+      if(dd<best){ best=dd; bq=ql; bs=s; bn=n; }
     }
-    if(best>=1e8){
-      // No floret in this cell: the tip, where the spiral has shrunk away, or
-      // past the rim. The tip closes with a fine point of the head itself; the
-      // floor keeps the step short so the neighbors' florets are not skipped.
-      float rq=length(q.xz);
-      d=min(d,min(max(dh,rq-0.06),max(dh-0.3,0.03))*sc);
-      break;
-    }
+    if(best>=1e8) break;
     d=min(d,best*sc);
-    trap=0.18+0.17*float(L+1)+0.08*fract(bk*0.618);
+    trap=0.18+0.17*float(L+1)+0.08*fract(bn*0.618);
     q=bq; sc*=bs;
   }
-  return d;
-}
-// Romanesco cluster: twelve whole heads, each the cone head above with its
-// spiral of florets, standing out from the centre along an icosahedron's
-// corner directions, so the bunch is complete from any angle.
-vec3 romDir(int k){
-  const float P=1.618034;
-  float s1=((k&1)==0)?1.0:-1.0, s2=((k&2)==0)?1.0:-1.0;
-  int c=k>>2;
-  vec3 v=(c==0)?vec3(0.0,s1*P,s2):((c==1)?vec3(s1*P,s2,0.0):vec3(s2,0.0,s1*P));
-  return v*0.52573111;
-}
-float romCluster(vec3 p, out float trap){
-  p.xz*=rot(uTime*0.06*uSpeed*uSpin);
-  const float sc=1.15, BB=0.62, S=0.3844;   // base distance, head size
-  vec3 q=p/sc;
-  // The three heads nearest by direction. Neighbouring bases overlap, so
-  // drawing only the nearest cut the others off in flat walls along the
-  // boundaries, and the march stepped past their florets there (the glow
-  // streaks). Three covers every point, corners included.
-  vec3 n=normalize(q+1e-5);
-  int k0=0,k1=0,k2=0; float c0=-2.0,c1=-2.0,c2=-2.0;
-  for(int k=0;k<12;k++){
-    float c=dot(n,romDir(k));
-    if(c>c0){ c2=c1; k2=k1; c1=c0; k1=k0; c0=c; k0=k; }
-    else if(c>c1){ c2=c1; k2=k1; c1=c; k1=k; }
-    else if(c>c2){ c2=c; k2=k; }
-  }
-  // A core just under the bases, so the hollow middle never shows through
-  // the gaps between heads.
-  float d=(length(q)-BB*0.8)*sc; trap=0.2;
-  for(int j=min(0,int(abs(uTime)));j<3;j++){
-    int kb=(j==0)?k0:((j==1)?k1:k2);
-    vec3 A=romDir(kb);
-    vec3 t0=normalize(cross(A,abs(A.y)<0.9?vec3(0.0,1.0,0.0):vec3(1.0,0.0,0.0)));
-    float tw=float(kb)*2.3999632;                // each head turned by the golden angle
-    vec3 Bx=t0*cos(tw)+cross(A,t0)*sin(tw), Bz=cross(Bx,A);
-    vec3 dl=(q-A*BB)/S;
-    vec3 ql=vec3(dot(dl,Bx),dot(dl,A),dot(dl,Bz));
-    float tf; float dj=romHalf(ql,sc*S,tf);
-    if(dj<d){ d=dj; trap=tf+0.06*fract(float(kb)*0.618); }
-  }
-  return d;
+  // Only the nearest floret is followed down a level; its neighbours' own
+  // florets are left out, so the estimate is eased a little.
+  return d*0.9;
 }
 
 // CubeKochMosely (42). A Menger cube lattice colored by the march itself. At
@@ -2203,32 +2158,32 @@ float cubeKM(vec3 p,out float trap){
   return d*0.86;
 }
 
-// Amazing Surf wrapped onto an icosahedron (31). The fractal is a slab:
+// Amazing Surf wrapped onto a dodecahedron (31). The fractal is a slab:
 // structure spreads through its xy plane and has finite thickness in z. The
 // slab is laid round the solid the way it was laid round a sphere: the two
 // plane axes become the sphere's angles, so the surf keeps its organic cells,
 // which grow and shrink as they flow over the surface. Only the thickness axis
-// changed: it is no longer distance from a sphere but from the icosahedron
-// (sdIco), so the shell lies flat on 20 triangular faces and creases at the
+// changed: it is no longer distance from a sphere but from the dodecahedron
+// (sdDode), so the shell lies flat on 12 pentagonal faces and creases at the
 // edges.
 //
-//   model x = azimuth * k,   model y = (polar - PI/2) * k,   model z = sdIco
+//   model x = azimuth * k,   model y = (polar - PI/2) * k,   model z = sdDode
 //
 // k is chosen so a full turn of azimuth spans a whole number of the fold's
 // own period (the xy fold at +-fo repeats every 4*fo). The angular remap
 // stretches space: one world unit along the azimuth covers k/(r*sin(polar))
 // of model space, so the estimate is divided by the largest local stretch;
 // sin() is floored so the poles, where the mapping is singular, do not stall
-// the march. sdIco is itself a distance bound, so the z axis adds no stretch.
+// the march. sdDode is itself a distance bound, so the z axis adds no stretch.
 //
-// GDF icosahedron: abs(p) against four normals gives all 20 faces. Inradius R
-// is set so the solid spans the Mandelbulb's 2.06 box.
-float sdIco(vec3 p, float R){
+// GDF dodecahedron: abs(p) against three normals gives all 12 faces. Inradius
+// R is set so the solid spans the Mandelbulb's 2.06 box (the dodecahedron and
+// icosahedron share the inradius-to-circumradius ratio, so R is unchanged).
+float sdDode(vec3 p, float R){
   vec3 a=abs(p);
-  float d=dot(a,vec3(0.57735027));
-  d=max(d,dot(a,vec3(0.0,0.35682209,0.93417236)));
-  d=max(d,dot(a,vec3(0.35682209,0.93417236,0.0)));
-  d=max(d,dot(a,vec3(0.93417236,0.0,0.35682209)));
+  float d=dot(a,vec3(0.0,0.52573111,0.85065081));
+  d=max(d,dot(a,vec3(0.52573111,0.85065081,0.0)));
+  d=max(d,dot(a,vec3(0.85065081,0.0,0.52573111)));
   return d-R;
 }
 // pa sets the angles (the surf pattern), z is the depth below the solid.
@@ -2303,11 +2258,11 @@ float map(vec3 p,out float trap){
     trap=clamp(r2*0.22,0.0,1.0);
     return max(rxy-0.92, abs(rxy*p.z)/max(length(p),1e-4))/df;
   } else if(uMode==31){
-    // Amazing Surf on an icosahedron (see surfShell). The sphere fold cuts
+    // Amazing Surf on a dodecahedron (see surfShell). The sphere fold cuts
     // windows through the shell, so a second shell of the same surf sits just
     // inside it, its pattern turned so its poles lie on the outer shell's
     // equator and shifted half a fold, so its structure falls where the outer
-    // one has windows. Both take their depth from the same icosahedron, so
+    // one has windows. Both take their depth from the same dodecahedron, so
     // the solid keeps one clean outline.
     p.xz*=rot(uTime*0.03*uSpeed*uSpin);
     float sc=1.5+uMorph*0.6+(uCA-0.5)*0.4;
@@ -2316,10 +2271,10 @@ float map(vec3 p,out float trap){
     int N=int(clamp(9.0*fi(),2.0,22.0));
     gLvN=float(N);
     float lbA, lvA, lbB, lvB;
-    float dA=surfShell(p, sdIco(p,0.963), sc,fo,mr,N,lbA,lvA);
+    float dA=surfShell(p, sdDode(p,0.963), sc,fo,mr,N,lbA,lvA);
     vec3 p2=vec3(p.x,p.z,-p.y);
     p2.xz*=rot(1.0471976);   // half a fold: the period is a third of a turn
-    float dB=surfShell(p2, sdIco(p,0.853), sc,fo,mr,N,lbB,lvB);
+    float dB=surfShell(p2, sdDode(p,0.853), sc,fo,mr,N,lbB,lvB);
     // Closest approach of the orbit (lb), of whichever shell is nearer.
     if(dA<=dB){ trap=sqrt(lbA); gLv=lvA; return dA; }
     trap=sqrt(lbB); gLv=lvB; return dB;
@@ -2457,7 +2412,7 @@ float map(vec3 p,out float trap){
   } else if(uMode==43){
     return dna(p,trap,uMorph,uCA,uCB,uCC);
   } else if(uMode==44){
-    return romCluster(p,trap);
+    return romanesco(p,trap);
   } else if(uMode==45){
     // A corner of the box toward the camera: the middle of a face is a hollow
     // recess, the arcades and ornament gather on the edges and corners.
