@@ -18,6 +18,9 @@ self.addEventListener('fetch',e=>{
   const r=e.request; if(r.method!=='GET') return;
   const u=new URL(r.url); if(!/^https?:/.test(u.protocol)) return;
   const html=r.mode==='navigate'||(r.headers.get('accept')||'').includes('text/html');
-  if(html){ e.respondWith(fetch(r).then(res=>{ const cp=res.clone(); caches.open(V).then(c=>c.put(r,cp)); return res; }).catch(()=>caches.match(r,{ignoreSearch:true}).then(m=>m||caches.match('./VJ%20Fractal.dc.html')))); return; }
+  // HTML always revalidates with the server: GitHub Pages sends max-age=600, so
+  // a plain fetch could hand back the old page from the HTTP cache for ten
+  // minutes after a deploy and the app would open on the previous build.
+  if(html){ e.respondWith(fetch(r,{cache:'no-cache'}).then(res=>{ const cp=res.clone(); caches.open(V).then(c=>c.put(r,cp)); return res; }).catch(()=>caches.match(r,{ignoreSearch:true}).then(m=>m||caches.match('./VJ%20Fractal.dc.html')))); return; }
   e.respondWith(caches.match(r).then(m=>m||fetch(r).then(res=>{ if(res.ok||res.type==='opaque'){ const cp=res.clone(); caches.open(V).then(c=>c.put(r,cp)); } return res; })));
 });
