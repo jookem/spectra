@@ -2211,44 +2211,41 @@ float cubeKM(vec3 p,out float trap){
   return d*0.86;
 }
 
-// Amazing Surf on a sphere (31). The fractal is a slab: structure spreads
-// through its xy plane and has finite thickness in z. So the domain is
-// remapped before folding: the two plane axes become the sphere's angles and
-// the thickness axis becomes radius, which lays the surf round a ball as a
-// shell of radius R0.
+// Amazing Surf as a solid, carved into an icosahedron (31). The classic surf
+// folds only x and y, so it is a sheet; any closed shape made from it (the
+// sphere wrap this replaced) is a bent sheet with seams or holes where the
+// wrap fails. Here z is folded too, with a looser limit (fz) so the surf's
+// layered sheets survive inside a volume, and the scale is negative, which is
+// what opens the volume into pores (a positive scale fills it solid). Each step
+// adds the starting point back, as Amazing Surf does. The volume is then cut by
+// an icosahedron: the max() of two distance bounds is still a bound.
 //
-//   model x = azimuth * k,   model y = (polar - PI/2) * k,   model z = r - R0
-//
-// k is chosen so a full turn of azimuth spans a whole number of the fold's
-// own period (the xy fold at +-fo repeats every 4*fo), which is what makes
-// the wrap close on itself instead of showing a seam at the back.
-//
-// The remap stretches space, so the model-space estimate is not a world
-// distance: one world unit along the azimuth covers k/(r*sin(polar)) of
-// model space. Dividing by the LARGEST local stretch keeps the estimate
-// conservative; sin() is floored so the poles, where the mapping is
-// singular, do not stall the march at zero.
-float surfShell(vec3 p, float R0, float sc, float fo, float mr, int N, out float lbo, out float lvo){
-  float kk=3.0*(4.0*fo)/6.2831853;
-  float rr=max(length(p),1e-4);
-  float th=atan(p.z,p.x);
-  float sph=clamp(p.y/rr,-1.0,1.0);
-  float phi=acos(sph);
-  vec3 q=vec3(th*kk, (phi-1.5707963)*kk, rr-R0);
-  float dr=1.0, lb=1e9; lvo=0.0;
+// The icosahedron is the GDF form: abs(p) against four normals gives all 20
+// faces. Inradius R is set so the solid spans the Mandelbulb's 2.06 box.
+float sdIco(vec3 p, float R){
+  vec3 a=abs(p);
+  float d=dot(a,vec3(0.57735027));
+  d=max(d,dot(a,vec3(0.0,0.35682209,0.93417236)));
+  d=max(d,dot(a,vec3(0.35682209,0.93417236,0.0)));
+  d=max(d,dot(a,vec3(0.93417236,0.0,0.35682209)));
+  return d-R;
+}
+float surfIco(vec3 p, float sc, float fo, float mr, int N, out float lbo, out float lvo){
+  const float PS=1.4, FZ=1.6;
+  vec3 c=p*PS, q=c, fl=vec3(fo,fo,fo*FZ);
+  float dr=1.0, lb=1e9, asc=abs(sc); lvo=0.0;
   for(int i=0;i<22;i++){
     if(i>=N) break;
-    q.xy=2.0*clamp(q.xy,-fo,fo)-q.xy;          // plane fold on xy only
+    q=2.0*clamp(q,-fl,fl)-q;                     // box fold, all three axes
     float r2=dot(q,q);
     if(r2<lb){ lb=r2; lvo=float(i); }
     if(r2<mr){ float s=1.0/mr; q*=s; dr*=s; }   // conditional sphere fold
     else if(r2<1.0){ float s=1.0/r2; q*=s; dr*=s; }
-    q=q*sc+vec3(0.0,0.0,(uCC-0.5)*0.3); dr=dr*sc+1.0;
+    q=q*sc+c+vec3(0.0,0.0,(uCC-0.5)*0.6); dr=dr*asc+1.0;
   }
   lbo=lb;
-  float dm=length(q)/abs(dr);
-  float stretch=max(1.0, kk/(rr*max(sin(phi),0.30)));
-  return dm/stretch*0.8;
+  float dF=length(q)/abs(dr)/PS*0.8;
+  return max(dF, sdIco(p,0.963));
 }
 
 // World size of one pixel at the current march distance, set by render3 just
@@ -2296,26 +2293,18 @@ float map(vec3 p,out float trap){
     trap=clamp(r2*0.22,0.0,1.0);
     return max(rxy-0.92, abs(rxy*p.z)/max(length(p),1e-4))/df;
   } else if(uMode==31){
-    // Amazing Surf, wrapped onto a SPHERE instead of an infinite plane (see
-    // surfShell). The sphere fold cuts windows through the shell at every
-    // Detail, so on its own the ball opened into cups. A second shell of the
-    // same surf sits just inside it, turned so its poles lie on the outer
-    // shell's equator and shifted half a fold, so its structure falls where
-    // the outer one has windows and the whole sphere is always filled.
+    // Amazing Surf carved into an icosahedron (see surfIco).
     p.xz*=rot(uTime*0.03*uSpeed*uSpin);
-    float sc=1.5+uMorph*0.6+(uCA-0.5)*0.4;
+    p.yz*=rot(uTime*0.017*uSpeed*uSpin);
+    float sc=-(1.6+uMorph*0.6+(uCA-0.5)*0.4);
     float fo=1.0+(uCB-0.5)*0.5;
     float mr=0.5+(uCC-0.5)*0.4;
     int N=int(clamp(9.0*fi(),2.0,22.0));
     gLvN=float(N);
-    float lbA, lvA, lbB, lvB;
-    float dA=surfShell(p,1.15,sc,fo,mr,N,lbA,lvA);
-    vec3 p2=vec3(p.x,p.z,-p.y);
-    p2.xz*=rot(1.0471976);   // half a fold: the period is a third of a turn
-    float dB=surfShell(p2,1.02,sc,fo,mr,N,lbB,lvB);
-    // Closest approach of the orbit (lb), of whichever shell is nearer.
-    if(dA<=dB){ trap=sqrt(lbA); gLv=lvA; return dA; }
-    trap=sqrt(lbB); gLv=lvB; return dB;
+    float lb, lv;
+    float d=surfIco(p,sc,fo,mr,N,lb,lv);
+    trap=sqrt(lb); gLv=lv;
+    return d;
   } else if(uMode==32){
     float sc=1.85+(uCA-0.5)*0.35;
     float a=uTime*0.05*uSpeed+(uCB-0.5)*3.0+uMid*uReact*0.8;
@@ -5539,7 +5528,7 @@ const _NORM = {
   0:[2.06,2.06,2.44,0,0,0], 1:[2.06,2.06,2.06,0,0,0], 2:[2.63,2.44,2.63,-1.03,-0.94,-1.03],
   4:[2.44,2.06,2.06,0,0,0], 5:[2.06,2.06,2.06,0,0,0], 12:[16.88,15.63,16.88,0,0,0],
   14:[2.06,2.06,2.06,0,0,0], 15:[1.69,1.69,1.69,0,0,0], 16:[4.69,4.31,4.69,0.09,0,0.09],
-  31:[2.44,4.31,2.81,0.19,0,0], 32:[2.06,2.06,2.06,0,0,0], 33:[4.69,4.31,4.69,0,0,0],
+  31:[2.06,2.06,2.06,0,0,0], 32:[2.06,2.06,2.06,0,0,0], 33:[4.69,4.31,4.69,0,0,0],
   34:[6.88,6.88,6.88,0,0,0], 35:[15.63,15.63,15.63,0,0,0], 36:[2.63,2.44,2.44,-0.66,0,0],
   41:[2.06,2.06,2.06,0,0,0], 42:[2.06,2.06,2.06,0,0,0],
 };
