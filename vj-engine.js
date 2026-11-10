@@ -2027,11 +2027,18 @@ float dna(vec3 p, out float trap, float tw, float ca, float cb, float cc){
 float romHead(vec3 q, float H, float c){
   // The solid under z = H*(1-rho)^c on the unit disc, as a distance estimate:
   // height over the profile divided by the slope, capped by base and rim.
-  float rho=length(q.xz), u=clamp(1.0-rho,0.0,1.0);
+  // The base flares 35% wider, fading out by 0.6 up. Round bases on the
+  // square floret lattice touch along the cell edges but leave a hole in the
+  // middle of each cell (about 1.23 base radii from the nearest center), and
+  // with no core under them the background showed through. The flare covers
+  // it; the tip and the spiral are unchanged. Dividing the radius by a
+  // height-dependent w steepens the field by at most ~9%, hence the 0.9.
+  float w=1.0+0.35*clamp(1.0-q.y/0.6,0.0,1.0);
+  float rho=length(q.xz)/w, u=clamp(1.0-rho,0.0,1.0);
   float z=H*pow(u,c), dz=H*c*pow(max(u,0.02),c-1.0);
   float d=(q.y-z)/sqrt(1.0+dz*dz);
   d=max(d,-q.y);
-  return max(d,rho-1.0);
+  return max(d,rho-1.0)*0.9;
 }
 float romHalf(vec3 q, float sc, out float trap){
   const float H=1.3, B=0.02699, G1=0.35014992, G2=-0.21640455;
