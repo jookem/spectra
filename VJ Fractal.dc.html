@@ -13665,7 +13665,11 @@ class Component extends DCLogic {
           // several painted frames and input between each synchronous chunk.
           // Never while the tab is hidden: nothing is drawn there anyway, and a
           // link the user cannot see is a GPU reset they cannot explain.
-          if(!document.hidden && performance.now() - (this.lastBuildStepT||0) >= (this.BUILD_GAP||280)) this.buildStep(P.p);
+          // Except with the Output window open: it still shows this canvas, and
+          // covering the operator window with it (fullscreen on one screen)
+          // marks this document hidden, so a scene switch never finished.
+          const outLive = this.outWin && !this.outWin.closed;
+          if((!document.hidden || outLive) && performance.now() - (this.lastBuildStepT||0) >= (this.BUILD_GAP||280)) this.buildStep(P.p);
           P.t0 = performance.now();
           return 'wait';
         }

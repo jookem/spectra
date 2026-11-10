@@ -2048,14 +2048,9 @@ float romHalf(vec3 q, float sc, out float trap){
   float d=1e9; trap=0.2;
   for(int L=0;L<4;L++){
     float dh=romHead(q,H,c);
-    // Core of this level: shrunk and lifted well inside its florets, so only
-    // florets show. At full size its smooth sides and flat underside read as
-    // a cone the florets sat on.
-    float dcore=romHead((q-vec3(0.0,0.18,0.0))/0.8,H,c)*0.8;
-    // The top level fills to the seam, so the two halves meet solid.
-    if(L==0) dcore=min(dcore,romHead(q/0.86,H,c)*0.86);
-    d=min(d,dcore*sc);
-    if(L>=lv) break;
+    // No solid core under the florets: it showed through every gap as a
+    // smooth cone. Only the last level is a solid head, the smallest floret.
+    if(L>=lv){ d=min(d,dh*sc); break; }
     // Florets reach about a quarter of the head's size off its surface.
     if(dh>0.4){ d=min(d,(dh-0.3)*sc); break; }
     float rho=max(length(q.xz),1e-4), th=atan(q.z,q.x);
@@ -2079,7 +2074,14 @@ float romHalf(vec3 q, float sc, out float trap){
       float db=romHead(ql,H,c)*fsz;
       if(db<best){ best=db; bq=ql; bs=fsz; bk=ij.x+ij.y*1.618; }
     }
-    if(best>=1e8) break;
+    if(best>=1e8){
+      // No floret in this cell: the tip, where the spiral has shrunk away, or
+      // past the rim. The tip closes with a fine point of the head itself; the
+      // floor keeps the step short so the neighbors' florets are not skipped.
+      float rq=length(q.xz);
+      d=min(d,min(max(dh,rq-0.06),max(dh-0.3,0.03))*sc);
+      break;
+    }
     d=min(d,best*sc);
     trap=0.18+0.17*float(L+1)+0.08*fract(bk*0.618);
     q=bq; sc*=bs;
@@ -2105,9 +2107,10 @@ float romanesco(vec3 p, out float trap){
   float k0=length(q/ra), k1=max(length(q/(ra*ra)),1e-4);
   float db=k0*(k0-1.0)/k1;
   trap=0.2;
-  // Body, sunk well inside the florets so only florets show.
-  float d=(db+0.12)*sc;
-  if(db>0.55) return min(d,(db-0.4)*sc);
+  // No body: the egg showed through the gaps as a smooth oval. Far outside
+  // the shell the egg is still the bound.
+  float d=1e9;
+  if(db>0.55) return (db-0.4)*sc;
   vec3 qs=q/ra;
   float ph=asin(clamp(qs.y/max(length(qs),1e-4),-0.999,0.999)), th=atan(qs.z,qs.x);
   float X=log(tan(0.78539816+0.5*ph))*ST+flow;
@@ -2299,7 +2302,10 @@ float map(vec3 p,out float trap){
     trap=sqrt(lb);
     float dm=length(q)/abs(dr);
     float stretch=max(1.0, kk/(rr*max(sin(phi),0.30)));
-    return dm/stretch*0.8;
+    // A solid ball just under the surf's mid-plane. The sphere fold cuts big
+    // windows through the shell at every Detail, so on its own the ball read
+    // as open cups; with this under it the surf is always a whole sphere.
+    return min(dm/stretch*0.8, rr-(R0-0.08));
   } else if(uMode==32){
     float sc=1.85+(uCA-0.5)*0.35;
     float a=uTime*0.05*uSpeed+(uCB-0.5)*3.0+uMid*uReact*0.8;
