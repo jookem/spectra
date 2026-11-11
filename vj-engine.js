@@ -692,8 +692,12 @@ uniform float uTile;
 uniform float uLine;
 // 2D look on the escape-time families: 0 Relief (lit, hazed field), 1 Jewel —
 // each interior component colored by the period of its attracting cycle, a black
-// open field with a glowing halo at the boundary, and harder stripes.
+// open field with a glowing halo at the boundary, and harder stripes. 2 Glow —
+// the field as a dark-to-bright gradient in the accent with feathered stalk
+// lines (Pickover's cross trap) and a white-hot edge. 3 Lace — a ring trap drawn
+// as nested outlines over complement fills with dark holes. See lookEsc.
 uniform float uJewel;
+bool isJewel(){ return abs(uJewel-1.0)<0.5; }
 float gPx=1e-3;   // world size of one render pixel, set by each escape path
 // Set by the escape loops for the shading functions, so neither signature grows:
 // gPer is the period of the attracting cycle an interior orbit settled on (0 if
@@ -989,6 +993,10 @@ void trapCfg(out vec3 w, out float r0){
   else if(uMode==20) { w.x=1.0; w.z=1.0; r0=0.5; }      // Ship: waterline + ring
   else if(uMode==21) { w.x=1.0; r0=0.8; }               // Celtic: wide ring
   else               { w.y=1.0; w.z=1.0; }              // Mandelbrot: cross
+  // The Glow and Lace looks are built on one trap each, whatever the family:
+  // the cross draws the stalks, the ring draws the lace.
+  if(uJewel>1.5 && uJewel<2.5){ w=vec3(0.0,1.0,1.0); r0=1.0; }
+  else if(uJewel>2.5){ w=vec3(1.0,0.0,0.0); r0=0.75; }
 }
 float trapD(vec2 z, float lz, vec3 w, float r0){
   const float OFF=1e6;
@@ -1021,6 +1029,86 @@ float orbitKeep(){
 // drops below a few pixels so dense regions go quiet instead of moire.
 float fLine(float x,float w){float f=fract(x);float d=min(f,1.0-f);return (1.0-smoothstep(0.0,1.0,d/max(w,1e-5)))*clamp(1.0-w*2.5,0.0,1.0);}
 float fSeg(vec2 p,vec2 a,vec2 b){vec2 pa=p-a,ba=b-a;float h=clamp(dot(pa,ba)/max(dot(ba,ba),1e-12),0.0,1.0);return length(pa-ba*h);}
+// Glow and Lace looks (uJewel 2 and 3). Each replaces the whole shading chain
+// rather than threading another weight through the relief: the references
+// they follow are flat graphic plots, with no lighting to share.
+// Color plan holds: one accent and its complement, with value steps.
+//   Glow  the open field is the accent from near black far out to full value
+//         at the set, crossed by the cross-trap stalks (each a pale core in a
+//         soft glow of the accent); the boundary is a white-hot line with a
+//         pale fringe of the complement. Detail sets the fringe width, Stripe
+//         (Cst C) how fine the stalks are.
+//   Lace  the ring trap's distance, sliced: the closest pass is a bright
+//         outline in the accent, nested rings echo it, the cells between are
+//         filled in the complement and fall to black where the orbit never
+//         came near the ring. The accent drifts a little along the ramp down
+//         the frame, which gives the warm-to-cool sweep of the reference.
+vec3 satC(vec3 c, float k){ float l=dot(c,vec3(0.3333)); return max(vec3(l)+(c-l)*k,0.0); }
+vec3 laceCol(float tr, float sm, bool inside){
+  float yg=gl_FragCoord.y/max(uRes.y,1.0);
+  vec3 acc=satC(pal(0.50+0.20*(yg-0.5)+uBass*0.15),1.3);
+  vec3 cpl=satC(comp(acc),1.6);
+  float tw=max(fwidth(tr),1e-6);
+  float N=floor(mix(3.0,12.0,uCC)+0.5);
+  float rings=fLine(tr*N, tw*N);
+  float ow=max(tw*1.3,0.006);
+  float line=1.0-smoothstep(ow*0.5,ow*2.0,tr);
+  float fill=exp(-tr*2.2);
+  float hole=smoothstep(0.30,1.10,tr);
+  vec3 col=cpl*(0.10+0.62*fill)*(1.0-0.92*hole);
+  // Value step per escape band, faded once the bands go under a pixel.
+  float bw=fwidth(sm);
+  col*=mix(1.0, 0.78+0.22*cos(6.2831853*sm*0.5), clamp(1.0-bw*2.0,0.0,1.0));
+  col+=acc*rings*0.55*(1.0-hole*0.6);
+  col+=mix(acc,vec3(1.0),0.30)*line*1.25*(1.0+uHigh*0.5);
+  if(inside) col*=0.55;
+  return col;
+}
+vec3 lookEsc(float sm, float dePx, float tr){
+  vec3 col=vec3(0.0);
+  float ew=mix(3.0,40.0,clamp(uDetail,0.0,1.0));
+  if(uJewel<2.5){
+    vec3 acc=satC(pal(0.55+uBass*0.3),1.4), cpl=comp(acc);
+    float near=1.0-clamp(log2(max(dePx,1.0))/9.0,0.0,1.0);
+    col=acc*(0.035+0.85*pow(near,1.7));
+    float trw=max(fwidth(tr),1e-6);
+    float k=mix(35.0,140.0,uCC);
+    float res=1.0/(1.0+trw*k*0.9);
+    float stalk=exp(-tr*k), soft=exp(-tr*k*0.16);
+    col+=(mix(acc,vec3(1.0),0.55)*stalk*1.25+acc*soft*0.32)*res*(0.40+0.60*near)*(1.0+uHigh*0.6);
+    // Where the stalks crowd under a pixel near the set they average to a glow.
+    col+=acc*(1.0-res)*0.22*near;
+    vec3 fringe=mix(satC(cpl,1.5),vec3(1.0),0.45);
+    col+=fringe*exp(-dePx/ew)*0.55*(1.0+uMid*0.5);
+    col+=vec3(1.0)*exp(-dePx/(ew*0.15+0.8))*0.85;
+  } else {
+    col=laceCol(tr,sm,false);
+    // The set's own edge: a dark contact band with the accent drawn on it.
+    float yg=gl_FragCoord.y/max(uRes.y,1.0);
+    vec3 acc=satC(pal(0.50+0.20*(yg-0.5)),1.3);
+    col*=1.0-0.75*exp(-dePx/(ew*0.6));
+    col+=acc*exp(-dePx/(ew*0.12+0.6))*0.9;
+  }
+  col+=uBeat*0.10;
+  return col*(1.0+col*0.22)/(1.0+col*0.62);
+}
+vec3 lookIn(float tr, vec2 dz, float maxi){
+  if(uJewel>2.5) return laceCol(tr,0.0,true);
+  // Glow interior: the accent a step paler, lit at the rim of each lobe and
+  // falling off to its center, with the stalks cut into it as dark grooves
+  // and a pale line along each groove's spine.
+  vec3 acc=satC(pal(0.55+uBass*0.3),1.4);
+  vec3 lc=mix(acc,vec3(1.0),0.22);
+  float mlt=log(max(length(dz),1e-30))/max(maxi,1.0);
+  float dome=clamp(-mlt*3.0,0.0,1.0);
+  float k=mix(35.0,140.0,uCC);
+  float trw=max(fwidth(tr),1e-6), res=1.0/(1.0+trw*k*0.9);
+  vec3 ic=lc*(0.16+0.62*pow(1.0-dome,1.6));
+  ic*=1.0-0.60*exp(-tr*k*0.35)*res;
+  ic+=mix(lc,vec3(1.0),0.5)*exp(-tr*k*1.5)*0.5*res;
+  return ic+uBass*0.03;
+}
+
 // Shared shading for the 2D escape-time families. Beyond smooth iteration
 // count this uses the orbit derivative (analytic distance estimate + a fake
 // surface normal for relief lighting), a stripe-average term, and an orbit
@@ -1039,6 +1127,7 @@ vec3 esc_shade(float i,float maxi,float m,vec2 z,vec2 dz,float st,float sn,float
     vec3 lc=pal(0.5+ea*0.35+uHigh*0.15);
     return lc*(core*1.5+glow)*(1.0+uBeat*0.35);
   }
+  if(uJewel>1.5) return lookEsc(sm, de/max(gPx,1e-12), tr);
 
   // Relief. The analytic normal (cdiv(z,dz)) only describes the boundary's own
   // slope; treating the smooth iteration count as a height field and taking its
@@ -1084,7 +1173,7 @@ vec3 esc_shade(float i,float maxi,float m,vec2 z,vec2 dz,float st,float sn,float
   }
   // Jewel look weight. Held back on the Julia fill, whose whole subject is the
   // bands across the open field — blacking that field out would remove it.
-  float jw=(uJewel>0.5 ? 1.0 : 0.0)*(uMode==7 ? 0.4 : 1.0);
+  float jw=(isJewel() ? 1.0 : 0.0)*(uMode==7 ? 0.4 : 1.0);
   // Sub-pixel filtering. At depth the stripe average, the palette band edge and
   // the 34-power specular all cycle faster than one pixel, which is what makes
   // the boundary crawl and fizz as the frame drifts. Fading each toward its own
@@ -1313,6 +1402,7 @@ vec3 esc_shade(float i,float maxi,float m,vec2 z,vec2 dz,float st,float sn,float
 // Interior points get trap structure instead of flat black.
 vec3 esc_in(float tr,float st,float sn,vec2 dz,float maxi){
   if(uLine>0.5) return vec3(0.0);
+  if(uJewel>1.5) return lookIn(tr,dz,maxi);
   float stripe = sn>0.5 ? st/sn : 0.0;
   // Jewel: every interior component is its own color. All the points of one
   // bulb settle on the same attracting cycle, so its period is constant across
@@ -1321,7 +1411,7 @@ vec3 esc_in(float tr,float st,float sn,vec2 dz,float maxi){
   // multiplier (the same dome the Relief look lights): full at the bulb's rim,
   // falling to near black at its center, so each bulb reads as a lit bead with
   // a dark core. No screen derivatives here — this sits behind the inside test.
-  if(uJewel>0.5 && gPer>0.5){
+  if(isJewel() && gPer>0.5){
     float mlj=log(max(length(dz),1e-30))/max(maxi,1.0);
     float dmj=clamp(-mlj*3.0,0.0,1.0);
     vec3 bc=pal(gPer*0.381966+0.07+uHigh*0.2);
@@ -3378,7 +3468,7 @@ vec3 esc2at(vec2 uv,int kind,float ex,vec2 ctrIn,float rotAdd,float bud,float ie
   // its scale kept in lw so a long contraction never underflows.
   vec2 dw=vec2(1.0,0.0); float lw=0.0;
   float sf=sfreq(sfScale()), st=0.0, sn=0.0, tr=1e9;
-  vec2 pzr=vec2(1e9); float pkr=0.0, pkn=1.0; bool pj=uJewel>0.5; gPer=0.0;
+  vec2 pzr=vec2(1e9); float pkr=0.0, pkn=1.0; bool pj=isJewel(); gPer=0.0;
   vec3 tw; float tr0; trapCfg(tw,tr0);
   bool dp = uDeep>0.5 && kind==0;
   // Deep zoom measures its derivative in frame units (dz/2.6 below), so the
@@ -3622,7 +3712,7 @@ vec3 escape2b(vec2 uv,int kind){
   float i=0.0,m=0.0;
   vec2 dz=vec2(1.0,0.0);
   float sf=sfreq(sfScale()), st=0.0, sn=0.0, tr=1e9;
-  vec2 pzr=vec2(1e9); float pkr=0.0, pkn=1.0; bool pj=uJewel>0.5; gPer=0.0;
+  vec2 pzr=vec2(1e9); float pkr=0.0, pkn=1.0; bool pj=isJewel(); gPer=0.0;
   float odk=orbitKeep();
   vec3 tw; float tr0; trapCfg(tw,tr0);
   for(int k=0;k<maxi;k++){
@@ -3859,7 +3949,7 @@ vec3 escape2c(vec2 uv,int kind){
   float i=0.0,m=0.0;
   vec2 dz=vec2(1.0,0.0);
   float sf=sfreq(1.0), st=0.0, sn=0.0, tr=1e9;
-  vec2 pzr=vec2(1e9); float pkr=0.0, pkn=1.0; bool pj=uJewel>0.5; gPer=0.0;
+  vec2 pzr=vec2(1e9); float pkr=0.0, pkn=1.0; bool pj=isJewel(); gPer=0.0;
   for(int k=0;k<maxi;k++){
     if(hq){
       vec2 zq=cmul(z,z);

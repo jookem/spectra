@@ -4830,10 +4830,17 @@ class Component extends DCLogic {
     // recursion levels) and the Exposure curve elsewhere.
     if(fam.slice(0,3) === '3d:') r.lite = 'Flow';
     if(fam === 'can') r.dof = '\u2014';
+    // The attractors, 2D maps and flames spend 13 on hue drift (the color the
+    // trace is drawn in turns as it draws) and 15 on Gap (how much of the trace
+    // is left undrawn between strokes).
+    if(this.drawsTrace(mode)){ r.dof = 'Hue drift'; r.lit = 'Gap'; }
     // On the endless-zoom fields 11 is Zoom \u00b1: a constant drive, still at the
     // center, in to the right, out to the left.
     if(this.zDrive(mode)) r.spinr = 'Zoom \u00b1';
     return r;
+  }
+  drawsTrace(mode){
+    return (mode>=98 && mode<=100) || mode===104 || (mode>=105 && mode<=108) || (mode>=117 && mode<=120);
   }
   zDrive(mode){
     return !!this.state.levels && this.is2Mode(mode) && this.zFree(mode);
@@ -8483,11 +8490,42 @@ class Component extends DCLogic {
       // weighted by its deposit, so c/a is the average color of what landed
       // there. Only the attractor scenes write it; the chaos games ignore it.
       M.accC=new Float32Array(w*h);
+      // Hue drift channel: each hit adds the drawing hue's drift (turns of the
+      // wheel) weighted by its deposit, so d/a is the drift the cell was drawn
+      // at and older stretches of the trace keep the hue they were drawn in.
+      M.accD=new Float32Array(w*h);
       M.accCv=document.createElement('canvas'); M.accCv.width=w; M.accCv.height=h;
       M.accCtx=M.accCv.getContext('2d');
       M.accImg=M.accCtx.createImageData(w,h);
     }
-    return {a:M.acc, c:M.accC, w:w, h:h, cv:M.accCv, ctx:M.accCtx, img:M.accImg};
+    return {a:M.acc, c:M.accC, d:M.accD, w:w, h:h, cv:M.accCv, ctx:M.accCtx, img:M.accImg};
+  }
+  // Hue drift (dial 13) on the trace scenes: the hue the trace is drawn in
+  // turns as it draws, up to half a turn a second at the top of the dial.
+  // Integrated, so moving the dial changes the rate from now on. Returned
+  // relative to a base that is rebased every 16 turns (with the drift channel
+  // shifted by the same whole turns, which leaves every hue unchanged) so the
+  // float channel never loses precision over a long set.
+  accDrift(A,key){
+    const M=this.MESH, v=(this.eff||{}).dof||0, D=this.clk('hDrift_'+key, v*v*0.5);
+    if(M.accDk!==key){ M.accDk=key; M.accDb=D; A.d.fill(0); }
+    let rel=D-M.accDb;
+    if(rel>16){
+      M.accDb+=16; rel-=16;
+      const a=A.a, d=A.d; for(let i=0;i<d.length;i++) if(a[i]!==0) d[i]-=16*a[i];
+    }
+    return rel;
+  }
+  // Gap (dial 15) on the trace scenes: the share of the trace left undrawn.
+  // Returns null when off, else the dash period (buffer cells along a flow, or
+  // bands across a scatter's color coordinate), the drawn fraction of each
+  // period, and the deposit gain that keeps the drawn strokes as bright as a
+  // continuous trace would be.
+  traceGap(){
+    const g=(this.eff||{}).lit||0;
+    if(g<0.01) return null;
+    const on=1-0.85*g;
+    return {per:3+g*30, bands:2+g*10, on:on, k:Math.min(2.5,1/on)};
   }
   accDecay(A,k){ const a=A.a; for(let i=0;i<a.length;i++) a[i]*=k; }
   // Segment rasterizer for the accumulator. The flows deposit one cell per
@@ -8496,17 +8534,17 @@ class Component extends DCLogic {
   // continuous at any speed, and the deposit is divided along the run so a fast
   // stretch is not also a brighter one. A jump longer than the buffer is a
   // reseed or a divergence, not a path — that lands as a single cell.
-  accSeg(a,aw,ah,x0,y0,x1,y1,amt,cb,col){
+  accSeg(a,aw,ah,x0,y0,x1,y1,amt,cb,col,db,dv){
     const dx=x1-x0, dy=y1-y0, len=Math.max(Math.abs(dx),Math.abs(dy));
     if(!isFinite(len) || len>aw){
       const ix=x1|0, iy=y1|0;
-      if(ix>=0&&ix<aw&&iy>=0&&iy<ah){ a[iy*aw+ix]+=amt; if(cb) cb[iy*aw+ix]+=amt*col; }
+      if(ix>=0&&ix<aw&&iy>=0&&iy<ah){ a[iy*aw+ix]+=amt; if(cb) cb[iy*aw+ix]+=amt*col; if(db) db[iy*aw+ix]+=amt*dv; }
       return;
     }
-    const n=Math.max(1,Math.ceil(len)), w=amt/n, wc=w*(col||0);
+    const n=Math.max(1,Math.ceil(len)), w=amt/n, wc=w*(col||0), wd=w*(dv||0);
     for(let i=0;i<=n;i++){
       const ix=(x0+dx*i/n)|0, iy=(y0+dy*i/n)|0;
-      if(ix>=0&&ix<aw&&iy>=0&&iy<ah){ a[iy*aw+ix]+=w; if(cb) cb[iy*aw+ix]+=wc; }
+      if(ix>=0&&ix<aw&&iy>=0&&iy<ah){ a[iy*aw+ix]+=w; if(cb) cb[iy*aw+ix]+=wc; if(db) db[iy*aw+ix]+=wd; }
     }
   }
   // Colored blit for the attractors. accBlit takes hue AND brightness from the
@@ -8517,7 +8555,8 @@ class Component extends DCLogic {
   // The color is a 32 x 33 table rebuilt only when hue or spread move.
   // lnorm, when given, replaces the fixed /4 log range (the maps normalize to
   // their own peak density instead).
-  accBlitC(ctx,W,H,A,hue,gainIn,over,spread,lnorm){
+  accBlitC(ctx,W,H,A,hue,gainIn,over,spread,lnorm,drift){
+    if(drift){ this.accBlitD(ctx,W,H,A,hue,gainIn,over,spread,lnorm); return; }
     const a=A.a, cc=A.c, d=A.img.data, gain=gainIn, M=this.MESH, ln=lnorm||0.25;
     const key=Math.round((((hue%1)+1)%1)*512)+':'+Math.round(spread*128);
     let T=M.accLut;
@@ -8540,6 +8579,41 @@ class Component extends DCLogic {
       const l=Math.min(1,Math.log(1+v*gain)*ln);
       let t=cc[i]/v; t=t<0?0:(t>1?1:t);
       const o=(((t*31+0.5)|0)*33+((l*32+0.5)|0))*3;
+      d[p]=T[o]; d[p+1]=T[o+1]; d[p+2]=T[o+2]; d[p+3]=255;
+    }
+    A.ctx.putImageData(A.img,0,0);
+    ctx.imageSmoothingEnabled=true;
+    if(!over) ctx.globalCompositeOperation='source-over';
+    ctx.drawImage(A.cv,0,0,W,H);
+  }
+  // accBlitC with the hue drift channel read in. The hue is no longer bounded
+  // to the spread around the Hue setting (the drift runs on round the wheel),
+  // so the table spans the whole wheel in 64 steps and each cell's hue is its
+  // color coordinate's place in the spread plus the drift it was drawn at.
+  accBlitD(ctx,W,H,A,hue,gainIn,over,spread,lnorm){
+    const a=A.a, cc=A.c, dd=A.d, d=A.img.data, gain=gainIn, M=this.MESH, ln=lnorm||0.25;
+    const key=Math.round((((hue%1)+1)%1)*512);
+    let T=M.accLutD;
+    if(!T || M.accLkD!==key){
+      T=M.accLutD=new Uint8ClampedArray(64*33*3); M.accLkD=key;
+      for(let hi=0;hi<64;hi++) for(let li=0;li<33;li++){
+        const l=li/32, h=hue+hi/64;
+        const s=0.95-0.6*l*l*l, L=Math.min(0.97,0.03+l*0.78);
+        const rgb=this.hsl2rgb(h,s,L), o=(hi*33+li)*3;
+        T[o]=rgb[0]; T[o+1]=rgb[1]; T[o+2]=rgb[2];
+      }
+    }
+    for(let i=0,p=0;i<a.length;i++,p+=4){
+      const v=a[i];
+      if(v<=0.0001){
+        if(over){ d[p]=0; d[p+1]=0; d[p+2]=0; d[p+3]=0; }
+        else { d[p]=6; d[p+1]=7; d[p+2]=12; d[p+3]=255; }
+        continue;
+      }
+      const l=Math.min(1,Math.log(1+v*gain)*ln);
+      let t=cc[i]/v; t=t<0?0:(t>1?1:t);
+      let h=(t-0.5)*spread+dd[i]/v; h-=Math.floor(h);
+      const o=((((h*64+0.5)|0)&63)*33+((l*32+0.5)|0))*3;
       d[p]=T[o]; d[p+1]=T[o+1]; d[p+2]=T[o+2]; d[p+3]=255;
     }
     A.ctx.putImageData(A.img,0,0);
@@ -8869,7 +8943,7 @@ class Component extends DCLogic {
     if(!M.flow || M.flowKind!==S.key || M.flow.length!==nT){
       M.flow=[]; M.flowKind=S.key;
       for(let i=0;i<nT;i++) M.flow.push(S.seed(i,nT));
-      const Ac0=this.accum(W,H,2); Ac0.a.fill(0); Ac0.c.fill(0);
+      const Ac0=this.accum(W,H,2); Ac0.a.fill(0); Ac0.c.fill(0); Ac0.d.fill(0);
       M.flowLv=null; M.m2Kind=null;   // the 2D maps share this buffer
     }
     const P=S.params(e,{loud:loud,bass:bass,high:high});
@@ -8891,8 +8965,13 @@ class Component extends DCLogic {
     const keep=Math.max(0.6,Math.min(0.998,
       0.80+(e.cc==null?0.5:e.cc)*0.195+(S.keepBias||0)));
     const Ac=this.accum(W,H,2);
-    if(adv){ this.accDecay(Ac,keep); const cd=Ac.c; for(let i=0;i<cd.length;i++) cd[i]*=keep; }
+    if(adv){ this.accDecay(Ac,keep); const cd=Ac.c, dd=Ac.d; for(let i=0;i<cd.length;i++){ cd[i]*=keep; dd[i]*=keep; } }
     const a=Ac.a, cb=Ac.c, aw=Ac.w, ah=Ac.h;
+    // Hue drift and Gap (dials 13 and 15). dv is the drawing hue's drift this
+    // frame; db stays null while the drift has never run, so the plain blit
+    // and deposit paths are untouched.
+    const dv=this.accDrift(Ac,'flow_'+S.key), drOn=dv!==0, db=drOn?Ac.d:null;
+    const GP=this.traceGap();
     // Color coordinate per sample. Speed along the orbit is what separates the
     // parts of an attractor: the flow crawls through the turns of a lobe and
     // races along the sheets between them, so coloring by it paints the
@@ -8996,9 +9075,21 @@ class Component extends DCLogic {
         const Yv=Z*ct-D*st2, Xr=X*cr-Yv*sr, Yr=X*sr+Yv*cr;
         const px=cx+Xr*sc*q, py=cy-Yr*sc*q;
         let amt=0.30+0.78*q*q;
+        // Gap: the thread is drawn as dashes along its own path, the period
+        // measured in buffer cells travelled, so the strokes keep their length
+        // whatever the flow speed. The pen lifts in the gaps (lx reset), so a
+        // dash never bridges one.
+        if(GP){
+          const gx=px/W*aw, gy=py/H*ah;
+          if(s.gx!=null){ const ds=Math.hypot(gx-s.gx,gy-s.gy); if(ds<aw) s.gp=(s.gp||0)+ds; }
+          s.gx=gx; s.gy=gy;
+          const ph=(s.gp||0)/GP.per;
+          if(ph-Math.floor(ph)>=GP.on){ lx=-1e9; continue; }
+          amt*=GP.k;
+        }
         if(mk==='line'){
           const jx=px/W*aw, jy=py/H*ah;
-          if(lx>-1e8) this.accSeg(a,aw,ah,lx,ly,jx,jy,amt,cb,col);
+          if(lx>-1e8) this.accSeg(a,aw,ah,lx,ly,jx,jy,amt,cb,col,db,dv);
           lx=jx; ly=jy;
           continue;
         }
@@ -9021,7 +9112,7 @@ class Component extends DCLogic {
             if(dl>1e-4){
               dx/=dl; dy/=dl;
               const bl=1.0+2.8*q;
-              this.accSeg(a,aw,ah,jx-dy*bl,jy+dx*bl,jx+dy*bl,jy-dx*bl,amt*1.5,cb,col);
+              this.accSeg(a,aw,ah,jx-dy*bl,jy+dx*bl,jx+dy*bl,jy-dx*bl,amt*1.5,cb,col,db,dv);
             }
           }
           lx=jx; ly=jy;
@@ -9040,9 +9131,10 @@ class Component extends DCLogic {
           a[j2*aw+ix]+=w01; a[j2*aw+i2]+=w11;
           cb[iy*aw+ix]+=w00*col; cb[iy*aw+i2]+=w10*col;
           cb[j2*aw+ix]+=w01*col; cb[j2*aw+i2]+=w11*col;
+          if(db){ db[iy*aw+ix]+=w00*dv; db[iy*aw+i2]+=w10*dv; db[j2*aw+ix]+=w01*dv; db[j2*aw+i2]+=w11*dv; }
           continue;
         }
-        a[iy*aw+ix]+=amt; cb[iy*aw+ix]+=amt*col;
+        a[iy*aw+ix]+=amt; cb[iy*aw+ix]+=amt*col; if(db) db[iy*aw+ix]+=amt*dv;
       }
       const X=s.x*cs-s.y*sn, D=s.x*sn+s.y*cs, Zh=s.z-S.zc;
       const qh=fov/Math.max(fov*0.35, fov+D*ct+Zh*st2);
@@ -9064,7 +9156,7 @@ class Component extends DCLogic {
     // Running mean speed, so the color scale follows each attractor (Lorenz
     // moves a hundred times faster than Aizawa) and the transient's swings.
     if(vN>0){ const m=vSum/vN; M.flowLv=M.flowLv==null?m:M.flowLv+(m-M.flowLv)*0.05; }
-    this.accBlitC(ctx,W,H,Ac,(e.hue==null?0.5:e.hue)+mtick*0.00015,2.6+high*3,true,cSpread);
+    this.accBlitC(ctx,W,H,Ac,(e.hue==null?0.5:e.hue)+mtick*0.00015,2.6+high*3,true,cSpread,0,drOn);
     ctx.globalCompositeOperation='source-over';
     for(let k=0;k<heads.length;k++){
       const qh=heads[k][2]||1;
@@ -9327,8 +9419,15 @@ class Component extends DCLogic {
         cv,ctx:c2,img:c2.createImageData(w,h),x:0.1,y:0.1,c:0.5,skip:20,mx:0,my:0,sd:0,max:1,mode:-1,lut:null,lk:'',tone:new Float32Array(1024),tk:''};
     }
     if(F.mode!==mode){ F.d.fill(0); F.r.fill(0); F.g.fill(0); F.b.fill(0); F.mode=mode; F.sd=0; F.max=1; F.skip=20; F.x=0.1; F.y=0.1; }
-    const hue=g('hue'), lk=mode+':'+hue.toFixed(3);
-    if(F.lk!==lk){ F.lut=this.flameLut(mode,hue); F.lk=lk; }
+    // Hue drift (dial 13): the gradient turns as the flame draws. Hits are
+    // stored as RGB, so each one keeps the color it landed in and the flame
+    // carries the drift through its persistence as a slow change of color.
+    const fdr=e.dof||0, hDr=this.clk('hDrift_flm', fdr*fdr*0.5);
+    const hue=g('hue')+hDr, lk=mode+':'+(hue-Math.floor(hue)).toFixed(3);
+    if(F.lk!==lk){ F.lut=this.flameLut(mode,hue-Math.floor(hue)); F.lk=lk; }
+    // Gap (dial 15): bands of the color coordinate are drawn and the bands
+    // between left dark, so the flame separates into strands.
+    const GP=this.traceGap(), gB=GP?GP.bands:0, gOn=GP?GP.on:1;
     const lut=F.lut, d=F.d, R=F.r, G=F.g, B=F.b;
     // Persistence only while the picture is still. Carrying hits across frames
     // is what builds density, but once the maps or the view move, those old hits
@@ -9377,6 +9476,7 @@ class Component extends DCLogic {
         if(!(x*x+y*y<1e6)){ x=Math.random()-0.5; y=Math.random()-0.5; skip=20; continue; }
         if(skip>0){ skip--; continue; }
         sx+=x; sy+=y; sxx+=x*x+y*y; ns++;
+        if(gB>0){ const gp=c*gB; if(gp-Math.floor(gp)>=gOn) continue; }
         let px=oc?x:x-F.mx, py=oc?y:y-F.my;
         if(n>1){ const q=(Math.random()*n)|0, tx=px*SC[q]-py*SS[q]; py=px*SS[q]+py*SC[q]; px=tx; }
         const ix=Math.floor(bx+(px*cR-py*sR)*S), iy=Math.floor(by-(px*sR+py*cR)*S);
@@ -9464,7 +9564,7 @@ class Component extends DCLogic {
     M.accTag='m2';
     let S=M.m2;
     if(!S || M.m2Kind!==key || gap){
-      a.fill(0); cb.fill(0);
+      a.fill(0); cb.fill(0); Ac.d.fill(0);
       M.m2Kind=key; M.flowKind=null;   // the flows rebuild their buffer on return
       S=M.m2={x:0.05,y:0.05,skip:50,idx:-1,fade:0,bx:null,lv:null,max:1,sig:null,mv:0,name:''};
     }
@@ -9524,7 +9624,14 @@ class Component extends DCLogic {
     // Always iterated, like the flames: AUTO off already holds the clocks, so
     // the map stands still, and stopping the iteration as well left a cut to
     // this scene with AUTO off on an empty frame.
-    for(let i=0;i<a.length;i++){ if(a[i]!==0){ a[i]*=kd; cb[i]*=kd; } }
+    const dd=Ac.d;
+    for(let i=0;i<a.length;i++){ if(a[i]!==0){ a[i]*=kd; cb[i]*=kd; dd[i]*=kd; } }
+    // Hue drift and Gap (dials 13 and 15). A scatter has no path to dash, so
+    // Gap cuts the attractor across its own color coordinate instead: bands of
+    // it are drawn and the bands between are left dark, which separates the
+    // folds into strands with space between them.
+    const dv=this.accDrift(Ac,'m2_'+key), drOn=dv!==0;
+    const GP=this.traceGap();
     // Framing: the attractor's bounding box from last frame's points, eased,
     // so a cut glides the view from one shape to the next.
     const bx=S.bx||{x0:-1,x1:1,y0:-1,y1:1};
@@ -9558,7 +9665,8 @@ class Component extends DCLogic {
         const col=cA+(cB-cA)*cSrc;
         const px=x-mx, py=y-my;
         const ix=Math.floor(ox+(px*cR-py*sR)*SC), iy=Math.floor(oy-(px*sR+py*cR)*SC);
-        if(ix>=0 && ix<aw && iy>=0 && iy<ah){ const p=iy*aw+ix; a[p]+=1; cb[p]+=col; }
+        if(GP){ const ph=col*GP.bands; if(ph-Math.floor(ph)>=GP.on) continue; }
+        if(ix>=0 && ix<aw && iy>=0 && iy<ah){ const p=iy*aw+ix; a[p]+=1; cb[p]+=col; dd[p]+=dv; }
       }
       if(performance.now()-t0>budget) break;
     }
@@ -9579,7 +9687,7 @@ class Component extends DCLogic {
     ctx.save();
     ctx.globalCompositeOperation='source-over';
     ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H);
-    this.accBlitC(ctx,W,H,Ac,g('hue')+(M.mtick||0)*0.00015,gain,true,cSpread,1/Math.log(1+S.max*gain));
+    this.accBlitC(ctx,W,H,Ac,g('hue')+(M.mtick||0)*0.00015,gain,true,cSpread,1/Math.log(1+S.max*gain),drOn);
     ctx.restore();
     this.canvasBloom(ctx,ctx.canvas,g('cb')*0.6+high*0.3);
     const stEl=this.meshStatRef && this.meshStatRef.current;
@@ -15988,6 +16096,30 @@ class Component extends DCLogic {
       q.beat = raw * g;
     }
     q.jump = this.jumpHold = (g < 0.02 ? (this.jumpHold ?? A.jump) : A.jump);
+    this.strobeKickStep(dt, q.beat, g);
+  }
+
+  // Strobe kick on the 2D Fields: every flash the frame snaps to a new offset
+  // and a new turn, so the strobe cuts between views of the set instead of only
+  // flashing light. The target is picked at the rising edge of the flash (the
+  // Rate gate is already in the beat), the frame reaches it in a few frames, and
+  // holds there until the next flash. Offsets are around home, never summed,
+  // so a long run of flashes cannot walk the subject off screen. Scaled by the
+  // strobe gain, so with the strobe off the frame glides back to where it was.
+  strobeKickStep(dt, beat, g){
+    const K = this.stbK || (this.stbK = {x:0, y:0, r:0, tx:0, ty:0, tr:0, prev:0});
+    if(beat > 0.5 && K.prev <= 0.35 && g > 0.02){
+      const ang = Math.random()*6.2832, rad = 0.06 + Math.random()*0.12;
+      K.tx = Math.cos(ang)*rad; K.ty = Math.sin(ang)*rad;
+      // A turn of 15 to 50 degrees, alternating direction so it reads as a cut,
+      // not a slow spin.
+      K.sgn = -(K.sgn || 1);
+      K.tr = K.sgn*(0.26 + Math.random()*0.61);
+    }
+    K.prev = beat;
+    const k = 1 - Math.exp(-dt/0.045);
+    const s = Math.max(0, Math.min(1, g));
+    K.x += (K.tx*s - K.x)*k; K.y += (K.ty*s - K.y)*k; K.r += (K.tr*s - K.r)*k;
   }
 
   // Total beats elapsed, monotonic. bpm.beatCount only counts 0..3 inside a
@@ -17062,7 +17194,9 @@ class Component extends DCLogic {
       + (this.is2D() ? (this.lvlRot||0) + this.goldRot() : 0);
     const uPit = this.cam.pitch + this.gPitch + (this.imuPitch||0);
     gl.uniform1f(u.uCamYaw, uYaw);
-    gl.uniform1f(u.uCamRoll, this.cam.roll||0);
+    // Strobe kick (see strobeKickStep): the 2D Fields only.
+    const sk = (this.is2D() && !this.isCanvasScene() && this.stbK) ? this.stbK : null;
+    gl.uniform1f(u.uCamRoll, (this.cam.roll||0) + (sk ? sk.r : 0));
     gl.uniform1f(u.uCamPitch, uPit);
     gl.uniform2f(u.uPlane, 0, 0);
     gl.uniform2f(u.uCtr3, 0, 0);
@@ -17078,6 +17212,7 @@ class Component extends DCLogic {
     let pR = (this.is2D() && !this.isCanvasScene())
       ? this.pan2(this.pan.x + (lo?lo[0]:0), this.pan.y + (lo?lo[1]:0))
       : [this.pan.x + gp.x, this.pan.y + gp.y];
+    if(sk) pR = [pR[0] + sk.x, pR[1] + sk.y];
     // Hard containment for the 2D Fields sets, applied to the final offset
     // whatever wrote it (stick, drag, gyro, level offset). The frame center may
     // not sit further than ~0.9 of a zoom-0 half-frame from where the scene
@@ -17354,7 +17489,7 @@ class Component extends DCLogic {
     if(u.uTile) gl.uniform1f(u.uTile, (this.state.tiles !== false && !(this.state.fieldFx || 0)) ? 1 : 0);
     // 2D look on the escape-time families: 0 Relief, 1 Jewel (period-colored
     // interior, black field with a boundary halo, harder stripes).
-    if(u.uJewel) gl.uniform1f(u.uJewel, this.state.jewel ? 1 : 0);
+    if(u.uJewel) gl.uniform1f(u.uJewel, Math.max(0, Math.min(3, +this.state.jewel || 0)));
     if(u.uLine) gl.uniform1f(u.uLine, this.lineFxOk(this.curMode()));
     gl.uniform1f(u.uDOF, this.eff.dof ?? 0);
     const fx = this.state.fx || 0;
@@ -17415,7 +17550,7 @@ class Component extends DCLogic {
       const is3dof = dofOn;
       gl.uniform1f(pu.uBokeh, is3dof
         ? (this.eff.dof ?? 0)
-        : (this.is2D() ? 0.35 + 0.65*(tm.smth ?? 0.55) + 1.2*(this.eff.dof ?? 0) : 0));
+        : (this.is2D() ? 0.35 + 0.65*(tm.smth ?? 0.55) + 1.2*(this.isCanvasScene() ? 0 : (this.eff.dof ?? 0)) : 0));
       if(pu.uDofDepth) gl.uniform1f(pu.uDofDepth, is3dof ? 1 : 0);
       if(pu.uDenoise) gl.uniform1f(pu.uDenoise, dnAmt);
       if(pu.uBloom) gl.uniform1f(pu.uBloom, bloomOn ? this.eff.lit : 0);
@@ -18438,9 +18573,9 @@ class Component extends DCLogic {
       lineSel: String(Math.min(6, +s.lineFx || 0)),
       lineOptions: [{v:'0',tag:'Line Off'},{v:'1.5',tag:'Line Fine'},{v:'6',tag:'Line Soft'}],
       setLine: (e)=>this.setState({lineFx: parseFloat(e.target.value)||0}),
-      lookSel: s.jewel ? '1' : '0',
-      lookOptions: [{v:'1',tag:'Look Jewel'},{v:'0',tag:'Look Relief'}],
-      setLook: (e)=>this.setState({jewel: e.target.value === '1' ? 1 : 0}),
+      lookSel: String(Math.max(0, Math.min(3, +s.jewel || 0))),
+      lookOptions: [{v:'1',tag:'Look Jewel'},{v:'0',tag:'Look Relief'},{v:'2',tag:'Look Glow'},{v:'3',tag:'Look Lace'}],
+      setLook: (e)=>this.setState({jewel: parseInt(e.target.value,10) || 0}),
       spinSel: String(s.spin ?? 1),
       spinOptions: [{v:'1',tag:'Spin ↻ CW'},{v:'0',tag:'Spin Off'},{v:'-1',tag:'Spin ↺ CCW'}],
       setSpin: (e)=>this.setState({spin: parseInt(e.target.value,10)||0}),
