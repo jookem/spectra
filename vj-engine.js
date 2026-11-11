@@ -625,7 +625,9 @@ uniform float uZCnt;
 uniform vec4 uZAux;
 float gZOff=0.0, gZS=1.0;
 float fhEx(float zt, float e0){ return uFHome.z>0.0 ? uFHome.z+zt*(e0+6.4-uFHome.z) : e0+zt*6.4; }
-vec2 fhCtr(vec2 c, float ex){ return uFHome.z>0.0 ? mix(uFHome.xy, c, smoothstep(uFHome.z+0.3, uFHome.z+2.4, ex)) : c; }
+// No auto pan: the frame zooms about c wherever c sits in the home frame, so
+// the detail center holds still on screen while the view closes in on it.
+vec2 fhCtr(vec2 c, float ex){ return uFHome.z>0.0 ? c+(uFHome.xy-c)*exp2(-(ex-uFHome.z)) : c; }
 // Translucency on the raymarched families. Detail was the slider here and it
 // barely moved the picture: on a distance-estimated surface the iteration count
 // stops changing the silhouette after about eight, and the march step count
@@ -774,11 +776,11 @@ float zlFrame(out float rt, out vec2 ctr){
   float D=max(uZBase-uFHome.z,0.0);
   float ol= o<D ? o : D+mod(o-D,uZRat);
   rt=-ol/uZRat*uZRot;
-  // Fixed glide: over the first octaves of the descent the anchor slides to
-  // the middle of the screen, the same path every time; the loop below runs
-  // centred on it, so the wrap stays exact.
-  float gl=1.0-smoothstep(0.0,max(min(D,4.0),0.5),ol);
-  ctr=uZAnc+((uFHome.xy-uZAnc)*rot(rt))*(exp2(-ol)*gl);
+  // No auto pan: the anchor stays where it sits in the home frame and the
+  // descent zooms straight in on it. The offset scales and turns with the
+  // sweep, so the frame is a pure similarity about the anchor and the wrap
+  // stays exact.
+  ctr=uZAnc+((uFHome.xy-uZAnc)*rot(rt))*exp2(-ol);
   // Counted from the top of the loop: only the loop has to repeat, and an
   // offset from home would push the fast-escaping exterior below zero.
   float lo=max(ol-D,0.0);
@@ -3316,7 +3318,8 @@ vec3 esc2at(vec2 uv,int kind,float ex,vec2 ctrIn,float rotAdd,float bud,float ie
     vec2 sq=vec2(sqrt(max(0.5*(wr+w.x),0.0)), (w.y<0.0?-1.0:1.0)*sqrt(max(0.5*(wr-w.x),0.0)));
     vec2 zs=0.5*(vec2(1.0,0.0)+sq);
     float sxf=exp2(-uZX.x*uZX.y*uZX.z);
-    vec2 base=mix(ctrIn,zs,smoothstep(1.4,3.6,ex));
+    // No auto pan: zoom about z* where it sits, rather than gliding onto it.
+    vec2 base=zs+(ctrIn-zs)*exp2(-(ex-0.75));
     ctr=mix(zs,base,sxf);
   }
   // uCamYaw is the manual rotation on the 2D families (drag / right stick).

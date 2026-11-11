@@ -14537,7 +14537,9 @@ class Component extends DCLogic {
     const k = this.goldIdx(); if(k < 0) return [0,0];
     const asp = this.canvasRef.current ? this.canvasRef.current.width / Math.max(1, this.canvasRef.current.height) : 16/9;
     const z = zoom != null ? zoom : (this.zEffLast != null ? this.zEffLast : (this.eff && this.eff.zoom) || 0);
-    const t = this.zFree() ? 0 : Math.max(0, Math.min(1, (z - 0.10) / 0.35));
+    // No auto pan: the focus offset used to grow in with depth, which slid the
+    // whole picture across the screen as the zoom rose. It stays at zero.
+    const t = 0;
     const g = 0.4472136 * t*t*(3 - 2*t), sx = (k & 1) ? -1 : 1, sy = (k & 2) ? -1 : 1;
     return [sx * g * asp, sy * g];
   }
@@ -15870,7 +15872,7 @@ class Component extends DCLogic {
         {k:'Video change', d:'Auto steps the clip list, In order / Random its order, Link scene changes clip with the scene, FX cycle picks a new video look each clip, Tx the transition, Drift moves the video trail'},
         {k:'Several screens (TV Wall, Billboard City, Frame Corridor)', d:'Each screen plays the clip at its own delay, up to two seconds behind, so they never all show the same frame. Sphere keeps one picture wrapped round its dome'},
         {k:'Two-finger twist (Scenes)', d:'On the canvas scenes a twist turns the scene about its vertical axis — round its subject on Drive-in, TV Wall, Sphere, Reflection Pool and Starfield Warp, on the spot in the streets and corridors'},
-        {k:'Fields framing', d:'The 2D escape-time scenes put their detailed anchor on the golden spiral’s eye rather than dead center, and turn each view by a multiple of the golden angle (137.5°), so the arms sweep round the frame'},
+        {k:'Fields framing', d:'The 2D escape-time scenes zoom straight in on their detailed anchor where it sits, with no automatic panning, and turn each view by a multiple of the golden angle (137.5°), so the arms sweep round the frame'},
         {k:'DNA', d:'An endless field of double helices to fly through. Twist sets the pitch, Groove the gap between strands, Spacing how dense the field is, Grain the surface texture, Pairs the rungs per turn, Thickness the strands'},
         {k:'Romanesco', d:'A cone head with 120 florets on a golden-angle (Vogel) spiral, each floret a smaller head with its own spiral. Florets sets their size, Height how tall the cones are, Droop how far the florets lean out, Grow drifts them out from the tips, Levels adds a level'},
         {k:'Cathedral', d:'The Mandelbox at negative scale: arcades of arches and ogee windows. Scale, Inner R, Fold and Twist reshape it; zoom in to dive into the arcades'},
