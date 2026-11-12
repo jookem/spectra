@@ -2105,25 +2105,24 @@ float dna(vec3 p, out float trap, float tw, float ca, float cb, float cc){
 // before each map() call (0 = no limit). Scenes use it to stop iterating once
 // the next level of detail would be smaller than a pixel.
 float gLod=0.0;
-// Romanesco (44), built the way the phyllotaxis instancing script builds it:
-// one cone head, base radius R and height H, with N florets on its face laid
-// out by Vogel's spiral,
-//   floret n:  r = R*sqrt(n/N),  theta = n * golden angle,  y = H*(1 - r/R)
-//   size:      s = decay * (r/R)^0.5      (nothing at the tip, largest at the rim)
-// The script's 0.85 left the upper half a bare cone: Vogel spacing is even
-// everywhere, so florets that small near the tip stood apart as lone spikes.
-//   axis:      tilted out from vertical by atan(R/H) + droop, turned to theta
-// and every floret is the whole head again, level after level. As in the
-// script a cone is drawn at every node, so each head stays solid under its
-// florets: no hollow to show through, and no flat skirts where heads meet.
-//
-// Nearest floret: Vogel's spiral is the lattice n*(1, golden angle), wrapped in
-// angle. Around index n its shortest steps are two consecutive Fibonacci
-// numbers, F ~ 2.37*sqrt(n) (the parastichies the eye picks out), and such a
-// pair is a basis of the lattice. The point is located in that basis and the
-// four corners of its cell are the candidates, whatever N is.
-//   morph  floret size (decay)   ca  head height   cb  droop
-//   cc     growth: the spiral drifts out from the tip
+// Romanesco (44): a head made only of florets, each floret the whole head
+// again. The cone (base radius R, height H) is just the envelope the florets
+// sit on; it is never drawn above the last level.
+// Florets lie on a logarithmic spiral running into the apex: floret n stands
+// at distance t_n = exp(-n/D) (as a fraction of the slant) from the tip, turned
+// n * golden angle, with size c*t_n. Size shrinks in step with spacing, so they
+// pack all the way up to the tip, and one step along the spiral is the head
+// scaled by exp(-1/D): exactly self-similar, like the real plant. c is set so
+// the florets overlap (fill 1.6 of the face).
+// Nearest floret: in (log t, angle) the florets are the lattice n*(1, golden
+// angle). Its shortest steps are two consecutive Fibonacci numbers, here fixed
+// by D and the cone's slope, and they form a basis: the point is located in it
+// and the four corners of its cell are the candidates.
+// Florets are bulbs (a sphere tapering to a rounded point, iq's round cone), so
+// no flat bases show. Below the last level each head keeps only a core cone set
+// in under its florets.
+//   morph  floret size (fewer, bigger)   ca  head height   cb  droop
+//   cc     growth: florets pour out of the apex
 //   uIter  levels 1..3 (Detail is Fog on 3D)   bass: florets swell   beat: a pulse down the levels
 float romCone(vec3 p, float R, float H){
   // Exact solid cone, base disc at y=0, tip at y=H (iq's capped cone, r2=0).
@@ -2135,65 +2134,77 @@ float romCone(vec3 p, float R, float H){
   float s=(cb.x<0.0 && ca.y<0.0)?-1.0:1.0;
   return s*sqrt(min(dot(ca,ca),dot(cb,cb)));
 }
+float romBulb(vec3 p, float r1, float r2, float y0, float y1){
+  // Round cone: sphere r1 at y0 tapering to sphere r2 at y1.
+  float h=y1-y0, b=min((r1-r2)/h,0.95), a=sqrt(1.0-b*b);
+  vec2 q=vec2(length(p.xz), p.y-y0);
+  float k=dot(q,vec2(-b,a));
+  if(k<0.0) return length(q)-r1;
+  if(k>a*h) return length(q-vec2(0.0,h))-r2;
+  return dot(q,vec2(a,b))-r1;
+}
 float romanesco(vec3 p, out float trap){
   p.xz*=rot(uTime*0.06*uSpeed*uSpin);
-  const float R=1.5, N=120.0, GA=2.3999632, LPHI=0.48121183, TAU=6.2831853;
-  float H=mix(1.4,2.6,clamp(uCA,0.0,1.0));
-  float decay=mix(0.12,0.20,clamp(uMorph,0.0,1.0))*(1.0+uBass*uReact*0.1);
+  const float R=1.5, GA=2.3999632, LPHI=0.48121183, TAU=6.2831853;
+  float H=mix(1.3,2.6,clamp(uCA,0.0,1.0));
+  float Ls=sqrt(R*R+H*H), sa=R/Ls, LL=R*R+H*H;
+  float D=mix(44.0,18.0,clamp(uMorph,0.0,1.0));
+  float c=sqrt(3.2/(sa*D))*(1.0+uBass*uReact*0.1);
   float tilt=atan(R/H)+mix(0.0,0.3,clamp(uCB,0.0,1.0));
   float ct=cos(tilt), st=sin(tilt);
   float grow=fract(uTime*uSpeed*clamp(uCC,0.0,1.0)*0.15);
   int lv=1+int(floor(clamp(uIter,0.0,1.0)*2.99));
-  // How far a floret and everything on it can stand off the parent's face.
-  float reach=decay*max(H,R)*1.3;
-  float LL=R*R+H*H;
+  // How far a floret and everything on it can stand off the envelope.
+  float reach=c*(H+R)*1.2;
+  // Lattice basis: the Fibonacci pair nearest 1.676*sqrt(D*sin(slope)).
+  float k=max(floor(log(2.236068*1.676*sqrt(D*sa))/LPHI-0.5),2.0);
+  float Fa=floor(exp(k*LPHI)/2.2360680+0.5), Fb=floor(exp((k+1.0)*LPHI)/2.2360680+0.5);
+  float da=Fa*GA-TAU*floor(Fa*GA/TAU+0.5), db=Fb*GA-TAU*floor(Fb*GA/TAU+0.5);
+  float det=Fa*db-Fb*da;
   // The head centered on the origin.
   vec3 q=p; q.y+=H*0.45;
   float sc=1.0, d=1e9; trap=0.2;
   for(int L=0;L<4;L++){
+    // The last level: a bulb.
+    if(L>=lv){ d=min(d,romBulb(q,0.62*R,0.09*R,0.22*H,H-0.09*R)*sc); break; }
     float dc=romCone(q,R,H);
-    d=min(d,dc*sc);
-    // Stop at the last level, or once the next florets would be under a
-    // couple of pixels: finer levels only shimmer.
-    if(L>=lv || sc*decay*max(H,R)<gLod*2.0) break;
-    // Well clear of the face no floret can be nearer than dc-reach. Only taken
-    // with a margin: right at dc=reach that bound reaches zero, and the march
-    // stopped on it as if it were a surface, a smooth shell round the cone.
+    // Well clear of the envelope no floret can be nearer than dc-reach. Only
+    // taken with a margin: right at dc=reach that bound reaches zero, and the
+    // march stopped on it as if it were a surface.
     if(dc>reach*1.5){ d=min(d,(dc-reach)*sc); break; }
-    // The nearest point on the face, as a (continuous) index along the spiral.
+    // The core, set in under the florets so it only shows down in the gaps.
+    d=min(d,romCone(q,R*(1.0-0.25*c),H)*sc);
+    // The nearest point on the envelope, as a (continuous) index along the spiral.
     float rho=length(q.xz), th=atan(q.z,q.x);
     float rf=clamp((rho*R-(q.y-H)*H)*R/LL,0.0,R);
-    float u=N*rf*rf/(R*R)-grow, tg=th-grow*GA;
-    float k=max(floor(log(5.3*sqrt(max(u,1.0)))/LPHI-0.5),2.0);
-    float Fa=floor(exp(k*LPHI)/2.2360680+0.5), Fb=floor(exp((k+1.0)*LPHI)/2.2360680+0.5);
-    float da=Fa*GA-TAU*floor(Fa*GA/TAU+0.5), db=Fb*GA-TAU*floor(Fb*GA/TAU+0.5);
-    float det=Fa*db-Fb*da;
+    float u=-log(max(rf/R,1e-6))*D+grow, tg=th+grow*GA;
     vec2 ij0=floor(vec2(u*db-Fb*tg, Fa*tg-u*da)/det);
     float best=1e9; vec3 bq=q; float bs=1.0, bn=0.0;
-    for(int c=0;c<4;c++){
-      vec2 ij=ij0+vec2(float(c&1),float(c>>1));
-      float n=ij.x*Fa+ij.y*Fb+grow;
-      if(n<=0.0 || n>N+1.0) continue;
-      float rn=R*sqrt(n/N), an=n*GA;
-      // Growing, the outermost floret shrinks away over its last index step
-      // instead of vanishing off the rim.
-      float s=decay*sqrt(rn/R)*clamp(N+1.0-n,0.0,1.0)*(1.0+uBeat*uReact*0.15*sin(float(L)*2.0-uTime*6.0));
-      if(s<0.004) continue;
+    for(int m=0;m<4;m++){
+      vec2 ij=ij0+vec2(float(m&1),float(m>>1));
+      float n=ij.x*Fa+ij.y*Fb-grow;
+      if(n<=-2.0) continue;
+      float tn=exp(-n/D);
+      // Growing, the outermost florets shrink away past the rim.
+      float s=c*tn*clamp((n+2.0)*0.5,0.0,1.0)*(1.0+uBeat*uReact*0.15*sin(float(L)*2.0-uTime*6.0));
+      // Up at the apex they get smaller than a pixel: the core stands in.
+      if(s*sc*Ls<gLod*1.5) continue;
+      float rn=R*tn, an=n*GA;
       float ca_=cos(an), sa_=sin(an);
       vec3 A=vec3(st*ca_,ct,st*sa_), Bx=vec3(ct*ca_,-st,ct*sa_), Bz=vec3(-sa_,0.0,ca_);
-      vec3 dl=(q-vec3(rn*ca_,H*(1.0-rn/R),rn*sa_))/s;
-      vec3 ql=vec3(dot(dl,Bx),dot(dl,A),dot(dl,Bz));
+      vec3 dl=(q-vec3(rn*ca_,H*(1.0-tn),rn*sa_))/s;
+      // Sunk into the parent so the bases stay hidden.
+      vec3 ql=vec3(dot(dl,Bx),dot(dl,A)+0.3*H,dot(dl,Bz));
       float dd=romCone(ql,R,H)*s;
       if(dd<best){ best=dd; bq=ql; bs=s; bn=n; }
     }
     if(best>=1e8) break;
-    d=min(d,best*sc);
     trap=0.18+0.17*float(L+1)+0.08*fract(bn*0.618);
     q=bq; sc*=bs;
   }
   // Only the nearest floret is followed down a level; its neighbours' own
-  // florets are left out, so the estimate is eased a little.
-  return d*0.9;
+  // florets are left out, so the estimate is eased.
+  return d*0.85;
 }
 
 // CubeKochMosely (42). A Menger cube lattice colored by the march itself. At
@@ -5332,7 +5343,7 @@ const PRESETS = [
   {name:'Sphere',grp:'SCN', kind:'2DC', mode:116,p:{morph:0.5,detail:0.5,speed:0.5,zoom:0.5,hue:0.75,ca:0.3,cb:0.5,cc:0.3,iter:0.5}},
   // Added last so the stored slots and cues, which name scenes by index, keep theirs.
   {name:'Cathedral',grp:'LATT', kind:'3D', mode:45,p:{morph:0.45,detail:0.75,speed:0.4,zoom:0.58,hue:0.08,ca:0.5,cb:0.5,cc:0.3,iter:0.7}},
-  {name:'Romanesco',grp:'BULB', kind:'3D', mode:44,p:{morph:0.5,detail:0.55,speed:0.5,zoom:0.42,hue:0.25,ca:0.5,cb:0.45,cc:0.35,iter:0.5}},
+  {name:'Romanesco',grp:'BULB', kind:'3D', mode:44,p:{morph:0.6,detail:0.55,speed:0.5,zoom:0.42,hue:0.25,ca:0.2,cb:0.45,cc:0.35,iter:0.5}},
   {name:'Quadratic Map', grp:'ATTR', kind:'2DC', mode:117,p:{morph:0.3,detail:0.5,speed:0.3,zoom:0.5,hue:0.02,ca:0.0,cb:0.45,cc:0.85,iter:0.3}},
   {name:'Clifford',      grp:'ATTR', kind:'2DC', mode:118,p:{morph:0.5,detail:0.5,speed:0.4,zoom:0.5,hue:0.55,ca:0.5,cb:0.45,cc:0.8,iter:0.4}},
   {name:'Halvorsen',     grp:'ATTR', kind:'2DC', mode:119,p:{morph:0.5,detail:0.55,speed:0.5,zoom:0.5,hue:0.75,ca:0.5,cb:0.45,cc:0.6,iter:0.45}},
