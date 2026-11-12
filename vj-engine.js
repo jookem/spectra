@@ -2119,7 +2119,8 @@ float gLod=0.0;
 // by D and the cone's slope, and they form a basis: the point is located in it
 // and the four corners of its cell are the candidates.
 // Florets are bulbs (a sphere tapering to a rounded point, iq's round cone), so
-// no flat bases show. Below the last level each head keeps only a core cone set
+// no flat bases show. The head is mirrored at its base into a closed double
+// head, so no base disc shows underneath either. Below the last level each head keeps only a core cone set
 // in under its florets.
 //   morph  floret size (fewer, bigger)   ca  head height   cb  droop
 //   cc     growth: florets pour out of the apex
@@ -2161,8 +2162,9 @@ float romanesco(vec3 p, out float trap){
   float Fa=floor(exp(k*LPHI)/2.2360680+0.5), Fb=floor(exp((k+1.0)*LPHI)/2.2360680+0.5);
   float da=Fa*GA-TAU*floor(Fa*GA/TAU+0.5), db=Fb*GA-TAU*floor(Fb*GA/TAU+0.5);
   float det=Fa*db-Fb*da;
-  // The head centered on the origin.
-  vec3 q=p; q.y+=H*0.45;
+  // Mirrored at its base, so the underside is a second face of florets
+  // instead of the cone's flat base disc: a closed head, centered.
+  vec3 q=p; q.y=abs(q.y);
   float sc=1.0, d=1e9; trap=0.2;
   for(int L=0;L<4;L++){
     // The last level: a bulb.
