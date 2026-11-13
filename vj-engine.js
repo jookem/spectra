@@ -3299,19 +3299,47 @@ vec3 render3(vec2 uv){
   }
   // Inside-the-fractal views fade to an atmosphere scaled to the corridor, so
   // depth reads at any size and a miss is distance rather than a void.
-  // Fog control: above its default, every 3D view sinks into the palette's
-  // dark tone with distance.
-  if(hit && uLook.x>1.0){
-    float fq=1.0-exp(-max(d-(fc?uCamScale*2.0:1.4),0.0)*(uLook.x-1.0)*(fc?0.6/uCamScale:0.55));
-    col=mix(col, gP[10]*0.05+vec3(0.008,0.009,0.012), fq);
+  // Atmosphere for the orbit view: aerial perspective, as real fog does it.
+  // Light through haze falls off exponentially with distance (Beer-Lambert),
+  // the far field loses saturation, and what it fades INTO is the same haze
+  // that fills the open sky, so distant structure dissolves into the
+  // background instead of ending on a line. The haze is a deep tone off the
+  // palette (accent's complement and the shadow tap), a little lighter toward
+  // the horizon and the key light, and scales with the Fog dial: Fog 0 is
+  // black open space, as before.
+  // The fog always reaches full density just before the march gives up, so the
+  // point where the rays stop is never visible as a cut.
+  {
+    float aw=1.0-cw;
+    float fogA=clamp(uLook.x,0.0,2.0);
+    float farO=dist+((uMode==41)?max(7.0,uRep*2.5):7.0);
+    vec3 sunD=normalize(vec3(0.6,0.75,-0.5));
+    vec3 hz=mix(comp(gP[7]), gP[10], 0.45)*0.085*fogA;
+    hz*=0.70+0.55*clamp(1.0-abs(rd.y)*1.3,0.0,1.0);
+    hz+=gP[0]*0.06*fogA*pow(clamp(dot(rd,sunD),0.0,1.0),6.0);
+    if(hit){
+      float near=max(dist-1.5,0.0);
+      float tf=1.0-exp(-max(d-near,0.0)*0.16*fogA);
+      tf=max(tf, smoothstep(farO-max(3.0,farO*0.35), farO, d));
+      // Aerial desaturation before the haze, then the uncovered part of a soft
+      // silhouette shows the haze rather than a dark rim.
+      vec3 ap=mix(col, vec3(dot(col,vec3(0.2126,0.7152,0.0722))), tf*0.6);
+      col=mix(col, mix(ap+hz*(1.0-cov), hz, tf), aw);
+    } else {
+      col=mix(col, hz, aw);
+    }
   }
   if(fc){
     float fk=hit?1.0-exp(-d*uLook.x/(max(uCamScale,uCamFog)*14.0)):1.0;
+    // Fully fogged just before the march's reach, so its end never shows.
+    float farF=max(uCamScale*60.0,uCamFog*40.0);
+    if(hit) fk=max(fk, smoothstep(farF*0.6, farF, d));
     // Interior look: the fog is lit, not dark. Distance glows in the palette's
     // bright tone, so near structure stands as silhouette against it, and a
-    // miss (a gap through to open space) is the brightest of all.
+    // miss (a gap through to open space) is the brightest of all. Far surfaces
+    // brighten toward that same open-space tone, so the two meet without a seam.
     vec3 iCol=gP[7]*gP[7];
-    vec3 fogLit=iCol*(hit?0.42:0.75)+gP[10]*0.02;
+    vec3 fogLit=iCol*(hit?mix(0.42,0.75,fk*fk):0.75)+gP[10]*0.02;
     // Squared so the near structure keeps its dark, and the light gathers deep.
     // A miss is open space: the lit fog at full Fog, black with Fog at 0.
     col=hit?mix(col, fogLit, fk*fk*fogK*cw):mix(col, fogLit*fogK, cw);
