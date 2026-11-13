@@ -1078,8 +1078,13 @@ addEventListener('appinstalled',()=>{ window.__spInstall=null; window.__spInstal
           <div style="display:{{ tabSys }};flex-wrap:wrap;gap:8px;flex:1 1 100%;min-width:0;align-items:stretch;">
             <div title="Music made from the scene: the dials set key, tempo and mix, and the fractal formula plays the melody. Use headphones with the mic on, or the speakers feed back into the visuals" style="display:flex;flex-direction:column;gap:6px;background:rgba(8,9,10,0.4);backdrop-filter:blur(16px) saturate(1.15);-webkit-backdrop-filter:blur(16px) saturate(1.15);border:1px solid rgba(255,255,255,0.08);padding:10px;box-sizing:border-box;flex:2 1 144px;min-width:0;">
               <span style="font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(242,243,240,0.6);">Sound</span>
-              <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:{{ deckBtnGap }};align-items:stretch;">
+              <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:{{ deckBtnGap }};align-items:stretch;">
               <button onClick="{{ sonToggle }}" title="Play music from the scene" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid {{ sonBorder }};background:{{ sonBg }};color:{{ sonFg }};backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">{{ sonLabel }}</button>
+              <select value="{{ sonStyleSel }}" onChange="{{ setSonStyle }}" title="How the orbit is played: Orbit, Drift (slow and calm), Bells (Euclidean rhythm), Pulse (techno), Chip" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid var(--acc30);background:rgba(8,9,10,0.34);color:var(--acc);appearance:none;-webkit-appearance:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+                <sc-for list="{{ sonStyleOptions }}" as="o" hint-placeholder-count="5">
+                  <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
+                </sc-for>
+              </select>
               <select value="{{ sonScaleSel }}" onChange="{{ setSonScale }}" title="Scale the melody and chords use" style="font-family:'JetBrains Mono',monospace;font-size:{{ deckBtnFs }};letter-spacing:0em;text-transform:uppercase;padding:{{ deckBtnPad }};min-height:{{ deckBtnH }};box-sizing:border-box;overflow:hidden;cursor:pointer;white-space:nowrap;text-align:center;flex:0 1 auto;min-width:0;border:1px solid var(--acc30);background:rgba(8,9,10,0.34);color:var(--acc);appearance:none;-webkit-appearance:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
                 <sc-for list="{{ sonScaleOptions }}" as="o" hint-placeholder-count="7">
                   <option value="{{ o.v }}" style="background:#08090A;color:#F2F3F0;">{{ o.tag }}</option>
@@ -1679,7 +1684,7 @@ class Component extends DCLogic {
       {key:'warm', label:'Warm', min:-1,   max:1,   def:0, fmt:v=>(v>=0?'+':'')+Math.round(v*100)}
     ];
     this.state = {
-      preset:0, layout:props.panelLayout||'deck', deckTab:'scenes', chrome:true, mic:'idle', sonOn:false, sonScale:'minpent', sonMidi:'', sonHint:'',
+      preset:0, layout:props.panelLayout||'deck', deckTab:'scenes', chrome:true, mic:'idle', sonOn:false, sonScale:'minpent', sonStyle:'orbit', sonMidi:'', sonHint:'',
       // Global color trim, unity-at-default so a fresh load looks unchanged.
       trim:{smth:0.55, sat:1, gam:1, span:1, warm:0}, dmode:0, fieldFx:0, tiles:true, lineFx:0, jewel:1,
       micHint:'Your browser will ask for permission.', auto:props.autopilot!==false,
@@ -1812,7 +1817,7 @@ class Component extends DCLogic {
 
   SETTINGS_KEYS = ['vecDen','qual','rate','layout','pal','fx','spin','vspin','accentSel',
                    'lfoDiv','lfoEase','shake','terrLow','voidWater','waterScheme','strobeAmt','strobeLen','strobeRate','xfadeOn','xfSeen','xfMode','xfLen','xfQ','advBars','imu','mesh','meshSrc','rfUrl','auto','qMinSeen','dmode','repSize','repTurn','repVar','repDrift','repGap','vecG','vecScene',
-                   'strobe','fieldFx','tiles','lineFx','jewel','camView','camCave','camRep','invert','levels','touchParam','deckTab','sonScale'];
+                   'strobe','fieldFx','tiles','lineFx','jewel','camView','camCave','camRep','invert','levels','touchParam','deckTab','sonScale','sonStyle'];
 
   // Accent is a theme value, so it lives in CSS custom properties rather than in
   // every style string: the template carries the lime defaults (so it paints
@@ -3462,7 +3467,7 @@ class Component extends DCLogic {
   // so it is only made here, from the button.
   async sonToggle(){
     if(!window.Sonify){ this.setState({sonHint:'Sound engine did not load'}); return; }
-    if(!this.son){ this.son = new Sonify(); this.son.setScale(this.state.sonScale); }
+    if(!this.son){ this.son = new Sonify(); this.son.setScale(this.state.sonScale); this.son.setStyle(this.state.sonStyle); }
     if(this.son.on){ this.son.stop(); this.setState({sonOn:false, sonHint:''}); return; }
     try{
       const ok = await this.son.start();
@@ -3471,7 +3476,7 @@ class Component extends DCLogic {
   }
   async sonMidiToggle(){
     if(!window.Sonify) return;
-    if(!this.son){ this.son = new Sonify(); this.son.setScale(this.state.sonScale); }
+    if(!this.son){ this.son = new Sonify(); this.son.setScale(this.state.sonScale); this.son.setStyle(this.state.sonStyle); }
     try{
       const name = await this.son.midiToggle();
       this.setState({sonMidi: name || '', sonHint: name ? 'MIDI to '+name : ''});
@@ -18662,6 +18667,9 @@ class Component extends DCLogic {
       sonMidiBg: chip(!!s.sonMidi).bg, sonMidiFg: chip(!!s.sonMidi).fg, sonMidiBorder: chip(!!s.sonMidi).border,
       sonScaleSel: s.sonScale||'minpent',
       sonScaleOptions: Object.keys((window.Sonify && Sonify.SCALES) || {minpent:{tag:'Min pent'}}).map(k=>({v:k, tag:((window.Sonify && Sonify.SCALES[k]) || {tag:'Min pent'}).tag})),
+      sonStyleSel: s.sonStyle||'orbit',
+      sonStyleOptions: Object.keys((window.Sonify && Sonify.STYLES) || {orbit:{tag:'Orbit'}}).map(k=>({v:k, tag:((window.Sonify && Sonify.STYLES[k]) || {tag:'Orbit'}).tag})),
+      setSonStyle: (e)=>{ const v=e.target.value; if(this.son) this.son.setStyle(v); this.setState({sonStyle:v}); },
       setSonScale: (e)=>{ const v=e.target.value; if(this.son) this.son.setScale(v); this.setState({sonScale:v}); },
       sonHintOn: !!s.sonHint, sonHint: s.sonHint||'',
       outBg: chip(s.out).bg, outFg: chip(s.out).fg, outBorder: chip(s.out).border,

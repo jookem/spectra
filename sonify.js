@@ -27,6 +27,17 @@ const SCALES = {
 };
 // Chord roots as scale degrees, one per bar. Cst B picks the progression.
 const PROGS = [[0,5,3,4],[0,3,4,3],[0,4,5,3],[0,2,5,4]];
+// Styles: the same orbit and dials, played different ways. tempo scales the
+// base tempo (Speed or the live bpm) within min..max; chordBars / keyBars are
+// how often the chord and the key may move; play is how the orbit becomes the
+// lead (see tick).
+const STYLES = {
+  orbit: {tag:'Orbit', tempo:1,    min:60,  max:200, chordBars:1, keyBars:1, bass:'beats',   drums:'',      lead:'fm',     play:'detail', verb:0,     padAtk:0.8},
+  drift: {tag:'Drift', tempo:0.5,  min:40,  max:72,  chordBars:2, keyBars:4, bass:'drone',   drums:'',      lead:'bell',   play:'sparse', verb:0.35,  padAtk:3},
+  bells: {tag:'Bells', tempo:0.75, min:60,  max:110, chordBars:2, keyBars:2, bass:'',        drums:'',      lead:'bell',   play:'euclid', verb:0.2,   padAtk:1.5},
+  pulse: {tag:'Pulse', tempo:1,    min:118, max:140, chordBars:4, keyBars:8, bass:'eighths', drums:'pulse', lead:'pluck',  play:'detail', verb:0,     padAtk:0.4},
+  chip:  {tag:'Chip',  tempo:1.1,  min:100, max:170, chordBars:1, keyBars:2, bass:'eighths', drums:'chip',  lead:'square', play:'arp',    verb:-0.08, padAtk:0.05},
+};
 const DIALS = ['morph','detail','speed','zoom','react','hue','iter','ca','cb','cc','spinr','lite','dof','dpth','lit'];
 const clamp = (x,a,b) => Math.min(b, Math.max(a, x));
 const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
@@ -128,7 +139,7 @@ function sceneOrbit(pre, e, t, n){
 // ---- Synth ----------------------------------------------------------------
 class Sonify {
   constructor(){
-    this.on = false; this.ac = null; this.scale = 'minpent';
+    this.on = false; this.ac = null; this.scale = 'minpent'; this.style = 'orbit'; this.eu = []; this.eIdx = 0;
     this.ctx = {e:{}, pre:null, t:0, bpm:0};
     this.step = 0; this.bar = 0; this.phrase = []; this.root = 48; this.chord = [];
     this.midi = null; this.midiOut = null; this.midiNotes = new Set(); this.lastCC = {};
@@ -181,6 +192,8 @@ class Sonify {
     this.midiAllOff();
   }
   setScale(k){ if(SCALES[k]) this.scale = k; }
+  setStyle(k){ if(STYLES[k]){ this.style = k; this.keyAt = null; this.chordAt = null; } }
+  sty(){ return STYLES[this.style] || STYLES.orbit; }
   // Frame loop hands over the latest view of the scene. Cheap: no allocation
   // beyond the object it is given.
   update(ctx){ this.ctx = ctx; if(this.on) this.sendCC(); }
@@ -206,7 +219,7 @@ class Sonify {
     this.midiSend([0x90|ch, note, clamp(Math.round(vel*127),1,127)], at);
     this.midiSend([0x80|ch, note, 0], at+dur);
   }
-  midiAllOff(){ if(this.midiOut) for(let ch=0;ch<3;ch++) try{ this.midiOut.send([0xB0|ch,123,0]); }catch(e){} }
+  midiAllOff(){ if(this.midiOut) for(const ch of [0,1,2,9]) try{ this.midiOut.send([0xB0|ch,123,0]); }catch(e){} }
   sendCC(){
     if(!this.midiOut) return;
     const e = this.ctx.e || {};
@@ -221,8 +234,8 @@ class Sonify {
   g(k, d){ const v = this.ctx.e && this.ctx.e[k]; return v == null ? (d==null?0.5:d) : v; }
   tempo(){
     const b = this.ctx.bpm;
-    if(b > 50 && b < 200) return b;
-    return 72 + clamp(this.g('speed'),0,2)*44;
+    const S = this.sty(), base = (b > 50 && b < 200) ? b : 72 + clamp(this.g('speed'),0,2)*44;
+    return clamp(base*S.tempo, S.min, S.max);
   }
   // Scale degree -> MIDI note, from the current root.
   deg(d, base){
@@ -242,7 +255,7 @@ class Sonify {
     }
   }
   tick(at, s16){
-    const st = this.step % 16;
+    const st = this.step % 16, S = this.sty();
     const pre = this.ctx.pre, mode = pre ? pre.mode : null;
     const changed = mode !== this.lastMode;
     if(st === 0 || changed){
@@ -250,36 +263,87 @@ class Sonify {
       this.lastMode = mode;
       this.newBar(at, s16, changed);
     }
-    // Bass: on beat 1 and 3, louder with React.
-    if(st === 0 || st === 8) this.bass(at, s16*6, 0.35 + this.g('react')*0.5);
-    // Lead: the orbit phrase. Detail sets density: 8ths at low, 16ths at high.
-    const every = this.g('detail') > 0.55 ? 1 : 2;
-    if(st % every) return;
-    if(!this.phrase.length) return;
-    const k = (st/every) % this.phrase.length, nt = this.phrase[k];
-    if(nt) this.lead(at, s16*every*0.9, nt.note, nt.vel);
+    const ph = this.phrase, len = ph.length;
+    const at16 = i => len ? ph[((i%len)+len)%len] : null;
+    // Bass
+    const root = this.chord.length ? this.chord[0] - 12 : this.root - 12;
+    const rv = 0.35 + this.g('react')*0.5;
+    if(S.bass === 'beats' && (st === 0 || st === 8)) this.bass(at, s16*6, rv, root, 'triangle', 0.01);
+    if(S.bass === 'drone' && st === 0 && this.bar % 2 === 1) this.bass(at, s16*32, 0.3, root, 'sine', 1.2);
+    if(S.bass === 'eighths' && st % 2 === 0){
+      // The orbit picks the octave: a strong step jumps the bass up.
+      const nt = at16(st/2), up = nt && nt.vel > 0.6 ? 12 : 0;
+      this.bass(at, s16*1.6, rv*0.8, root + up, S.drums === 'chip' ? 'square' : 'sawtooth', 0.005);
+    }
+    // Drums: a fixed grid plus ghost hits wherever the orbit is strong.
+    if(S.drums === 'pulse'){
+      if(st % 4 === 0) this.kick(at);
+      if(st % 4 === 2) this.hat(at, 0.12, 0.05);
+      if(st === 4 || st === 12) this.snare(at);
+      const nt = at16(st);
+      if(st % 2 === 1 && nt && nt.vel > 0.7) this.hat(at, 0.05, 0.03);
+    } else if(S.drums === 'chip'){
+      if(st === 0 || st === 8) this.kick(at);
+      if(st % 2 === 0) this.hat(at, 0.06, 0.025);
+      if(st === 4 || st === 12) this.snare(at);
+    }
+    // Lead: the orbit phrase, played the style's way.
+    if(!len) return;
+    if(S.play === 'detail'){
+      // Detail sets density: 8ths at low, 16ths at high.
+      const every = this.g('detail') > 0.55 ? 1 : 2;
+      if(st % every) return;
+      const nt = at16(st/every);
+      if(nt) this.lead(at, s16*every*0.9, nt.note, nt.vel);
+    } else if(S.play === 'sparse'){
+      // Quarter notes, walking on through the orbit from bar to bar, and only
+      // its strongest steps sound: a long phrase is heard over several bars.
+      if(st % 4) return;
+      const nt = at16(st/4 + this.bar*4);
+      if(nt && nt.vel > 0.5) this.lead(at, s16*10, nt.note, nt.vel*0.8);
+    } else if(S.play === 'euclid'){
+      // Hits spread as evenly as possible over the bar (a Euclidean rhythm);
+      // Iter sets how many, Morph turns the pattern. Each hit takes the next
+      // orbit note.
+      if(!this.eu[st]) return;
+      const nt = at16(this.eIdx++);
+      if(nt) this.lead(at, s16*3, nt.note, nt.vel);
+    } else if(S.play === 'arp'){
+      const nt = at16(st);
+      const m = nt ? nt.note : (this.chord[st % 3] || this.root) + 24;
+      this.lead(at, s16*0.7, m, nt ? nt.vel : 0.4);
+    }
   }
   newBar(at, s16, changed){
-    const e = this.ctx.e || {}, pre = this.ctx.pre;
-    // Key from Hue, chosen only at bar lines so an animated hue sweeps keys
-    // musically instead of smearing them.
-    const hue = ((this.g('hue')%1)+1)%1;
-    this.root = 43 + Math.floor(hue*12);
-    const prog = PROGS[clamp(Math.floor(this.g('cb')*PROGS.length),0,PROGS.length-1)];
-    const d = prog[this.bar % prog.length];
-    this.chord = [d, d+2, d+4].map(x => this.deg(x, this.root));
+    const e = this.ctx.e || {}, pre = this.ctx.pre, S = this.sty();
+    // Key from Hue, chosen only at bar lines (every few bars in the slower
+    // styles) so an animated hue sweeps keys musically instead of smearing them.
+    if(changed || this.keyAt == null || this.bar - this.keyAt >= S.keyBars){
+      const hue = ((this.g('hue')%1)+1)%1;
+      this.root = 43 + Math.floor(hue*12); this.keyAt = this.bar;
+    }
+    const newChord = changed || this.chordAt == null || this.bar - this.chordAt >= S.chordBars;
+    if(newChord){
+      this.chordAt = this.bar; this.chordN = (this.chordN || 0) + 1;
+      const prog = PROGS[clamp(Math.floor(this.g('cb')*PROGS.length),0,PROGS.length-1)];
+      const d = prog[this.chordN % prog.length];
+      this.chord = [d, d+2, d+4].map(x => this.deg(x, this.root));
+    }
     // Mix from the effect dials.
     const now = at;
-    this.verbIn.gain.setTargetAtTime(0.12 + this.g('dof',0)*0.7, now, 0.4);
+    this.verbIn.gain.setTargetAtTime(clamp(0.12 + this.g('dof',0)*0.7 + S.verb, 0, 1.2), now, 0.4);
     this.dlyFb.gain.setTargetAtTime(0.15 + this.g('dpth',0)*0.6, now, 0.4);
     this.dly.delayTime.setTargetAtTime(s16*3, now, 0.05);
     this.padG.gain.setTargetAtTime(0.07 + this.g('lit',0)*0.18, now, 0.5);
     this.padF.frequency.setTargetAtTime(250*Math.pow(2, clamp(this.g('zoom'),0,1)*5), now, 0.6);
     this.leadG.gain.setTargetAtTime(0.25 + clamp(this.g('lite'),0,1)*0.45, now, 0.3);
-    // Pad: retrigger the chord every bar, or at once on a scene change.
-    this.pads.forEach(v => this.release(v, now));
-    this.pads = this.chord.map((m,i) => this.padVoice(now, m - 12 + (i===0?0:12), s16*16));
-    this.chord.forEach(m => this.midiNote(2, m, 0.5, now, s16*15.5));
+    // Pad: retrigger on each new chord, or at once on a scene change.
+    if(newChord){
+      const dur = s16*16*S.chordBars;
+      this.pads.forEach(v => this.release(v, now));
+      this.pads = this.chord.map((m,i) => this.padVoice(now, m - 12 + (i===0?0:12), dur));
+      this.chord.forEach(m => this.midiNote(2, m, 0.5, now, dur - s16*0.5));
+    }
     // Melody from the scene's orbit.
     const len = 4 + Math.round(this.g('iter')*12);
     const orb = sceneOrbit(pre, e, this.ctx.t || 0, len);
@@ -298,6 +362,10 @@ class Sonify {
       const pat = this.g('morph') > 0.5 ? [0,1,2,1,3,2,1,2] : [0,2,1,3];
       this.phrase = pat.map((p,i) => ({note: (p===3 ? this.chord[0]+12 : this.chord[p]) + 12, vel: i%2 ? 0.45 : 0.7}));
     }
+    // Euclidean pattern for the Bells style: k hits over 16 steps, rotated.
+    const k = 3 + Math.round(clamp(this.g('iter'),0,1)*8), rot = Math.floor(clamp(this.g('morph'),0,1)*15);
+    this.eu = Array.from({length:16}, (_,i) => { const j = (i + rot) % 16; return Math.floor(j*k/16) !== Math.floor((j-1)*k/16); });
+    this.eIdx = 0;
     // Spin swings the lead across the stereo field.
     if(this.leadPan.pan) this.leadPan.pan.setTargetAtTime(Math.sin(this.bar*1.3)*clamp(Math.abs(this.g('spinr')-0.5)*2,0,1)*0.7, now, 0.5);
     if(changed && this.ctx.pre){
@@ -318,7 +386,7 @@ class Sonify {
   }
   padVoice(at, m, dur){
     const ac = this.ac, g = ac.createGain(), f = mtof(m), oscs = [];
-    g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(0.33, at + Math.min(0.8, dur*0.3));
+    g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(0.33, at + Math.min(this.sty().padAtk, dur*0.5));
     [-7, 0, 7].forEach(dt => { const o = ac.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.detune.value = dt; o.connect(g); o.start(at); oscs.push(o); });
     g.connect(this.padF);
     return {g, oscs};
@@ -330,29 +398,80 @@ class Sonify {
     }catch(e){}
   }
   lead(at, dur, m, vel){
-    const ac = this.ac, f = mtof(m);
-    // Two-operator FM; Cst C raises the index for a brighter, more metallic tone.
-    const car = ac.createOscillator(), mod = ac.createOscillator(), mg = ac.createGain(), g = ac.createGain();
-    car.type = 'sine'; mod.type = 'sine';
-    car.frequency.value = f; mod.frequency.value = f*2;
-    const idx = f*(0.4 + this.g('cc')*2.5);
-    mg.gain.setValueAtTime(idx, at); mg.gain.exponentialRampToValueAtTime(Math.max(1, idx*0.15), at + dur);
-    mod.connect(mg); mg.connect(car.frequency);
-    g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(0.22*vel, at + 0.008);
-    g.gain.exponentialRampToValueAtTime(0.001, at + dur + 0.25);
-    car.connect(g); g.connect(this.leadPan);
-    car.start(at); mod.start(at); car.stop(at + dur + 0.3); mod.stop(at + dur + 0.3);
+    const ac = this.ac, f = mtof(m), kind = this.sty().lead, g = ac.createGain();
+    let end = at + dur + 0.3;
+    if(kind === 'fm' || kind === 'bell'){
+      // Two-operator FM; Cst C raises the index for a brighter, more metallic
+      // tone. The bell uses an inharmonic ratio and a long ring.
+      const bell = kind === 'bell';
+      const car = ac.createOscillator(), mod = ac.createOscillator(), mg = ac.createGain();
+      car.type = 'sine'; mod.type = 'sine';
+      car.frequency.value = f; mod.frequency.value = f*(bell ? 3.5 : 2);
+      const idx = f*((bell ? 0.8 : 0.4) + this.g('cc')*(bell ? 2 : 2.5));
+      const ring = bell ? 1.6 : 0.25;
+      mg.gain.setValueAtTime(idx, at); mg.gain.exponentialRampToValueAtTime(Math.max(1, idx*0.15), at + dur + (bell ? 0.4 : 0));
+      mod.connect(mg); mg.connect(car.frequency);
+      g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime((bell ? 0.18 : 0.22)*vel, at + (bell ? 0.004 : 0.008));
+      g.gain.exponentialRampToValueAtTime(0.001, at + dur + ring);
+      end = at + dur + ring + 0.05;
+      car.connect(g); car.start(at); mod.start(at); car.stop(end); mod.stop(end);
+    } else if(kind === 'pluck'){
+      const o = ac.createOscillator(), lp = ac.createBiquadFilter();
+      o.type = 'sawtooth'; o.frequency.value = f; lp.type = 'lowpass'; lp.Q.value = 6;
+      lp.frequency.setValueAtTime(800 + this.g('cc')*5000, at); lp.frequency.exponentialRampToValueAtTime(250, at + 0.18);
+      g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(0.2*vel, at + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.001, at + 0.3);
+      end = at + 0.35;
+      o.connect(lp); lp.connect(g); o.start(at); o.stop(end);
+    } else {
+      const o = ac.createOscillator();
+      o.type = 'square'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.07*vel, at); g.gain.setValueAtTime(0.07*vel, at + dur*0.8);
+      g.gain.linearRampToValueAtTime(0, at + dur);
+      end = at + dur + 0.02;
+      o.connect(g); o.start(at); o.stop(end);
+    }
+    g.connect(this.leadPan);
     this.midiNote(0, m, vel, at, dur);
   }
-  bass(at, dur, vel){
-    const ac = this.ac, m = this.chord.length ? this.chord[0] - 12 : this.root - 12;
-    const o = ac.createOscillator(), g = ac.createGain();
-    o.type = 'triangle'; o.frequency.value = mtof(m);
-    g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(0.5*vel, at + 0.01);
+  bass(at, dur, vel, m, type, atk){
+    const ac = this.ac, o = ac.createOscillator(), g = ac.createGain();
+    o.type = type || 'triangle'; o.frequency.value = mtof(m);
+    let dst = this.out;
+    if(o.type === 'sawtooth'){ const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 500; lp.Q.value = 3; lp.connect(this.out); dst = lp; }
+    const peak = (o.type === 'square' ? 0.18 : 0.5)*vel;
+    g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(peak, at + (atk || 0.01));
     g.gain.exponentialRampToValueAtTime(0.001, at + dur);
-    o.connect(g); g.connect(this.out);
+    o.connect(g); g.connect(dst);
     o.start(at); o.stop(at + dur + 0.05);
     this.midiNote(1, m, vel, at, dur);
+  }
+  noiseBuf(){
+    if(this._nb) return this._nb;
+    const ac = this.ac, len = Math.floor(ac.sampleRate*0.4), b = ac.createBuffer(1, len, ac.sampleRate), d = b.getChannelData(0);
+    for(let i=0;i<len;i++) d[i] = Math.random()*2-1;
+    return (this._nb = b);
+  }
+  kick(at){
+    const ac = this.ac, o = ac.createOscillator(), g = ac.createGain();
+    o.frequency.setValueAtTime(150, at); o.frequency.exponentialRampToValueAtTime(45, at + 0.12);
+    g.gain.setValueAtTime(0.7, at); g.gain.exponentialRampToValueAtTime(0.001, at + 0.35);
+    o.connect(g); g.connect(this.out); o.start(at); o.stop(at + 0.4);
+    this.midiNote(9, 36, 0.9, at, 0.1);
+  }
+  hat(at, vol, len){
+    const ac = this.ac, s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+    s.buffer = this.noiseBuf(); f.type = 'highpass'; f.frequency.value = 7000;
+    g.gain.setValueAtTime(vol, at); g.gain.exponentialRampToValueAtTime(0.001, at + len);
+    s.connect(f); f.connect(g); g.connect(this.out); s.start(at); s.stop(at + len + 0.02);
+    this.midiNote(9, 42, vol*5, at, 0.05);
+  }
+  snare(at){
+    const ac = this.ac, s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+    s.buffer = this.noiseBuf(); f.type = 'bandpass'; f.frequency.value = 1800; f.Q.value = 0.8;
+    g.gain.setValueAtTime(0.3, at); g.gain.exponentialRampToValueAtTime(0.001, at + 0.18);
+    s.connect(f); f.connect(g); g.connect(this.out); g.connect(this.verbIn); s.start(at); s.stop(at + 0.2);
+    this.midiNote(9, 38, 0.8, at, 0.1);
   }
   swell(at){
     const ac = this.ac, len = Math.floor(ac.sampleRate*1.2), b = ac.createBuffer(1, len, ac.sampleRate), d = b.getChannelData(0);
@@ -366,6 +485,7 @@ class Sonify {
   }
 }
 Sonify.SCALES = SCALES;
+Sonify.STYLES = STYLES;
 Sonify.sceneOrbit = sceneOrbit;
 window.Sonify = Sonify;
 })();
