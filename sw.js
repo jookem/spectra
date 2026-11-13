@@ -6,7 +6,7 @@
 // can never be served stale from here; the query keeps the browser's own HTTP
 // cache from handing back the old file while the new cache fills.
 const B='b66', V='spectra-'+B;
-const SCRIPTS=['support.js','vj-engine.js','deep-zoom.js','field-loops.js','cam-fly.js','wave-mesh.js','wave-gl.js','scene-thumbs.js'].map(f=>'./'+f+'?v='+B);
+const SCRIPTS=['support.js','vj-engine.js','deep-zoom.js','field-loops.js','cam-fly.js','sonify.js','wave-mesh.js','wave-gl.js','scene-thumbs.js'].map(f=>'./'+f+'?v='+B);
 const SHELL=['./','./index.html','./VJ%20Fractal.dc.html',...SCRIPTS,'./csi.js','./manifest.webmanifest',
   './icon-192.png','./icon-512.png','./icon-maskable-512.png','./apple-touch-icon.png','./favicon-32.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>Promise.all(SHELL.map(u=>c.add(u).catch(()=>{})))).then(()=>self.skipWaiting()));});

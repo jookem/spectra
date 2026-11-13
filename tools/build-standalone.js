@@ -25,7 +25,7 @@ const man = JSON.parse(manB.body), oldTpl = JSON.parse(tplB.body), ext = JSON.pa
 
 // Scripts are referenced from the template in head order; csi.js is an
 // external resource. Images are matched to their entries by content.
-const ORDER = ['support.js', 'vj-engine.js', 'deep-zoom.js', 'field-loops.js', 'cam-fly.js', 'wave-mesh.js', 'wave-gl.js', 'scene-thumbs.js'];
+const ORDER = ['support.js', 'vj-engine.js', 'deep-zoom.js', 'field-loops.js', 'cam-fly.js', 'sonify.js', 'wave-mesh.js', 'wave-gl.js', 'scene-thumbs.js'];
 const srcIds = [...oldTpl.matchAll(/<script src="([0-9a-f-]{36})">/g)].map(m => m[1]);
 // A script added since the previous build has no bundle entry yet: give it one.
 for (let i = srcIds.length; i < ORDER.length; i++) {
@@ -65,7 +65,7 @@ let t = norm(fs.readFileSync(path.join(dir, 'VJ Fractal.dc.html'), 'utf8'));
     const a = t.indexOf('>', i) + 1, b = t.indexOf('</script>', a);
     tryParse('VJ Fractal.dc.html component', t.slice(a, b).replace(/^\s*import[^\n]*\n/gm, '').replace(/export default /, ''));
   }
-  for (const f of ['support.js', 'vj-engine.js', 'deep-zoom.js', 'field-loops.js', 'cam-fly.js', 'wave-mesh.js', 'wave-gl.js', 'scene-thumbs.js'])
+  for (const f of ['support.js', 'vj-engine.js', 'deep-zoom.js', 'field-loops.js', 'cam-fly.js', 'sonify.js', 'wave-mesh.js', 'wave-gl.js', 'scene-thumbs.js'])
     if (fs.existsSync(path.join(dir, f))) tryParse(f, fs.readFileSync(path.join(dir, f), 'utf8'));
   if (bad.length) { console.error('Build stopped, script does not parse:\n  ' + bad.join('\n  ')); process.exit(1); }
 }

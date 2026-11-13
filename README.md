@@ -13,6 +13,7 @@ works offline after the first load.
 | `VJ Fractal.dc.html` | Source: UI, scene host, controller and audio plumbing. |
 | `vj-engine.js` | Source: the GLSL — every fractal, shading and post pass. |
 | `cam-fly.js` | Fly-through and Surface camera views for the 3D scenes. |
+| `sonify.js` | Sound: music made from the scene (dials set key, tempo and mix; the fractal orbit plays the melody), with MIDI out. |
 | `deep-zoom.js` | Perturbation deep zoom for the Mandelbrot field (to ~1e-30). |
 | `wave-gl.js`, `wave-mesh.js` | Shorebreak wave scene: renderer and mesh data. |
 | `csi.js` | WiFi CSI feature source (motion, presence, flow); not wired in yet. |
