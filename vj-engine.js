@@ -4017,6 +4017,334 @@ vec3 escape2c(vec2 uv,int kind){
 }
 
 #endif
+#ifdef P_MND
+// Mandalas: seven scenes built on dihedral symmetry, each compiled as its own
+// program (MND_K, like E2C_K) so a scene carries only its own code.
+//   0 Rings        concentric rings, n petals per ring doubling outward; each
+//                  petal is a Gielis superformula lobe with nested outlines
+//   1 Droste       the same petals on log-polar rings: r -> 2r is a symmetry,
+//                  so the inward zoom never ends; Spiral shears it into arms
+//   2 Chladni      sand on a vibrating round plate, the nodal lines of
+//                  J_m(kr) cos(m th), two modes blended
+//   3 Quasicrystal n plane waves at angles pi k / n summed
+//   4 Julia z^d+c  d-fold symmetric Julia sets, c circling
+//   5 Rosette      interlaced {n} stars over a Flower of Life lattice
+//   6 Hyperbolic   a ring of n circles orthogonal to the unit circle and a
+//                  center circle, inverted in until the point lands outside
+//                  all of them: a tiling of the Poincare disk, flowing under
+//                  a disk automorphism
+// Color plan: one accent (pal), its complement (comp) for ground and shadow,
+// neighbors step in value; hue only drifts slowly along the ramp.
+#ifndef MND_K
+#define MND_K 0
+#endif
+float gMpx=1e-3;
+float mLine(float d,float w){ return 1.0-smoothstep(w, w+gMpx*1.5, abs(d)); }
+float superR(float t,float n1,float n23){
+  return pow(pow(abs(cos(t)),n23)+pow(abs(sin(t)),n23), -1.0/n1);
+}
+#if MND_K<=1
+// One ring of petals. fr runs 0 at the ring's inner edge to 1 at its outer
+// edge, ang is the angle, n the petal count, rw the ring's width on screen,
+// r the radius (for round beads), tone the ring's value step.
+vec3 ringArt(float fr,float ang,float n,float rw,float r,float tone,float n1,float n23,float nl,vec3 acc){
+  vec3 cpl=comp(acc);
+  float w=6.2831853/n;
+  float th=(fract(ang/w)-0.5)*w;
+  // The superformula across one petal, t = n th / 4 from 0 at its center to
+  // pi/4 at the seams, normalized so the center is the tip (1) and the seam
+  // the base (0); the exponents then decide everything in between (pointed,
+  // round, waisted). Raw, the radius barely moved and petals read as rings.
+  float r0=superR(0.0,n1,n23), r45=superR(0.7853982,n1,n23), rd=r0-r45;
+  rd=abs(rd)<1e-3 ? 1e-3 : rd;
+  float s=clamp((superR(n*th*0.25,n1,n23)-r45)/rd,0.0,1.0);
+  float edge=0.1+0.82*s;
+  float px=gMpx/max(rw,1e-6);
+  float inside=1.0-smoothstep(edge-px, edge+px, fr);
+  float g=clamp(fr/edge,0.0,1.0);
+  float nest=0.0;
+  for(int k=1;k<5;k++){
+    if(float(k)>nl) break;
+    float ek=edge*float(k)/(nl+1.0);
+    nest=max(nest, 1.0-smoothstep(px*0.5, px*1.8, abs(fr-ek)));
+  }
+  // Ground: the complement, dark, with a faint lace of the doubled harmonic.
+  float lace=0.5+0.5*cos(2.0*n*ang+fr*6.2831853);
+  vec3 col=cpl*(0.07+0.05*lace*smoothstep(0.0,0.3,fr))+acc*0.015;
+  vec3 pet=acc*(0.35+0.6*tone)*(0.55+0.6*g*g);
+  pet*=1.0-0.55*nest;
+  col=mix(col,pet,inside);
+  // Outline, bright accent.
+  float ol=1.0-smoothstep(px*0.6, px*2.0, abs(fr-edge));
+  col=mix(col, acc*1.15+0.12, ol*0.75);
+  // A bead past each petal tip, in the complement's light.
+  float fb=min(edge+0.09,0.93);
+  vec2 bd=vec2((fr-fb)*rw, th*r);
+  float bb=1.0-smoothstep(0.055*rw, 0.055*rw+gMpx*1.5, length(bd));
+  col=mix(col, cpl*0.8+acc*0.25, bb);
+  // Seam between rings.
+  float sm=1.0-smoothstep(px*0.4, px*1.6, min(fr,1.0-fr));
+  col=mix(col, cpl*0.35, sm*0.8);
+  return col;
+}
+#endif
+vec3 mandala(vec2 uv){
+  { vec2 o=uPan*0.6; float l=length(o), L=0.7; uv+= l>L ? o*(L/l) : o; }
+  vec2 p=uv*exp2(-2.0*uZoom)*rot(uTime*0.03*uSpin+uCamYaw);
+  float t=uTime;
+  float r=length(p), a=atan(p.y,p.x);
+  gMpx=max(max(fwidth(p.x),fwidth(p.y)),1e-5);
+  vec3 acc=pal(0.55+uBass*uReact*0.15);
+  vec3 cpl=comp(acc);
+  vec3 col=vec3(0.0);
+#if MND_K==0
+  {
+    // Rings. Detail = ring count, Morph = petals in the center ring, Cst A =
+    // how fast the count doubles outward, Cst B / C the petal shape, Iter the
+    // nested outlines. Alternate rings turn opposite ways.
+    p*=1.08; r=length(p);
+    float R=floor(mix(3.0,9.0,uDetail)+0.5);
+    float rr=r*R*(1.0-0.05*uBass*uReact);
+    float ri=floor(rr), fr=fract(rr);
+    float n0=floor(mix(4.0,16.0,uMorph)+0.5);
+    float n=min(n0*exp2(floor(ri*uCA+0.001)), 128.0);
+    float dir=mod(ri,2.0)<0.5 ? 1.0 : -1.0;
+    float ang=a+dir*t*0.06*(0.4+ri*0.12)+ri*0.37;
+    float n1=mix(0.3,5.0,uCB*uCB), n23=mix(0.4,4.0,uCC);
+    float nl=floor(uIter*4.0+0.5);
+    float tone=mod(ri,2.0)<0.5 ? 0.85 : 0.5;
+    acc=pal(0.55+ri*0.03+uBass*uReact*0.15);
+    col=ringArt(fr,ang,n,1.0/(R*1.08),r,tone,n1,n23,nl,acc);
+    // Past the last ring: dark complement with fading rays.
+    float out1=smoothstep(R-0.02,R+0.02,rr);
+    float ray=pow(0.5+0.5*cos(a*n0*2.0),8.0)*exp(-(rr-R)*1.6);
+    vec3 outc=comp(acc)*0.05+acc*ray*0.12;
+    col=mix(col,outc,out1);
+    col*=1.0+uBeat*0.15;
+  }
+#elif MND_K==1
+  {
+    // Droste: rings in log r, period P. Zooming by e^P maps the pattern onto
+    // itself, so the inward drift (and the host's zoom loop) never ends.
+    // Spiral (Cst B) shears log r by whole periods per turn, so the seam at
+    // the back of the angle lines up ring for ring.
+    float P=log(2.0)*mix(0.45,1.4,uDetail);
+    float n=floor(mix(4.0,16.0,uMorph)+0.5);
+    float sp=floor(uCB*3.99);
+    float lr=log(max(r,1e-7));
+    float u=(lr - t*0.1*P)/P + sp*a/6.2831853;
+    float fr=fract(u);
+    float n1=mix(0.3,5.0,uCA*uCA), n23=mix(0.4,4.0,uCC);
+    float nl=floor(uIter*4.0+0.5);
+    float ang=a+(sp>0.5 ? 0.0 : t*0.03);
+    float rw=r*P;            // ring width on screen at this radius
+    col=ringArt(fr,ang,n,rw,r,0.75,n1,n23,nl,acc);
+    // Rings thinner than a few pixels converge on the center: settle to
+    // their average color rather than alias.
+    float fine=smoothstep(gMpx*3.0, gMpx*10.0, rw);
+    col=mix(acc*0.3+cpl*0.05, col, fine);
+    col*=1.0+uBeat*0.15;
+  }
+#elif MND_K==2
+  {
+    // Chladni: J_m(x) = (1/pi) int_0^pi cos(m tau - x sin tau) d tau, by the
+    // midpoint rule. k for each mode from McMahon's zeros of J_m, so the plate
+    // edge (r = 1) sits on a node ring.
+    p*=1.12; r=length(p); a=atan(p.y,p.x);
+    float m1=floor(mix(1.0,8.0,uMorph)+0.5), s1=floor(mix(1.0,5.0,uCA)+0.5);
+    float m2=m1+1.0+floor(uIter*3.0+0.5), s2=max(1.0,s1-1.0+floor(uIter*2.0+0.5));
+    float k1=(s1+m1*0.5-0.25)*3.14159265, k2=(s2+m2*0.5-0.25)*3.14159265;
+    float x1=k1*min(r,1.2), x2=k2*min(r,1.2);
+    float j1=0.0, j2=0.0;
+    for(int i=0;i<28;i++){
+      float ta=(float(i)+0.5)*(3.14159265/28.0), st=sin(ta);
+      j1+=cos(m1*ta-x1*st); j2+=cos(m2*ta-x2*st);
+    }
+    j1/=28.0; j2/=28.0;
+    float b=clamp(uCB+0.3*sin(t*0.21)+uBass*uReact*0.25,0.0,1.0)*1.5707963;
+    float u=cos(b)*j1*cos(m1*a)+sin(b)*j2*cos(m2*(a+t*0.02));
+    float fw=max(fwidth(u),1e-5);
+    float lw=mix(0.8,5.0,uCC);
+    float sand=1.0-smoothstep(lw*0.4, lw, abs(u)/fw);
+    float gr=hash(floor(gl_FragCoord.xy*0.7));
+    sand*=mix(1.0, smoothstep(0.25,0.75,gr), uDetail);
+    float plate=1.0-smoothstep(1.0-gMpx*2.0,1.0+gMpx*2.0,r);
+    // The plate: dark complement, antinodes catching a little light.
+    vec3 pc=cpl*(0.10+0.10*(1.0-r*0.6))+acc*abs(u)*(0.10+uLoud*0.4);
+    col=mix(cpl*0.025, pc, plate);
+    col=mix(col, acc*1.1+0.15+uBeat*0.2, sand*plate);
+    col+=acc*0.5*mLine(r-1.0, gMpx*0.8);
+  }
+#elif MND_K==3
+  {
+    // Quasicrystal: sum of n plane waves, directions pi k / n. Equal phases
+    // keep the n-fold center; Drift (Cst B) gives each wave its own phase.
+    float n=floor(mix(5.0,13.0,uMorph)+0.5);
+    float fq=mix(9.0,40.0,uDetail);
+    // Radial (Cst A): bends the plane toward a polar grid, rings near the
+    // center widening outward.
+    vec2 q=p*fq*mix(1.0, 0.55+0.9*sqrt(max(r,1e-4)), uCA);
+    float v=0.0;
+    for(int k=0;k<13;k++){
+      if(float(k)>=n) break;
+      float th=3.14159265*float(k)/n;
+      v+=cos(dot(q,vec2(cos(th),sin(th)))+t*0.9+uCB*float(k)*2.4);
+    }
+    v/=n;
+    float lv=floor(mix(2.0,9.0,uIter)+0.5);
+    float s=0.5+0.5*v*mix(1.6,3.2,uCC);
+    float st=floor(clamp(s,0.0,0.999)*lv)/(lv-1.0);
+    float fw=max(fwidth(s*lv),1e-4);
+    float ed=1.0-smoothstep(0.0,fw*1.5,min(fract(s*lv),1.0-fract(s*lv)));
+    col=mix(cpl*0.1, acc*1.2+0.06, st);
+    col=mix(col, cpl*0.5+acc*0.1, ed*0.6);
+    col*=smoothstep(1.9,0.4,r)*0.85+0.15;
+    col*=1.0+uBeat*0.15+uHigh*uReact*0.2;
+  }
+#elif MND_K==4
+  {
+    // z <- z^d + c: rotating z by a d-th root of unity rotates z^d by a whole
+    // turn, so the Julia set has d-fold symmetry. c is placed by the
+    // multiplier lam = s e^(i phi) of a fixed point: z* = (lam/d)^(1/(d-1)),
+    // c = z* (1 - lam/d). |lam| < 1 is inside the main component (connected,
+    // fat), |lam| = 1 its exact edge, where the sets are most intricate; Cst A
+    // is s, phi turns with time and Cst B. A fixed radius instead wandered in
+    // and out of the set, which is far from round for d > 2.
+    float d=floor(mix(3.0,9.0,uMorph)+0.5);
+    float sl=mix(0.7,1.08,uCA)+uBass*uReact*0.03;
+    float ph=t*0.05+uCB*6.2831853;
+    float zr=pow(sl/d,1.0/(d-1.0)), za=ph/(d-1.0);
+    vec2 zs=zr*vec2(cos(za),sin(za));
+    vec2 c=cmul(zs, vec2(1.0,0.0)-(sl/d)*vec2(cos(ph),sin(ph)));
+    vec2 z=p*1.25;
+    float dz=1.0, i=0.0, tr=1e9;
+    int N=int(mix(24.0,140.0,uIter));
+    float m=0.0;
+    for(int k=0;k<N;k++){
+      float lz=length(z), az=atan(z.y,z.x);
+      dz*=d*pow(lz,d-1.0);
+      z=pow(lz,d)*vec2(cos(az*d),sin(az*d))+c;
+      m=dot(z,z);
+      tr=min(tr,abs(sqrt(m)-0.6));
+      if(m>64.0) break;
+      i+=1.0;
+    }
+    if(i>=float(N)-0.5){
+      // Inside: the complement, with rings from the orbit's nearest pass.
+      float rg=0.5+0.5*cos(tr*mix(20.0,60.0,uDetail));
+      col=cpl*(0.08+0.16*rg)+acc*0.1*exp(-tr*12.0);
+    } else {
+      float lz=sqrt(m);
+      float nu=i+1.0-log(log(lz)/log(8.0))/log(d);
+      float de=lz*log(lz)/max(dz,1e-12);
+      float edg=exp(-de/(gMpx*mix(0.8,4.0,uCC)));
+      float band=0.5+0.5*cos(nu*mix(0.4,1.6,uDetail));
+      col=mix(cpl*0.035, acc*(0.1+0.45*band), 1.0-exp(-nu*0.16))+(acc*1.1+0.12)*edg;
+    }
+    col*=1.0+uBeat*0.15;
+  }
+#elif MND_K==5
+  {
+    // Rosette: S concentric {n} stars (iq's sdStar), alternate ones turned
+    // half a point and counter-rotating; the parity of how many contain the
+    // point steps the fill in value. Under them, the Flower of Life: circles
+    // of radius h centered on a hex lattice of spacing h, out to Cst B.
+    float n=floor(mix(5.0,16.0,uMorph)+0.5);
+    float S=floor(mix(1.0,5.0,uDetail)+0.5);
+    float lw=gMpx*mix(0.3,2.0,uCC);
+    float cnt=0.0, dl=1e9;
+    for(int j=0;j<5;j++){
+      if(float(j)>=S) break;
+      float fj=float(j);
+      float rj=0.95*(fj+1.0)/S;
+      float sg=mod(fj,2.0)<0.5 ? 1.0 : -1.0;
+      vec2 q=p*rot(sg*t*0.04+fj*3.14159265/n);
+      float an=3.14159265/n;
+      float mm=mix(2.0,n*0.5,uCA);
+      float en=3.14159265/mm;
+      vec2 acs=vec2(cos(an),sin(an)), ecs=vec2(cos(en),sin(en));
+      float bn=mod(atan(q.x,q.y),2.0*an)-an;
+      q=length(q)*vec2(cos(bn),abs(sin(bn)));
+      q-=rj*acs;
+      q+=ecs*clamp(-dot(q,ecs),0.0,rj*acs.y/ecs.y);
+      float ds=length(q)*sign(q.x);
+      if(ds<0.0) cnt+=1.0;
+      dl=min(dl,abs(ds));
+    }
+    // Flower of Life.
+    float h=0.95/max(S,1.0)*mix(0.35,0.6,uIter);
+    float fR=uCB*1.0;
+    vec2 b1=vec2(h,0.0), b2=vec2(0.5*h,0.8660254*h);
+    vec2 lc=vec2(p.x/h - p.y/(1.7320508*h), p.y/(0.8660254*h));
+    vec2 l0=floor(lc);
+    float df=1e9;
+    for(int i=-1;i<3;i++) for(int j=-1;j<3;j++){
+      vec2 L=(l0.x+float(i))*b1+(l0.y+float(j))*b2;
+      if(length(L)<=fR+1e-3) df=min(df,abs(length(p-L)-h));
+    }
+    float tone=mod(cnt,2.0);
+    vec3 fill=mix(cpl*0.07, acc*(0.18+0.12*cnt), tone);
+    fill*=smoothstep(1.15,0.6,r)*0.8+0.2;
+    col=fill;
+    col=mix(col, acc*0.7+0.05, (1.0-smoothstep(lw*0.5,lw*0.5+gMpx*1.5,df))*0.85);
+    col=mix(col, acc*1.15+0.15+uBeat*0.15, 1.0-smoothstep(lw,lw+gMpx*1.5,dl));
+  }
+#else
+  {
+    // Hyperbolic: n circles centered at distance 1/cos(pi/n) with radius
+    // tan(pi/n) are orthogonal to the unit circle and tangent to each other;
+    // inverting in them (and in a center circle of radius Cst A) generates a
+    // tiling of the Poincare disk. A disk automorphism z -> (z-b)/(1-conj(b)z)
+    // drifts the whole tiling without breaking it.
+    float n=floor(mix(3.0,12.0,uMorph)+0.5);
+    vec2 z=p*1.02;
+    float outside=0.0, ds=1.0;
+    float z2=dot(z,z);
+    if(z2>1.0){ z/=z2; ds/=z2; outside=1.0; }
+    vec2 bq=0.55*uCB*vec2(cos(t*0.11),sin(t*0.07));
+    vec2 den=vec2(1.0,0.0)-cmul(vec2(bq.x,-bq.y),z);
+    ds*=(1.0-dot(bq,bq))/max(dot(den,den),1e-9);
+    z=cdiv(z-bq,den);
+    float w=6.2831853/n, d0=1.0/cos(3.14159265/n), rho=tan(3.14159265/n);
+    float rc=(d0-rho)*mix(0.0,0.98,uCA);
+    float cnt=0.0;
+    int N=int(mix(8.0,60.0,uIter));
+    for(int i=0;i<N;i++){
+      float aa=atan(z.y,z.x);
+      aa=mod(aa+0.5*w,w)-0.5*w;
+      if(aa<0.0){ aa=-aa; cnt+=1.0; }
+      z=length(z)*vec2(cos(aa),sin(aa));
+      vec2 q=z-vec2(d0,0.0); float q2=dot(q,q);
+      if(q2<rho*rho){ float k=rho*rho/q2; z=vec2(d0,0.0)+q*k; ds*=k; cnt+=1.0; continue; }
+      float zz=dot(z,z);
+      if(zz<rc*rc){ float k=rc*rc/zz; z*=k; ds*=k; cnt+=1.0; continue; }
+      break;
+    }
+    float dC=abs(length(z-vec2(d0,0.0))-rho);
+    float dc=rc>0.0 ? abs(length(z)-rc) : 1e9;
+    float dsc=min(dC,dc)/max(ds,1e-12);
+    float lw=gMpx*mix(0.3,2.0,uCC);
+    float tone=mod(cnt,2.0);
+    // A petal rosette in each tile's own center, in tile coordinates.
+    float pa=atan(z.y,z.x), pr=length(z);
+    float pk=floor(mix(1.0,3.0,uDetail)+0.5);
+    float pet=pr-(0.25+0.12*cos(n*pk*pa))*(rc>0.0 ? rc*1.6 : 0.5);
+    float petL=1.0-smoothstep(lw, lw+gMpx*1.5, abs(pet)/max(ds,1e-12));
+    vec3 fill=mix(cpl*0.08, acc*(0.25+0.35*exp(-cnt*0.08)), tone);
+    fill=mix(fill, fill*1.6+acc*0.08, (1.0-smoothstep(-0.02,0.02,pet))*0.5);
+    // Tiles smaller than a pixel crowd the rim: fade to their average.
+    float tiny=smoothstep(gMpx*0.4, gMpx*4.0, ds*0.3);
+    col=fill;
+    col=mix(col, acc*1.1+0.12+uBeat*0.15, (1.0-smoothstep(lw,lw+gMpx*1.5,dsc))*tiny);
+    col=mix(col, cpl*0.6+acc*0.2, petL*tiny*0.6);
+    col=mix(acc*0.12+cpl*0.05, col, tiny*0.85+0.15);
+    if(outside>0.5) col*=0.2;
+    col+=acc*0.6*mLine(length(p*1.02)-1.0, gMpx);
+  }
+#endif
+  return col;
+}
+#endif
 // Endless zoom, as real functions in the 2D-ONLY block. These were macros in
 // the shared header, which is what stopped the 2D scenes building at all:
 // expanding zoomLoop2D pasted the five-way dispatch chain in twice, so the
@@ -5380,7 +5708,18 @@ const PRESETS = [
   {name:'Quadratic Map', grp:'ATTR', kind:'2DC', mode:117,p:{morph:0.3,detail:0.5,speed:0.3,zoom:0.5,hue:0.02,ca:0.0,cb:0.45,cc:0.85,iter:0.3}},
   {name:'Clifford',      grp:'ATTR', kind:'2DC', mode:118,p:{morph:0.5,detail:0.5,speed:0.4,zoom:0.5,hue:0.55,ca:0.5,cb:0.45,cc:0.8,iter:0.4}},
   {name:'Halvorsen',     grp:'ATTR', kind:'2DC', mode:119,p:{morph:0.5,detail:0.55,speed:0.5,zoom:0.5,hue:0.75,ca:0.5,cb:0.45,cc:0.6,iter:0.45}},
-  {name:'Rössler',       grp:'ATTR', kind:'2DC', mode:120,p:{morph:0.55,detail:0.55,speed:0.5,zoom:0.5,hue:0.12,ca:0.4,cb:0.45,cc:0.7,iter:0.45}}
+  {name:'Rössler',       grp:'ATTR', kind:'2DC', mode:120,p:{morph:0.55,detail:0.55,speed:0.5,zoom:0.5,hue:0.12,ca:0.4,cb:0.45,cc:0.7,iter:0.45}},
+  // Mandalas: dihedral symmetry over seven pattern sources (shader family
+  // P_MND, one program each) and two orbit scenes drawn on the canvas.
+  {name:'Mandala Rings', grp:'MND', kind:'2D',  mode:46, p:{morph:0.33,detail:0.5,speed:0.5,zoom:0,hue:0.08,ca:0.5,cb:0.35,cc:0.45,iter:0.5}},
+  {name:'Droste',        grp:'MND', kind:'2D',  mode:47, p:{morph:0.33,detail:0.5,speed:0.5,zoom:0,hue:0.6,ca:0.4,cb:0.3,cc:0.5,iter:0.5}},
+  {name:'Chladni',       grp:'MND', kind:'2D',  mode:48, p:{morph:0.3,detail:0.5,speed:0.5,zoom:0,hue:0.12,ca:0.5,cb:0.4,cc:0.4,iter:0.3}},
+  {name:'Quasicrystal',  grp:'MND', kind:'2D',  mode:49, p:{morph:0.25,detail:0.4,speed:0.45,zoom:0,hue:0.55,ca:0.3,cb:0,cc:0.4,iter:0.6}},
+  {name:'Julia Mandala', grp:'MND', kind:'2D',  mode:50, p:{morph:0.33,detail:0.5,speed:0.4,zoom:0,hue:0.8,ca:0.8,cb:0.2,cc:0.5,iter:0.5}},
+  {name:'Rosette',       grp:'MND', kind:'2D',  mode:51, p:{morph:0.27,detail:0.5,speed:0.45,zoom:0,hue:0.3,ca:0.4,cb:0.45,cc:0.35,iter:0.5}},
+  {name:'Hyperbolic',    grp:'MND', kind:'2D',  mode:52, p:{morph:0.33,detail:0.5,speed:0.45,zoom:0,hue:0.66,ca:0.6,cb:0.5,cc:0.3,iter:0.6}},
+  {name:'Spirograph',    grp:'MND', kind:'2DC', mode:121,p:{morph:0.4,detail:0.5,speed:0.5,zoom:0.5,hue:0.1,ca:0.6,cb:0.4,cc:0.5,iter:0.5}},
+  {name:'Symmetric Chaos',grp:'MND',kind:'2DC', mode:122,p:{morph:0.3,detail:0.5,speed:0.35,zoom:0.5,hue:0.75,ca:0.2,cb:0.45,cc:0.85,iter:0.3}}
 ];
 
 const SLIDER_DEFS = [
@@ -5692,6 +6031,7 @@ const _2D_PATH = m => m<=9 ? ['P_E2A','escape2(uv,uMode-6)']
   : m===10 ? ['P_TUN','tunnel(uv)']
   : m===11 ? ['P_FLW','flow(uv)']
   : (m>=37 && m<=39) ? ['P_E2C','escape2c(uv,'+(m-37)+')', 'P_E2C'+m]
+  : (m>=46 && m<=52) ? ['P_MND','mandala(uv)', 'P_MND'+m]
            : ['P_E2B','escape2b(uv,E2B_K)', 'P_E2B'+m];
 const _frag2D = m => {
   const [def, call] = _2D_PATH(m);
@@ -5701,6 +6041,7 @@ const _frag2D = m => {
   // Repeat goes on the screen point before the family sees it (rep2), and its
   // per-copy hue and border on the color after — still one call site.
   return _HEAD + '#define '+def+' 1\n' + (def==='P_E2C' ? '#define E2C_K '+(m-37)+'\n' : '')
+    + (def==='P_MND' ? '#define MND_K '+(m-46)+'\n' : '')
     + (def==='P_E2B' ? '#define E2B_K '+(m-17)+'\n' : '') + _B2 + _VID
     + _TAILSRC.replace(_DISPATCH, '  vec3 col='+call.replace('(uv', '((inv2(rep2(uv))-uFocus)*exp2(-uZX.x*uZX.y*uZX.z)')+';\n'
       + '  if(uRep>0.0) col=hueRot(col,gRepH*6.2831853)*gRepB;\n');

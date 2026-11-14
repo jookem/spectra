@@ -100,6 +100,21 @@ function orbitClifford(x, y, a, b, c, d, n){
   return out;
 }
 
+// z <- z^d + c, for the mandalas. Near the fixed point o each step turns by
+// the multiplier's angle, so notes are read as angle and distance about o: a
+// phrase circles the center as it settles instead of repeating one note.
+function orbitPow(c, z, n, d, o){
+  const out = [];
+  for(let i=0;i<n;i++){
+    const r = Math.hypot(z[0], z[1]), a = Math.atan2(z[1], z[0]), rd = Math.pow(r, d);
+    z = [rd*Math.cos(a*d)+c[0], rd*Math.sin(a*d)+c[1]];
+    const R = Math.hypot(z[0], z[1]), ex = z[0]-o[0], ey = z[1]-o[1];
+    out.push([Math.atan2(ey, ex), Math.min(1.5, Math.hypot(ex, ey)*3), R > 2]);
+    if(R > 2) break;
+  }
+  return out;
+}
+
 // The scene's formula family, from its preset group and kind.
 function sceneOrbit(pre, e, t, n){
   const m = pre ? pre.mode : -1, grp = pre ? pre.grp : '', kind = pre ? pre.kind : '';
@@ -129,6 +144,15 @@ function sceneOrbit(pre, e, t, n){
     }
     if(grp === 'LATT') return orbitBox(p0.map(v=>v*2), -(1.5 + g('morph')*1.2 + (g('ca')-0.5)*0.6), n);
     return orbitSphere(p0, 0.9 + g('morph')*0.4 + (g('ca')-0.5)*0.3, n);
+  }
+  if(grp === 'MND'){
+    // c on the edge of the main component, as the Julia Mandala places it
+    // (multiplier just inside the unit circle), so orbits linger and wind.
+    const d = 3 + Math.round(g('morph')*6), lam = 0.97, ph = w*1.7;
+    const zr = Math.pow(lam/d, 1/(d-1)), za = ph/(d-1);
+    const zs = [zr*Math.cos(za), zr*Math.sin(za)], q = [1 - lam/d*Math.cos(ph), -lam/d*Math.sin(ph)];
+    const c = [zs[0]*q[0]-zs[1]*q[1], zs[0]*q[1]+zs[1]*q[0]];
+    return orbitPow(c, [zs[0]+0.1*Math.cos(w), zs[1]+0.1*Math.sin(w)], n, d, zs);
   }
   if(grp === 'ATTR' || grp === 'FLM'){
     return orbitClifford(Math.cos(w)*0.5, Math.sin(w)*0.5, -1.4+g('ca')*0.8, 1.6+g('cb')*0.4, 1.0+g('cc')*0.6, 0.7+g('morph')*0.6, n);

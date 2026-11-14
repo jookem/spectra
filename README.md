@@ -72,6 +72,10 @@ Around forty scenes across three renderer classes:
 - **3D** raymarched distance estimators — Mandelbulb, Menger, Apollonian,
   Tesseract, HexKochMosely, quaternion Julia and others.
 - **2D** escape-time and orbit-trap fields.
+- **Mandalas** — dihedral symmetry over seven pattern sources (superformula
+  rings, Droste log-polar rings, Chladni plate modes, quasicrystal waves,
+  z^d + c Julia sets, star rosettes on the Flower of Life, a hyperbolic disk
+  tiling), plus Spirograph and Field–Golubitsky symmetric chaos.
 - **Canvas** scenes — Spectrum Mesh, Shorebreak, Disco Robot.
 
 All of them read the same audio bands and the same parameter set, so a cue

@@ -3448,7 +3448,7 @@ class Component extends DCLogic {
                 99:'drawLorenz', 100:'drawThomas', 101:'drawSwirl', 102:'drawHole',
                 103:'drawRobot', 104:'drawAizawa', 105:'drawFlameSpiral', 106:'drawFlameDragon',
                 107:'drawFlameFern', 108:'drawFlameGalaxy', 109:'drawDriveIn', 110:'drawCity', 111:'drawTVWall', 112:'drawMirage', 113:'drawFrames', 114:'drawPool', 115:'drawWarp', 116:'drawSphere',
-                117:'drawQuadMap', 118:'drawClifford', 119:'drawHalvorsen', 120:'drawRossler'}[mode];
+                117:'drawQuadMap', 118:'drawClifford', 119:'drawHalvorsen', 120:'drawRossler', 121:'drawSpiro', 122:'drawIcon'}[mode];
     if(!fn || typeof this[fn]!=='function') return;
     const keepMesh=this.MESH, keepEff=this.eff, keepStat=this.meshStatRef;
     try{
@@ -4880,12 +4880,25 @@ class Component extends DCLogic {
     return r;
   }
   drawsTrace(mode){
-    return (mode>=98 && mode<=100) || mode===104 || (mode>=105 && mode<=108) || (mode>=117 && mode<=120);
+    return (mode>=98 && mode<=100) || mode===104 || (mode>=105 && mode<=108) || (mode>=117 && mode<=120) || mode===122;
   }
   zDrive(mode){
     return !!this.state.levels && this.is2Mode(mode) && this.zFree(mode);
   }
   paramLabels0(mode){
+    // Mandalas (46-52 shader, 121-122 canvas).
+    const MND={
+      46:{morph:'Petals', detail:'Rings', ca:'Doubling', cb:'Point', cc:'Bulge', iter:'Outlines'},
+      47:{morph:'Petals', detail:'Ring width', ca:'Point', cb:'Spiral', cc:'Bulge', iter:'Outlines'},
+      48:{morph:'Order m', detail:'Grain', ca:'Rings', cb:'Blend', cc:'Sand', iter:'Mode 2'},
+      49:{morph:'Waves', detail:'Frequency', ca:'Radial', cb:'Drift', cc:'Contrast', iter:'Steps'},
+      50:{morph:'Degree', detail:'Bands', ca:'Edge', cb:'Angle', cc:'Glow', iter:'Iterations'},
+      51:{morph:'Points', detail:'Stars', ca:'Sharpness', cb:'Flower', cc:'Line', iter:'Lattice'},
+      52:{morph:'Sides', detail:'Petals', ca:'Center', cb:'Flow', cc:'Line', iter:'Depth'},
+      121:{morph:'Gears', detail:'Line', ca:'Pen', cb:'Bloom', cc:'Layers', iter:'Draw', spinr:'Spread', lite:'Breath'},
+      122:{morph:'Wobble', ca:'Icon', cb:'Bloom', cc:'Trail', detail:'Exposure', iter:'Cycle', spinr:'Spread', lite:'Stretch\u2194Radius'}
+    };
+    if(MND[mode]) return MND[mode];
     // Injected fill-ins (see _fillFor in the engine): where an estimator ignores
     // a control, the sample point is pre-transformed instead, so every dial on
     // the strip moves something on every scene.
@@ -5061,7 +5074,16 @@ class Component extends DCLogic {
       117:['Quadratic map','x′ = a₁ + a₂x + a₃x² + a₄xy + a₅y + a₆y²  (y′ likewise, a₇…a₁₂)','Sprott’s codes, A…Y = −1.2…1.2; 24 chaotic ones, Cycle steps through them on the bar'],
       118:['Clifford attractor','x′ = sin(ay) + c cos(ax),  y′ = sin(bx) + d cos(by)','a, b, c, d drift, so one attractor melts into the next'],
       119:['Halvorsen attractor','ẋ = −ax − 4y − 4z − y²  (cyclic in x,y,z)','three interlocked wings; damping a on Cst A'],
-      120:['Rössler attractor','ẋ = −y − z,  ẏ = x + ay,  ż = b + z(x − c)','one stretch and one fold; c on Cst A runs period-doubling into chaos']
+      120:['Rössler attractor','ẋ = −y − z,  ẏ = x + ay,  ż = b + z(x − c)','one stretch and one fold; c on Cst A runs period-doubling into chaos'],
+      46:['Mandala rings','r(θ) = (|cos(mθ/4)|^n₂ + |sin(mθ/4)|^n₃)^(−1/n₁),  m = n₀·2^(k·doubling)','Gielis superformula petals on concentric rings, alternate rings counter-rotating'],
+      47:['Droste','u = log r / P + s·θ/2π,  ring = frac(u)','log-polar rings: r → e^P r is a symmetry, so the zoom never ends; Spiral shears it into s arms'],
+      48:['Chladni plate','u = Jₘ(k r) cos(mθ),  Jₘ(x) = (1/π)∫₀^π cos(mτ − x sinτ) dτ','sand settles on the nodal lines of two blended plate modes'],
+      49:['Quasicrystal','f(p) = Σₖ cos(p · (cos πk/n, sin πk/n) + φₖ)','n plane waves at equal angles; 5, 7 or 9 waves give symmetries no tiling has'],
+      50:['Julia mandala','z ← z^d + c,  c = z*(1 − λ/d),  z* = (λ/d)^(1/(d−1))','d-fold Julia set; c rides the main component edge, |λ| on Edge'],
+      51:['Rosette','{n} stars, alternate ones turned π/n,  circles on a hex lattice','interlaced stars over the Flower of Life; fill steps with how many stars contain the point'],
+      52:['Hyperbolic disk','invert in n circles |z − sec(π/n)| = tan(π/n) and a center circle','a tiling of the Poincaré disk, flowing under z → (z − b)/(1 − b̄z)'],
+      121:['Spirograph','x = (R−r) cos t + d cos((R−r)t/r),  y = (R−r) sin t − d sin((R−r)t/r)','hypotrochoids; r/R = a/b closes after a turns with b-fold symmetry'],
+      122:['Symmetric chaos','z ← (λ + α|z|² + β Re(zⁿ) + iω) z + γ z̄ⁿ⁻¹','Field and Golubitsky icons: chaotic, yet exactly n-fold symmetric; Cycle steps through them']
     };
     return F[mode] || null;
   }
@@ -5070,7 +5092,7 @@ class Component extends DCLogic {
   canvasMode(){
     if(!this.E) return null;
     const m = this.E.PRESETS[this.state.preset].mode;
-    const T={90:'mesh',91:'outrun',92:'code',93:'pipe',94:'shore',95:'pascal',96:'chaos',97:'lerpgon',98:'bird',99:'lorenz',100:'thomas',101:'swirl',102:'hole',103:'robot',104:'aizawa',105:'flame',106:'flame',107:'flame',108:'flame',109:'drivein',110:'city',111:'tvwall',112:'mirage',113:'frames',114:'pool',115:'warp',116:'sphere',117:'quad',118:'cliff',119:'halvorsen',120:'rossler'};
+    const T={90:'mesh',91:'outrun',92:'code',93:'pipe',94:'shore',95:'pascal',96:'chaos',97:'lerpgon',98:'bird',99:'lorenz',100:'thomas',101:'swirl',102:'hole',103:'robot',104:'aizawa',105:'flame',106:'flame',107:'flame',108:'flame',109:'drivein',110:'city',111:'tvwall',112:'mirage',113:'frames',114:'pool',115:'warp',116:'sphere',117:'quad',118:'cliff',119:'halvorsen',120:'rossler',121:'spiro',122:'icon'};
     return T[m] || null;
   }
   meshScene(){ return this.canvasMode()==='mesh'; }
@@ -5342,6 +5364,8 @@ class Component extends DCLogic {
     if(cm==='cliff'){ this.drawClifford(ctx,W,H,tick); this.drawCanvasText(ctx,W,H); return; }
     if(cm==='halvorsen'){ this.drawHalvorsen(ctx,W,H,tick); this.drawCanvasText(ctx,W,H); return; }
     if(cm==='rossler'){ this.drawRossler(ctx,W,H,tick); this.drawCanvasText(ctx,W,H); return; }
+    if(cm==='spiro'){ this.drawSpiro(ctx,W,H,tick); this.drawCanvasText(ctx,W,H); return; }
+    if(cm==='icon'){ this.drawIcon(ctx,W,H,tick); this.drawCanvasText(ctx,W,H); return; }
     const G=this.meshGeom(W,H);
     const row=M.prev;
 
@@ -9579,6 +9603,107 @@ class Component extends DCLogic {
   // Clifford is x' = sin(a y) + c cos(a x), y' = sin(b x) + d cos(b y). It stays
   // chaotic over wide parameter ranges, so a, b, c and d drift continuously and
   // the form melts from one shape into the next instead of cutting.
+  // Symmetric icon parameters [lambda, alpha, beta, gamma, omega, n], from
+  // Field and Golubitsky's tables; each was iterated offline and kept only if
+  // it stays bounded and fills a chaotic attractor (two that collapse to a
+  // fixed point were dropped).
+  ICON_SETS = [
+    [-2.08,1.0,-0.1,0.167,0.0,7], [-2.7,5.0,1.5,1.0,0.0,6], [2.5,-2.5,0.0,0.9,0.0,3],
+    [-2.05,3.0,-16.79,1.0,0.0,9], [-2.34,2.0,0.2,0.1,0.0,5], [2.6,-2.0,0.0,-0.5,0.0,5],
+    [-2.32,2.32,0.0,0.75,0.0,5], [1.56,-1.0,0.1,-0.82,0.12,3], [-1.806,1.806,0.0,1.0,0.0,5],
+    [1.5,-1.0,0.1,-0.805,0.0,3], [-2.195,10.0,-12.0,1.0,0.0,3], [-1.86,2.0,0.0,1.0,0.1,4],
+    [-2.5,5.0,-1.9,1.0,0.188,5], [2.409,-2.5,0.0,0.9,0.0,23], [-2.5,8.0,-0.7,1.0,0.0,5],
+    [-1.9,1.806,0.0,1.0,0.0,7], [2.409,-2.5,0.0,0.9,0.0,4]
+  ];
+  drawIcon(ctx,W,H,tick){ this.drawMap2(ctx,W,H,tick,122); }
+  // Spirograph (121). Hypotrochoids: a gear of radius r rolling inside a ring
+  // of radius R = 1, the pen at d from the gear's center. With r/R = a/b in
+  // lowest terms the curve closes after a turns of the gear and has b-fold
+  // symmetry. Layers are further gears from the same table at smaller sizes,
+  // each turned a little; the pen draws its curve in, holds, and starts over.
+  SPIRO_GEARS = [[2,5],[3,7],[3,8],[4,9],[5,11],[5,12],[7,15],[5,13],[7,16],[7,18],[9,20],[11,24]];
+  drawSpiro(ctx,W,H,tick){
+    const A=this.a||{}, e=this.eff||{}, M=this.MESH;
+    const g=k=>e[k]==null?0.5:e[k];
+    const bass=A.bass||0, high=A.high||0, beat=A.beat||0, loud=A.loud||0;
+    const V=this.canvasView(W,H);
+    const t=this.clk('spiroT', 0.05+Math.pow(g('speed'),2)*0.9);
+    const spin=this.clk('spiroSpin', Math.pow(g('speed'),2)*0.05);
+    ctx.save();
+    ctx.globalCompositeOperation='source-over';
+    ctx.fillStyle='#05060b'; ctx.fillRect(0,0,W,H);
+    const SC=Math.min(W,H)*0.45*V.sc*(1+beat*0.02);
+    const cx=W*0.5+V.ox, cy=H*0.5+V.oy;
+    const rot0=spin+(V.roll||0);
+    const G=this.SPIRO_GEARS, NG=G.length;
+    const gi=Math.min(NG-1,Math.floor(g('morph')*NG));
+    const nL=1+Math.floor(g('cc')*3.99);
+    const lw=Math.max(0.6,(0.5+g('detail')*2.6)*Math.min(W,H)/700);
+    const hue=g('hue'), spread=g('spinr')*0.35;
+    // Draw cycle: Draw at 0 shows every curve whole; higher draws them in
+    // faster. Each layer starts a little after the one before.
+    const dr=g('iter'), cyc=dr<0.04 ? -1 : t*(0.04+dr*0.5);
+    let tipX=0, tipY=0, tipOn=false, gearR=0, gearX=0, gearY=0;
+    for(let L=0;L<nL;L++){
+      const ab=G[(gi+L*3)%NG], a=ab[0], b=ab[1], r=a/b;
+      const scl=1-L*0.17;
+      const breath=1+(g('lite')-0.5)*0.6*Math.sin(t*0.8+L)+bass*0.12*g('lite');
+      const d=r*(0.35+g('ca')*1.1)*breath;
+      const k=(1-r)/r, T=6.2831853*a;
+      // Progress through this layer's curve, 0..1, with a hold at the end.
+      let prog=1;
+      if(cyc>=0){ const ph=cyc-L*0.18; prog=Math.max(0,Math.min(1,(ph-Math.floor(ph))*1.35)); if(ph<0) prog=0; }
+      const steps=Math.max(120,Math.min(5000,Math.round(a*b*24)));
+      const nS=Math.max(2,Math.round(steps*prog));
+      const lr=rot0*(L%2?-1:1)+L*0.31;
+      const cr=Math.cos(lr), sr=Math.sin(lr);
+      // Value steps per layer on one hue: the top layer is the accent at full
+      // light, the ones under it darker; the hue moves only by Spread along
+      // the curve.
+      const lightL=0.62-L*0.1, satL=0.85;
+      const segs=24;
+      ctx.globalCompositeOperation='lighter';
+      ctx.lineWidth=lw*(1-L*0.12); ctx.lineJoin='round'; ctx.lineCap='round';
+      let px=0, py=0;
+      for(let sgi=0;sgi<segs;sgi++){
+        const i0=Math.floor(nS*sgi/segs), i1=Math.floor(nS*(sgi+1)/segs);
+        if(i1<=i0) continue;
+        const rgb=this.hsl2rgb(hue+(sgi/segs-0.5)*spread+L*0.02, satL, Math.min(0.9,lightL+high*0.15+beat*0.1));
+        ctx.strokeStyle='rgba('+(rgb[0]|0)+','+(rgb[1]|0)+','+(rgb[2]|0)+','+(0.85-L*0.12)+')';
+        ctx.beginPath();
+        for(let i=i0;i<=i1;i++){
+          const u=T*i/steps;
+          const x=((1-r)*Math.cos(u)+d*Math.cos(k*u))*scl, y=((1-r)*Math.sin(u)-d*Math.sin(k*u))*scl;
+          px=cx+(x*cr-y*sr)*SC; py=cy-(x*sr+y*cr)*SC;
+          if(i===i0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+        }
+        ctx.stroke();
+      }
+      if(L===0 && prog<1 && prog>0){
+        const u=T*nS/steps;
+        tipX=px; tipY=py; tipOn=true;
+        const gx=(1-r)*Math.cos(u)*scl, gy=(1-r)*Math.sin(u)*scl;
+        gearX=cx+(gx*cr-gy*sr)*SC; gearY=cy-(gx*sr+gy*cr)*SC; gearR=r*scl*SC;
+      }
+    }
+    // The ring, and while drawing the gear and pen, faint in the complement.
+    ctx.globalCompositeOperation='lighter';
+    const cp=this.hsl2rgb(hue+0.5,0.5,0.35);
+    ctx.strokeStyle='rgba('+(cp[0]|0)+','+(cp[1]|0)+','+(cp[2]|0)+',0.35)';
+    ctx.lineWidth=Math.max(0.6,lw*0.5);
+    ctx.beginPath(); ctx.arc(cx,cy,SC,0,6.2832); ctx.stroke();
+    if(tipOn){
+      ctx.beginPath(); ctx.arc(gearX,gearY,gearR,0,6.2832); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(gearX,gearY); ctx.lineTo(tipX,tipY); ctx.stroke();
+      const ac=this.hsl2rgb(hue,0.6,0.85);
+      ctx.fillStyle='rgba('+(ac[0]|0)+','+(ac[1]|0)+','+(ac[2]|0)+',0.95)';
+      ctx.beginPath(); ctx.arc(tipX,tipY,lw*1.8+loud*3,0,6.2832); ctx.fill();
+    }
+    ctx.restore();
+    this.canvasBloom(ctx,ctx.canvas,g('cb')*0.6+high*0.3);
+    const stEl=this.meshStatRef && this.meshStatRef.current;
+    if(stEl && (tick%16)===0) stEl.textContent='r/R '+G[gi][0]+'/'+G[gi][1]+' \u00b7 '+G[gi][1]+'-fold \u00b7 '+nL+' layer'+(nL>1?'s':'');
+  }
   SPROTT_CODES = [
     'AMTMNQQXUYGA','CVQKGHQTPHTE','FIRCDERRPVLD','GIIETPIQRRUL',
     'GLXOESFTTPSV','GXQSNSKEECTX','HGUHDPHNSGOH','ILIBVPKJWGRR',
@@ -9595,7 +9720,7 @@ class Component extends DCLogic {
     const g=k=>e[k]==null?0.5:e[k];
     const adv=this.state.auto!==false;
     const V=this.canvasView(W,H);
-    const key=mode===117?'quad':'cliff';
+    const key=mode===117?'quad':(mode===122?'icon':'cliff');
     // Another scene used the shared buffer since our last frame if the tag is
     // gone; it then holds that scene's picture, not ours. Read before accum(),
     // which clears it.
@@ -9639,6 +9764,36 @@ class Component extends DCLogic {
         o[1]=co[6]+co[7]*x+co[8]*x*x+co[9]*x*y+co[10]*y+co[11]*y*y;
       };
       S.name=S.code;
+    } else if(mode===122){
+      // Symmetric icons (Field and Golubitsky, Symmetry in Chaos). The map
+      // commutes with a turn by 2 pi/n and with the mirror, so the attractor
+      // is chaotic yet exactly n-fold symmetric.
+      const L=this.ICON_SETS, N=L.length, it=g('iter');
+      let idx=Math.min(N-1,Math.floor(g('ca')*N));
+      if(it>0.04){
+        const bars=[16,8,4,2,1][Math.min(4,Math.floor(it*5))];
+        if(adv || S.bucket==null) S.bucket=Math.floor((this.mus||0)/(4*bars));
+        idx=(idx+S.bucket)%N;
+      }
+      if(S.idx<0 || idx!==S.idx){
+        if(S.idx>=0) S.fade=1;
+        S.idx=idx; S.x=0.01; S.y=0.003; S.skip=50; S.lv=null; S.bx=null;
+      }
+      S.wbK=S.wbK==null?1:S.wbK;
+      const P=L[idx], wb=g('morph')*0.03*S.wbK;
+      const lam=P[0]*(1+wb*(bass*0.8+0.35*Math.sin(t*0.9))), al=P[1], be=P[2], ga=P[3];
+      const om=P[4]+wb*0.5*Math.sin(t*0.7+1.3), n=P[5];
+      co=[lam,al,be,ga,om];
+      f=(x,y,o)=>{
+        // z^(n-1), then z^n = z^(n-1) z; conj(z)^(n-1) is conj(z^(n-1)).
+        let pr=x, pi=y;
+        for(let k=2;k<n;k++){ const q=pr*x-pi*y; pi=pr*y+pi*x; pr=q; }
+        const zn=pr*x-pi*y;
+        const pp=lam+al*(x*x+y*y)+be*zn;
+        o[0]=pp*x-om*y+ga*pr;
+        o[1]=pp*y+om*x-ga*pi;
+      };
+      S.name=n+'-fold';
     } else {
       const dr=0.1+g('iter')*0.5;
       co=[-1.4+(g('ca')-0.5)*1.1+dr*Math.sin(t*0.13),
@@ -9683,6 +9838,7 @@ class Component extends DCLogic {
     const mx=(bx.x0+bx.x1)*0.5, my=(bx.y0+bx.y1)*0.5;
     const ox=aw*0.5+V.ox*aw/W, oy=ah*0.5+V.oy*ah/H;
     const cSrc=g('lite'), lv=S.lv==null?0:S.lv;
+    const icon=mode===122, ir=1/Math.max(1e-3,Math.max(Math.abs(bx.x0),Math.abs(bx.x1),Math.abs(bx.y0),Math.abs(bx.y1)));
     let x=S.x, y=S.y, skip=S.skip, x0=1e9, x1=-1e9, y0=1e9, y1=-1e9, vs=0, ns=0, rs=0;
     const o=[0,0], t0=performance.now(), budget=(this.weakBoot?4:6)+loud*2;
     let it=0;
@@ -9701,7 +9857,9 @@ class Component extends DCLogic {
         // Exposure toward the step's direction, which bands the folds.
         // Log ratio to the mean: half the usual step and double it land near
         // opposite ends, where a saturating curve bunched everything mid-ramp.
-        const cA=0.5+0.5*(lst-lv), cB=Math.atan2(dy,dx)*0.159155+0.5;
+        // The icons color by radius instead of step direction: an angle has a
+        // seam, which cut across the n-fold symmetry as a hard hue edge.
+        const cA=0.5+0.5*(lst-lv), cB=icon ? Math.min(1,Math.sqrt(x*x+y*y)*ir) : Math.atan2(dy,dx)*0.159155+0.5;
         const col=cA+(cB-cA)*cSrc;
         const px=x-mx, py=y-my;
         const ix=Math.floor(ox+(px*cR-py*sR)*SC), iy=Math.floor(oy-(px*sR+py*cR)*SC);
@@ -9731,7 +9889,7 @@ class Component extends DCLogic {
     ctx.restore();
     this.canvasBloom(ctx,ctx.canvas,g('cb')*0.6+high*0.3);
     const stEl=this.meshStatRef && this.meshStatRef.current;
-    if(stEl && (tick%16)===0) stEl.textContent=(mode===117?(S.idx+1)+'/'+this.SPROTT_CODES.length+' · ':'')+S.name+' · '+(it/1000).toFixed(0)+'k pts';
+    if(stEl && (tick%16)===0) stEl.textContent=(mode===117?(S.idx+1)+'/'+this.SPROTT_CODES.length+' · ':(mode===122?(S.idx+1)+'/'+this.ICON_SETS.length+' · ':''))+S.name+' · '+(it/1000).toFixed(0)+'k pts';
   }
 
   // Halvorsen (119). Cyclically symmetric like Thomas, but polynomial: three
@@ -15192,7 +15350,7 @@ class Component extends DCLogic {
   // lattices, a sphere), so the pad moved through the set in an order that
   // matched nothing on screen. Walking the grouped order means D-pad ← → works
   // through one family and then the next, exactly as the deck reads.
-  KINDORDER = ['BULB','LATT','SPHR','FLD','TUN','ATTR','FLM','SYN','SCN'];
+  KINDORDER = ['BULB','LATT','SPHR','FLD','TUN','MND','ATTR','FLM','SYN','SCN'];
   sceneWalk(){
     const P = this.E ? this.E.PRESETS : [];
     if(this.walkCache && this.walkCache.n === P.length) return this.walkCache.list;
@@ -18352,7 +18510,7 @@ class Component extends DCLogic {
     // would actually cut between.
     const KINDLABEL = {
       BULB:'Bulbs', LATT:'Lattices', SPHR:'Spheres', FLD:'Fields',
-      TUN:'Tunnels', ATTR:'Attractors', FLM:'Flames', SYN:'Audio rigs', SCN:'Scenes'
+      TUN:'Tunnels', MND:'Mandalas', ATTR:'Attractors', FLM:'Flames', SYN:'Audio rigs', SCN:'Scenes'
     };
     const ALLP = this.E ? this.E.PRESETS : [];
     const grpOf = p => p ? (p.grp || p.kind) : 'BULB';
@@ -18363,7 +18521,7 @@ class Component extends DCLogic {
     const thumbs = this.thumbMem;
     const liveKind = grpOf(ALLP[s.preset]);
     const tabKind = s.kindTab || liveKind;
-    const kindTabs = ['BULB','LATT','SPHR','FLD','TUN','ATTR','FLM','SYN','SCN'].map(k=>Object.assign({
+    const kindTabs = ['BULB','LATT','SPHR','FLD','TUN','MND','ATTR','FLM','SYN','SCN'].map(k=>Object.assign({
       label: KINDLABEL[k]||k, count: ALLP.filter(p=>grpOf(p)===k).length,
       select: ()=>this.setState({kindTab:k})
     }, chip(k===tabKind)));
