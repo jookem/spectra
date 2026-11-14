@@ -17592,9 +17592,14 @@ class Component extends DCLogic {
       // DOF slider is the aperture of a real lens gather that focuses on the
       // middle of the frame.
       const is3dof = dofOn;
+      // 2D Repeat: the wall has no subject at the center, so the baseline
+      // center-falloff defocus only smeared the outer copies into offset ghost
+      // doubles (six bright-weighted taps print sharp detail as discrete
+      // copies). Off there; the DOF dial still adds it on purpose.
+      const rep2On = (this.state.camRep||0) > 0 && this.is2D() && !this.isCanvasScene();
       gl.uniform1f(pu.uBokeh, is3dof
         ? (this.eff.dof ?? 0)
-        : (this.is2D() ? 0.35 + 0.65*(tm.smth ?? 0.55) + 1.2*(this.isCanvasScene() ? 0 : (this.eff.dof ?? 0)) : 0));
+        : (this.is2D() ? (rep2On ? 0 : 0.35 + 0.65*(tm.smth ?? 0.55)) + 1.2*(this.isCanvasScene() ? 0 : (this.eff.dof ?? 0)) : 0));
       if(pu.uDofDepth) gl.uniform1f(pu.uDofDepth, is3dof ? 1 : 0);
       if(pu.uDenoise) gl.uniform1f(pu.uDenoise, dnAmt);
       if(pu.uBloom) gl.uniform1f(pu.uBloom, bloomOn ? this.eff.lit : 0);

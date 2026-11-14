@@ -439,10 +439,13 @@ void main(){
       // Six taps on the golden-angle spiral, each weighted by its own
       // brightness so a small highlight dominates its circle instead of being
       // diluted into gray.
-      vec3 acc=col; float wsum=1.0;
+      // The spiral turns per pixel: with one fixed spiral every pixel took the
+      // same six offsets, which printed sharp detail as six faint offset
+      // copies (ghost doubles at the edges) instead of blurring it.
+      vec3 acc=col; float wsum=1.0, jr=h2(gl_FragCoord.xy)*6.2831853;
       for(int i=0;i<6;i++){
         float fi2=float(i)+0.5;
-        float ang=fi2*2.39996323;
+        float ang=fi2*2.39996323+jr;
         float rad=sqrt(fi2/6.0)*coc*0.035;
         vec4 s=texture(uScene,uv+vec2(cos(ang),sin(ang))*rad*vec2(1.0,uRes.x/uRes.y));
         float lum=dot(s.rgb,vec3(0.2126,0.7152,0.0722));
